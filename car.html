@@ -6,13 +6,26 @@
     <title>ENCAR · Детальная карточка авто</title>
     <!-- Tailwind CSS + Inter font -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Дополнительные кастомные стили -->
+    <!-- Font Awesome 6 (free) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    
+    <!-- Общие стили -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+        
+        /* Сброс отступов */
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
         * { font-family: 'Inter', system-ui, sans-serif; }
         body {
-            background: linear-gradient(135deg, #f6f9fc 0%, #edf2f7 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%);
         }
+        
         .card {
             background: rgba(255,255,255,0.9);
             backdrop-filter: blur(10px);
@@ -24,6 +37,7 @@
             transform: translateY(-2px);
             box-shadow: 0 30px 50px -12px rgba(0,50,100,0.25);
         }
+        
         /* Галерея */
         .gallery-main {
             position: relative;
@@ -164,6 +178,7 @@
             font-size: 1.2rem;
             border-radius: 16px;
         }
+        
         /* Модальная карусель */
         .modal {
             display: none;
@@ -272,6 +287,7 @@
             .thumbnails-row { gap: 8px; }
             .thumbnail { flex: 0 0 calc(25% - 6px); }
         }
+        
         /* остальные стили */
         .badge-option {
             background: linear-gradient(145deg, #ffffff, #f3f6fa);
@@ -326,6 +342,7 @@
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
         /* правая колонка с расчётами */
         .calc-card {
             background: white;
@@ -394,6 +411,7 @@
             font-size: 0.95rem;
             color: #4b5563;
         }
+        
         /* Блок "Похожие по цене" */
         .similar-cars-section {
             margin-top: 40px;
@@ -510,6 +528,7 @@
                 gap: 12px;
             }
         }
+        
         /* Юридический футер */
         .footer {
             background-color: #1a202c;
@@ -565,120 +584,183 @@
                 grid-template-columns: 1fr;
             }
         }
-    </style>
-    <!-- Font Awesome 6 (free) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-</head>
-<body class="text-gray-800 antialiased">
-    <!-- Стили шапки сайта -->
-    <style>
-        /* Шапка сайта */
-        .header {
-            background: white;
-            border-bottom: 1px solid #e5e7eb;
-            padding: 16px 20px;
+
+        /* Стили шапки сайта */
+        /* Обёртка для шапки */
+        .header-wrapper {
+            background: #fff;
+            width: 100%;
             position: sticky;
             top: 0;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #eaeef2;  /* очень светлый серый - теперь на всю ширину */
+            box-sizing: border-box;
+            padding: 0;  /* убедиться, что нет внутренних отступов */
         }
-        .header-content {
-            max-width: 1600px;
+
+        /* Новые стили шапки */
+        .header-area {
+            width: 1280px;
             margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #111827;
-            text-decoration: none;
-        }
-        .logo span {
-            color: #3b82f6;
-        }
-        .nav-menu {
-            display: flex;
-            gap: 32px;
-            align-items: center;
-        }
-        .nav-menu a {
-            text-decoration: none;
-            color: #374151;
-            font-weight: 500;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
+            height: 87px;
             position: relative;
+            font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            letter-spacing: -0.5px;
+            color: #181818;
+            box-sizing: border-box;
+            z-index: 100;
         }
-        .nav-menu a:hover {
+
+        /* Логотип */
+        .logo {
+            display: inline-block;
+            margin: 0;
+            vertical-align: top;
+        }
+        .logo a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            text-decoration: none;
+            color: #181818;
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+        }
+        .logo .logo-text {
+            font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', sans-serif;
+        }
+        .logo .logo-accent {
+            color: #3b82f6;
+            font-weight: 900;
+        }
+        .logo .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            font-weight: 900;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Меню (GNB) */
+        .gnb {
+            display: inline-block;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            vertical-align: top;
+            max-height: 87px;
+        }
+        .gnb li {
+            display: inline-block;
+        }
+        .gnb li a {
+            display: inline-block;
+            padding: 0 15px;
+            text-decoration: none;
+            color: #181818;
+            font-weight: 500;
+            line-height: 87px;
+            transition: color 0.2s;
+        }
+        .gnb li a:hover {
             color: #3b82f6;
         }
-        .nav-menu a::after {
-            content: '';
+        .gnb li a.on {
+            color: #3b82f6;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .gnb li a b {
+            font-weight: 700;
+        }
+
+        /* Правая группа (util) */
+        .util {
             position: absolute;
-            bottom: -4px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: #3b82f6;
-            transition: width 0.3s ease;
+            right: 0;
+            top: 28px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
         }
-        .nav-menu a:hover::after {
-            width: 100%;
+        .util li {
+            display: inline-block;
+            margin-left: 15px;
+            vertical-align: middle;
         }
-        .header-buttons {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        .btn {
-            padding: 10px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 0.9rem;
+        .util li a,
+        .util li button {
             text-decoration: none;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            line-height: normal;
+            display: inline-block;
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            color: white;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        /* Общие стили для обеих кнопок */
+        .util li a.btn-primary,
+        .util li button.btn-secondary {
+            background-color: #f0f2f5;      /* светло-серый */
+            color: #181818;                  /* тёмный текст */
+            border: 1px solid #d0d5dd;       /* тонкая обводка */
+            border-radius: 4px;               /* небольшое скругление */
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            display: inline-block;
+            line-height: normal;
         }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-            background: linear-gradient(135deg, #2563eb, #7c3aed);
-        }
-        .btn-secondary {
-            background: white;
-            color: #374151;
-            border-color: #e5e7eb;
-        }
-        .btn-secondary:hover {
-            background: #f3f4f6;
-            border-color: #d1d5db;
+
+        /* Ховер-эффект */
+        .util li a.btn-primary:hover,
+        .util li button.btn-secondary:hover {
+            background-color: #e5e8eb;
+            border-color: #b0b8c5;
         }
     </style>
 </head>
 <body class="text-gray-800 antialiased">
 
 <!-- Шапка сайта -->
-<header class="header">
-    <div class="header-content">
-        <a href="index.html" class="logo">Auto<span>Encar</span></a>
-        <nav class="nav-menu">
-            <a href="index.html">Каталог</a>
-            <a href="howtobuy.html">Как купить</a>
-            <a href="https://t.me/nikits15" target="_blank">Контакты</a>
-        </nav>
-        <div class="header-buttons">
-            <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank">Связаться с менеджером</a>
-            <button class="btn btn-secondary" onclick="alert('Функция входа в разработке')">Войти</button>
-        </div>
-    </div>
-</header>
+<div class="header-wrapper">
+    <header class="header-area">
+        <h1 class="logo">
+            <a href="https://www.encar.com/index.do">
+                <div class="logo-icon">RA</div>
+                <span class="logo-text">Ride<span class="logo-accent">Auto</span></span>
+            </a>
+        </h1>
+        <ul class="gnb">
+            <li><a href="#basic-info" class="on"><b>Основная информация</b></a></li>
+            <li><a href="#options"><b>Опции</b></a></li>
+            <li><a href="#inspection"><b>Диагностика</b></a></li>
+            <li><a href="#history"><b>История</b></a></li>
+            <li><a href="#similar"><b>Похожие авто</b></a></li>
+        </ul>
+        <ul class="util">
+            <li><a href="https://t.me/nikits15" class="btn-primary" target="_blank">Связаться с менеджером</a></li>
+            <li><button class="btn-secondary" onclick="alert('Функция входа в разработке')">Войти</button></li>
+        </ul>
+    </header>
+</div>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="app">
     <!-- шапка -->
@@ -1483,27 +1565,50 @@
             // Правая колонка
             const priceColumnHtml = renderPriceColumn(rawData);
 
-            // Сборка: две колонки
+            // Собираем контент левой колонки с id для навигации
+            const leftColumnContent = [];
+
+            leftColumnContent.push(galleryHtml);
+            leftColumnContent.push(`<div id="basic-info">${specHtml}</div>`);
+            leftColumnContent.push(`<div id="options">${optionsHtml}</div>`);
+
+            // Блок диагностики (объединяем все поддиагностики в один контейнер)
+            let inspectionHtml = '';
+            if (bodyPanelsHtml || commentsHtml || additionalHtml || bodyChangedHtml || inspectionCombinedHtml) {
+                inspectionHtml = '<div id="inspection">';
+                if (bodyPanelsHtml) inspectionHtml += bodyPanelsHtml;
+                if (commentsHtml) inspectionHtml += commentsHtml;
+                if (additionalHtml) inspectionHtml += additionalHtml;
+                if (bodyChangedHtml) inspectionHtml += bodyChangedHtml;
+                if (inspectionCombinedHtml) inspectionHtml += inspectionCombinedHtml;
+                inspectionHtml += '</div>';
+            }
+            if (inspectionHtml) leftColumnContent.push(inspectionHtml);
+
+            if (recordHtml) leftColumnContent.push(`<div id="history">${recordHtml}</div>`);
+            if (diagPhotoHtml) leftColumnContent.push(`<div id="diagnostics">${diagPhotoHtml}</div>`);
+            leftColumnContent.push(metaHtml);
+
+            const leftColumnHtml = leftColumnContent.join('');
+
             container.innerHTML = `
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div class="lg:col-span-2 space-y-8">
-                        ${galleryHtml}
-                        ${specHtml}
-                        ${optionsHtml}
-                        ${bodyPanelsHtml}
-                        ${commentsHtml}
-                        ${additionalHtml}
-                        ${bodyChangedHtml}
-                        ${inspectionCombinedHtml}
-                        ${recordHtml}
-                        ${diagPhotoHtml}
-                        ${metaHtml}
+                        ${leftColumnHtml}
                     </div>
                     <div class="lg:col-span-1 space-y-6">
                         ${priceColumnHtml}
                     </div>
                 </div>
             `;
+
+            // Динамическое обновление шапки навигации
+            updateHeaderNavigation();
+
+            // Добавляем блок "Похожие" после основной сетки
+            renderSimilarCars(rawData).then(() => {
+                setupSectionNavigation(); // настраиваем навигацию после подгрузки похожих
+            });
 
             // Добавляем блок "Похожие по цене" после всех блоков
             const similarCarsHtml = renderSimilarCars(rawData);
@@ -1596,6 +1701,113 @@
                     updateMainPhoto(parseInt(index, 10));
                 }
             });
+        }
+
+        // ---------- Функция для динамического обновления шапки ----------
+        function updateHeaderNavigation() {
+            const gnb = document.querySelector('.gnb');
+            if (!gnb) return;
+
+            // Определяем, какие секции присутствуют на странице
+            const sections = [
+                { id: 'basic-info', label: 'Основная информация' },
+                { id: 'options', label: 'Опции' },
+                { id: 'inspection', label: 'Диагностика' },
+                { id: 'history', label: 'История' },
+                { id: 'diagnostics', label: 'Фото диагностики' }
+            ];
+
+            // Очищаем текущее меню
+            gnb.innerHTML = '';
+
+            // Добавляем только те секции, которые присутствуют на странице
+            sections.forEach(section => {
+                const element = document.getElementById(section.id);
+                if (element) {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = `#${section.id}`;
+                    a.innerHTML = `<b>${section.label}</b>`;
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const header = document.querySelector('.header-area');
+                        const targetPosition = element.getBoundingClientRect().top + window.scrollY - (header ? header.offsetHeight : 0);
+                        window.scrollTo({
+                            top: targetPosition,
+                            behavior: 'smooth'
+                        });
+                    });
+                    li.appendChild(a);
+                    gnb.appendChild(li);
+                }
+            });
+
+            // Делаем первую ссылку активной по умолчанию
+            const firstLink = gnb.querySelector('a');
+            if (firstLink) {
+                firstLink.classList.add('on');
+            }
+        }
+
+        // ---------- Анимации навигации ----------
+        function setupSectionNavigation() {
+            const navLinks = document.querySelectorAll('.gnb a');
+            const header = document.querySelector('.header-area');
+            if (!navLinks.length || !header) return;
+
+            const sections = [];
+            navLinks.forEach(link => {
+                const targetId = link.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    sections.push({
+                        id: targetId,
+                        element: targetElement,
+                        link: link
+                    });
+                }
+            });
+
+            if (sections.length === 0) return;
+
+            // Плавный скролл при клике
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = link.getAttribute('href').substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                        const headerHeight = header.offsetHeight;
+                        const targetPosition = targetElement.getBoundingClientRect().top + window.scrollY - headerHeight;
+                        window.scrollTo({
+                            top: targetPosition,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+
+            // Intersection Observer для подсветки активного раздела
+            const observerOptions = {
+                root: null,
+                rootMargin: `-${header.offsetHeight}px 0px 0px 0px`,
+                threshold: 0.2
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        const activeLink = document.querySelector(`.gnb a[href="#${id}"]`);
+                        if (activeLink) {
+                            navLinks.forEach(link => link.classList.remove('on'));
+                            activeLink.classList.add('on');
+                        }
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => observer.observe(section.element));
         }
 
         // ---------- Загрузка данных ----------
