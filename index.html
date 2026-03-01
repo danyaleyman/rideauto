@@ -19,41 +19,40 @@
     
     /* Социальные иконки */
     .social-icons {
-      display: inline-block;
-      margin-right: 16px;
+      display: flex;
+      gap: 8px;            /* расстояние между иконками */
+      margin-right: 8px;
     }
     .social-icons a {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      background-color: #f1f1f1;
-      margin: 5px;
-      color: #45619d;
-      box-shadow: 0px 3px 8px -3px #000;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background-color: #f1f1f1;   /* светлый фон как в encar (кнопки чата/меню) */
+      color: #374151;               /* тёмный цвет иконки */
       border-radius: 50%;
       text-align: center;
-      line-height: 40px;
       transition: all 0.3s ease;
+      font-size: 16px;
+      box-shadow: none;             /* убираем тень */
     }
     .social-icons a:hover {
-      transform: scale(1.2);
-      background-color: #45619d;
-      color: white;
+      background-color: #3b82f6;    /* акцентный синий */
+      color: #ffffff;               /* иконка становится белой */
+      transform: scale(1.1);
     }
-    .social-icons a[title="Telegram"] {
-      color: #229ed9;
+    /* Убираем старые переопределения для конкретных сетей */
+    .social-icons a[title="Telegram"],
+    .social-icons a[title="Avito"],
+    .social-icons a[title="ВКонтакте"] {
+      color: #374151;               /* одинаковый цвет для всех */
     }
-    .social-icons a[title="Telegram"]:hover {
-      background-color: #229ed9;
-    }
-    .social-icons a[title="Avito"] {
-      color: #0077b5;
-    }
-    .social-icons a[title="Avito"]:hover {
-      background-color: #0077b5;
-    }
-    .social-icons i {
-      font-size: 16px;
+    .social-icons a[title="Telegram"]:hover,
+    .social-icons a[title="Avito"]:hover,
+    .social-icons a[title="ВКонтакте"]:hover {
+      background-color: #3b82f6;    /* общий цвет ховера */
+      color: #ffffff;
     }
     .header-content {
       max-width: 1600px;
@@ -161,7 +160,7 @@
       position: sticky;
       top: 20px;
       max-height: calc(100vh - 40px);
-      overflow-y: auto;
+  overflow-y: hidden;
       flex-shrink: 0;
       border: 1px solid #e5e7eb;
     }
@@ -242,7 +241,7 @@
     }
     .checkbox-list {
       max-height: 220px;
-      overflow-y: auto;
+  overflow-y: hidden;
       padding-right: 8px;
       margin-top: 8px;
     }
