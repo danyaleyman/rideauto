@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENCAR · Детальная карточка авто</title>
+    <!-- Tailwind CSS + Inter font -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Дополнительные кастомные стили -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body {
+            background: linear-gradient(135deg, #f6f9fc 0%, #edf2f7 100%);
+        }
+        .card {
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.1), 0 4px 18px 0 rgba(0,0,0,0.02);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 30px 50px -12px rgba(0,50,100,0.25);
+        }
+        /* Галерея */
+        .gallery-main {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #f0f4fa;
+            border-radius: 24px;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+        }
+        .gallery-main img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        .gallery-main:hover img {
+            transform: scale(1.02);
+        }
+        .gallery-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 5;
+        }
+        .gallery-nav:hover {
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .gallery-nav.left { left: 16px; }
+        .gallery-nav.right { right: 16px; }
+        .gallery-counter {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 5;
+        }
+        .photo-count {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 5;
+        }
+        .gallery-views {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            color: #f9fafb;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 5;
+        }
+        .gallery-views i {
+            font-size: 0.85rem;
+        }
+        .thumbnails-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 0;
+            flex-wrap: nowrap;
+            width: 100%;
+            overflow: hidden;
+        }
+        .thumbnail {
+            flex: 1 1 0;
+            aspect-ratio: 4 / 3;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            background: #eef2f6;
+            position: relative;
+        }
+        .thumbnail.active {
+            border-color: #3b82f6;
+            transform: scale(1.02);
+        }
+        .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .thumbnail.more {
+            position: relative;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        .thumbnail.more span {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.5);
+            color: #f9fafb;
+            font-weight: 700;
+            font-size: 1.2rem;
+            border-radius: 16px;
+        }
+        /* Модальная карусель */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            position: relative;
+            max-width: 1200px;
+            width: 90%;
+            background: transparent;
+            padding: 24px 32px 20px;
+            box-sizing: border-box;
+        }
+        .modal-main {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border-radius: 24px;
+            overflow: hidden;
+        }
+        .modal-main img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .modal-thumbs-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .modal-thumb {
+            flex: 0 0 80px;
+            aspect-ratio: 4 / 3;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
+            background: #0f172a;
+        }
+        .modal-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .modal-thumb.active {
+            border-color: #3b82f6;
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            background: rgba(0,0,0,0.3);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            border: none;
+        }
+        .modal-close:hover { background: rgba(0,0,0,0.6); }
+        .modal-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(4px);
+            color: white;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .modal-nav:hover { background: rgba(255,255,255,0.4); }
+        .modal-nav.left { left: 16px; }
+        .modal-nav.right { right: 16px; }
+        .modal-counter {
+            text-align: center;
+            color: white;
+            margin-top: 16px;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        @media (max-width: 768px) {
+            .modal-nav.left { left: 8px; }
+            .modal-nav.right { right: 8px; }
+            .thumbnails-row { gap: 8px; }
+            .thumbnail { flex: 0 0 calc(25% - 6px); }
+        }
+        /* остальные стили */
+        .badge-option {
+            background: linear-gradient(145deg, #ffffff, #f3f6fa);
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            transition: all 0.2s;
+        }
+        .badge-option:hover {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .data-table td {
+            padding: 0.6rem 0.2rem;
+            border-bottom: 1px dashed #e9edf2;
+        }
+        .data-table tr:last-child td { border-bottom: none; }
+        .inspection-subtitle {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #0f1825;
+            border-bottom: 2px solid #a5c9ff;
+            padding-bottom: 0.25rem;
+            display: inline-block;
+        }
+        .accident-card {
+            background: #f8fafd;
+            border-radius: 20px;
+            padding: 1rem 1.5rem;
+            border: 1px solid #dee7f2;
+            box-shadow: 0 2px 8px rgba(0,20,40,0.02);
+        }
+        .diag-photo {
+            border-radius: 16px;
+            overflow: hidden;
+            transition: 0.2s;
+            border: 2px solid transparent;
+        }
+        .diag-photo:hover {
+            border-color: #3b82f6;
+            transform: scale(1.02);
+        }
+        #car-content > div { animation: fadeInUp 0.4s ease backwards; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* правая колонка с расчётами */
+        .calc-card {
+            background: white;
+            border-radius: 28px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .calc-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .calc-row:last-child {
+            border-bottom: none;
+        }
+        .calc-total {
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .calc-currency {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        .manager-button {
+            background: #2563eb;
+            color: white;
+            border-radius: 60px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .manager-button:hover {
+            background: #1d4ed8;
+        }
+        .telegram-link {
+            color: #2563eb;
+            font-size: 0.9rem;
+            text-decoration: underline;
+        }
+        .hidden-detail {
+            display: none;
+        }
+        .show-detail {
+            display: block;
+        }
+        .car-header-compact {
+            background: white;
+            border-radius: 20px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .car-header-compact .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .car-header-compact .details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+            color: #4b5563;
+        }
+        /* Блок "Похожие по цене" */
+        .similar-cars-section {
+            margin-top: 40px;
+            padding-top: 32px;
+            border-top: 2px solid #e5e7eb;
+        }
+        .similar-cars-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .similar-cars-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        .similar-cars-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        .similar-car-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .similar-car-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 14px 28px rgba(0,0,0,0.1);
+        }
+        .similar-car-image {
+            position: relative;
+            width: 100%;
+            height: 160px;
+            overflow: hidden;
+            background: #edf2f7;
+        }
+        .similar-car-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        .similar-car-card:hover .similar-car-image img {
+            transform: scale(1.05);
+        }
+        .similar-car-info {
+            padding: 16px;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .similar-car-title {
+            font-size: 1rem;
+            font-weight: 650;
+            color: #111827;
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .similar-car-model {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        .similar-car-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            border-top: 1px solid #edf2f7;
+            padding-top: 8px;
+        }
+        .similar-car-mileage {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+        .similar-car-price {
+            font-weight: 750;
+            font-size: 1.2rem;
+            color: #111827;
+        }
+        .similar-car-link {
+            display: block;
+            width: 100%;
+            height: 100%;
+            text-decoration: none;
+            color: inherit;
+        }
+        @media (max-width: 1024px) {
+            .similar-cars-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            .similar-cars-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 500px) {
+            .similar-cars-grid {
+                grid-template-columns: 1fr;
+            }
+            .similar-cars-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+        /* Юридический футер */
+        .footer {
+            background-color: #1a202c;
+            color: #ffffff;
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top: 1px solid #2d3748;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        .footer-section {
+            margin-bottom: 2rem;
+        }
+        
+        .footer-section h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+        }
+        
+        .footer-text {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        .footer-column {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #cbd5e0;
+        }
+        
+        .footer-column p {
+            margin-bottom: 1rem;
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 1rem;
+            border-top: 1px solid #2d3748;
+            color: #a0aec0;
+            font-size: 0.85rem;
+        }
+
+        /* Адаптив для мобильных */
+        @media (max-width: 768px) {
+            .footer-text {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <!-- Font Awesome 6 (free) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="text-gray-800 antialiased">
+    <!-- Стили шапки сайта -->
+    <style>
+        /* Шапка сайта */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+            text-decoration: none;
+        }
+        .logo span {
+            color: #3b82f6;
+        }
+        .nav-menu {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+        .nav-menu a {
+            text-decoration: none;
+            color: #374151;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+            position: relative;
+        }
+        .nav-menu a:hover {
+            color: #3b82f6;
+        }
+        .nav-menu a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        .nav-menu a:hover::after {
+            width: 100%;
+        }
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+        }
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border-color: #e5e7eb;
+        }
+        .btn-secondary:hover {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+<!-- Шапка сайта -->
+<header class="header">
+    <div class="header-content">
+        <a href="index.html" class="logo">Auto<span>Encar</span></a>
+        <nav class="nav-menu">
+            <a href="index.html">Каталог</a>
+            <a href="howtobuy.html">Как купить</a>
+            <a href="https://t.me/nikits15" target="_blank">Контакты</a>
+        </nav>
+        <div class="header-buttons">
+            <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank">Связаться с менеджером</a>
+            <button class="btn btn-secondary" onclick="alert('Функция входа в разработке')">Войти</button>
+        </div>
+    </div>
+</header>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="app">
+    <!-- шапка -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600">
+            <i class="fa-regular fa-circle-check text-green-500"></i>
+            <span>ENCAR детализация • ID <span id="car-id-placeholder" class="font-mono bg-white px-2 py-0.5 rounded-full shadow-sm"></span></span>
+            <a href="#" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium ml-2" id="original-link">
+                <i class="fa-regular fa-external-link"></i> Оригинал
+            </a>
+        </div>
+        <a href="index.html" class="btn btn-secondary">
+            <i class="fa-regular fa-arrow-left mr-2"></i> Назад к списку
+        </a>
+    </div>
+
+    <!-- динамический контент (две колонки) -->
+    <div id="car-content" class="space-y-8">
+        <div class="text-center py-12 text-gray-400">Загрузка данных...</div>
+    </div>
+
+    <!-- футер -->
+    <div class="border-t border-gray-200/70 pt-6 mt-10 text-xs text-gray-400 flex justify-between">
+        <span>© ENCAR parser • данные актуальны на <span id="data-date-placeholder">—</span></span>
+        <span>версия для детального просмотра</span>
+    </div>
+</div>
+
+<!-- Модальное окно галереи -->
+<div id="galleryModal" class="modal">
+    <div class="modal-content">
+        <button type="button" class="modal-close" id="modalClose" aria-label="Закрыть галерею"><span aria-hidden="true">×</span></button>
+        <div class="modal-main" id="modalMain">
+            <button type="button" class="modal-nav left" id="modalPrev" aria-label="Предыдущее фото"><span aria-hidden="true">‹</span></button>
+            <button type="button" class="modal-nav right" id="modalNext" aria-label="Следующее фото"><span aria-hidden="true">›</span></button>
+        </div>
+        <div class="modal-thumbs-row" id="modalThumbs"></div>
+        <div class="modal-counter" id="modalCounter"></div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- СЛОВАРИ ДЛЯ ПЕРЕВОДА ----------
+        const partNamesRu = {
+            '실린더 커버(로커암 커버)': 'Клапанная крышка',
+            '실린더 헤드 / 개스킷': 'ГБЦ / прокладка',
+            '실린더 블록 / 오일팬': 'Блок цилиндров / поддон',
+            '오일 유량': 'Уровень масла',
+            '워터펌프': 'Помпа',
+            '라디에이터': 'Радиатор',
+            '냉각수 수량': 'Уровень ОЖ',
+            '클러치 어셈블리': 'Сцепление в сборе',
+            '등속조인트': 'ШРУС',
+            '추친축 및 베어링': 'Кардан / подшипники',
+            '디피렌셜 기어': 'Дифференциал',
+            '동력조향 작동 오일 누유': 'Течь масла ГУР',
+            '스티어링 펌프': 'Насос ГУР',
+            '스티어링 기어(MDPS포함)': 'Рулевая рейка',
+            '스티어링 조인트': 'Рулевой шарнир',
+            '파워고압호스': 'Шланг ГУР',
+            '타이로드엔드 및 볼 조인트': 'Наконечники / шаровые',
+            '브레이크 마스터 실린더오일 누유': 'Течь ГТЦ',
+            '브레이크 오일 누유': 'Течь тормозной жидкости',
+            '배력장치 상태': 'Вакуумный усилитель',
+            '발전기 출력': 'Генератор',
+            '시동 모터': 'Стартер',
+            '와이퍼 모터 기능': 'Мотор стеклоочистителя',
+            '실내송풍 모터': 'Печка',
+            '라디에이터 팬 모터': 'Вентилятор радиатора',
+            '윈도우 모터': 'Стеклоподъёмник',
+        };
+        const statusRu = {
+            '없음': 'Отсутствует',
+            '양호': 'Нормально',
+            '적정': 'В норме',
+            '불량': 'Неисправно',
+            '미세누유': 'Микротечь',
+            '누유': 'Течь',
+            '미세누수': 'Микротечь (вода)',
+            '누수': 'Течь (вода)',
+            '과다': 'Избыток',
+            '부족': 'Недостаток',
+            '정상': 'Норма',
+            '있음': 'Присутствует',
+        };
+
+        // ---------- Маппинг опций ----------
+        const optionRu = {
+            '010': 'Люк',
+            '001': 'Светодиодные фары',
+            '029': 'Ксеноновые фары',
+            '075': 'Светодиодные фары',
+            '059': 'Электропривод багажника',
+            '080': 'Доводчик дверей',
+            '024': 'Электрозеркала',
+            '017': 'Легкосплавные диски',
+            '062': 'Рейлинги',
+            '082': 'Подогрев руля',
+            '083': 'Электрорегулировка руля',
+            '084': 'Подрулевые лепестки',
+            '031': 'Кнопки на руле',
+            '030': 'Автозатемнение зеркала',
+            '074': 'Транспондер (Hi‑Pass)',
+            '006': 'Центральный замок',
+            '008': 'Усилитель руля',
+            '007': 'Электростеклоподъёмники',
+            '002': 'Подушки безопасности',
+            '026': 'Подушка водителя',
+            '027': 'Подушка пассажира',
+            '020': 'Боковые подушки',
+            '056': 'Шторки безопасности',
+            '019': 'Противобуксовочная',
+            '055': 'Курсовая устойчивость',
+            '033': 'Датчик давления в шинах',
+            '088': 'Система удержания полосы',
+            '085': 'Парктроник передний',
+            '032': 'Парктроник задний',
+            '086': 'Система слепых зон',
+            '058': 'Камера заднего вида',
+            '087': 'Камера 360°',
+            '003': 'Парктроник',
+            '068': 'Круиз-контроль',
+            '079': 'Адаптивный круиз',
+            '095': 'Проекционный дисплей',
+            '094': 'Электронный ручник',
+            '023': 'Климат-контроль',
+            '057': 'Бесключевой доступ',
+            '015': 'ДУ замками',
+            '081': 'Датчик дождя',
+            '097': 'Автосвет',
+            '092': 'Шторки задних сидений',
+            '093': 'Электрошторка',
+            '005': 'Навигация',
+            '004': 'Головное устройство',
+            '054': 'Развлечения для задних',
+            '096': 'Bluetooth',
+            '072': 'USB',
+            '071': 'AUX',
+            '014': 'Кожаный салон',
+            '021': 'Электропривод водителя',
+            '035': 'Электропривод пассажира',
+            '089': 'Электропривод задних',
+            '022': 'Подогрев передних',
+            '063': 'Подогрев задних',
+            '051': 'Память водителя',
+            '078': 'Память пассажира',
+            '034': 'Вентиляция водителя',
+            '077': 'Вентиляция пассажира',
+            '090': 'Вентиляция задних',
+            '091': 'Массаж',
+        };
+        const categoryRu = {
+            '01': 'Экстерьер и салон',
+            '02': 'Безопасность',
+            '03': 'Комфорт и мультимедиа',
+            '04': 'Сиденья',
+        };
+
+        // ---------- Данные об опциях из Encar ----------
+        const optionMaster = {
+            "metas": [
+                { "key": "01", "value": "외관/내장" },
+                { "key": "02", "value": "안전" },
+                { "key": "03", "value": "편의/멀티미디어" },
+                { "key": "04", "value": "시트" }
+            ],
+            "options": [
+                { "optionCd": "010", "optionName": "선루프", "optionTypeCd": "01" },
+                { "optionCd": "001", "optionName": "헤드램프", "optionTypeCd": "01" },
+                { "optionCd": "029", "optionName": "헤드램프(HID)", "optionTypeCd": "01" },
+                { "optionCd": "075", "optionName": "헤드램프(LED)", "optionTypeCd": "01" },
+                { "optionCd": "059", "optionName": "파워 전동 트렁크", "optionTypeCd": "01" },
+                { "optionCd": "080", "optionName": "고스트 도어 클로징", "optionTypeCd": "01" },
+                { "optionCd": "024", "optionName": "전동접이 사이드 미러", "optionTypeCd": "01" },
+                { "optionCd": "017", "optionName": "알루미늄 휠", "optionTypeCd": "01" },
+                { "optionCd": "062", "optionName": "루프랙", "optionTypeCd": "01" },
+                { "optionCd": "082", "optionName": "열선 스티어링 휠", "optionTypeCd": "01" },
+                { "optionCd": "083", "optionName": "전동 조절 스티어링 휠", "optionTypeCd": "01" },
+                { "optionCd": "084", "optionName": "패들 시프트", "optionTypeCd": "01" },
+                { "optionCd": "031", "optionName": "스티어링 휠 리모컨", "optionTypeCd": "01" },
+                { "optionCd": "030", "optionName": "ECM 룸미러", "optionTypeCd": "01" },
+                { "optionCd": "074", "optionName": "하이패스", "optionTypeCd": "01" },
+                { "optionCd": "006", "optionName": "파워 도어록", "optionTypeCd": "01" },
+                { "optionCd": "008", "optionName": "파워 스티어링 휠", "optionTypeCd": "01" },
+                { "optionCd": "007", "optionName": "파워 윈도우", "optionTypeCd": "01" },
+                { "optionCd": "002", "optionName": "에어백", "optionTypeCd": "02" },
+                { "optionCd": "026", "optionName": "에어백(운전석)", "optionTypeCd": "02" },
+                { "optionCd": "027", "optionName": "에어백(동승석)", "optionTypeCd": "02" },
+                { "optionCd": "020", "optionName": "에어백(사이드)", "optionTypeCd": "02" },
+                { "optionCd": "056", "optionName": "에어백(커튼)", "optionTypeCd": "02" },
+                { "optionCd": "019", "optionName": "미끄럼 방지(TCS)", "optionTypeCd": "02" },
+                { "optionCd": "055", "optionName": "차체자세 제어장치(ESC)", "optionTypeCd": "02" },
+                { "optionCd": "033", "optionName": "타이어 공기압센서(TPMS)", "optionTypeCd": "02" },
+                { "optionCd": "088", "optionName": "차선이탈 경보 시스템(LDWS)", "optionTypeCd": "02" },
+                { "optionCd": "085", "optionName": "주차감지센서(전방)", "optionTypeCd": "02" },
+                { "optionCd": "032", "optionName": "주차감지센서(후방)", "optionTypeCd": "02" },
+                { "optionCd": "086", "optionName": "후측방 경보 시스템", "optionTypeCd": "02" },
+                { "optionCd": "058", "optionName": "후방 카메라", "optionTypeCd": "02" },
+                { "optionCd": "087", "optionName": "360도 어라운드 뷰", "optionTypeCd": "02" },
+                { "optionCd": "068", "optionName": "크루즈 컨트롤(일반)", "optionTypeCd": "03" },
+                { "optionCd": "079", "optionName": "크루즈 컨트롤(어댑티브)", "optionTypeCd": "03" },
+                { "optionCd": "095", "optionName": "헤드업 디스플레이(HUD)", "optionTypeCd": "03" },
+                { "optionCd": "094", "optionName": "전자식 주차브레이크(EPB)", "optionTypeCd": "03" },
+                { "optionCd": "023", "optionName": "자동 에어컨", "optionTypeCd": "03" },
+                { "optionCd": "057", "optionName": "스마트키", "optionTypeCd": "03" },
+                { "optionCd": "015", "optionName": "무선도어 잠금장치", "optionTypeCd": "03" },
+                { "optionCd": "081", "optionName": "레인센서", "optionTypeCd": "03" },
+                { "optionCd": "097", "optionName": "오토 라이트", "optionTypeCd": "03" },
+                { "optionCd": "092", "optionName": "커튼/블라인드(뒷좌석)", "optionTypeCd": "03" },
+                { "optionCd": "093", "optionName": "커튼/블라인드(후방)", "optionTypeCd": "03" },
+                { "optionCd": "005", "optionName": "내비게이션", "optionTypeCd": "03" },
+                { "optionCd": "004", "optionName": "앞좌석 AV 모니터", "optionTypeCd": "03" },
+                { "optionCd": "054", "optionName": "뒷좌석 AV 모니터", "optionTypeCd": "03" },
+                { "optionCd": "096", "optionName": "블루투스", "optionTypeCd": "03" },
+                { "optionCd": "072", "optionName": "USB 단자", "optionTypeCd": "03" },
+                { "optionCd": "071", "optionName": "AUX 단자", "optionTypeCd": "03" },
+                { "optionCd": "014", "optionName": "가죽시트", "optionTypeCd": "04" },
+                { "optionCd": "021", "optionName": "전동시트(운전석)", "optionTypeCd": "04" },
+                { "optionCd": "035", "optionName": "전동시트(동승석)", "optionTypeCd": "04" },
+                { "optionCd": "089", "optionName": "전동시트(뒷좌석)", "optionTypeCd": "04" },
+                { "optionCd": "022", "optionName": "열선시트(앞좌석)", "optionTypeCd": "04" },
+                { "optionCd": "063", "optionName": "열선시트(뒷좌석)", "optionTypeCd": "04" },
+                { "optionCd": "051", "optionName": "메모리 시트(운전석)", "optionTypeCd": "04" },
+                { "optionCd": "078", "optionName": "메모리 시트(동승석)", "optionTypeCd": "04" },
+                { "optionCd": "034", "optionName": "통풍시트(운전석)", "optionTypeCd": "04" },
+                { "optionCd": "077", "optionName": "통풍시트(동승석)", "optionTypeCd": "04" },
+                { "optionCd": "090", "optionName": "통풍시트(뒷좌석)", "optionTypeCd": "04" },
+                { "optionCd": "091", "optionName": "마사지 시트", "optionTypeCd": "04" }
+            ]
+        };
+
+        const optionTypeMap = {};
+        optionMaster.options.forEach(opt => { optionTypeMap[opt.optionCd] = opt.optionTypeCd; });
+
+        function groupOptionsRu(optionCodes) {
+            const groups = {};
+            optionCodes.forEach(code => {
+                const typeCd = optionTypeMap[code] || 'другое';
+                const catName = categoryRu[typeCd] || 'Другое';
+                const optName = optionRu[code] || code;
+                if (!groups[catName]) groups[catName] = [];
+                groups[catName].push(optName);
+            });
+            return groups;
+        }
+
+        function renderOptionsGrouped(optionCodes) {
+            if (!optionCodes || optionCodes.length === 0) return '';
+            const groups = groupOptionsRu(optionCodes);
+            const orderedCategories = ['Экстерьер и салон', 'Безопасность', 'Комфорт и мультимедиа', 'Сиденья', 'Другое'];
+            let html = '<div class="card rounded-3xl p-6">';
+            html += '<h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-screwdriver-wrench text-blue-500 mr-2"></i>Опции и оборудование</h2>';
+            orderedCategories.forEach(cat => {
+                if (groups[cat] && groups[cat].length > 0) {
+                    html += `<div class="option-group mb-4">`;
+                    html += `<h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">${cat}</h3>`;
+                    html += `<div class="flex flex-wrap gap-2">`;
+                    groups[cat].forEach(optName => html += `<span class="badge-option">${optName}</span>`);
+                    html += `</div></div>`;
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+        // ---------- Общие функции ----------
+        function formatPrice(w) { return w ? (w/100).toFixed(1)+' млн ₩' : '—'; }
+        function formatKm(km) { return km ? Number(km).toLocaleString() + ' км' : '—'; }
+        function formatDate(iso) { return iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
+        function formatNumber(num) { return num?.toLocaleString() ?? '—'; }
+
+        function renderObjectTable(obj, translate = false) {
+            if (!obj || !Object.keys(obj).length) return '';
+            let html = `<table class="w-full text-sm data-table">`;
+            for (let [k,v] of Object.entries(obj)) {
+                if (v && typeof v === 'object') continue;
+                if (v != null && v !== '') {
+                    const dk = translate ? (partNamesRu[k] || k) : k;
+                    const dv = translate ? (statusRu[v] || v) : v;
+                    html += `<tr><td class="text-gray-600">${dk}</td><td class="font-medium text-right">${dv}</td></tr>`;
+                }
+            }
+            return html + '</table>';
+        }
+
+        function renderBodyPanels(panels) {
+            if (!panels?.length) return '';
+            let html = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-car text-blue-500 mr-2"></i>Диагностика кузова</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-3">';
+            panels.forEach(p => {
+                const cls = p.status === 'оригинал' ? 'text-green-600' : 'text-amber-600';
+                html += `<div class="flex justify-between py-2 border-b border-gray-100"><span class="font-medium">${p.part}</span><span class="${cls}">${p.status}</span></div>`;
+            });
+            return html + '</div></div>';
+        }
+
+        function renderComments(c) { return c ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-comment text-blue-500 mr-2"></i>Комментарии инспектора</h2><div class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">${c}</div></div>` : ''; }
+
+        function renderInspectionCombined(insp) {
+            if (!insp) return '';
+            const hasBasic = insp.basicInfo && Object.values(insp.basicInfo).some(v=>v&&v!=='');
+            const hasEngine = insp.engineTransmission && Object.keys(insp.engineTransmission).length > 0;
+            const hasChassis = insp.chassis && Object.keys(insp.chassis).length > 0;
+            const hasElectrical = insp.electrical && Object.keys(insp.electrical).length > 0;
+            if (!hasBasic && !hasEngine && !hasChassis && !hasElectrical) return '';
+            let html = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-clipboard text-blue-500 mr-2"></i>Инспекционная диагностика</h2>';
+            if (hasBasic) html += '<div class="inspection-subtitle">Общие данные</div>' + renderObjectTable(insp.basicInfo, false);
+            if (hasEngine) html += '<div class="inspection-subtitle">Двигатель и трансмиссия</div>' + renderObjectTable(insp.engineTransmission, true);
+            if (hasChassis) html += '<div class="inspection-subtitle">Ходовая часть</div>' + renderObjectTable(insp.chassis, true);
+            if (hasElectrical) html += '<div class="inspection-subtitle">Электрика</div>' + renderObjectTable(insp.electrical, true);
+            return html + '</div>';
+        }
+
+        // ---------- Функции для галереи ----------
+        function preparePhotos(hImages) {
+            const typePriority = { OUTER:1, INNER:2, OPTION:3, THUMBNAIL:4 };
+            const map = new Map();
+            hImages.forEach(item => {
+                const path = item.path;
+                const prio = typePriority[item.type] || 5;
+                if (!map.has(path) || prio < map.get(path).priority) map.set(path, { ...item, priority: prio });
+            });
+            return Array.from(map.values()).sort((a,b) => a.priority - b.priority);
+        }
+
+        // Глобальные переменные для модалки
+        let currentPhotoIndex = 0;
+        let photosArray = [];
+
+        function openModal(index) {
+            const modal = document.getElementById('galleryModal');
+            const modalMain = document.getElementById('modalMain');
+            const modalCounter = document.getElementById('modalCounter');
+            if (!modal || !photosArray.length) return;
+            currentPhotoIndex = (index + photosArray.length) % photosArray.length;
+
+            const modalThumbs = document.getElementById('modalThumbs');
+            if (modalThumbs && !modalThumbs.dataset.inited) {
+                let thumbsHtml = '';
+                photosArray.forEach((p, idx) => {
+                    const tUrl = 'https://ci.encar.com' + p.path + '?impolicy=heightRate&rh=120&cw=200&ch=120&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                    thumbsHtml += `<button type="button" class="modal-thumb${idx === currentPhotoIndex ? ' active' : ''}" data-index="${idx}" aria-label="Миниатюра ${idx+1} в модалке"><img src="${tUrl}" alt="Миниатюра ${idx+1}"></button>`;
+                });
+                modalThumbs.innerHTML = thumbsHtml;
+                modalThumbs.dataset.inited = 'true';
+
+                modalThumbs.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.modal-thumb');
+                    if (!btn) return;
+                    const idx = parseInt(btn.dataset.index, 10);
+                    if (Number.isNaN(idx)) return;
+                    currentPhotoIndex = idx;
+                    updateModal();
+                });
+            }
+
+            updateModal();
+            modal.classList.add('active');
+        }
+
+        function updateModal() {
+            const modalMain = document.getElementById('modalMain');
+            const modalCounter = document.getElementById('modalCounter');
+            if (!modalMain || !photosArray.length) return;
+            currentPhotoIndex = (currentPhotoIndex + photosArray.length) % photosArray.length;
+            const imgUrl = 'https://ci.encar.com' + photosArray[currentPhotoIndex].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+            modalMain.innerHTML = `<img src="${imgUrl}" alt="Фото автомобиля">`;
+            modalCounter.textContent = `${currentPhotoIndex+1} / ${photosArray.length}`;
+
+            const thumbs = document.querySelectorAll('.modal-thumb');
+            thumbs.forEach((thumb, idx) => {
+                thumb.classList.toggle('active', idx === currentPhotoIndex);
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('galleryModal').classList.remove('active');
+        }
+
+        // Рендер главного блока галереи
+        function renderGallery(photos, title) {
+            if (!photos.length) return '<div class="card rounded-3xl p-6 text-gray-400">Нет фотографий</div>';
+            photosArray = photos; // сохраняем для модалки
+
+            const mainImgUrl = 'https://ci.encar.com' + photos[0].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+
+            // Строим миниатюры (первые 3, последняя как "+ N фото")
+            let thumbnailsHtml = '';
+            const thumbCount = Math.min(photos.length, 3);
+            for (let i = 0; i < thumbCount; i++) {
+                const thumbUrl = 'https://ci.encar.com' + photos[i].path + '?impolicy=heightRate&rh=120&cw=200&ch=120&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                thumbnailsHtml += `<button type="button" class="thumbnail ${i === 0 ? 'active' : ''}" data-index="${i}" aria-label="Миниатюра ${i+1}"><img src="${thumbUrl}" alt="Миниатюра ${i+1}"></button>`;
+            }
+            if (photos.length > 3) {
+                const moreThumb = photos[3];
+                const moreThumbUrl = 'https://ci.encar.com' + moreThumb.path + '?impolicy=heightRate&rh=120&cw=200&ch=120&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                thumbnailsHtml += `<button type="button" class="thumbnail more" data-index="more" aria-label="Открыть все фотографии">
+                        <img src="${moreThumbUrl}" alt="Дополнительные фото">
+                        <span>+${photos.length-3} фото</span>
+                    </button>`;
+            }
+
+            return `
+                <div class="card rounded-3xl p-6">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-images text-blue-500 mr-2"></i>Фотографии (${photos.length})</h2>
+                    <div class="gallery-main" id="galleryMain">
+                        <img src="${mainImgUrl}" alt="${title || 'Фото автомобиля'}" id="mainPhoto">
+                        <div class="gallery-counter" id="galleryCounter">1/${photos.length}</div>
+                        <div class="gallery-views">
+                            <i class="fa-regular fa-eye"></i>
+                            <span id="galleryViewsLabel">кол-во просмотров</span>
+                        </div>
+                    </div>
+                    <div class="thumbnails-row" id="thumbnailsRow">
+                        ${thumbnailsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------- Рендер правой колонки (карточка авто + заглушки статей) ----------
+        function renderPriceColumn(carData) {
+            const d = carData.data || {};
+            const manufacturer = d.manufacturerName || d.mark || '';
+            const model = d.modelName || d.model || '';
+            const grade = d.gradeName || '';
+            const fullName = `${manufacturer} ${model} ${grade}`.trim() || 'Автомобиль';
+
+            const year = d.year ? d.year.slice(0,4) : '—';
+            const km = formatKm(d.km_age);
+            const address = d.address || '—';
+            const sellerType = d.seller_type || '';
+            const isDealer = d.is_dealer ? 'Дилер' : '';
+
+            // Цены
+            const priceWon = d.price_won; // в единицах по 10 000 вон
+            const priceWonFormatted = priceWon ? (priceWon * 10000).toLocaleString() + ' ₩' : '—';
+            const myPrice = d.my_price;
+            const myPriceFormatted = myPrice ? Math.round(myPrice).toLocaleString() + ' ₽' : '—';
+
+            // Промежуточные значения
+            const priceRub = d.price_rub_estimate;
+            const customsFee = d.customs_fee_rub;
+            const duty = d.duty_rub;
+            const util = d.util_rub;
+            const exportRub = d.export_rub;
+            const freightRub = d.freight_rub;
+            const brokerRub = d.broker_rub;
+            const reserveRub = d.reserve_rub;
+            const avtovozRub = d.avtovoz_rub;
+            const insurance = d.insurance_rub;
+            const totalNoCommission = d.total_cost_no_commission;
+
+            return `
+                <div class="calc-card">
+                    <div class="mb-4">
+                        <h3 class="text-xl font-bold leading-tight">${fullName}</h3>
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-sm text-gray-600">
+                            <span>${year}년형</span>
+                            <span>${km}</span>
+                            <span>${address}</span>
+                            ${sellerType ? `<span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">${sellerType}</span>` : ''}
+                            ${isDealer ? `<span class="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs">${isDealer}</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 mt-6">
+                        <div class="calc-row">
+                            <span>Стоимость авто в Корее</span>
+                            <span class="font-medium">${priceWonFormatted}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Цена в рублях (крипто)</span>
+                            <span class="font-medium">${priceRub ? Math.round(priceRub).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Таможенный сбор</span>
+                            <span class="font-medium">${customsFee ? Math.round(customsFee).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Единый таможенный платёж</span>
+                            <span class="font-medium">${duty ? Math.round(duty).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Утилизационный сбор</span>
+                            <span class="font-medium">${util ? Math.round(util).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Экспортные документы (Корея)</span>
+                            <span class="font-medium">${exportRub ? Math.round(exportRub).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Фрахт (до Владивостока)</span>
+                            <span class="font-medium">${freightRub ? Math.round(freightRub).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Таможенный брокер</span>
+                            <span class="font-medium">${brokerRub ? Math.round(brokerRub).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Резерв</span>
+                            <span class="font-medium">${reserveRub ? Math.round(reserveRub).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Автовоз</span>
+                            <span class="font-medium">${avtovozRub ? Math.round(avtovozRub).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row">
+                            <span>Страховка</span>
+                            <span class="font-medium">${insurance ? Math.round(insurance).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row border-t-2 border-gray-200 pt-2 font-bold">
+                            <span>Все расходы без комиссии</span>
+                            <span class="font-medium">${totalNoCommission ? Math.round(totalNoCommission).toLocaleString() + ' ₽' : '—'}</span>
+                        </div>
+                        <div class="calc-row border-t-2 border-gray-200 pt-2 font-bold text-lg">
+                            <span>Наша цена (с комиссией 10%)</span>
+                            <span class="text-indigo-600">${myPriceFormatted}</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <a href="#" class="manager-button">
+                            <i class="fa-regular fa-telegram mr-2"></i> Написать менеджеру
+                        </a>
+                        <div class="text-center mt-2">
+                            <span class="text-gray-500 text-sm">Нет аккаунта Telegram? </span>
+                            <a href="#" class="telegram-link">Зарегистрироваться</a>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-xs text-gray-500">
+                        <details>
+                            <summary class="cursor-pointer text-indigo-600">Почему такой курс?</summary>
+                            <div class="mt-2 p-3 bg-gray-50 rounded-lg">
+                                <p>У любой криптовалюты есть курс покупки и курс продажи. Разница между ними — это комиссия обменников, спред и риски ликвидности.</p>
+                                <p class="mt-1">Например, курс USDT к южнокорейской воне (KRW) может быть:<br>
+                                — Покупка USDT за KRW: 1 USDT = 1 480 ₽<br>
+                                — Продажа USDT за KRW: 1 USDT = 1 420 ₽</p>
+                                <p class="mt-1">В России при переводе из RUB в USDT через P2P-обменники вы получите ~1 USDT = 75–85 ₽ (в зависимости от реального курса USD). А при обратном обмене (USDT → RUB) — уже ~1 USDT = 75–70 ₽.</p>
+                                <p class="mt-1">При расчёте стоимости автомобиля мы используем реальный курс покупки USDT (т.е. сколько вам придётся потратить в рублях или вонах, чтобы получить нужное количество USDT для оплаты). Это не «официальный» курс биржи — это то, что вы реально заплатите в обменнике сейчас, с учётом спроса, лимитов и комиссий.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------- Функция для рендера блока "Похожие по цене" ----------
+        async function renderSimilarCars(currentCar) {
+            const d = currentCar.data || {};
+            const currentPrice = d.price_won; // цена в единицах по 10 000 вон
+            const currentMark = d.mark || '';
+            if (!currentPrice || !currentMark) return '';
+
+            try {
+                const response = await fetch('cars.json');
+                if (!response.ok) throw new Error('Ошибка загрузки данных');
+                const data = await response.json();
+                const allCars = data.result || [];
+                
+                // Фильтруем по марке и цене (±20% от текущей цены)
+                const priceMin = currentPrice * 0.8;
+                const priceMax = currentPrice * 1.2;
+                const similarCars = allCars
+                    .filter(car => {
+                        const cd = car.data || {};
+                        return cd.mark === currentMark && 
+                               cd.price_won && 
+                               cd.price_won >= priceMin && 
+                               cd.price_won <= priceMax &&
+                               car.id != currentCar.id; // исключаем текущий автомобиль
+                    })
+                    .sort((a, b) => Math.abs(a.data.price_won - currentPrice) - Math.abs(b.data.price_won - currentPrice))
+                    .slice(0, 8); // берем максимум 8 похожих
+
+                if (similarCars.length === 0) return '';
+
+                let html = `
+                    <div class="similar-cars-section">
+                        <div class="similar-cars-header">
+                            <h2 class="similar-cars-title">Похожие по цене ${currentMark}</h2>
+                            <button class="text-indigo-600 hover:text-indigo-800 font-medium" onclick="document.getElementById('similar-cars-grid').classList.toggle('hidden')">Скрыть / Показать</button>
+                        </div>
+                        <div class="similar-cars-grid" id="similar-cars-grid">
+                `;
+
+                similarCars.forEach(car => {
+                    const cd = car.data || {};
+                    const images = getPreviewImages(cd);
+                    const mainImg = images[0] || '';
+                    const title = `${cd.mark_en || cd.mark || ''} ${cd.model_en || cd.model || ''} ${cd.generation_en || cd.generation || cd.configuration || ''}`.trim();
+                    const model = cd.model || '';
+                    const year = cd.year ? cd.year.slice(0,4) : '';
+                    const km = formatKm(cd.km_age);
+                    const price = cd.my_price ? Math.round(cd.my_price).toLocaleString() + ' ₽' : '—';
+
+                    html += `
+                        <div class="similar-car-card">
+                            <a href="car.html?id=${car.id}" class="similar-car-link">
+                                <div class="similar-car-image">
+                                    <img src="${mainImg}" alt="${title}">
+                                </div>
+                                <div class="similar-car-info">
+                                    <h3 class="similar-car-title">${title}</h3>
+                                    <div class="similar-car-model">${model}</div>
+                                    <div class="similar-car-details">
+                                        <div class="similar-car-mileage">${year} • ${km}</div>
+                                        <div class="similar-car-price">${price}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+
+                // Вставляем HTML в контейнер
+                const container = document.getElementById('car-content');
+                if (container) {
+                    container.insertAdjacentHTML('beforeend', html);
+                }
+
+                return html;
+            } catch (err) {
+                console.error('Ошибка загрузки похожих автомобилей:', err);
+                return '';
+            }
+        }
+
+        // ---------- Функция для получения главного фото ----------
+        function getPreviewImages(d) {
+            let images = [];
+            try { images = JSON.parse(d.images || '[]'); } catch { images = []; }
+
+            let hImages = [];
+            try { hImages = JSON.parse(d.h_images || '[]'); } catch { hImages = []; }
+
+            if (Array.isArray(images) && images.length && Array.isArray(hImages) && hImages.length) {
+                const outerCodes = hImages
+                    .filter(h => h && h.type === 'OUTER' && h.code)
+                    .map(h => String(h.code));
+
+                const outerUrls = [];
+                outerCodes.forEach(code => {
+                    const suffix = `_${code}.`;
+                    const found = images.find(url => typeof url === 'string' && url.includes(suffix));
+                    if (found && !outerUrls.includes(found)) {
+                        outerUrls.push(found);
+                    }
+                });
+
+                if (outerUrls.length) {
+                    // Сортировка по типу: перед, зад, бок, салон
+                    const typeOrder = {
+                        'FRONT': 1,
+                        'REAR': 2,
+                        'SIDE': 3,
+                        'INTERIOR': 4
+                    };
+                    const sorted = outerUrls.slice().sort((a, b) => {
+                        const aType = typeOrder[guessImageType(a)] || 99;
+                        const bType = typeOrder[guessImageType(b)] || 99;
+                        return aType - bType;
+                    });
+                    return sorted.slice(0, 4);
+                }
+            }
+
+            // Фолбэк: первые 4 фото, если не получилось выделить OUTER
+            if (Array.isArray(images) && images.length) {
+                // Сортируем и выбираем лучшие фото для превью
+                const sorted = images.slice().sort((a, b) => {
+                    const aType = guessImageType(a);
+                    const bType = guessImageType(b);
+                    const order = { 'FRONT': 1, 'REAR': 2, 'SIDE': 3, 'INTERIOR': 4 };
+                    return (order[aType] || 99) - (order[bType] || 99);
+                });
+                return sorted.slice(0, 4);
+            }
+            return [];
+        }
+
+        function guessImageType(url) {
+            const u = String(url || '').toLowerCase();
+            if (u.includes('front') || u.includes('перед') || u.includes('frontview') || u.includes('front_view')) return 'FRONT';
+            if (u.includes('rear') || u.includes('зад') || u.includes('back') || u.includes('rearview') || u.includes('rear_view')) return 'REAR';
+            if (u.includes('side') || u.includes('бок') || u.includes('profile') || u.includes('sideview') || u.includes('side_view')) return 'SIDE';
+            if (u.includes('interior') || u.includes('салон') || u.includes('inside') || u.includes('cabin') || u.includes('interiorview') || u.includes('interior_view')) return 'INTERIOR';
+            if (u.includes('wheel') || u.includes('tire') || u.includes('rim') || u.includes('диск')) return 'WHEEL';
+            return 'SIDE';
+        }
+
+        // ---------- Главная функция отрисовки ----------
+        function renderCar(rawData) {
+            const container = document.getElementById('car-content');
+            if (!container) return;
+
+            document.getElementById('car-id-placeholder').innerText = rawData.id;
+            document.getElementById('original-link').href = rawData.data?.url || '#';
+
+            const d = rawData.data || {};
+            const extra = d.extra || {};
+            const insp = extra.inspection_structured || {};
+
+            // Фото
+            let hImagesList = [];
+            try { hImagesList = JSON.parse(d.h_images || '[]'); } catch { hImagesList = []; }
+            const sortedPhotos = preparePhotos(hImagesList).filter(p => p.type !== 'THUMBNAIL');
+
+            // Левая колонка (основная информация) – без верхнего блока titleHtml
+            const manufacturerName = d.manufacturerName || d.mark || '';
+            const modelName = d.modelName || d.model || '';
+            const gradeName = d.gradeName || '';
+            const fullNameForGallery = `${manufacturerName} ${modelName} ${gradeName}`.trim() || 'Автомобиль';
+
+            const galleryHtml = renderGallery(sortedPhotos, fullNameForGallery);
+
+            const specs = [
+                { label: 'Марка', value: d.mark },
+                { label: 'Модель', value: d.model },
+                { label: 'Поколение', value: d.generation },
+                { label: 'Комплектация', value: d.configuration || d.gradeName },
+                { label: 'Год выпуска', value: d.year?.slice(0,4) },
+                { label: 'Цвет', value: d.color },
+                { label: 'Пробег', value: formatKm(d.km_age) },
+                { label: 'Тип двигателя', value: d.engine_type },
+                { label: 'Коробка', value: d.transmission_type },
+                { label: 'Кузов', value: d.body_type },
+                { label: 'Привод', value: d.prep_drive_type || '—' },
+                { label: 'VIN', value: d.vin },
+                { label: 'Кол-во мест', value: d.seatCount },
+                { label: 'Продавец', value: d.seller },
+                { label: 'Салон ID', value: d.salon_id },
+            ];
+            let specHtml = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-clipboard-list text-blue-500 mr-2"></i>Основные характеристики</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">';
+            specs.forEach(s => { if (s.value) specHtml += `<div class="flex justify-between py-2 border-b border-gray-100"><span class="text-gray-600">${s.label}</span><span class="font-medium">${s.value}</span></div>`; });
+            specHtml += '</div></div>';
+
+            const optionsHtml = renderOptionsGrouped(d.options?.standard || []);
+            const bodyPanelsHtml = renderBodyPanels(insp.bodyPanels);
+            const commentsHtml = renderComments(insp.bodyComments);
+            const additionalHtml = (insp.additional && Object.keys(insp.additional).length) 
+                ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-circle-info text-blue-500 mr-2"></i>Дополнительная информация</h2><table class="w-full text-sm data-table">${Object.entries(insp.additional).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table></div>` : '';
+            const bodyChangedHtml = (insp.bodyChanged && Object.keys(insp.bodyChanged).length)
+                ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-paintbrush text-blue-500 mr-2"></i>Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table></div>` : '';
+
+            const inspectionCombinedHtml = renderInspectionCombined(insp);
+
+            let recordHtml = '';
+            if (extra.record_open) {
+                const r = extra.record_open;
+                recordHtml = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-file-lines text-blue-500 mr-2"></i>История автомобиля</h2><table class="w-full text-sm data-table">';
+                recordHtml += `<tr><td>Гос. номер</td><td>${r.carNo || '—'}</td></tr>`;
+                recordHtml += `<tr><td>Первая регистрация</td><td>${r.firstDate || '—'}</td></tr>`;
+                recordHtml += `<tr><td>Топливо</td><td>${r.fuel || '—'}</td></tr>`;
+                recordHtml += `<tr><td>Кузов</td><td>${r.carShape || '—'}</td></tr>`;
+                recordHtml += `<tr><td>Количество владельцев</td><td>${r.ownerChangeCnt ?? '0'}</td></tr>`;
+                recordHtml += `<tr><td>Мои аварии (кол-во)</td><td>${r.myAccidentCnt ?? '0'}</td></tr>`;
+                recordHtml += `<tr><td>Аварии с другими</td><td>${r.otherAccidentCnt ?? '0'}</td></tr>`;
+                recordHtml += `<tr><td>Угон/тотал/потоп</td><td>угон:${r.robberCnt}, тотал:${r.totalLossCnt}, потоп:${r.floodTotalLossCnt}</td></tr>`;
+                recordHtml += `<tr><td>Залог / гос.средства</td><td>loan:${r.loan}, government:${r.government}</td></tr>`;
+                recordHtml += '</table>';
+                if (r.accidents?.length) {
+                    recordHtml += '<div class="mt-6"><h3 class="font-semibold text-md mb-3">Детали ДТП</h3>';
+                    r.accidents.forEach(acc => {
+                        recordHtml += `<div class="accident-card mb-3"><div class="grid grid-cols-2 gap-2 text-sm">`;
+                        recordHtml += `<div><span class="text-gray-600">Дата:</span> ${acc.date || '—'}</div>`;
+                        recordHtml += `<div><span class="text-gray-600">Тип:</span> ${acc.type || '—'}</div>`;
+                        recordHtml += `<div><span class="text-gray-600">Страховая выплата:</span> ${formatNumber(acc.insuranceBenefit)} 원</div>`;
+                        recordHtml += `<div><span class="text-gray-600">Запчасти:</span> ${formatNumber(acc.partCost)} 원</div>`;
+                        recordHtml += `<div><span class="text-gray-600">Работы:</span> ${formatNumber(acc.laborCost)} 원</div>`;
+                        recordHtml += `<div><span class="text-gray-600">Покраска:</span> ${formatNumber(acc.paintingCost)} 원</div>`;
+                        recordHtml += `</div></div>`;
+                    });
+                    recordHtml += '</div>';
+                }
+                recordHtml += '</div>';
+            }
+
+            let diagPhotoHtml = '';
+            if (extra.diagnosis_photos?.length) {
+                // На фронте Encar обычно показывается до 5 фото диагностики,
+                // поэтому берём максимум 5 валидных ссылок
+                const diagPhotos = extra.diagnosis_photos
+                    .filter(url => typeof url === 'string' && url.trim() !== '')
+                    .slice(0, 5);
+                if (diagPhotos.length) {
+                    diagPhotoHtml = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-camera text-blue-500 mr-2"></i>Фото диагностики</h2><div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
+                    diagPhotos.forEach(url => {
+                        diagPhotoHtml += `<div class="diag-photo"><img src="${url}" class="w-full h-full object-cover" loading="lazy" onclick="window.open('${url}')" style="cursor:pointer"></div>`;
+                    });
+                    diagPhotoHtml += '</div></div>';
+                }
+            }
+
+            const metaHtml = `<div class="bg-white/60 backdrop-blur-sm rounded-2xl p-4 text-xs text-gray-400 flex flex-wrap gap-4 border border-gray-200/50"><span>inner_id: ${rawData.inner_id || ''}</span><span>change_type: ${rawData.change_type || ''}</span><span>created_at: ${formatDate(rawData.created_at)}</span><span>data.created_at: ${formatDate(d.created_at)}</span></div>`;
+
+            // Правая колонка
+            const priceColumnHtml = renderPriceColumn(rawData);
+
+            // Сборка: две колонки
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2 space-y-8">
+                        ${galleryHtml}
+                        ${specHtml}
+                        ${optionsHtml}
+                        ${bodyPanelsHtml}
+                        ${commentsHtml}
+                        ${additionalHtml}
+                        ${bodyChangedHtml}
+                        ${inspectionCombinedHtml}
+                        ${recordHtml}
+                        ${diagPhotoHtml}
+                        ${metaHtml}
+                    </div>
+                    <div class="lg:col-span-1 space-y-6">
+                        ${priceColumnHtml}
+                    </div>
+                </div>
+            `;
+
+            // Добавляем блок "Похожие по цене" после всех блоков
+            const similarCarsHtml = renderSimilarCars(rawData);
+            container.insertAdjacentHTML('beforeend', similarCarsHtml);
+
+            const datePlaceholder = document.getElementById('data-date-placeholder');
+            if (datePlaceholder) {
+                const dateSource = d.created_at || rawData.created_at;
+                if (dateSource) {
+                    const formatted = new Date(dateSource).toLocaleDateString('ru-RU');
+                    datePlaceholder.textContent = formatted;
+                }
+            }
+
+            // Счётчик просмотров объявления (на основе localStorage, только первое открытие)
+            try {
+                const viewsKey = `encar_views_${rawData.id || rawData.inner_id || d.inner_id || 'unknown'}`;
+                const stored = window.localStorage ? window.localStorage.getItem(viewsKey) : null;
+                let views = stored ? parseInt(stored, 10) || 0 : 0;
+                // Если просмотров ещё не было в этом браузере, записываем первое открытие
+                if (!stored && window.localStorage) {
+                    views = 1;
+                    window.localStorage.setItem(viewsKey, String(views));
+                }
+                const viewsLabel = document.getElementById('galleryViewsLabel');
+                if (viewsLabel) {
+                    viewsLabel.textContent = `${views.toLocaleString('ru-RU')} просмотров`;
+                }
+            } catch (e) {
+                // localStorage может быть недоступен, тогда просто игнорируем
+            }
+
+            // ---------- Инициализация обработчиков галереи ----------
+            const mainPhoto = document.getElementById('mainPhoto');
+            const galleryMain = document.getElementById('galleryMain');
+            const galleryCounter = document.getElementById('galleryCounter');
+            const thumbnailsRow = document.getElementById('thumbnailsRow');
+            if (!mainPhoto || !galleryMain) return;
+
+            let currentIdx = 0;
+
+            function updateMainPhoto(index) {
+                if (index < 0) index = photosArray.length - 1;
+                if (index >= photosArray.length) index = 0;
+                currentIdx = index;
+                const imgUrl = 'https://ci.encar.com' + photosArray[index].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                mainPhoto.src = imgUrl;
+                galleryCounter.textContent = (index+1) + '/' + photosArray.length;
+
+                document.querySelectorAll('.thumbnail').forEach((thumb, i) => {
+                    if (i < 4) thumb.classList.toggle('active', i === index);
+                });
+            }
+
+            let dragStartX = null;
+            let dragging = false;
+            const dragThreshold = 40;
+
+            galleryMain.addEventListener('pointerdown', (e) => {
+                dragStartX = e.clientX;
+                dragging = true;
+            });
+
+            galleryMain.addEventListener('pointerup', (e) => {
+                if (!dragging || dragStartX === null) {
+                    return;
+                }
+                const dx = e.clientX - dragStartX;
+                dragging = false;
+                dragStartX = null;
+
+                if (Math.abs(dx) > dragThreshold) {
+                    if (dx < 0) {
+                        updateMainPhoto(currentIdx + 1);
+                    } else {
+                        updateMainPhoto(currentIdx - 1);
+                    }
+                } else {
+                    openModal(currentIdx);
+                }
+            });
+
+            thumbnailsRow.addEventListener('click', (e) => {
+                const thumb = e.target.closest('.thumbnail');
+                if (!thumb) return;
+                const index = thumb.dataset.index;
+                if (index === 'more') {
+                    openModal(currentIdx);
+                } else {
+                    updateMainPhoto(parseInt(index, 10));
+                }
+            });
+        }
+
+        // ---------- Загрузка данных ----------
+        const urlParams = new URLSearchParams(window.location.search);
+        const carId = urlParams.get('id');
+        if (!carId) {
+            document.getElementById('car-content').innerHTML = '<div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100 p-12 text-center text-red-500">❌ Не указан ID автомобиля</div>';
+            return;
+        }
+
+        fetch('cars.json')
+            .then(response => {
+                if (!response.ok) throw new Error('Ошибка загрузки данных');
+                return response.json();
+            })
+            .then(data => {
+                const cars = data.result || [];
+                const carData = cars.find(item => item.id == carId);
+                if (!carData) {
+                    document.getElementById('car-content').innerHTML = '<div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100 p-12 text-center text-red-500">❌ Автомобиль с таким ID не найден</div>';
+                    return;
+                }
+                renderCar(carData);
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('car-content').innerHTML = '<div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100 p-12 text-center text-red-500">❌ Не удалось загрузить данные. Проверьте подключение к интернету.</div>';
+            });
+
+        // Обработчики модалки
+        document.getElementById('modalClose').addEventListener('click', closeModal);
+        document.getElementById('modalPrev').addEventListener('click', () => { currentPhotoIndex--; updateModal(); });
+        document.getElementById('modalNext').addEventListener('click', () => { currentPhotoIndex++; updateModal(); });
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('galleryModal')) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('galleryModal');
+            if (!modal || !modal.classList.contains('active')) return;
+            if (e.key === 'Escape') {
+                closeModal();
+            } else if (e.key === 'ArrowRight') {
+                currentPhotoIndex++;
+                updateModal();
+            } else if (e.key === 'ArrowLeft') {
+                currentPhotoIndex--;
+                updateModal();
+            }
+        });
+    })();
+</script>
+
+<!-- Футер -->
+<footer class="footer">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h3>Юридическая информация</h3>
+      <div class="footer-text">
+        <div class="footer-column">
+          <p>Информация, размещенная в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление покупателей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
+        </div>
+        <div class="footer-column">
+          <p>이 카탈로그에 게시된 정보는 러시아 연방 민법 제437조 및 대한민국 민법 제435조의 의미에서 공개 청약을 구성하지 않습니다. 모든 차량 정보, 예상 계산 및 가격을 포함한 정보는 정보 제공 목적으로만 제공되며 대한민국에서 이용 가능한 공개 출처를 기반으로 합니다. 정보 게시의 목적은 구매자가 한국 시장에서 이용 가능한 차량의 범위와 가격 수준을 알 수 있도록 하는 것입니다. 서비스 활동은 러시아 연방 및 대한민국의 법률을 엄격히 준수하여 수행됩니다.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; World Ride Auto 2026</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
