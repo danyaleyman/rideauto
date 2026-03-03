@@ -55,11 +55,12 @@
       color: #ffffff;
     }
     .header-content {
-      max-width: 1600px;
+      max-width: 1440px;
       margin: 0 auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 0;
     }
     .logo {
       font-size: 1.5rem;
@@ -74,6 +75,8 @@
       display: flex;
       gap: 32px;
       align-items: center;
+      flex: 1;
+      justify-content: center;
     }
     .nav-menu a {
       text-decoration: none;
@@ -103,48 +106,55 @@
       display: flex;
       gap: 12px;
       align-items: center;
+      flex-shrink: 0;
     }
     .btn {
       padding: 10px 20px;
-      border-radius: 12px;
+      border-radius: 20px;
       font-weight: 600;
       font-size: 0.9rem;
       text-decoration: none;
       transition: all 0.3s ease;
       border: 2px solid transparent;
+      min-width: 220px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .btn-primary {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      background: #3A3A3A;
       color: white;
-      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+      box-shadow: 0 4px 15px rgba(58, 58, 58, 0.3);
     }
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      box-shadow: 0 6px 20px rgba(58, 58, 58, 0.4);
+      background: #2d2d2d;
     }
     .btn-secondary {
-      background: white;
-      color: #374151;
-      border-color: #e5e7eb;
+      background: #F3F3F3;
+      color: #111827;
+      border: none;
+      min-width: auto;
+      padding: 10px 24px;
     }
     .btn-secondary:hover {
-      background: #f3f4f6;
-      border-color: #d1d5db;
+      background: #e5e5e5;
     }
     * {
       box-sizing: border-box;
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     body {
-      background: #f0f0f0;
+      background: #FFFFFF;
       margin: 0;
       padding: 0;
     }
     .main-layout {
       display: flex;
       gap: 25px;
-      max-width: 1600px;
+      max-width: 1440px;
       margin: 0 auto;
       align-items: flex-start;
       padding: 20px;
@@ -155,26 +165,13 @@
       width: 320px;
       background: white;
       border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
       padding: 24px;
       position: sticky;
       top: 20px;
       max-height: calc(100vh - 40px);
   overflow-y: hidden;
       flex-shrink: 0;
-      border: 1px solid #e5e7eb;
-    }
-    .filters-panel h3 {
-      margin-top: 0;
-      margin-bottom: 24px;
-      font-size: 1.4rem;
-      border-bottom: 2px solid #f3f4f6;
-      padding-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 700;
-      color: #111827;
+      border: 1px solid #DDDDDD;
     }
     .filter-group {
       margin-bottom: 28px;
@@ -194,17 +191,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      position: relative;
-    }
-    .filter-group h4::after {
-      content: '';
-      position: absolute;
-      bottom: -8px;
-      left: 0;
-      width: 40px;
-      height: 3px;
-      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-      border-radius: 2px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 8px;
     }
     .filter-group h4 i {
       font-style: normal;
@@ -215,8 +203,8 @@
     .filter-group select {
       width: 100%;
       padding: 12px 16px;
-      border: 2px solid #e5e7eb;
-      border-radius: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
       font-size: 1rem;
       background: white;
       outline: none;
@@ -229,15 +217,14 @@
       background-size: 12px;
     }
     .filter-group select:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-      transform: translateY(-1px);
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148,163,184,0.1);
     }
     .filter-group select:disabled {
-      background: #f9fafb;
-      color: #9ca3af;
+      background: #f8fafc;
+      color: #94a3b8;
       cursor: not-allowed;
-      border-color: #e5e7eb;
+      border-color: #e2e8f0;
     }
     .checkbox-list {
       max-height: 220px;
@@ -287,54 +274,51 @@
     .range-inputs input {
       width: 100%;
       padding: 12px 16px;
-      border: 2px solid #e5e7eb;
-      border-radius: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
       font-size: 1rem;
       outline: none;
       transition: all 0.2s ease;
       background: white;
     }
     .range-inputs input:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-      transform: translateY(-1px);
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148,163,184,0.1);
     }
     .range-inputs input::placeholder {
-      color: #9ca3af;
+      color: #94a3b8;
       font-weight: 500;
     }
     .reset-btn {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      border: none;
-      border-radius: 16px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
       padding: 14px 20px;
       font-size: 1rem;
       font-weight: 700;
-      color: white;
+      color: #1e293b;
       cursor: pointer;
       width: 100%;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+      transition: all 0.2s ease;
+      box-shadow: none;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     .reset-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      background: #e2e8f0;
+      border-color: #94a3b8;
     }
     .reset-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+      background: #cbd5e1;
     }
     .count-badge {
-      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      background: #e2e8f0;
       padding: 6px 14px;
       border-radius: 20px;
       font-size: 0.9rem;
       font-weight: 700;
-      color: white;
-      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+      color: #1e293b;
+      box-shadow: none;
     }
     .filter-header {
       display: flex;
@@ -369,25 +353,30 @@
       gap: 12px;
     }
     .found-counter {
-      background: white;
+      background: #f8fafc;
       padding: 8px 18px;
       border-radius: 40px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      border: 1px solid #e2e8f0;
       font-weight: 500;
     }
     .sort-select {
       padding: 8px 14px;
       border-radius: 30px;
-      border: 1px solid #d0dae8;
+      border: 1px solid #cbd5e1;
       background: white;
       font-size: 0.9rem;
       cursor: pointer;
       outline: none;
-      transition: 0.15s;
+      transition: all 0.2s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+      background-position: right 12px center;
+      background-repeat: no-repeat;
+      background-size: 12px;
     }
     .sort-select:focus {
-      border-color: #0077cc;
-      box-shadow: 0 0 0 3px rgba(0,119,204,0.1);
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148,163,184,0.1);
     }
     .info-icon.count-info {
       width: 18px;
@@ -412,7 +401,7 @@
     }
 
     .car-card {
-      background: #fff;
+      background: #F3F3F3;
       border-radius: 16px;
       box-shadow: 0 4px 14px rgba(0,0,0,0.04);
       overflow: hidden;
@@ -591,21 +580,22 @@
       flex-wrap: wrap;
     }
     .pagination button {
-      border: none;
+      border: 1px solid #cbd5e1;
       padding: 8px 15px;
       background: white;
       border-radius: 30px;
       cursor: pointer;
       font-weight: 500;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      transition: 0.1s;
+      transition: all 0.2s ease;
     }
     .pagination button.active {
-      background: #0077cc;
+      background: #3b82f6;
       color: white;
+      border-color: #3b82f6;
     }
     .pagination button:hover:not(.active) {
-      background: #e9ecf0;
+      background: #f1f5f9;
+      border-color: #cbd5e1;
     }
 
     @media (max-width: 900px) {
@@ -622,7 +612,7 @@
       border-top: 1px solid #333;
     }
     .footer-content {
-      max-width: 1200px;
+      max-width: 1440px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -671,12 +661,18 @@
 
     /* Герой-баннер */
     .hero-banner {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #F3F3F3;
+      border: 2px solid #DDDDDD;
       position: relative;
       overflow: hidden;
-      padding: 60px 20px;
-      color: white;
-      margin-bottom: 30px;
+      padding: 0 20px;
+      box-sizing: border-box;
+      color: #111827;
+      margin: 30px auto;
+      height: 200px;
+      max-width: 1440px;
+      width: 100%;
+      border-radius: 10px;
     }
     .hero-content {
       max-width: 1200px;
@@ -837,6 +833,78 @@
         justify-content: center;
       }
     }
+
+    /* Слайдер в герой-баннере */
+    .hero-slider {
+      width: 340px;
+      height: 140px;
+      margin: 30px auto;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .slider-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .slider-track {
+      display: flex;
+      width: 400%;
+      height: 100%;
+      transition: transform 0.4s ease-in-out;
+    }
+    .slide {
+      width: 25%;
+      height: 100%;
+      flex-shrink: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slide-content {
+      text-align: center;
+      max-width: 280px;
+    }
+    .slide-content h3 {
+      margin: 0 0 8px 0;
+      font-size: 1.1rem;
+      color: #111827;
+      font-weight: 700;
+    }
+    .slide-content p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+    .slider-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: none;
+      background: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .dot:hover {
+      background: #94a3b8;
+      transform: scale(1.1);
+    }
+    .dot.active {
+      background: #3b82f6;
+      transform: scale(1.2);
+    }
   </style>
 </head>
 <body>
@@ -851,17 +919,6 @@
         <a href="#">Контакты</a>
       </nav>
       <div class="header-buttons">
-        <div class="social-icons">
-          <a href="https://vk.com/ride_auto" target="_blank" title="ВКонтакте">
-            <i class="fab fa-vk"></i>
-          </a>
-          <a href="https://t.me/worldrideauto" target="_blank" title="Telegram">
-            <i class="fab fa-telegram-plane"></i>
-          </a>
-          <a href="#" title="Avito">
-            <i class="fab fa-avito"></i>
-          </a>
-        </div>
         <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank">Связаться с менеджером</a>
         <button class="btn btn-secondary" onclick="alert('Функция входа в разработке')">Войти</button>
       </div>
@@ -870,49 +927,41 @@
 
   <!-- Баннер с названием компании -->
   <section class="hero-banner">
-    <div class="hero-content">
-      <h1 class="hero-title">World Ride Auto</h1>
-      <p class="hero-subtitle">Ваш надежный партнер в покупке автомобилей из Южной Кореи</p>
-      <div class="hero-features">
-        <div class="feature-item">
-          <i class="fas fa-shield-alt"></i>
-          <span>Гарантия качества</span>
-        </div>
-        <div class="feature-item">
-          <i class="fas fa-globe"></i>
-          <span>Доставка по всему миру</span>
-        </div>
-        <div class="feature-item">
-          <i class="fas fa-tags"></i>
-          <span>Лучшие цены</span>
-        </div>
-        <div class="feature-item">
-          <i class="fas fa-clock"></i>
-          <span>Быстрое оформление</span>
-        </div>
-      </div>
-      <div class="hero-stats">
-        <div class="stat-item">
-          <span class="stat-number" data-target="5000">0</span>
-          <span class="stat-label">довольных клиентов</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number" data-target="15">0</span>
-          <span class="stat-label">лет на рынке</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number" data-target="25">0</span>
-          <span class="stat-label">стран доставки</span>
+    <div class="hero-slider">
+      <div class="slider-container">
+        <div class="slider-track">
+          <div class="slide">
+            <div class="slide-content">
+              <h3>Профессиональный подбор</h3>
+              <p>Тщательный отбор автомобилей по вашим требованиям</p>
+            </div>
+          </div>
+          <div class="slide">
+            <div class="slide-content">
+              <h3>Таможенное оформление</h3>
+              <p>Полное сопровождение на всех этапах растаможки</p>
+            </div>
+          </div>
+          <div class="slide">
+            <div class="slide-content">
+              <h3>Доставка в Россию</h3>
+              <p>Безопасная и надежная доставка до вашего города</p>
+            </div>
+          </div>
+          <div class="slide">
+            <div class="slide-content">
+              <h3>Гарантия качества</h3>
+              <p>Проверка истории автомобиля и техническое состояние</p>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="hero-actions">
-        <a href="howtobuy.html" class="btn btn-primary hero-btn">Как купить автомобиль</a>
-        <a href="https://t.me/nikits15" class="btn btn-secondary hero-btn" target="_blank">Консультация менеджера</a>
+      <div class="slider-dots">
+        <button class="dot active" data-slide="0"></button>
+        <button class="dot" data-slide="1"></button>
+        <button class="dot" data-slide="2"></button>
+        <button class="dot" data-slide="3"></button>
       </div>
-    </div>
-    <div class="hero-decoration">
-      <div class="car-silhouette"></div>
-      <div class="wave-animation"></div>
     </div>
   </section>
 
@@ -1578,8 +1627,63 @@
       });
       countInfoIcon.addEventListener('mouseleave', () => {
         tooltip.style.display = 'none';
-      });
+       });
     }
+
+    // Слайдер в герой-баннере
+    (function() {
+      const sliderTrack = document.querySelector('.slider-track');
+      const dots = document.querySelectorAll('.dot');
+      let currentIndex = 0;
+      let autoSlideInterval;
+
+      function goToSlide(index) {
+        currentIndex = index;
+        const translateX = -index * 25;
+        sliderTrack.style.transform = `translateX(${translateX}%)`;
+        
+        // Обновляем активные точки
+        dots.forEach((dot, i) => {
+          if (i === index) {
+            dot.classList.add('active');
+          } else {
+            dot.classList.remove('active');
+          }
+        });
+      }
+
+      function nextSlide() {
+        currentIndex = (currentIndex + 1) % 4;
+        goToSlide(currentIndex);
+      }
+
+      // Автоматическое перелистывание каждые 7 секунд
+      function startAutoSlide() {
+        autoSlideInterval = setInterval(nextSlide, 7000);
+      }
+
+      function stopAutoSlide() {
+        clearInterval(autoSlideInterval);
+      }
+
+      // Обработчики для точек
+      dots.forEach(dot => {
+        dot.addEventListener('click', (e) => {
+          const slideIndex = parseInt(e.target.getAttribute('data-slide'));
+          goToSlide(slideIndex);
+          stopAutoSlide();
+          startAutoSlide();
+        });
+      });
+
+      // Запускаем автоматическое перелистывание
+      startAutoSlide();
+
+      // Останавливаем автопрокрутку при наведении на слайдер
+      const sliderContainer = document.querySelector('.hero-slider');
+      sliderContainer.addEventListener('mouseenter', stopAutoSlide);
+      sliderContainer.addEventListener('mouseleave', startAutoSlide);
+    })();
   })();
 </script>
 
