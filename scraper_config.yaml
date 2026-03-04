@@ -1,0 +1,77 @@
+# Encar.com production scraper configuration
+# Override with environment variables: SCRAPER_<SECTION>_<KEY> (e.g. SCRAPER_HTTP_CONCURRENCY=10)
+
+http:
+  # Concurrency for detail fetches (per car: detail + optional diagnosis/record/inspection/user)
+  concurrency: 8
+  # Max concurrent connections to the same host
+  conn_limit_per_host: 10
+  # Timeouts (seconds)
+  timeout_total: 30
+  timeout_connect: 10
+  # List page size (API limit is typically 50-100)
+  list_page_size: 100
+  # Max offset for list API (if API returns error above this, use date-range strategy)
+  max_list_offset: 10000
+  # Delay between list page requests (seconds) - list is sequential to avoid offset issues
+  list_page_delay_min: 0.5
+  list_page_delay_max: 1.5
+  # Jitter for detail requests (seconds) - added to random delay
+  request_jitter_min: 0.1
+  request_jitter_max: 0.5
+
+retry:
+  max_attempts: 5
+  # Exponential backoff base (seconds): 1, 2, 4, 8, 16
+  backoff_base: 1
+  backoff_max: 60
+  # Retry on these status codes
+  retry_statuses: [429, 500, 502, 503, 504]
+
+proxy:
+  enabled: false
+  # List of URLs: http://user:pass@host:port or http://host:port
+  urls: []
+  # Rotate every N requests (0 = every request)
+  rotate_every: 1
+
+user_agents:
+  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+  - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
+  - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+
+# Car types to collect: for = import, kor = domestic
+car_types:
+  - for
+  - kor
+
+# Test run: stop after this many cars saved (0 = no limit, collect until list exhausted)
+max_cars: 2000
+
+# Checkpoint and state
+checkpoint:
+  path: "scraper_checkpoint.db"
+  save_interval_seconds: 60
+  # Max pending IDs to keep in DB (oldest dropped when full to avoid unbounded growth)
+  max_pending_ids: 500000
+
+# Output storage
+storage:
+  # "sqlite" | "chunked_json"
+  backend: "sqlite"
+  sqlite:
+    path: "encar_cars.db"
+  chunked_json:
+    dir: "output_chunks"
+    cars_per_file: 1000
+  # Store raw API responses for reprocessing (in SQLite as blob or separate table)
+  store_raw_responses: false
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "scraper.log"
+  console: true
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"

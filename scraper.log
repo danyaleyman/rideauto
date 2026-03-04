@@ -1,0 +1,26 @@
+2026-03-04 00:55:23,367 [INFO] encar_scraper: Starting Encar scraper
+2026-03-04 00:55:23,411 [INFO] encar_scraper: Run limited to max_cars=2000
+2026-03-04 00:55:24,097 [INFO] encar_scraper: List car_type=for offset=0 items=100 queued=100
+2026-03-04 00:55:25,673 [INFO] encar_scraper: List car_type=for offset=100 items=100 queued=100
+2026-03-04 00:55:26,976 [INFO] encar_scraper: List car_type=for offset=200 items=100 queued=100
+2026-03-04 00:55:28,789 [INFO] encar_scraper: List car_type=for offset=300 items=100 queued=100
+2026-03-04 00:55:31,343 [INFO] encar_scraper: List car_type=for offset=400 items=100 queued=100
+2026-03-04 00:55:33,420 [INFO] encar_scraper: List car_type=for offset=500 items=100 queued=100
+2026-03-04 00:55:35,524 [INFO] encar_scraper: List car_type=for offset=600 items=100 queued=100
+2026-03-04 00:55:36,672 [INFO] encar_scraper: List car_type=for offset=700 items=100 queued=100
+2026-03-04 00:55:38,996 [INFO] encar_scraper: List car_type=for offset=800 items=100 queued=100
+2026-03-04 00:55:41,276 [WARNING] encar_scraper: List page failed car_type=for offset=900 status=407 err=
+2026-03-04 00:55:41,873 [WARNING] encar_scraper: List page failed car_type=kor offset=0 status=407 err=
+2026-03-04 00:55:41,873 [INFO] encar_scraper: List producer finished for car_types=['for', 'kor']
+2026-03-04 00:56:02,047 [INFO] encar_scraper: Worker 3 saved car_id=41303436 total=100
+2026-03-04 00:56:23,420 [INFO] encar_scraper: Stats: processed=201 saved=196 detail_fail=0 parse_fail=5 pending=584 queue_size=32
+2026-03-04 00:56:23,950 [INFO] encar_scraper: Worker 7 saved car_id=41205758 total=200
+2026-03-04 00:56:45,516 [INFO] encar_scraper: Worker 1 saved car_id=41186558 total=300
+2026-03-04 00:57:06,758 [INFO] encar_scraper: Worker 0 saved car_id=41545476 total=400
+2026-03-04 00:57:23,420 [INFO] encar_scraper: Stats: processed=482 saved=474 detail_fail=0 parse_fail=8 pending=284 queue_size=32
+2026-03-04 00:57:28,416 [INFO] encar_scraper: Worker 5 saved car_id=41525685 total=500
+2026-03-04 00:57:49,833 [INFO] encar_scraper: Worker 0 saved car_id=41513307 total=600
+2026-03-04 00:58:11,602 [INFO] encar_scraper: Worker 5 saved car_id=41017220 total=700
+2026-03-04 00:58:23,425 [INFO] encar_scraper: Stats: processed=761 saved=753 detail_fail=0 parse_fail=8 pending=0 queue_size=32
+2026-03-04 00:58:32,488 [INFO] encar_scraper: Worker 2 saved car_id=41027132 total=800
+2026-03-04 00:58:50,114 [INFO] encar_scraper: Scraper finished. list_pages=9 ids_discovered=900 ids_queued=900 processed=884 saved=876 detail_fail=0 parse_fail=8 elapsed=206.7s

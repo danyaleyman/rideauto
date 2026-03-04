@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Каталог Encar — две колонки + каскадные списки</title>
     <script src="https://kit.fontawesome.com/767a85f1ee.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
   <style>
     /* Шапка сайта */
     .header {
@@ -165,13 +167,40 @@
       width: 320px;
       background: white;
       border-radius: 20px;
-      padding: 24px;
+      padding: 0;
       position: sticky;
       top: 20px;
       max-height: calc(100vh - 40px);
-  overflow-y: hidden;
       flex-shrink: 0;
       border: 1px solid #DDDDDD;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .filters-panel-header {
+      padding: 24px 24px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      flex-shrink: 0;
+    }
+    .filters-panel-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .filters-panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 24px;
+      min-height: 0;
+    }
+    .filters-panel-footer {
+      flex-shrink: 0;
+      padding: 16px 24px 24px;
+      border-top: 1px solid #f3f4f6;
+      background: white;
     }
     .filter-group {
       margin-bottom: 28px;
@@ -228,7 +257,7 @@
     }
     .checkbox-list {
       max-height: 220px;
-  overflow-y: hidden;
+      overflow-y: auto;
       padding-right: 8px;
       margin-top: 8px;
     }
@@ -330,6 +359,84 @@
       font-size: 0.8rem;
       color: #6b7280;
       font-weight: 500;
+    }
+    .show-more-colors-btn {
+      margin-top: 8px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      color: #3b82f6;
+      background: transparent;
+      border: 1px dashed #93c5fd;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .show-more-colors-btn:hover {
+      background: #eff6ff;
+      border-color: #3b82f6;
+    }
+    /* Модальное окно цветов */
+    .color-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .color-modal-overlay.is-open {
+      display: flex;
+    }
+    .color-modal {
+      background: white;
+      border-radius: 20px;
+      max-width: 400px;
+      width: 100%;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    }
+    .color-modal h4 {
+      margin: 0;
+      padding: 20px 24px;
+      font-size: 1.1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .color-modal-list {
+      padding: 16px 24px 24px;
+      overflow-y: auto;
+      max-height: 50vh;
+    }
+    .color-modal-list .checkbox-item {
+      margin-bottom: 8px;
+    }
+    .color-modal-close {
+      margin-top: 8px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e293b;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s ease;
+    }
+    .color-modal-close:hover {
+      background: #e2e8f0;
+    }
+    .filter-group .drive-checkbox-wrap {
+      margin-top: 8px;
+    }
+    .filter-group .drive-checkbox-wrap .checkbox-item {
+      margin-bottom: 0;
     }
 
     /* Основной контент */
@@ -834,76 +941,27 @@
       }
     }
 
-    /* Слайдер в герой-баннере */
-    .hero-slider {
-      width: 340px;
-      height: 140px;
-      margin: 30px auto;
-      position: relative;
-      border-radius: 12px;
-      overflow: hidden;
-      background: rgba(255,255,255,0.9);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    .slider-container {
+
+    /* Пагинация Swiper слайдера */
+    .hero-slider .swiper-pagination {
+      position: absolute;
+      bottom: 10px;
+      left: 0;
       width: 100%;
-      height: 100%;
-      position: relative;
-    }
-    .slider-track {
-      display: flex;
-      width: 400%;
-      height: 100%;
-      transition: transform 0.4s ease-in-out;
-    }
-    .slide {
-      width: 25%;
-      height: 100%;
-      flex-shrink: 0;
-      padding: 20px;
-      box-sizing: border-box;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .slide-content {
       text-align: center;
-      max-width: 280px;
+      z-index: 10;
     }
-    .slide-content h3 {
-      margin: 0 0 8px 0;
-      font-size: 1.1rem;
-      color: #111827;
-      font-weight: 700;
-    }
-    .slide-content p {
-      margin: 0;
-      font-size: 0.9rem;
-      color: #6b7280;
-      line-height: 1.4;
-    }
-    .slider-dots {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .dot {
+    .hero-slider .swiper-pagination-bullet {
+      background: #cbd5e1;
+      opacity: 1;
       width: 10px;
       height: 10px;
+      margin: 0 4px;
       border-radius: 50%;
-      border: none;
-      background: #cbd5e1;
-      cursor: pointer;
-      transition: all 0.3s ease;
+      transition: background 0.2s;
     }
-    .dot:hover {
-      background: #94a3b8;
-      transform: scale(1.1);
-    }
-    .dot.active {
+    .hero-slider .swiper-pagination-bullet-active {
       background: #3b82f6;
-      transform: scale(1.2);
     }
   </style>
 </head>
@@ -927,96 +985,212 @@
 
   <!-- Баннер с названием компании -->
   <section class="hero-banner">
-    <div class="hero-slider">
-      <div class="slider-container">
-        <div class="slider-track">
-          <div class="slide">
-            <div class="slide-content">
-              <h3>Профессиональный подбор</h3>
-              <p>Тщательный отбор автомобилей по вашим требованиям</p>
-            </div>
+    <div class="swiper hero-slider">
+      <div class="swiper-wrapper">
+        <div class="swiper-slide">
+          <div class="slide-content">
+            <h3>Профессиональный подбор</h3>
+            <p>Тщательный отбор автомобилей по вашим требованиям</p>
           </div>
-          <div class="slide">
-            <div class="slide-content">
-              <h3>Таможенное оформление</h3>
-              <p>Полное сопровождение на всех этапах растаможки</p>
-            </div>
+        </div>
+        <div class="swiper-slide">
+          <div class="slide-content">
+            <h3>Таможенное оформление</h3>
+            <p>Полное сопровождение на всех этапах растаможки</p>
           </div>
-          <div class="slide">
-            <div class="slide-content">
-              <h3>Доставка в Россию</h3>
-              <p>Безопасная и надежная доставка до вашего города</p>
-            </div>
+        </div>
+        <div class="swiper-slide">
+          <div class="slide-content">
+            <h3>Доставка в Россию</h3>
+            <p>Безопасная и надежная доставка до вашего города</p>
           </div>
-          <div class="slide">
-            <div class="slide-content">
-              <h3>Гарантия качества</h3>
-              <p>Проверка истории автомобиля и техническое состояние</p>
-            </div>
+        </div>
+        <div class="swiper-slide">
+          <div class="slide-content">
+            <h3>Гарантия качества</h3>
+            <p>Проверка истории автомобиля и техническое состояние</p>
           </div>
         </div>
       </div>
-      <div class="slider-dots">
-        <button class="dot active" data-slide="0"></button>
-        <button class="dot" data-slide="1"></button>
-        <button class="dot" data-slide="2"></button>
-        <button class="dot" data-slide="3"></button>
-      </div>
+      <!-- Пагинация (точки) под слайдером -->
+      <div class="swiper-pagination"></div>
     </div>
   </section>
 
 <div class="main-layout">
   <!-- Левая панель фильтров (как на Encar) -->
   <aside class="filters-panel" id="filtersPanel">
-    <h3>
-      Фильтры
-      <span class="count-badge" id="filterCount">0</span>
-    </h3>
-
-    <!-- Марка и модель: каскадные списки -->
-    <div class="filter-group">
-      <h4>Марка</h4>
-      <select id="markSelect">
-        <option value="">Все марки</option>
-      </select>
+    <div class="filters-panel-header">
+      <h3>
+        Фильтры
+        <span class="count-badge" id="filterCount">0</span>
+      </h3>
     </div>
-    <div class="filter-group">
-      <h4>Модель</h4>
-      <select id="modelSelect" disabled>
-        <option value="">Сначала выберите марку</option>
-      </select>
-    </div>
-
-    <!-- Остальные фильтры (чекбоксы) будут вставлены сюда динамически -->
-    <div id="dynamicFiltersContainer"></div>
-
-    <!-- Год, цена, пробег (диапазоны) -->
-    <div class="filter-group">
-      <h4>Год выпуска</h4>
-      <div class="range-inputs">
-        <input type="number" id="yearFrom" placeholder="От, напр. 2018" min="1980" max="2026">
-        <input type="number" id="yearTo" placeholder="До" min="1980" max="2026">
+    <div class="filters-panel-scroll">
+      <!-- 1. Марка (англ.) -->
+      <div class="filter-group">
+        <h4>Марка</h4>
+        <select id="markSelect">
+          <option value="">Все марки</option>
+        </select>
+      </div>
+      <!-- 2. Модель (англ.) -->
+      <div class="filter-group">
+        <h4>Модель</h4>
+        <select id="modelSelect" disabled>
+          <option value="">Сначала выберите марку</option>
+        </select>
+      </div>
+      <!-- 3. Поколение (англ.) -->
+      <div class="filter-group">
+        <h4>Поколение</h4>
+        <select id="generationSelect" disabled>
+          <option value="">Сначала выберите модель</option>
+        </select>
+      </div>
+      <!-- 4. Тип/Комплектация (англ.) -->
+      <div class="filter-group">
+        <h4>Тип / Комплектация</h4>
+        <select id="trimSelect" disabled>
+          <option value="">Сначала выберите поколение</option>
+        </select>
+      </div>
+      <!-- 5. Кузов (чекбоксы) -->
+      <div class="filter-group">
+        <h4>Кузов</h4>
+        <div class="checkbox-list" id="bodyList"></div>
+      </div>
+      <!-- 6. Мощность от/до (л.с.) -->
+      <div class="filter-group">
+        <h4>Мощность (л.с.)</h4>
+        <div class="range-inputs">
+          <input type="number" id="powerFrom" placeholder="От" min="0" step="10">
+          <input type="number" id="powerTo" placeholder="До" min="0" step="10">
+        </div>
+      </div>
+      <!-- 7. Объём двигателя от/до (см³) -->
+      <div class="filter-group">
+        <h4>Объём двигателя (см³)</h4>
+        <div class="range-inputs">
+          <input type="number" id="engineFrom" placeholder="От" min="0" step="100">
+          <input type="number" id="engineTo" placeholder="До" min="0" step="100">
+        </div>
+      </div>
+      <!-- 8. Вид топлива -->
+      <div class="filter-group">
+        <h4>Вид топлива</h4>
+        <div class="checkbox-list" id="fuelList"></div>
+      </div>
+      <div class="filter-group">
+        <h4>Коробка передач</h4>
+        <div class="checkbox-list" id="transmissionList"></div>
+      </div>
+      <!-- 9. Цена от/до -->
+      <div class="filter-group">
+        <h4>Цена от / до (вон)</h4>
+        <div class="range-inputs">
+          <input type="number" id="priceFrom" placeholder="От" min="0" step="100000">
+          <input type="number" id="priceTo" placeholder="До" min="0" step="100000">
+        </div>
+      </div>
+      <!-- 10. Пробег от/до -->
+      <div class="filter-group">
+        <h4>Пробег от / до (км)</h4>
+        <div class="range-inputs">
+          <input type="number" id="mileageFrom" placeholder="От" min="0" step="1000">
+          <input type="number" id="mileageTo" placeholder="До" min="0" step="1000">
+        </div>
+      </div>
+      <!-- 11. Год производства от/до (4 поля: год+месяц) -->
+      <div class="filter-group">
+        <h4>Год производства от / до</h4>
+        <div class="range-inputs" style="flex-wrap: wrap;">
+          <select id="yearFrom" style="flex: 1; min-width: 80px;">
+            <option value="">Год от</option>
+          </select>
+          <select id="monthFrom" style="flex: 1; min-width: 70px;">
+            <option value="">Месяц от</option>
+          </select>
+          <select id="yearTo" style="flex: 1; min-width: 80px;">
+            <option value="">Год до</option>
+          </select>
+          <select id="monthTo" style="flex: 1; min-width: 70px;">
+            <option value="">Месяц до</option>
+          </select>
+        </div>
+      </div>
+      <!-- 12. Тип привода: только полный -->
+      <div class="filter-group">
+        <h4>Тип привода</h4>
+        <div class="drive-checkbox-wrap">
+          <div class="checkbox-item">
+            <input type="checkbox" id="filterDriveAwd" data-filter="drive" value="AWD">
+            <label for="filterDriveAwd">Полный привод</label>
+          </div>
+        </div>
+      </div>
+      <!-- 13. Страховые случаи шт. от/до + без случаев -->
+      <div class="filter-group">
+        <h4>Страховые случаи (шт.)</h4>
+        <div class="range-inputs">
+          <input type="number" id="insuranceCasesFrom" placeholder="От" min="0">
+          <input type="number" id="insuranceCasesTo" placeholder="До" min="0">
+        </div>
+        <div class="drive-checkbox-wrap" style="margin-top: 10px;">
+          <div class="checkbox-item">
+            <input type="checkbox" id="filterNoInsuranceCases" data-filter="noInsuranceCases">
+            <label for="filterNoInsuranceCases">Без страховых случаев</label>
+          </div>
+        </div>
+      </div>
+      <!-- 14. Страховые выплаты от/до + без выплат -->
+      <div class="filter-group">
+        <h4>Страховые выплаты (вон)</h4>
+        <div class="range-inputs">
+          <input type="number" id="insurancePayoutsFrom" placeholder="От" min="0">
+          <input type="number" id="insurancePayoutsTo" placeholder="До" min="0">
+        </div>
+        <div class="drive-checkbox-wrap" style="margin-top: 10px;">
+          <div class="checkbox-item">
+            <input type="checkbox" id="filterNoInsurancePayouts" data-filter="noInsurancePayouts">
+            <label for="filterNoInsurancePayouts">Без страховых выплат</label>
+          </div>
+        </div>
+      </div>
+      <!-- 15. Повреждённые элементы (замена) от/до + без повреждений -->
+      <div class="filter-group">
+        <h4>Повреждённые элементы (замена), шт.</h4>
+        <div class="range-inputs">
+          <input type="number" id="damagedFrom" placeholder="От" min="0">
+          <input type="number" id="damagedTo" placeholder="До" min="0">
+        </div>
+        <div class="drive-checkbox-wrap" style="margin-top: 10px;">
+          <div class="checkbox-item">
+            <input type="checkbox" id="filterNoDamaged" data-filter="noDamaged">
+            <label for="filterNoDamaged">Без повреждений</label>
+          </div>
+        </div>
+      </div>
+      <!-- 16. Цвет: 4 в меню + кнопка «Показать ещё» -->
+      <div class="filter-group">
+        <h4>Цвет кузова</h4>
+        <div class="checkbox-list" id="colorListVisible"></div>
+        <button type="button" class="show-more-colors-btn" id="showMoreColorsBtn" style="display: none;">Показать цвета ещё</button>
       </div>
     </div>
-
-    <div class="filter-group">
-      <h4>Цена (млн вон)</h4>
-      <div class="range-inputs">
-        <input type="number" id="priceFrom" placeholder="От" min="0" step="10">
-        <input type="number" id="priceTo" placeholder="До" min="0" step="10">
-      </div>
+    <div class="filters-panel-footer">
+      <button class="reset-btn" id="resetFiltersBtn">Сбросить фильтры</button>
     </div>
-
-    <div class="filter-group">
-      <h4>Пробег (км)</h4>
-      <div class="range-inputs">
-        <input type="number" id="mileageFrom" placeholder="От" min="0" step="1000">
-        <input type="number" id="mileageTo" placeholder="До" min="0" step="1000">
-      </div>
-    </div>
-
-    <button class="reset-btn" id="resetFiltersBtn">⟲ Сбросить все фильтры</button>
   </aside>
+
+  <!-- Модальное окно: все цвета -->
+  <div class="color-modal-overlay" id="colorModalOverlay">
+    <div class="color-modal" id="colorModal">
+      <h4>Цвет кузова</h4>
+      <div class="color-modal-list" id="colorModalList"></div>
+      <button type="button" class="color-modal-close" id="colorModalClose">Закрыть</button>
+    </div>
+  </div>
 
   <!-- Основной контент: каталог + пагинация -->
   <main class="content">
@@ -1052,10 +1226,7 @@
       <h3>Юридическая информация</h3>
       <div class="footer-text">
         <div class="footer-column">
-          <p>Информация, размещенная в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление покупателей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
-        </div>
-        <div class="footer-column">
-          <p>이 카탈로그에 게시된 정보는 러시아 연방 민법 제437조 및 대한민국 민법 제435조의 의미에서 공개 청약을 구성하지 않습니다. 모든 차량 정보, 예상 계산 및 가격을 포함한 정보는 정보 제공 목적으로만 제공되며 대한민국에서 이용 가능한 공개 출처를 기반으로 합니다. 정보 게시의 목적은 구매자가 한국 시장에서 이용 가능한 차량의 범위와 가격 수준을 알 수 있도록 하는 것입니다. 서비스 활동은 러시아 연방 및 대한민국의 법률을 엄격히 준수하여 수행됩니다.</p>
+          <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление покупателей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
         </div>
       </div>
     </div>
@@ -1079,8 +1250,53 @@
     const filterCountEl = document.getElementById('filterCount');
     const markSelect = document.getElementById('markSelect');
     const modelSelect = document.getElementById('modelSelect');
-    const dynamicContainer = document.getElementById('dynamicFiltersContainer');
+    const generationSelect = document.getElementById('generationSelect');
+    const trimSelect = document.getElementById('trimSelect');
     const sortSelect = document.getElementById('sortSelect');
+
+    // Вспомогательные функции для фильтрации по данным из cars.json / record / inspection
+    function getInsuranceCasesCount(car) {
+      const r = car.data?.extra?.record_open;
+      if (!r) return 0;
+      if (Array.isArray(r.accidents) && r.accidents.length) return r.accidents.length;
+      const my = Number(r.myAccidentCnt) || 0;
+      const other = Number(r.otherAccidentCnt) || 0;
+      return my + other;
+    }
+    function getInsurancePayoutsSum(car) {
+      const acc = car.data?.extra?.record_open?.accidents;
+      if (!Array.isArray(acc)) return 0;
+      return acc.reduce((s, a) => s + (Number(a.insuranceBenefit) || 0), 0);
+    }
+    function getDamagedCount(car) {
+      const bc = car.data?.extra?.inspection_structured?.bodyChanged;
+      return bc && typeof bc === 'object' ? Object.keys(bc).length : 0;
+    }
+    function getPowerNum(car) {
+      const p = car.data?.power;
+      if (p === undefined || p === null || p === '') return null;
+      const n = parseInt(String(p).replace(/\D/g, ''), 10);
+      return Number.isNaN(n) ? null : n;
+    }
+    function getEngineVolumeNum(car) {
+      const d = car.data?.displacement;
+      if (d === undefined || d === null || d === '') return null;
+      const s = String(d).replace(/,/, '.').replace(/\s/g, '');
+      let n = parseInt(s, 10);
+      if (!Number.isNaN(n)) return n;
+      const m = s.match(/(\d+\.?\d*)\s*[Ll]?/);
+      if (m) n = parseFloat(m[1]);
+      return Number.isNaN(n) ? null : (n < 100 ? Math.round(n * 1000) : n);
+    }
+    function getYearMonthNum(car) {
+      const ym = car.data?.yearMonth || car.data?.year || '';
+      const str = String(ym).trim();
+      if (!str) return null;
+      const y = parseInt(str.slice(0, 4), 10);
+      const m = parseInt(str.slice(4, 6), 10) || 1;
+      if (Number.isNaN(y)) return null;
+      return y * 12 + (Number.isNaN(m) ? 0 : m - 1);
+    }
     const countInfoIcon = document.getElementById('countInfoIcon');
 
     let currentSort = 'date_new';
@@ -1099,7 +1315,20 @@
     }
     function formatPrice(p) {
       if (p === undefined || p === null) return '';
-      return Number(p).toLocaleString('ru-RU') + ' ₩';
+      return Number(p).toLocaleString('ru-RU') + ' вон';
+    }
+    // Перевод подтягиваемых данных с корейского на русский (марка, модель, комплектация — остаются на английском)
+    const displayRu = {
+      'AWD': 'Полный', 'FWD': 'Передний', 'RWD': 'Задний',
+      '가솔린': 'Бензин', '디젤': 'Дизель', 'LPG': 'Газ', 'LPG/가솔린': 'Газ/бензин', '하이브리드': 'Гибрид', '전기': 'Электро',
+      '세단': 'Седан', 'SUV': 'Внедорожник', '해치백': 'Хэтчбек', '왜건': 'Универсал', '쿠페': 'Купе', '픽업': 'Пикап', '밴': 'Фургон',
+      '자동': 'Автомат', '수동': 'Механика', '세미자동': 'Робот', 'CVT': 'Вариатор', '듀얼 클러치': 'Робот',
+      '검정': 'Чёрный', '흰색': 'Белый', '은색': 'Серебристый', '회색': 'Серый', '빨간색': 'Красный', '파란색': 'Синий', '남색': 'Тёмно-синий', '베이지': 'Бежевый', '갈색': 'Коричневый', '녹색': 'Зелёный', '노란색': 'Жёлтый', '주황': 'Оранжевый', '골드': 'Золотой', '실버': 'Серебро', '블랙': 'Чёрный', '화이트': 'Белый', '레드': 'Красный', '블루': 'Синий', '그레이': 'Серый', '그린': 'Зелёный'
+    };
+    function toDisplayRu(val) {
+      if (!val) return val;
+      const s = String(val).trim();
+      return displayRu[s] || displayRu[s.replace(/\s+/g, ' ')] || val;
     }
     function taxClass(yearStr) {
       const carYear = parseInt(String(yearStr).slice(0, 4));
@@ -1250,9 +1479,10 @@
 
         const fullTitle = `${d.mark_en || d.mark || ''} ${d.model_en || d.model || ''} ${d.generation_en || d.generation || d.configuration || ''}`.trim();
         const powerPart = d.power ? `${d.power} л.с.` : '';
-        const fuelPart = d.engine_type || '';
+        const fuelPart = toDisplayRu(d.engine_type) || '';
         const volumePart = d.displacement ? `${Number(d.displacement).toLocaleString('ru-RU')} см³` : '';
-        const drivePart = d.prep_drive_type ? `${d.prep_drive_type}` : '';
+        const drivePart = toDisplayRu(d.prep_drive_type) || '';
+        const bodyRu = toDisplayRu(d.body_type) || '';
 
         card.innerHTML = `
           <div class="preview">
@@ -1267,7 +1497,7 @@
                 ${[powerPart, fuelPart, volumePart, formatKm(d.km_age)].filter(Boolean).join(', ')}
               </div>
               <div class="meta">
-                ${formatYear(d.year)} • ${d.body_type || ''}${drivePart ? `, привод ${drivePart}` : ''}
+                ${formatYear(d.year)} • ${bodyRu}${drivePart ? ', привод ' + drivePart : ''}
               </div>
             </div>
             <div class="price-row">
@@ -1360,8 +1590,11 @@
     }
 
     // ---------- Построение фильтров на основе данных ----------
+    const MONTHS = ['', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    const MONTH_LABELS = ['', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
     function buildFiltersFromData() {
-      // Марки
+      // 1. Марки (англ.)
       const marks = [...new Set(allCars.map(c => c.data?.mark).filter(Boolean))].sort();
       markSelect.innerHTML = '<option value="">Все марки</option>';
       marks.forEach(m => {
@@ -1371,45 +1604,106 @@
         markSelect.appendChild(opt);
       });
 
-      // Остальные фильтры (кузов, топливо, коробка) строим как чекбоксы
+      // Год от/до: 1980..2030
+      const yearFromEl = document.getElementById('yearFrom');
+      const yearToEl = document.getElementById('yearTo');
+      const monthFromEl = document.getElementById('monthFrom');
+      const monthToEl = document.getElementById('monthTo');
+      [yearFromEl, yearToEl].forEach(sel => {
+        sel.innerHTML = '<option value="">' + (sel.id === 'yearFrom' ? 'Год от' : 'Год до') + '</option>';
+        for (let y = 2030; y >= 1980; y--) {
+          const o = document.createElement('option');
+          o.value = y;
+          o.textContent = y;
+          sel.appendChild(o);
+        }
+      });
+      [monthFromEl, monthToEl].forEach((sel, i) => {
+        sel.innerHTML = '<option value="">' + (i === 0 ? 'Месяц от' : 'Месяц до') + '</option>';
+        for (let m = 1; m <= 12; m++) {
+          const o = document.createElement('option');
+          o.value = MONTHS[m];
+          o.textContent = MONTH_LABELS[m];
+          sel.appendChild(o);
+        }
+      });
+
+      // Кузов, топливо, коробка — чекбоксы
       const bodies = [...new Set(allCars.map(c => c.data?.body_type).filter(Boolean))].sort();
       const fuels = [...new Set(allCars.map(c => c.data?.engine_type).filter(Boolean))].sort();
       const transmissions = [...new Set(allCars.map(c => c.data?.transmission_type).filter(Boolean))].sort();
-
-      dynamicContainer.innerHTML = `
-        <div class="filter-group">
-          <h4>Тип кузова</h4>
-          <div class="checkbox-list" id="bodyList"></div>
-        </div>
-        <div class="filter-group">
-          <h4>Топливо</h4>
-          <div class="checkbox-list" id="fuelList"></div>
-        </div>
-        <div class="filter-group">
-          <h4>Коробка передач</h4>
-          <div class="checkbox-list" id="transmissionList"></div>
-        </div>
-      `;
-
       renderCheckboxes('bodyList', bodies, 'body');
       renderCheckboxes('fuelList', fuels, 'fuel');
       renderCheckboxes('transmissionList', transmissions, 'transmission');
 
-      // Подключаем обработчики
-      document.querySelectorAll('.checkbox-list input[type=checkbox]').forEach(cb => {
+      // Цвета: первые 4 в меню, остальные в модалке
+      const allColors = [...new Set(allCars.map(c => c.data?.color).filter(Boolean))].sort();
+      const colorListVisible = document.getElementById('colorListVisible');
+      const colorModalList = document.getElementById('colorModalList');
+      const showMoreColorsBtn = document.getElementById('showMoreColorsBtn');
+      colorListVisible.innerHTML = '';
+      colorModalList.innerHTML = '';
+      const visibleColors = allColors.slice(0, 4);
+      const restColors = allColors.slice(4);
+      visibleColors.forEach(val => {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        const id = 'filter-color-' + val.replace(/\s/g, '_');
+        const labelText = toDisplayRu(val);
+        div.innerHTML = '<input type="checkbox" id="' + id + '" data-filter="color" value="' + escapeHtml(val) + '"><label for="' + id + '">' + escapeHtml(labelText) + '</label>';
+        colorListVisible.appendChild(div);
+      });
+      allColors.forEach(val => {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        const id = 'filter-color-modal-' + val.replace(/\s/g, '_');
+        const labelText = toDisplayRu(val);
+        div.innerHTML = '<input type="checkbox" id="' + id + '" data-filter="color" value="' + escapeHtml(val) + '"><label for="' + id + '">' + escapeHtml(labelText) + '</label>';
+        colorModalList.appendChild(div);
+      });
+      showMoreColorsBtn.style.display = restColors.length > 0 ? 'block' : 'none';
+
+      function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      // Синхронизация чекбоксов цвета: модалка и видимые 4
+      function syncColorCheckboxes() {
+        const byValue = {};
+        document.querySelectorAll('input[data-filter="color"]').forEach(cb => {
+          byValue[cb.value] = byValue[cb.value] || cb.checked;
+        });
+        document.querySelectorAll('input[data-filter="color"]').forEach(cb => {
+          cb.checked = !!byValue[cb.value];
+        });
+        applyFilters();
+      }
+      colorListVisible.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', syncColorCheckboxes));
+      colorModalList.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', syncColorCheckboxes));
+
+      // Обработчики: все чекбоксы и диапазоны
+      document.querySelectorAll('.checkbox-list input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(cb => {
         cb.addEventListener('change', applyFilters);
       });
+      document.getElementById('filterDriveAwd').addEventListener('change', applyFilters);
+      document.getElementById('filterNoInsuranceCases').addEventListener('change', applyFilters);
+      document.getElementById('filterNoInsurancePayouts').addEventListener('change', applyFilters);
+      document.getElementById('filterNoDamaged').addEventListener('change', applyFilters);
 
-      // Селекты марок и моделей
       markSelect.addEventListener('change', onMarkChange);
-      modelSelect.addEventListener('change', applyFilters);
+      modelSelect.addEventListener('change', onModelChange);
+      generationSelect.addEventListener('change', onGenerationChange);
+      trimSelect.addEventListener('change', applyFilters);
 
-      // Диапазоны
-      ['yearFrom', 'yearTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo'].forEach(id => {
-        document.getElementById(id).addEventListener('input', applyFilters);
+      ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo',
+       'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', applyFilters);
       });
+      [yearFromEl, yearToEl, monthFromEl, monthToEl].forEach(el => el.addEventListener('change', applyFilters));
 
-      // Инициализация моделей (если марка уже выбрана — такого не будет, но на всякий случай)
       onMarkChange();
     }
 
@@ -1420,33 +1714,28 @@
         const div = document.createElement('div');
         div.className = 'checkbox-item';
         const id = `filter-${filterKey}-${val.replace(/\s/g, '_')}`;
+        const labelText = toDisplayRu(val);
         div.innerHTML = `
-          <input type="checkbox" id="${id}" data-filter="${filterKey}" value="${val}">
-          <label for="${id}">${val}</label>
+          <input type="checkbox" id="${id}" data-filter="${filterKey}" value="${val.replace(/"/g, '&quot;')}">
+          <label for="${id}">${labelText.replace(/</g, '&lt;')}</label>
         `;
         container.appendChild(div);
       });
     }
 
-    // Обновление списка моделей при смене марки
     function onMarkChange() {
       const selectedMark = markSelect.value;
+      modelSelect.disabled = true;
+      modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
+      generationSelect.disabled = true;
+      generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
+      trimSelect.disabled = true;
+      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
       if (!selectedMark) {
-        // Марка не выбрана — дисаблим селект модели
-        modelSelect.disabled = true;
-        modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
         applyFilters();
         return;
       }
-
-      // Собираем модели только для выбранной марки
-      const models = [...new Set(
-        allCars
-          .filter(c => c.data?.mark === selectedMark)
-          .map(c => c.data?.model)
-          .filter(Boolean)
-      )].sort();
-
+      const models = [...new Set(allCars.filter(c => c.data?.mark === selectedMark).map(c => c.data?.model).filter(Boolean))].sort();
       modelSelect.disabled = false;
       modelSelect.innerHTML = '<option value="">Все модели</option>';
       models.forEach(m => {
@@ -1455,84 +1744,190 @@
         opt.textContent = m;
         modelSelect.appendChild(opt);
       });
+      onModelChange();
+    }
 
-      applyFilters(); // применить фильтр с новой маркой
+    function onModelChange() {
+      const mark = markSelect.value;
+      const model = modelSelect.value;
+      generationSelect.disabled = true;
+      generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
+      trimSelect.disabled = true;
+      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
+      if (!mark || !model) {
+        applyFilters();
+        return;
+      }
+      const generations = [...new Set(allCars.filter(c => c.data?.mark === mark && c.data?.model === model).map(c => c.data?.generation || c.data?.configuration).filter(Boolean))].sort();
+      generationSelect.disabled = false;
+      generationSelect.innerHTML = '<option value="">Все поколения</option>';
+      generations.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = g;
+        generationSelect.appendChild(opt);
+      });
+      onGenerationChange();
+    }
+
+    function onGenerationChange() {
+      const mark = markSelect.value;
+      const model = modelSelect.value;
+      const generation = generationSelect.value;
+      trimSelect.disabled = true;
+      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
+      if (!mark || !model || !generation) {
+        applyFilters();
+        return;
+      }
+      const trims = [...new Set(allCars.filter(c =>
+        c.data?.mark === mark && c.data?.model === model &&
+        (c.data?.generation === generation || c.data?.configuration === generation)
+      ).map(c => c.data?.gradeName || c.data?.configuration || c.data?.generation).filter(Boolean))].sort();
+      trimSelect.disabled = false;
+      trimSelect.innerHTML = '<option value="">Все комплектации</option>';
+      trims.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        trimSelect.appendChild(opt);
+      });
+      applyFilters();
     }
 
     // Основная фильтрация
     function applyFilters() {
       const selectedMark = markSelect.value;
       const selectedModel = modelSelect.value;
+      const selectedGeneration = generationSelect.value;
+      const selectedTrim = trimSelect.value;
 
-      // Чекбоксы
       const selectedBody = new Set();
       const selectedFuel = new Set();
       const selectedTrans = new Set();
+      const selectedColor = new Set();
       document.querySelectorAll('#bodyList input[type=checkbox]:checked').forEach(cb => selectedBody.add(cb.value));
       document.querySelectorAll('#fuelList input[type=checkbox]:checked').forEach(cb => selectedFuel.add(cb.value));
       document.querySelectorAll('#transmissionList input[type=checkbox]:checked').forEach(cb => selectedTrans.add(cb.value));
+      document.querySelectorAll('input[data-filter="color"]:checked').forEach(cb => selectedColor.add(cb.value));
 
-      // Диапазоны
-      const yearFrom = document.getElementById('yearFrom').value ? parseInt(document.getElementById('yearFrom').value) : null;
-      const yearTo = document.getElementById('yearTo').value ? parseInt(document.getElementById('yearTo').value) : null;
+      const powerFrom = document.getElementById('powerFrom').value ? parseInt(document.getElementById('powerFrom').value, 10) : null;
+      const powerTo = document.getElementById('powerTo').value ? parseInt(document.getElementById('powerTo').value, 10) : null;
+      const engineFrom = document.getElementById('engineFrom').value ? parseInt(document.getElementById('engineFrom').value, 10) : null;
+      const engineTo = document.getElementById('engineTo').value ? parseInt(document.getElementById('engineTo').value, 10) : null;
       const priceFrom = document.getElementById('priceFrom').value ? parseFloat(document.getElementById('priceFrom').value) : null;
       const priceTo = document.getElementById('priceTo').value ? parseFloat(document.getElementById('priceTo').value) : null;
-      const mileageFrom = document.getElementById('mileageFrom').value ? parseInt(document.getElementById('mileageFrom').value) : null;
-      const mileageTo = document.getElementById('mileageTo').value ? parseInt(document.getElementById('mileageTo').value) : null;
+      const mileageFrom = document.getElementById('mileageFrom').value ? parseInt(document.getElementById('mileageFrom').value, 10) : null;
+      const mileageTo = document.getElementById('mileageTo').value ? parseInt(document.getElementById('mileageTo').value, 10) : null;
+
+      const yearFrom = document.getElementById('yearFrom').value ? parseInt(document.getElementById('yearFrom').value, 10) : null;
+      const monthFrom = document.getElementById('monthFrom').value || null;
+      const yearTo = document.getElementById('yearTo').value ? parseInt(document.getElementById('yearTo').value, 10) : null;
+      const monthTo = document.getElementById('monthTo').value || null;
+      const fromYm = (yearFrom && yearFrom > 0) ? yearFrom * 12 + (monthFrom ? parseInt(monthFrom, 10) - 1 : 0) : null;
+      const toYm = (yearTo && yearTo > 0) ? yearTo * 12 + (monthTo ? parseInt(monthTo, 10) - 1 : 11) : null;
+
+      const driveAwdOnly = document.getElementById('filterDriveAwd').checked;
+      const insuranceCasesFrom = document.getElementById('insuranceCasesFrom').value ? parseInt(document.getElementById('insuranceCasesFrom').value, 10) : null;
+      const insuranceCasesTo = document.getElementById('insuranceCasesTo').value ? parseInt(document.getElementById('insuranceCasesTo').value, 10) : null;
+      const noInsuranceCases = document.getElementById('filterNoInsuranceCases').checked;
+      const insurancePayoutsFrom = document.getElementById('insurancePayoutsFrom').value ? parseFloat(document.getElementById('insurancePayoutsFrom').value) : null;
+      const insurancePayoutsTo = document.getElementById('insurancePayoutsTo').value ? parseFloat(document.getElementById('insurancePayoutsTo').value) : null;
+      const noInsurancePayouts = document.getElementById('filterNoInsurancePayouts').checked;
+      const damagedFrom = document.getElementById('damagedFrom').value ? parseInt(document.getElementById('damagedFrom').value, 10) : null;
+      const damagedTo = document.getElementById('damagedTo').value ? parseInt(document.getElementById('damagedTo').value, 10) : null;
+      const noDamaged = document.getElementById('filterNoDamaged').checked;
 
       filteredCars = allCars.filter(car => {
         const d = car.data;
         if (!d) return false;
 
-        // Марка
         if (selectedMark && d.mark !== selectedMark) return false;
-        // Модель
         if (selectedModel && d.model !== selectedModel) return false;
+        const gen = d.generation || d.configuration;
+        if (selectedGeneration && gen !== selectedGeneration) return false;
+        const trim = d.gradeName || d.configuration || d.generation;
+        if (selectedTrim && trim !== selectedTrim) return false;
 
-        // Чекбоксы
         if (selectedBody.size > 0 && !selectedBody.has(d.body_type)) return false;
         if (selectedFuel.size > 0 && !selectedFuel.has(d.engine_type)) return false;
         if (selectedTrans.size > 0 && !selectedTrans.has(d.transmission_type)) return false;
 
-        // Год
-        const carYear = parseInt(String(d.year).slice(0, 4));
-        if (!isNaN(carYear)) {
-          if (yearFrom !== null && carYear < yearFrom) return false;
-          if (yearTo !== null && carYear > yearTo) return false;
-        } else {
-          if (yearFrom !== null || yearTo !== null) return false;
-        }
+        const powerNum = getPowerNum(car);
+        if (powerFrom !== null && (powerNum === null || powerNum < powerFrom)) return false;
+        if (powerTo !== null && (powerNum === null || powerNum > powerTo)) return false;
 
-        // Цена
+        const engineNum = getEngineVolumeNum(car);
+        if (engineFrom !== null && (engineNum === null || engineNum < engineFrom)) return false;
+        if (engineTo !== null && (engineNum === null || engineNum > engineTo)) return false;
+
         const price = d.price_won;
         if (price !== undefined && price !== null) {
           if (priceFrom !== null && price < priceFrom) return false;
           if (priceTo !== null && price > priceTo) return false;
-        }
+        } else if (priceFrom !== null || priceTo !== null) return false;
 
-        // Пробег
-        const mileage = parseInt(String(d.km_age));
+        const mileage = parseInt(String(d.km_age), 10);
         if (!isNaN(mileage)) {
           if (mileageFrom !== null && mileage < mileageFrom) return false;
           if (mileageTo !== null && mileage > mileageTo) return false;
-        }
+        } else if (mileageFrom !== null || mileageTo !== null) return false;
+
+        const carYm = getYearMonthNum(car);
+        if (fromYm !== null && (carYm === null || carYm < fromYm)) return false;
+        if (toYm !== null && (carYm === null || carYm > toYm)) return false;
+
+        if (driveAwdOnly && d.prep_drive_type !== 'AWD') return false;
+
+        const insCnt = getInsuranceCasesCount(car);
+        if (noInsuranceCases && insCnt > 0) return false;
+        if (insuranceCasesFrom !== null && insCnt < insuranceCasesFrom) return false;
+        if (insuranceCasesTo !== null && insCnt > insuranceCasesTo) return false;
+
+        const payouts = getInsurancePayoutsSum(car);
+        if (noInsurancePayouts && payouts > 0) return false;
+        if (insurancePayoutsFrom !== null && payouts < insurancePayoutsFrom) return false;
+        if (insurancePayoutsTo !== null && payouts > insurancePayoutsTo) return false;
+
+        const damagedCnt = getDamagedCount(car);
+        if (noDamaged && damagedCnt > 0) return false;
+        if (damagedFrom !== null && damagedCnt < damagedFrom) return false;
+        if (damagedTo !== null && damagedCnt > damagedTo) return false;
+
+        if (selectedColor.size > 0 && !selectedColor.has(d.color)) return false;
 
         return true;
       });
 
-      // Сброс страницы и обновление счётчика активных фильтров
       page = 1;
-
       let activeCount = 0;
       if (selectedMark) activeCount++;
       if (selectedModel) activeCount++;
-      activeCount += selectedBody.size + selectedFuel.size + selectedTrans.size;
-      if (yearFrom) activeCount++;
-      if (yearTo) activeCount++;
-      if (priceFrom) activeCount++;
-      if (priceTo) activeCount++;
-      if (mileageFrom) activeCount++;
-      if (mileageTo) activeCount++;
+      if (selectedGeneration) activeCount++;
+      if (selectedTrim) activeCount++;
+      activeCount += selectedBody.size + selectedFuel.size + selectedTrans.size + selectedColor.size;
+      if (powerFrom !== null) activeCount++;
+      if (powerTo !== null) activeCount++;
+      if (engineFrom !== null) activeCount++;
+      if (engineTo !== null) activeCount++;
+      if (priceFrom !== null) activeCount++;
+      if (priceTo !== null) activeCount++;
+      if (mileageFrom !== null) activeCount++;
+      if (mileageTo !== null) activeCount++;
+      if (yearFrom !== null) activeCount++;
+      if (monthFrom) activeCount++;
+      if (yearTo !== null) activeCount++;
+      if (monthTo) activeCount++;
+      if (driveAwdOnly) activeCount++;
+      if (insuranceCasesFrom !== null) activeCount++;
+      if (insuranceCasesTo !== null) activeCount++;
+      if (noInsuranceCases) activeCount++;
+      if (insurancePayoutsFrom !== null) activeCount++;
+      if (insurancePayoutsTo !== null) activeCount++;
+      if (noInsurancePayouts) activeCount++;
+      if (damagedFrom !== null) activeCount++;
+      if (damagedTo !== null) activeCount++;
+      if (noDamaged) activeCount++;
       filterCountEl.innerText = activeCount;
 
       sortFilteredCars();
@@ -1544,13 +1939,34 @@
       markSelect.value = '';
       modelSelect.disabled = true;
       modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
-      document.querySelectorAll('.checkbox-list input[type=checkbox]').forEach(cb => cb.checked = false);
+      generationSelect.disabled = true;
+      generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
+      trimSelect.disabled = true;
+      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
+      document.querySelectorAll('.checkbox-list input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(cb => { cb.checked = false; });
+      document.querySelectorAll('input[data-filter="color"]').forEach(cb => { cb.checked = false; });
+      document.getElementById('powerFrom').value = '';
+      document.getElementById('powerTo').value = '';
+      document.getElementById('engineFrom').value = '';
+      document.getElementById('engineTo').value = '';
       document.getElementById('yearFrom').value = '';
+      document.getElementById('monthFrom').value = '';
       document.getElementById('yearTo').value = '';
+      document.getElementById('monthTo').value = '';
       document.getElementById('priceFrom').value = '';
       document.getElementById('priceTo').value = '';
       document.getElementById('mileageFrom').value = '';
       document.getElementById('mileageTo').value = '';
+      document.getElementById('insuranceCasesFrom').value = '';
+      document.getElementById('insuranceCasesTo').value = '';
+      document.getElementById('insurancePayoutsFrom').value = '';
+      document.getElementById('insurancePayoutsTo').value = '';
+      document.getElementById('damagedFrom').value = '';
+      document.getElementById('damagedTo').value = '';
+      document.getElementById('filterDriveAwd').checked = false;
+      document.getElementById('filterNoInsuranceCases').checked = false;
+      document.getElementById('filterNoInsurancePayouts').checked = false;
+      document.getElementById('filterNoDamaged').checked = false;
       applyFilters();
     }
 
@@ -1599,6 +2015,30 @@
     // Кнопка сброса
     document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
 
+    // Модальное окно «Показать цвета ещё»
+    const colorModalOverlay = document.getElementById('colorModalOverlay');
+    const showMoreColorsBtn = document.getElementById('showMoreColorsBtn');
+    const colorModalClose = document.getElementById('colorModalClose');
+    if (showMoreColorsBtn) {
+      showMoreColorsBtn.addEventListener('click', function() {
+        if (colorModalOverlay) {
+          colorModalOverlay.classList.add('is-open');
+          document.querySelectorAll('#colorListVisible input[data-filter="color"]').forEach(function(visCb) {
+            var v = visCb.value;
+            document.querySelectorAll('#colorModalList input[data-filter="color"]').forEach(function(modalCb) {
+              if (modalCb.value === v) modalCb.checked = visCb.checked;
+            });
+          });
+        }
+      });
+    }
+    if (colorModalClose) colorModalClose.addEventListener('click', function() { colorModalOverlay.classList.remove('is-open'); });
+    if (colorModalOverlay) {
+      colorModalOverlay.addEventListener('click', function(e) {
+        if (e.target === colorModalOverlay) colorModalOverlay.classList.remove('is-open');
+      });
+    }
+
     // Обработчик сортировки
     if (sortSelect) {
       sortSelect.addEventListener('change', () => {
@@ -1616,7 +2056,7 @@
       tooltip.innerHTML = 'Мы удаляем дубликаты автомобилей,<br>' +
         'не показываем электрокары и машины,<br>' +
         'которые нельзя приобрести. Поэтому, общее<br>' +
-        'количество авто меньше, чем на encar.com';
+        'количество авто меньше, чем на источнике данных.';
       document.body.appendChild(tooltip);
 
       countInfoIcon.addEventListener('mouseenter', () => {
@@ -1630,60 +2070,24 @@
        });
     }
 
-    // Слайдер в герой-баннере
-    (function() {
-      const sliderTrack = document.querySelector('.slider-track');
-      const dots = document.querySelectorAll('.dot');
-      let currentIndex = 0;
-      let autoSlideInterval;
-
-      function goToSlide(index) {
-        currentIndex = index;
-        const translateX = -index * 25;
-        sliderTrack.style.transform = `translateX(${translateX}%)`;
-        
-        // Обновляем активные точки
-        dots.forEach((dot, i) => {
-          if (i === index) {
-            dot.classList.add('active');
-          } else {
-            dot.classList.remove('active');
-          }
-        });
-      }
-
-      function nextSlide() {
-        currentIndex = (currentIndex + 1) % 4;
-        goToSlide(currentIndex);
-      }
-
-      // Автоматическое перелистывание каждые 7 секунд
-      function startAutoSlide() {
-        autoSlideInterval = setInterval(nextSlide, 7000);
-      }
-
-      function stopAutoSlide() {
-        clearInterval(autoSlideInterval);
-      }
-
-      // Обработчики для точек
-      dots.forEach(dot => {
-        dot.addEventListener('click', (e) => {
-          const slideIndex = parseInt(e.target.getAttribute('data-slide'));
-          goToSlide(slideIndex);
-          stopAutoSlide();
-          startAutoSlide();
-        });
-      });
-
-      // Запускаем автоматическое перелистывание
-      startAutoSlide();
-
-      // Останавливаем автопрокрутку при наведении на слайдер
-      const sliderContainer = document.querySelector('.hero-slider');
-      sliderContainer.addEventListener('mouseenter', stopAutoSlide);
-      sliderContainer.addEventListener('mouseleave', startAutoSlide);
-    })();
+    // Инициализация Swiper слайдера
+    const heroSwiper = new Swiper('.hero-slider', {
+      speed: 400,
+      loop: true,
+      autoplay: {
+        delay: 7000,
+        disableOnInteraction: false,
+      },
+      pagination: {
+        el: '.swiper-pagination',
+        clickable: true,
+      },
+      freeMode: {
+        enabled: true,
+        sticky: true,
+      },
+      spaceBetween: 20,
+    });
   })();
 </script>
 
