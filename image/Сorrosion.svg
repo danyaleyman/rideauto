@@ -9,12 +9,13 @@
 
       .st1 {
         fill: #fff;
-        font-family: ArialMT, Arial;
-        font-size: 400px;
+        font-family: SegoeUI-Bold, 'Segoe UI';
+        font-size: 350px;
+        font-weight: 700;
       }
     </style>
   </defs>
   <circle id="Background" class="st0" cx="250" cy="250" r="240"/>
   <text/>
-  <text class="st1" transform="translate(105.57 396.86)"><tspan x="0" y="0">C</tspan></text>
+  <text class="st1" transform="translate(126.41 383.87)"><tspan x="0" y="0">C</tspan></text>
 </svg>

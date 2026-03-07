@@ -9,12 +9,13 @@
 
       .st1 {
         fill: #fff;
-        font-family: MyriadPro-Regular, 'Myriad Pro';
-        font-size: 400px;
+        font-family: SegoeUI-Bold, 'Segoe UI';
+        font-size: 300px;
+        font-weight: 700;
       }
     </style>
   </defs>
   <circle id="Background" class="st0" cx="250" cy="250" r="240"/>
   <text/>
-  <text class="st1" transform="translate(116.8 398.86)"><tspan x="0" y="0">D</tspan></text>
+  <text class="st1" transform="translate(148.69 366.02)"><tspan x="0" y="0">D</tspan></text>
 </svg>
