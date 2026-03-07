@@ -125,38 +125,51 @@
             border: 1px solid var(--color-neutral-200);
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
-        .detail-section h2 { margin: 0 0 16px 0; font-size: 1.1rem; font-weight: 600; color: var(--color-neutral-900); }
+        .detail-section h2, .card h2, .condition-diagram-title, .condition-diagram-title .ml-2 {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--color-neutral-900);
+        }
+        .detail-section h2 { margin: 0 0 16px 0; }
         #basic-info .detail-section .grid { overflow: visible; }
         /* Пунктирные пары ключ–значение (как у конкурента) */
         .dotted-pair {
             display: flex;
             justify-content: space-between;
-            align-items: flex-end;
+            align-items: center;
             gap: 8px;
-            padding: 6px 0;
+            padding: 4px 0;
             border-bottom: none;
             overflow: visible;
             min-width: 0;
+            line-height: 1.25;
         }
         .dotted-pair .key {
             color: var(--color-neutral-600);
             font-size: 0.9rem;
             white-space: nowrap;
             display: flex;
+            align-items: center;
             gap: 8px;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 100%;
-            flex-shrink: 0;
+            flex: 1 1 auto;
+            min-width: 0;
         }
         .dotted-pair .key::after {
             content: '';
             flex: 1;
             border-bottom: 1px dashed var(--color-neutral-600);
-            margin-bottom: 5px;
-            min-width: 12px;
+            min-width: 8px;
+            margin-left: 4px;
         }
-        .dotted-pair .value { font-weight: 500; color: var(--color-neutral-900); align-self: flex-end; white-space: nowrap; min-width: 0; }
+        .dotted-pair .value {
+            font-weight: 500;
+            color: var(--color-neutral-900);
+            white-space: nowrap;
+            flex-shrink: 0;
+            max-width: 100%;
+            overflow: visible;
+        }
         
         .card {
             background: var(--color-neutral-100);
@@ -381,7 +394,8 @@
             background: #eef2f6;
         }
         .thumbnail.active { border-color: var(--color-primary, #3b82f6); }
-        .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+        .thumbnail img { width: 100%; height: 100%; object-fit: cover; transition: filter 0.2s ease; }
+        .thumbnail:hover img { filter: brightness(0.75); }
         .thumbnail.more { position: relative; }
         .thumbnail.more span {
             position: absolute;
@@ -1413,6 +1427,8 @@
             margin: 0 auto;
             height: 87px;
             position: relative;
+            display: flex;
+            align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
             line-height: 1.5;
@@ -1424,20 +1440,21 @@
 
         /* Логотип (шрифт и размер как в index.html) */
         .logo {
-            display: inline-block;
+            display: flex;
+            align-items: center;
             margin: 0;
-            vertical-align: top;
+            flex-shrink: 0;
         }
         .logo a {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 16px;
+            padding: 0 16px 0 0;
             text-decoration: none;
             color: #111827;
             font-size: 1.5rem;
             font-weight: 700;
-            line-height: 1.2;
+            line-height: 1;
         }
         .logo .logo-text {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1473,12 +1490,13 @@
             display: inline-block;
         }
         .gnb li a {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             padding: 0 15px;
+            height: 87px;
             text-decoration: none;
             color: #181818;
             font-weight: 500;
-            line-height: 87px;
             transition: color 0.2s;
         }
         .gnb li a:hover {
@@ -1496,7 +1514,8 @@
         .util {
             position: absolute;
             right: 0;
-            top: 28px;
+            top: 50%;
+            transform: translateY(-50%);
             list-style: none;
             margin: 0;
             padding: 0;
@@ -2005,17 +2024,18 @@
         }
 
         // Зоны схемы кузова (left%, top%, width%, height% — вид сверху: центр капот/багажник, слева и справа боковые панели)
+        /* Внешняя схема (вид сверху): координаты в % от изображения details-condition-top */
         var conditionDiagramZones = [
-            { part: 'Капот', left: 20, top: 0, width: 60, height: 28 },
-            { part: 'Крышка багажника', left: 20, top: 56, width: 60, height: 44 },
-            { part: 'Левое переднее крыло', left: 0, top: 0, width: 20, height: 22 },
-            { part: 'Левая передняя дверь', left: 0, top: 22, width: 20, height: 26 },
-            { part: 'Левая задняя дверь', left: 0, top: 48, width: 20, height: 26 },
-            { part: 'Левое заднее крыло', left: 0, top: 74, width: 20, height: 26 },
-            { part: 'Правое переднее крыло', left: 80, top: 0, width: 20, height: 22 },
-            { part: 'Правая передняя дверь', left: 80, top: 22, width: 20, height: 26 },
-            { part: 'Правая задняя дверь', left: 80, top: 48, width: 20, height: 26 },
-            { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 26 },
+            { part: 'Капот', left: 22, top: 2, width: 56, height: 24 },
+            { part: 'Крышка багажника', left: 22, top: 54, width: 56, height: 44 },
+            { part: 'Левое переднее крыло', left: 0, top: 2, width: 22, height: 20 },
+            { part: 'Левая передняя дверь', left: 0, top: 22, width: 22, height: 26 },
+            { part: 'Левая задняя дверь', left: 0, top: 48, width: 22, height: 26 },
+            { part: 'Левое заднее крыло', left: 0, top: 74, width: 22, height: 24 },
+            { part: 'Правое переднее крыло', left: 78, top: 2, width: 22, height: 20 },
+            { part: 'Правая передняя дверь', left: 78, top: 22, width: 22, height: 26 },
+            { part: 'Правая задняя дверь', left: 78, top: 48, width: 22, height: 26 },
+            { part: 'Правое заднее крыло', left: 78, top: 74, width: 22, height: 24 },
         ];
         // Корейские названия деталей (outers) -> русские (для схемы кузова)
         var outerPartKoToRu = {
@@ -2041,17 +2061,17 @@
             '수리': { key: 'painted', label: 'Окрашивание' }
         };
 
-        // Зоны для внутренней схемы (салон) — координаты под изображение details-condition-bottom
+        /* Внутренняя схема (салон, вид сверху): координаты под изображение details-condition-bottom */
         var interiorZones = [
-            { part: 'Водительское сиденье', left: 25, top: 25, width: 15, height: 20 },
-            { part: 'Пассажирское сиденье', left: 60, top: 25, width: 15, height: 20 },
-            { part: 'Заднее сиденье', left: 35, top: 55, width: 30, height: 25 },
-            { part: 'Руль', left: 40, top: 8, width: 20, height: 12 },
-            { part: 'Панель приборов', left: 30, top: 0, width: 40, height: 12 },
-            { part: 'Потолок', left: 20, top: 85, width: 60, height: 10 },
-            { part: 'Центральная консоль', left: 45, top: 15, width: 10, height: 35 },
-            { part: 'Передняя дверь (левая) - внутри', left: 5, top: 15, width: 15, height: 50 },
-            { part: 'Передняя дверь (правая) - внутри', left: 80, top: 15, width: 15, height: 50 }
+            { part: 'Водительское сиденье', left: 20, top: 24, width: 18, height: 22 },
+            { part: 'Пассажирское сиденье', left: 62, top: 24, width: 18, height: 22 },
+            { part: 'Заднее сиденье', left: 32, top: 52, width: 36, height: 28 },
+            { part: 'Руль', left: 38, top: 6, width: 24, height: 14 },
+            { part: 'Панель приборов', left: 28, top: 0, width: 44, height: 14 },
+            { part: 'Потолок', left: 18, top: 84, width: 64, height: 12 },
+            { part: 'Центральная консоль', left: 44, top: 16, width: 12, height: 38 },
+            { part: 'Передняя дверь (левая) - внутри', left: 2, top: 18, width: 16, height: 52 },
+            { part: 'Передняя дверь (правая) - внутри', left: 82, top: 18, width: 16, height: 52 }
         ];
         // Корейские названия внутренних элементов -> русские (расширяемый маппинг)
         var innerPartKoToRu = {
