@@ -896,6 +896,9 @@
             inset: 0;
             pointer-events: none;
         }
+        .condition-overlay .condition-zone {
+            pointer-events: auto;
+        }
         .condition-zone {
             position: absolute;
             border: 2px solid transparent;
@@ -919,11 +922,16 @@
             max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .condition-zone:hover .zone-indicator {
+            opacity: 1;
         }
         .condition-zone.replaced {
-            opacity: 0.5;
-            background: rgba(234, 88, 12, 0.55);
-            border-color: rgba(234, 88, 12, 0.95);
+            opacity: 0.55;
+            background: rgba(220, 38, 38, 0.6);
+            border-color: rgba(185, 28, 28, 0.95);
         }
         .condition-zone.painted {
             opacity: 0.45;
@@ -1892,10 +1900,37 @@
             { part: 'Правая задняя дверь', left: 80, top: 48, width: 20, height: 26 },
             { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 26 },
         ];
+        // Корейские названия деталей (outers) -> русские (для схемы кузова)
+        var outerPartKoToRu = {
+            '프론트 휀더(좌)': 'Левое переднее крыло',
+            '프론트 휀더(우)': 'Правое переднее крыло',
+            '후드': 'Капот',
+            '트렁크 리드': 'Крышка багажника',
+            '프론트 도어(좌)': 'Левая передняя дверь',
+            '프론트 도어(우)': 'Правая передняя дверь',
+            '리어 도어(좌)': 'Левая задняя дверь',
+            '리어 도어(우)': 'Правая задняя дверь',
+            '리어 휀더(좌)': 'Левое заднее крыло',
+            '리어 휀더(우)': 'Правое заднее крыло'
+        };
+        // Код/название статуса из inspection.outers -> key и label для схемы
+        var outerStatusToKey = {
+            'X': { key: 'replaced', label: 'Замена' },
+            '교환(교체)': { key: 'replaced', label: 'Замена' },
+            '교환': { key: 'replaced', label: 'Замена' },
+            'P': { key: 'painted', label: 'Окрашивание' },
+            '도장': { key: 'painted', label: 'Окрашивание' },
+            'R': { key: 'repair', label: 'Ремонт' },
+            '수리': { key: 'repair', label: 'Ремонт' }
+        };
 
-        function renderConditionDiagram(insp, diagnosisPhotos) {
+        function renderConditionDiagram(rawData, diagnosisPhotos) {
+            var d = (rawData && rawData.data) || {};
+            var extra = d.extra || {};
+            var insp = extra.inspection_structured || {};
             var bodyChanged = insp.bodyChanged || {};
             var bodyPanels = insp.bodyPanels || [];
+            var outers = (extra.inspection && extra.inspection.outers) || [];
             var zoneStatus = {};
             function norm(s) { return (s || '').trim().replace(/\s+/g, ' '); }
             function setStatus(part, statusKey, label) {
@@ -1903,6 +1938,19 @@
                 if (!key) return;
                 if (!zoneStatus[key] || statusKey === 'replaced') zoneStatus[key] = { key: statusKey, label: label };
             }
+            // 1) Данные из extra.inspection.outers (корейские названия)
+            outers.forEach(function(item) {
+                var typeTitle = (item.type && item.type.title) ? String(item.type.title).trim() : '';
+                var partRu = outerPartKoToRu[typeTitle] || typeTitle;
+                if (!partRu) return;
+                var statusTypes = item.statusTypes || [];
+                var firstStatus = statusTypes[0];
+                var code = firstStatus && firstStatus.code ? String(firstStatus.code).trim() : '';
+                var title = firstStatus && firstStatus.title ? String(firstStatus.title).trim() : '';
+                var statusInfo = outerStatusToKey[code] || outerStatusToKey[title] || { key: 'replaced', label: 'Замена' };
+                setStatus(partRu, statusInfo.key, statusInfo.label);
+            });
+            // 2) Классические bodyChanged / bodyPanels (если есть)
             Object.keys(bodyChanged).forEach(function(part) {
                 var status = (bodyChanged[part] || '').toLowerCase();
                 if (status.indexOf('замен') >= 0) setStatus(part, 'replaced', 'Замена');
@@ -2460,7 +2508,7 @@
             const bodyChangedHtml = (insp.bodyChanged && Object.keys(insp.bodyChanged).length)
                 ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-paintbrush text-blue-500 mr-2"></i>Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${partNamesRu[k] || k}</td><td>${statusRu[v] || v}</td></tr>`).join('')}</table></div>` : '';
 
-            const conditionDiagramHtml = renderConditionDiagram(insp, extra.diagnosis_photos || []);
+            const conditionDiagramHtml = renderConditionDiagram(rawData, extra.diagnosis_photos || []);
             const inspectionCombinedHtml = renderInspectionCombined(insp);
 
             let recordHtml = '';
