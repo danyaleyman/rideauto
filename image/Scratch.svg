@@ -4,17 +4,18 @@
   <defs>
     <style>
       .st0 {
-        fill: #fff;
-        font-family: MyriadPro-Regular, 'Myriad Pro';
-        font-size: 400px;
+        fill: #5680c1;
       }
 
       .st1 {
-        fill: #5680c1;
+        fill: #fff;
+        font-family: SegoeUI-Bold, 'Segoe UI';
+        font-size: 400px;
+        font-weight: 700;
+        isolation: isolate;
       }
     </style>
   </defs>
-  <circle id="Background" class="st1" cx="250" cy="250" r="240"/>
-  <text/>
-  <text class="st0" transform="translate(151.4 398.86)"><tspan x="0" y="0">S</tspan></text>
+  <circle id="Background" class="st0" cx="250" cy="250" r="240"/>
+  <text class="st1" transform="translate(137.89 398.86)"><tspan x="0" y="0">S</tspan></text>
 </svg>

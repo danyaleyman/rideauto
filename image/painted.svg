@@ -6,16 +6,21 @@
       .st0 {
         fill: #fff;
         font-family: SegoeUI-Bold, 'Segoe UI';
-        font-size: 350px;
+        font-size: 300px;
         font-weight: 700;
+      }
+
+      .st0, .st1 {
         isolation: isolate;
       }
 
-      .st1 {
-        fill: #5c5646;
+      .st2 {
+        fill: #b26070;
       }
     </style>
   </defs>
-  <circle id="Background" class="st1" cx="250" cy="250" r="240"/>
-  <text class="st0" transform="translate(120.97 377.16)"><tspan x="0" y="0">D</tspan></text>
+  <circle id="Background" class="st2" cx="250" cy="250" r="240"/>
+  <g class="st1">
+    <text class="st0" transform="translate(157.86 362.02)"><tspan x="0" y="0">P</tspan></text>
+  </g>
 </svg>

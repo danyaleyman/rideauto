@@ -126,6 +126,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .detail-section h2 { margin: 0 0 16px 0; font-size: 1.1rem; font-weight: 600; color: var(--color-neutral-900); }
+        #basic-info .detail-section .grid { overflow: visible; }
         /* Пунктирные пары ключ–значение (как у конкурента) */
         .dotted-pair {
             display: flex;
@@ -134,6 +135,8 @@
             gap: 8px;
             padding: 6px 0;
             border-bottom: none;
+            overflow: visible;
+            min-width: 0;
         }
         .dotted-pair .key {
             color: var(--color-neutral-600);
@@ -144,6 +147,7 @@
             justify-content: space-between;
             width: 100%;
             max-width: 100%;
+            flex-shrink: 0;
         }
         .dotted-pair .key::after {
             content: '';
@@ -152,7 +156,7 @@
             margin-bottom: 5px;
             min-width: 12px;
         }
-        .dotted-pair .value { font-weight: 500; color: var(--color-neutral-900); align-self: flex-end; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .dotted-pair .value { font-weight: 500; color: var(--color-neutral-900); align-self: flex-end; white-space: nowrap; min-width: 0; }
         
         .card {
             background: var(--color-neutral-100);
@@ -899,69 +903,176 @@
         .condition-overlay .condition-zone {
             pointer-events: auto;
         }
+        .condition-diagram-header-icon {
+            font-size: 1.25rem;
+            width: 1.5em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
         .condition-zone {
             position: absolute;
-            border: 2px solid transparent;
-            border-radius: 4px;
-            transition: opacity 0.2s, border-color 0.2s;
-            opacity: 0;
+            border: none;
+            border-radius: 6px;
+            min-height: 28px;
+            min-width: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: help;
+            background: transparent;
+            animation: zoneAppear 0.3s ease forwards;
         }
-        .condition-zone .zone-indicator {
-            font-size: 9px;
+        @keyframes zoneAppear {
+            from { transform: scale(0.95); opacity: 0.85; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .condition-zone:hover .zone-icon-wrap {
+            transform: scale(1.12);
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+        }
+        .condition-zone .zone-icon-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 3px;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .condition-zone .zone-icon-wrap img {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        @media (max-width: 640px) {
+            .condition-zone .zone-icon-wrap img { width: 18px; height: 18px; }
+        }
+        .zone-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: linear-gradient(165deg, #1e293b 0%, #0f172a 100%);
+            color: #f1f5f9;
+            padding: 0;
+            border-radius: 12px;
+            font-size: 12px;
+            display: block;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06) inset;
+            z-index: 500;
+            pointer-events: none;
+            margin-bottom: 10px;
+            opacity: 0;
+            visibility: hidden;
+            max-width: 240px;
+            min-width: 140px;
+            overflow: hidden;
+            transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.22s;
+        }
+        .zone-tooltip .tooltip-body {
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .zone-tooltip .tooltip-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-align: left;
+        }
+        .zone-tooltip .tooltip-row-title {
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
             color: #fff;
-            text-shadow: 0 0 2px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.8);
-            padding: 1px 4px;
-            line-height: 1.2;
-            text-align: center;
-            max-width: 100%;
+            font-size: 12px;
+        }
+        .zone-tooltip .tooltip-row-part {
+            padding-left: 24px;
+            font-size: 11px;
+            color: rgba(241, 245, 249, 0.85);
+            line-height: 1.35;
+        }
+        .zone-tooltip .tooltip-label {
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            opacity: 0;
-            transition: opacity 0.2s;
+            max-width: 160px;
         }
-        .condition-zone:hover .zone-indicator {
+        .zone-tooltip .tooltip-part {
+            word-break: break-word;
+        }
+        @media (max-width: 640px) {
+            .zone-tooltip .tooltip-label { max-width: 120px; }
+            .zone-tooltip .tooltip-row-part { padding-left: 22px; }
+        }
+        .zone-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+        .condition-zone:hover .zone-tooltip,
+        .condition-zone.tooltip-visible .zone-tooltip {
             opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
         }
-        .condition-zone.replaced {
-            opacity: 0.55;
-            background: rgba(220, 38, 38, 0.6);
-            border-color: rgba(185, 28, 28, 0.95);
+        .condition-zone.zone-top .zone-tooltip {
+            bottom: auto;
+            top: 100%;
+            margin-bottom: 0;
+            margin-top: 8px;
         }
-        .condition-zone.painted {
-            opacity: 0.45;
-            background: rgba(202, 138, 4, 0.55);
-            border-color: rgba(202, 138, 4, 0.95);
+        .condition-zone.zone-top .zone-tooltip::after {
+            top: auto;
+            bottom: 100%;
+            border-color: transparent transparent #1e293b transparent;
         }
-        .condition-zone.repair {
-            opacity: 0.4;
-            background: rgba(59, 130, 246, 0.5);
-            border-color: rgba(59, 130, 246, 0.9);
+        .condition-zone.zone-top:hover .zone-tooltip,
+        .condition-zone.zone-top.tooltip-visible .zone-tooltip {
+            transform: translateX(-50%) translateY(0);
         }
-        .condition-zone.scratch {
-            opacity: 0.45;
-            background: rgba(168, 85, 247, 0.5);
-            border-color: rgba(168, 85, 247, 0.9);
+        .condition-zone.zone-left .zone-tooltip {
+            left: 0;
+            transform: translateX(0) translateY(4px);
         }
-        .condition-zone.unevenness {
-            opacity: 0.45;
-            background: rgba(236, 72, 153, 0.5);
-            border-color: rgba(236, 72, 153, 0.9);
+        .condition-zone.zone-left:hover .zone-tooltip,
+        .condition-zone.zone-left.tooltip-visible .zone-tooltip {
+            transform: translateX(0) translateY(0);
         }
-        .condition-zone.damage {
-            opacity: 0.5;
-            background: rgba(239, 68, 68, 0.55);
-            border-color: rgba(239, 68, 68, 0.95);
+        .condition-zone.zone-left .zone-tooltip::after {
+            left: 16px;
         }
-        .condition-zone.corrosion {
-            opacity: 0.5;
-            background: rgba(113, 113, 122, 0.55);
-            border-color: rgba(113, 113, 122, 0.95);
+        .condition-zone.zone-right .zone-tooltip {
+            left: auto;
+            right: 0;
+            transform: translateX(0) translateY(4px);
+        }
+        .condition-zone.zone-right:hover .zone-tooltip,
+        .condition-zone.zone-right.tooltip-visible .zone-tooltip {
+            transform: translateX(0) translateY(0);
+        }
+        .condition-zone.zone-right .zone-tooltip::after {
+            left: auto;
+            right: 16px;
+        }
+        .zone-tooltip .tooltip-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            filter: brightness(0) invert(1);
+        }
+        @media (max-width: 640px) {
+            .condition-zone { min-height: 26px; min-width: 26px; }
+            .zone-tooltip { font-size: 11px; padding: 6px 10px; max-width: 160px; }
         }
         .condition-diagram-caption {
             font-size: 0.8rem;
@@ -971,14 +1082,15 @@
         }
         .condition-legend {
             display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
+            flex-wrap: nowrap;
+            gap: 16px 24px;
             margin-top: 14px;
             padding-top: 12px;
             border-top: 1px solid var(--color-neutral-200);
             font-size: 0.8rem;
             color: #111827;
             justify-content: center;
+            align-items: center;
         }
         .condition-legend span {
             display: inline-flex;
@@ -989,9 +1101,13 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 8px;
             color: #111827;
+            transition: background-color 0.2s ease;
+        }
+        .condition-legend .legend-item:hover {
+            background-color: rgba(0,0,0,0.04);
         }
         .condition-legend .legend-icon {
             width: 18px;
@@ -1005,6 +1121,7 @@
         @media (max-width: 640px) {
             .condition-diagrams-row { flex-direction: column; align-items: center; }
             .condition-diagram-item { max-width: 100%; flex: 1 1 100%; }
+            .condition-legend { flex-wrap: wrap; justify-content: flex-start; }
         }
 
         /* Появление секций (как у конкурента) */
@@ -1913,18 +2030,93 @@
             '리어 휀더(좌)': 'Левое заднее крыло',
             '리어 휀더(우)': 'Правое заднее крыло'
         };
-        // Код/название статуса из inspection.outers -> key и label для схемы
+        // Код/название статуса из inspection.outers -> key и label (ремонт объединён с окрашиванием)
         var outerStatusToKey = {
             'X': { key: 'replaced', label: 'Замена' },
             '교환(교체)': { key: 'replaced', label: 'Замена' },
             '교환': { key: 'replaced', label: 'Замена' },
             'P': { key: 'painted', label: 'Окрашивание' },
             '도장': { key: 'painted', label: 'Окрашивание' },
-            'R': { key: 'repair', label: 'Ремонт' },
-            '수리': { key: 'repair', label: 'Ремонт' }
+            'R': { key: 'painted', label: 'Окрашивание' },
+            '수리': { key: 'painted', label: 'Окрашивание' }
         };
 
-        function renderConditionDiagram(rawData, diagnosisPhotos) {
+        // Зоны для внутренней схемы (салон) — координаты под изображение details-condition-bottom
+        var interiorZones = [
+            { part: 'Водительское сиденье', left: 25, top: 25, width: 15, height: 20 },
+            { part: 'Пассажирское сиденье', left: 60, top: 25, width: 15, height: 20 },
+            { part: 'Заднее сиденье', left: 35, top: 55, width: 30, height: 25 },
+            { part: 'Руль', left: 40, top: 8, width: 20, height: 12 },
+            { part: 'Панель приборов', left: 30, top: 0, width: 40, height: 12 },
+            { part: 'Потолок', left: 20, top: 85, width: 60, height: 10 },
+            { part: 'Центральная консоль', left: 45, top: 15, width: 10, height: 35 },
+            { part: 'Передняя дверь (левая) - внутри', left: 5, top: 15, width: 15, height: 50 },
+            { part: 'Передняя дверь (правая) - внутри', left: 80, top: 15, width: 15, height: 50 }
+        ];
+        // Корейские названия внутренних элементов -> русские (расширяемый маппинг)
+        var innerPartKoToRu = {
+            '운전석 시트': 'Водительское сиденье', '시트(좌)': 'Водительское сиденье', '앞좌석(좌)': 'Водительское сиденье',
+            '조수석 시트': 'Пассажирское сиденье', '시트(우)': 'Пассажирское сиденье', '앞좌석(우)': 'Пассажирское сиденье',
+            '후석': 'Заднее сиденье', '뒷좌석': 'Заднее сиденье',
+            '스티어링 휠': 'Руль', '핸들': 'Руль',
+            '대시보드': 'Панель приборов', '계기판': 'Панель приборов',
+            '실링': 'Потолок', '천장': 'Потолок',
+            '센터페시아': 'Центральная консоль', '콘솔': 'Центральная консоль',
+            '내장(좌)': 'Передняя дверь (левая) - внутри', '도어(좌)': 'Передняя дверь (левая) - внутри',
+            '내장(우)': 'Передняя дверь (правая) - внутри', '도어(우)': 'Передняя дверь (правая) - внутри'
+        };
+        var innerStatusToKey = {
+            '1': { key: 'good', label: 'Без замечаний' }, '양호': { key: 'good', label: 'Без замечаний' },
+            '10': { key: 'damage', label: 'Повреждение' }, '불량': { key: 'damage', label: 'Повреждение' },
+            'X': { key: 'replaced', label: 'Замена' }, '교환': { key: 'replaced', label: 'Замена' }
+        };
+
+        function getIconForStatus(statusKey) {
+            var icons = { replaced: 'image/exchange.svg', painted: 'image/painted.svg', scratch: 'image/Scratch.svg', unevenness: 'image/Unevenness.svg', damage: 'image/Damage.svg', corrosion: 'image/Corrosion.svg' };
+            return icons[statusKey] || '';
+        }
+
+        function getInteriorStatus(carData) {
+            var status = {};
+            var d = (carData && carData.data) || {};
+            var extra = d.extra || {};
+            var insp = extra.inspection_structured || {};
+            var inners = (extra.inspection && extra.inspection.inners) || [];
+            function norm(s) { return (s || '').trim().replace(/\s+/g, ' '); }
+            function setStatus(part, statusKey, label) {
+                var key = norm(String(part));
+                if (!key) return;
+                if (!status[key] || statusKey === 'replaced') status[key] = { key: statusKey, label: label };
+            }
+            inners.forEach(function(item) {
+                var children = item.children || [];
+                children.forEach(function(ch) {
+                    var typeTitle = (ch.type && ch.type.title) ? String(ch.type.title).trim() : '';
+                    var partRu = innerPartKoToRu[typeTitle] || typeTitle;
+                    if (!partRu) return;
+                    var st = ch.statusType || {};
+                    var code = (st.code != null) ? String(st.code).trim() : '';
+                    var title = (st.title && st.title.trim) ? String(st.title).trim() : '';
+                    var statusInfo = innerStatusToKey[code] || innerStatusToKey[title] || { key: 'good', label: 'Без замечаний' };
+                    setStatus(partRu, statusInfo.key, statusInfo.label);
+                });
+            });
+            var interior = insp.interior || {};
+            if (typeof interior === 'object' && interior !== null) {
+                Object.keys(interior).forEach(function(k) {
+                    var v = (interior[k] || '').toString().toLowerCase();
+                    var partRu = k.trim();
+                    if (!partRu) return;
+                    if (v.indexOf('замен') >= 0) setStatus(partRu, 'replaced', 'Замена');
+                    else if (v.indexOf('ремонт') >= 0 || v.indexOf('покраск') >= 0 || v.indexOf('불량') >= 0) setStatus(partRu, 'painted', 'Окрашивание');
+                    else if (v.indexOf('поврежд') >= 0) setStatus(partRu, 'damage', 'Повреждение');
+                    else setStatus(partRu, 'good', 'Без замечаний');
+                });
+            }
+            return status;
+        }
+
+        function buildExteriorStatus(rawData) {
             var d = (rawData && rawData.data) || {};
             var extra = d.extra || {};
             var insp = extra.inspection_structured || {};
@@ -1938,7 +2130,6 @@
                 if (!key) return;
                 if (!zoneStatus[key] || statusKey === 'replaced') zoneStatus[key] = { key: statusKey, label: label };
             }
-            // 1) Данные из extra.inspection.outers (корейские названия)
             outers.forEach(function(item) {
                 var typeTitle = (item.type && item.type.title) ? String(item.type.title).trim() : '';
                 var partRu = outerPartKoToRu[typeTitle] || typeTitle;
@@ -1950,12 +2141,11 @@
                 var statusInfo = outerStatusToKey[code] || outerStatusToKey[title] || { key: 'replaced', label: 'Замена' };
                 setStatus(partRu, statusInfo.key, statusInfo.label);
             });
-            // 2) Классические bodyChanged / bodyPanels (если есть)
             Object.keys(bodyChanged).forEach(function(part) {
                 var status = (bodyChanged[part] || '').toLowerCase();
                 if (status.indexOf('замен') >= 0) setStatus(part, 'replaced', 'Замена');
                 else if (status.indexOf('покраск') >= 0 || status === 'покрашено') setStatus(part, 'painted', 'Окрашивание');
-                else if (status.indexOf('ремонт') >= 0) setStatus(part, 'repair', 'Ремонт');
+                else if (status.indexOf('ремонт') >= 0) setStatus(part, 'painted', 'Окрашивание');
                 else if (status.indexOf('царапин') >= 0) setStatus(part, 'scratch', 'Царапины');
                 else if (status.indexOf('неровност') >= 0) setStatus(part, 'unevenness', 'Неровности');
                 else if (status.indexOf('поврежд') >= 0) setStatus(part, 'damage', 'Повреждение');
@@ -1967,44 +2157,53 @@
                     var s = (p.status || '').toLowerCase();
                     if (s === 'замена') setStatus(p.part, 'replaced', 'Замена');
                     else if (s === 'покрашено') setStatus(p.part, 'painted', 'Окрашивание');
-                    else if (s.indexOf('ремонт') >= 0) setStatus(p.part, 'repair', 'Ремонт');
+                    else if (s.indexOf('ремонт') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
                     else if (s.indexOf('царапин') >= 0) setStatus(p.part, 'scratch', 'Царапины');
                     else if (s.indexOf('неровност') >= 0) setStatus(p.part, 'unevenness', 'Неровности');
                     else if (s.indexOf('поврежд') >= 0) setStatus(p.part, 'damage', 'Повреждение');
                     else if (s.indexOf('коррози') >= 0) setStatus(p.part, 'corrosion', 'Коррозия');
                 }
             });
-            var zonesHtml = conditionDiagramZones.map(function(z) {
+            return zoneStatus;
+        }
+
+        function buildZonesHtml(zones, zoneStatus) {
+            function norm(s) { return (s || '').trim().replace(/\s+/g, ' '); }
+            return zones.map(function(z) {
                 var partNorm = norm(z.part);
                 var info = zoneStatus[partNorm] || zoneStatus[z.part];
-                if (!info && bodyChanged) {
-                    for (var k in bodyChanged) { if (norm(k) === partNorm) { info = zoneStatus[norm(k)] || { key: 'replaced', label: 'Замена' }; break; } }
-                }
-                if (!info && bodyPanels.length) {
-                    bodyPanels.forEach(function(p) {
-                        if (norm(p.part) !== partNorm) return;
-                        var s = (p.status || '').toLowerCase();
-                        if (s === 'покрашено') info = { key: 'painted', label: 'Окрашивание' };
-                        else if (s.indexOf('ремонт') >= 0) info = { key: 'repair', label: 'Ремонт' };
-                        else if (s.indexOf('царапин') >= 0) info = { key: 'scratch', label: 'Царапины' };
-                        else if (s.indexOf('неровност') >= 0) info = { key: 'unevenness', label: 'Неровности' };
-                        else if (s.indexOf('поврежд') >= 0) info = { key: 'damage', label: 'Повреждение' };
-                        else if (s.indexOf('коррози') >= 0) info = { key: 'corrosion', label: 'Коррозия' };
-                        else info = { key: 'replaced', label: 'Замена' };
-                    });
-                }
-                var cls = info ? info.key : '';
-                var label = info ? info.label : '';
-                var indicator = label ? '<span class="zone-indicator">' + label + '</span>' : '';
-                return '<div class="condition-zone ' + cls + '" data-part="' + z.part + '" data-status="' + (info ? info.key : '') + '" style="left:' + z.left + '%;top:' + z.top + '%;width:' + z.width + '%;height:' + z.height + '%">' + indicator + '</div>';
+                var classes = [];
+                if (info && info.key !== 'good') classes.push(info.key);
+                if (z.top < 30) classes.push('zone-top');
+                if (z.left < 20) classes.push('zone-left');
+                if (z.left > 80) classes.push('zone-right');
+                var cls = classes.join(' ');
+                var effectiveKey = (info && info.key !== 'good') ? info.key : '';
+                var label = (info && info.key !== 'good') ? info.label : '';
+                var iconPath = effectiveKey ? getIconForStatus(effectiveKey) : '';
+                var zoneIcon = iconPath ? '<div class="zone-icon-wrap"><img src="' + iconPath + '" alt="" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>' : '';
+                var tooltipIconTag = iconPath ? '<img src="' + iconPath + '" alt="" class="tooltip-icon" onerror="this.style.display=\'none\'">' : '';
+                var tooltipHtml = '<div class="zone-tooltip">' +
+                    '<div class="tooltip-body">' +
+                    (label ? ('<div class="tooltip-row tooltip-row-title">' + tooltipIconTag + '<span class="tooltip-label">' + label + '</span></div>') : '') +
+                    '<div class="tooltip-row tooltip-row-part"><span class="tooltip-part">' + z.part + '</span></div>' +
+                    '</div></div>';
+                return '<div class="condition-zone ' + cls + '" data-part="' + z.part + '" data-status="' + effectiveKey + '" data-status-text="' + label + '" style="left:' + z.left + '%;top:' + z.top + '%;width:' + z.width + '%;height:' + z.height + '%">' + zoneIcon + tooltipHtml + '</div>';
             }).join('');
+        }
+
+        function renderConditionDiagram(rawData, diagnosisPhotos) {
+            var exteriorStatus = buildExteriorStatus(rawData);
+            var interiorStatus = getInteriorStatus(rawData);
+            var exteriorZonesHtml = buildZonesHtml(conditionDiagramZones, exteriorStatus);
+            var interiorZonesHtml = buildZonesHtml(interiorZones, interiorStatus);
             var legend = '<div class="condition-legend">' +
                 '<span class="legend-item" data-color="replaced"><img src="image/exchange.svg" alt="" class="legend-icon">Замена</span>' +
-                '<span class="legend-item" data-color="repair"><img src="image/Repair.svg" alt="" class="legend-icon">Ремонт</span>' +
+                '<span class="legend-item" data-color="painted"><img src="image/painted.svg" alt="" class="legend-icon">Окрашивание</span>' +
                 '<span class="legend-item" data-color="scratch"><img src="image/Scratch.svg" alt="" class="legend-icon">Царапины</span>' +
                 '<span class="legend-item" data-color="unevenness"><img src="image/Unevenness.svg" alt="" class="legend-icon">Неровности</span>' +
                 '<span class="legend-item" data-color="damage"><img src="image/Damage.svg" alt="" class="legend-icon">Повреждение</span>' +
-                '<span class="legend-item" data-color="corrosion"><img src="image/Сorrosion.svg" alt="" class="legend-icon">Коррозия</span>' +
+                '<span class="legend-item" data-color="corrosion"><img src="image/Corrosion.svg" alt="" class="legend-icon">Коррозия</span>' +
                 '</div>';
             var diagPhotos = (diagnosisPhotos || []).filter(function(url) { return typeof url === 'string' && url.trim() !== ''; }).slice(0, 5);
             var photoBlock = '';
@@ -2017,10 +2216,10 @@
             }
             var diagramTitle = 'Схема состояния кузова';
             var diagramTooltip = 'На схеме отмечены данные, полученные из страховой истории автомобиля и указанные продавцом.<br><br>Для получения точной информации о состоянии автомобиля, необходим его осмотр специалистом Ride Auto';
-            return '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center condition-diagram-title has-tooltip"><i class="fa-regular fa-car-side text-blue-500 mr-2"></i>' + diagramTitle + '<span class="tooltip-popup">' + diagramTooltip + '</span></h2>' +
+            return '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center condition-diagram-title has-tooltip"><i class="fa-regular fa-car-side text-blue-500 condition-diagram-header-icon"></i><span class="ml-2">' + diagramTitle + '</span><span class="tooltip-popup">' + diagramTooltip + '</span></h2>' +
                 '<div class="condition-diagrams-row">' +
-                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внешние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div></div>' +
-                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внутренние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div></div>' +
+                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внешние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" loading="lazy" /><div class="condition-overlay">' + exteriorZonesHtml + '</div></div></div>' +
+                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внутренние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" loading="lazy" /><div class="condition-overlay">' + interiorZonesHtml + '</div></div></div>' +
                 '</div>' +
                 legend + photoBlock + '</div>';
         }
@@ -2063,6 +2262,8 @@
             const modalMain = document.getElementById('modalMain');
             const modalCounter = document.getElementById('modalCounter');
             if (!modal || !photosArray.length) return;
+            var carContent = document.getElementById('car-content');
+            if (carContent) carContent.querySelectorAll('.condition-zone.tooltip-visible').forEach(function(z) { z.classList.remove('tooltip-visible'); });
             currentPhotoIndex = (index + photosArray.length) % photosArray.length;
 
             const modalThumbs = document.getElementById('modalThumbs');
@@ -2856,6 +3057,27 @@
                 updateModal();
             }
         });
+        function handleConditionZoneTap(e) {
+            var galleryModal = document.getElementById('galleryModal');
+            if (galleryModal && galleryModal.classList.contains('active')) return;
+            var carContent = document.getElementById('car-content');
+            if (!carContent || !carContent.contains(e.target)) return;
+            var zone = e.target.closest('.condition-zone');
+            if (zone) {
+                zone.classList.toggle('tooltip-visible');
+                carContent.querySelectorAll('.condition-zone.tooltip-visible').forEach(function(z) {
+                    if (z !== zone) z.classList.remove('tooltip-visible');
+                });
+            } else {
+                carContent.querySelectorAll('.condition-zone.tooltip-visible').forEach(function(z) {
+                    z.classList.remove('tooltip-visible');
+                });
+            }
+        }
+        document.addEventListener('click', handleConditionZoneTap);
+        document.addEventListener('touchend', function(e) {
+            if ('ontouchstart' in window) handleConditionZoneTap(e);
+        }, { passive: true });
     })();
 </script>
 
