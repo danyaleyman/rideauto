@@ -714,59 +714,51 @@
       .filters-panel { width: 100%; position: static; max-height: none; }
     }
 
-    /* Футер */
+    /* Футер (как у конкурента: юридический блок + копирайт) */
     .footer {
-      background: #1a1a1a;
-      color: #ccc;
-      padding: 40px 20px;
-      margin-top: 40px;
-      border-top: 1px solid #333;
+      background-color: #1a202c;
+      color: #ffffff;
+      padding: 2rem 0;
+      margin-top: 3rem;
+      border-top: 1px solid #2d3748;
     }
     .footer-content {
-      max-width: 1440px;
+      max-width: 1200px;
       margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 30px;
+      padding: 0 2rem;
     }
     .footer-section {
-      background: #2a2a2a;
-      padding: 24px;
-      border-radius: 12px;
-      border: 1px solid #444;
+      margin-bottom: 2rem;
     }
     .footer-section h3 {
-      margin: 0 0 16px 0;
       font-size: 1.2rem;
-      color: #fff;
-      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #e2e8f0;
     }
     .footer-text {
-      display: flex;
-      gap: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
     }
     .footer-column {
-      flex: 1;
-      font-size: 14px;
+      font-size: 0.9rem;
       line-height: 1.6;
+      color: #cbd5e0;
     }
     .footer-column p {
-      margin: 0 0 12px 0;
+      margin-bottom: 1rem;
     }
     .footer-bottom {
       text-align: center;
-      padding-top: 20px;
-      border-top: 1px solid #444;
+      padding-top: 1rem;
+      border-top: 1px solid #2d3748;
+      color: #a0aec0;
+      font-size: 0.85rem;
     }
-    .footer-bottom p {
-      margin: 0;
-      font-size: 14px;
-      color: #999;
-    }
+    .footer-bottom p { margin: 0; }
     @media (max-width: 768px) {
       .footer-text {
-        flex-direction: column;
-        gap: 16px;
+        grid-template-columns: 1fr;
       }
     }
 

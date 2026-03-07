@@ -290,53 +290,134 @@
             border-radius: 16px;
         }
         
-        /* Модальная карусель */
+        /* Модальное окно просмотра фото (как у конкурентов) */
         .modal {
-            display: none;
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(12px);
+            inset: 0;
             z-index: 1000;
+            background: rgba(0,0,0,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 16px 24px;
+            box-sizing: border-box;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
         }
-        .modal.active { display: flex; }
-        .modal-content {
-            position: relative;
-            max-width: 1200px;
-            width: 90%;
-            background: transparent;
-            padding: 24px 32px 20px;
-            box-sizing: border-box;
+        .modal-close {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            color: #fff;
+            font-size: 28px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            border: none;
         }
+        .modal-close:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+        .modal-nav {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #fff;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .modal-nav:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.08);
+        }
+        .modal-nav.left { left: 20px; }
+        .modal-nav.right { right: 20px; }
         .modal-main {
             position: relative;
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            border-radius: 24px;
-            overflow: hidden;
+            max-width: 100%;
+            max-height: calc(100vh - 180px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .modal-main img {
-            width: 100%;
-            height: 100%;
+            max-width: 100%;
+            max-height: calc(100vh - 180px);
+            width: auto;
+            height: auto;
             object-fit: contain;
+            border-radius: 8px;
+        }
+        .modal-counter {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.9);
+            font-size: 15px;
+            font-weight: 500;
         }
         .modal-thumbs-row {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
             gap: 8px;
-            margin-top: 12px;
+            max-width: calc(100vw - 32px);
             overflow-x: auto;
-            padding-bottom: 4px;
+            padding: 8px 0;
+            scroll-behavior: smooth;
         }
+        .modal-thumbs-row::-webkit-scrollbar { height: 6px; }
+        .modal-thumbs-row::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .modal-thumbs-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
         .modal-thumb {
-            flex: 0 0 80px;
-            aspect-ratio: 4 / 3;
-            border-radius: 10px;
+            flex: 0 0 64px;
+            width: 64px;
+            height: 48px;
+            border-radius: 8px;
             overflow: hidden;
             border: 2px solid transparent;
             cursor: pointer;
-            background: #0f172a;
+            background: rgba(255,255,255,0.08);
+            transition: border-color 0.2s, opacity 0.2s;
         }
         .modal-thumb img {
             width: 100%;
@@ -344,54 +425,240 @@
             object-fit: cover;
         }
         .modal-thumb.active {
-            border-color: #3b82f6;
+            border-color: var(--color-primary, #3b82f6);
+            opacity: 1;
         }
-        .modal-close {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            color: white;
-            font-size: 2rem;
+        .modal-thumb:not(.active) { opacity: 0.75; }
+
+        /* Правая колонка: карточка заказа как у конкурента */
+        .order-card {
+            background: var(--color-neutral-100);
+            border-radius: 20px;
+            padding: 20px 24px;
+            border: 1px solid var(--color-neutral-200);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            position: relative;
+        }
+        .order-card .order-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--color-neutral-900);
+            margin: 0 0 12px 0;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .order-card .order-meta {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+        .order-card .order-price-total {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: 16px;
+        }
+        .order-card .order-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--color-primary);
+            font-size: 15px;
+            text-decoration: none;
+            margin-bottom: 12px;
             cursor: pointer;
-            background: rgba(0,0,0,0.3);
-            width: 48px;
-            height: 48px;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: inherit;
+        }
+        .order-card .order-link:hover { text-decoration: underline; }
+        .order-card .order-link .chevron { width: 10px; height: 16px; fill: currentColor; transition: transform 0.2s; }
+        .order-card .order-link:hover .chevron { transform: translate(3px, 0); }
+        .order-card .order-howto {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--color-primary);
+            font-size: 14px;
+            text-decoration: none;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        .order-card .order-howto:hover { text-decoration: underline; }
+        .order-card .order-howto .chevron { width: 10px; height: 16px; fill: currentColor; transition: transform 0.2s; }
+        .order-card .order-howto:hover .chevron { transform: translate(3px, 0); }
+        .order-card .telegram-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 15px;
+            background: var(--color-primary);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .order-card .telegram-btn:hover { background: #2563eb; }
+        .order-card .order-footer-text {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            margin-top: 12px;
+            text-align: center;
+        }
+        .order-card .order-footer-text a { color: var(--color-primary); text-decoration: none; }
+        .order-card .order-footer-text a:hover { text-decoration: underline; }
+        .order-card .calc-full { display: none; }
+
+        /* Модальное окно: Подробный расчёт (как у конкурента) */
+        .calc-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .calc-modal-overlay.is-open { display: flex; }
+        .calc-modal-panel {
+            background: var(--app-bg);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 86vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        .calc-modal-header {
+            padding: 20px 24px;
+            background: var(--app-bg);
+            border-bottom: 1px solid var(--color-neutral-200);
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--color-neutral-900);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .calc-modal-header .calc-modal-close {
+            position: static;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
+            background: var(--color-neutral-200);
+            color: var(--color-neutral-800);
+            font-size: 1.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: 0.2s;
+            cursor: pointer;
             border: none;
         }
-        .modal-close:hover { background: rgba(0,0,0,0.6); }
-        .modal-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(4px);
-            color: white;
-            width: 48px;
-            height: 48px;
+        .calc-modal-header .calc-modal-close:hover { background: var(--color-neutral-300); }
+        .calc-modal-body {
+            padding: 16px 24px;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+        .calc-modal-body .calc-list { list-style: none; margin: 0; padding: 0; }
+        .calc-modal-body .calc-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--color-neutral-200);
+            font-size: 15px;
+        }
+        .calc-modal-body .calc-list li:last-child { border-bottom: none; }
+        .calc-modal-body .calc-list .key { color: var(--color-neutral-700); }
+        .calc-modal-body .calc-list .price { font-weight: 600; white-space: nowrap; }
+        .calc-modal-footer {
+            padding: 16px 24px 24px;
+            background: var(--color-neutral-900);
+            color: #fff;
+            border-radius: 0 0 20px 20px;
+        }
+        .calc-modal-footer .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .calc-modal-footer .telegram-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Модальное окно: Как оформить заказ */
+        .howto-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .howto-modal-overlay.is-open { display: flex; }
+        .howto-modal-panel {
+            background: var(--color-neutral-100);
+            border-radius: 20px;
+            max-width: 440px;
+            width: 100%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        .howto-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-neutral-200);
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .howto-modal-header .howto-modal-close {
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
+            background: var(--color-neutral-200);
+            border: none;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            cursor: pointer;
-            transition: 0.2s;
-            border: 1px solid rgba(255,255,255,0.3);
+            font-size: 1.25rem;
         }
-        .modal-nav:hover { background: rgba(255,255,255,0.4); }
-        .modal-nav.left { left: 16px; }
-        .modal-nav.right { right: 16px; }
-        .modal-counter {
-            text-align: center;
-            color: white;
-            margin-top: 16px;
-            font-size: 0.95rem;
-            font-weight: 500;
+        .howto-modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--color-neutral-800);
         }
+        .howto-modal-body ol { padding-left: 20px; margin: 0 0 16px 0; }
+        .howto-modal-body li { margin-bottom: 8px; }
+
         @media (max-width: 768px) {
             .modal-nav.left { left: 8px; }
             .modal-nav.right { right: 8px; }
@@ -448,6 +715,104 @@
             border-color: #3b82f6;
             transform: scale(1.02);
         }
+
+        /* Схема состояния кузова: две схемы в ряд + индикаторы на зонах + легенда внизу */
+        .condition-diagrams-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        .condition-diagram-item {
+            flex: 1 1 280px;
+            min-width: 0;
+            max-width: 320px;
+        }
+        .condition-diagram-wrap {
+            position: relative;
+            width: 100%;
+        }
+        .condition-diagram-wrap img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        .condition-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .condition-zone {
+            position: absolute;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            transition: opacity 0.2s, border-color 0.2s;
+            opacity: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .condition-zone .zone-indicator {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            color: #fff;
+            text-shadow: 0 0 2px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.8);
+            padding: 1px 4px;
+            line-height: 1.2;
+            text-align: center;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .condition-zone.replaced {
+            opacity: 0.5;
+            background: rgba(234, 88, 12, 0.55);
+            border-color: rgba(234, 88, 12, 0.95);
+        }
+        .condition-zone.painted {
+            opacity: 0.45;
+            background: rgba(202, 138, 4, 0.55);
+            border-color: rgba(202, 138, 4, 0.95);
+        }
+        .condition-zone.repair {
+            opacity: 0.4;
+            background: rgba(59, 130, 246, 0.5);
+            border-color: rgba(59, 130, 246, 0.9);
+        }
+        .condition-diagram-caption {
+            font-size: 0.8rem;
+            color: var(--color-neutral-600);
+            margin-top: 4px;
+            text-align: center;
+        }
+        .condition-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--color-neutral-200);
+            font-size: 0.8rem;
+            color: var(--color-neutral-700);
+            justify-content: center;
+        }
+        .condition-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .condition-legend .dot-replaced { width: 14px; height: 14px; border-radius: 4px; background: rgba(234, 88, 12, 0.7); flex-shrink: 0; }
+        .condition-legend .dot-painted { width: 14px; height: 14px; border-radius: 4px; background: rgba(202, 138, 4, 0.7); flex-shrink: 0; }
+        .condition-legend .dot-repair { width: 14px; height: 14px; border-radius: 4px; background: rgba(59, 130, 246, 0.6); flex-shrink: 0; }
+        .condition-legend .dot-original { width: 14px; height: 14px; border-radius: 4px; background: rgba(34, 197, 94, 0.6); flex-shrink: 0; }
+        @media (max-width: 640px) {
+            .condition-diagrams-row { flex-direction: column; align-items: center; }
+            .condition-diagram-item { max-width: 100%; }
+        }
+
         /* Появление секций (как у конкурента) */
         .details-layout .details-left > div,
         .details-layout .details-right > div { opacity: 0; animation: detailFadeIn 0.4s ease forwards; }
@@ -537,12 +902,9 @@
             padding-top: 32px;
             border-top: 2px solid var(--color-neutral-200);
             opacity: 0;
-            animation: detailFadeIn 0.4s ease 0.2s forwards;
+            animation: detailFadeIn 0.5s ease 0.15s forwards;
         }
         .similar-cars-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 20px;
         }
         .similar-cars-title {
@@ -563,6 +925,20 @@
             transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
+            opacity: 0;
+            animation: similarCardIn 0.45s ease forwards;
+        }
+        .similar-car-card:nth-child(1) { animation-delay: 0.05s; }
+        .similar-car-card:nth-child(2) { animation-delay: 0.1s; }
+        .similar-car-card:nth-child(3) { animation-delay: 0.15s; }
+        .similar-car-card:nth-child(4) { animation-delay: 0.2s; }
+        .similar-car-card:nth-child(5) { animation-delay: 0.25s; }
+        .similar-car-card:nth-child(6) { animation-delay: 0.3s; }
+        .similar-car-card:nth-child(7) { animation-delay: 0.35s; }
+        .similar-car-card:nth-child(8) { animation-delay: 0.4s; }
+        @keyframes similarCardIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .similar-car-card:hover {
             transform: translateY(-6px);
@@ -932,12 +1308,6 @@
     <div id="car-content" class="space-y-8">
         <div class="text-center py-12 text-gray-400">Загрузка данных...</div>
     </div>
-
-    <!-- футер -->
-    <div class="border-t border-gray-200/70 pt-6 mt-10 text-xs text-gray-400 flex justify-between">
-        <span>© ENCAR parser • данные актуальны на <span id="data-date-placeholder">—</span></span>
-        <span>версия для детального просмотра</span>
-    </div>
 </div>
 
 <!-- Модальное окно галереи -->
@@ -953,10 +1323,110 @@
     </div>
 </div>
 
+<!-- Модальное окно: Подробный расчёт -->
+<div class="calc-modal-overlay" id="calcModalOverlay" aria-hidden="true">
+    <div class="calc-modal-panel" role="dialog" aria-labelledby="calcModalTitle" onclick="event.stopPropagation()">
+        <div class="calc-modal-header">
+            <span id="calcModalTitle">Расчёт стоимости</span>
+            <button type="button" class="calc-modal-close" id="calcModalClose" aria-label="Закрыть">×</button>
+        </div>
+        <div class="calc-modal-body" id="calcModalBody"></div>
+        <div class="calc-modal-footer">
+            <div class="total-row">
+                <span>Итого</span>
+                <span id="calcModalTotal">—</span>
+            </div>
+            <a href="#" id="calcModalTelegram" class="telegram-btn" target="_blank" rel="noopener"><i class="fa-regular fa-telegram"></i> Написать в Telegram</a>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно: Как оформить заказ -->
+<div class="howto-modal-overlay" id="howtoModalOverlay" aria-hidden="true">
+    <div class="howto-modal-panel" role="dialog" aria-labelledby="howtoModalTitle" onclick="event.stopPropagation()">
+        <div class="howto-modal-header">
+            <span id="howtoModalTitle">Как оформить заказ?</span>
+            <button type="button" class="howto-modal-close" id="howtoModalClose" aria-label="Закрыть">×</button>
+        </div>
+        <div class="howto-modal-body">
+            <ol>
+                <li>Выберите автомобиль на нашем сайте и нажмите «Написать в Telegram».</li>
+                <li>Обсудите с менеджером детали: комплектацию, сроки доставки, способ оплаты.</li>
+                <li>Заключите договор и внесите предоплату (обычно 30–50%).</li>
+                <li>Мы покупаем авто в Корее, оформляем документы и отправляем во Владивосток.</li>
+                <li>После постановки на учёт вы получаете автомобиль и доплачиваете оставшуюся сумму.</li>
+            </ol>
+            <p>Все расчёты и документы прозрачны. Остались вопросы? Напишите нам в Telegram.</p>
+        </div>
+    </div>
+</div>
+
 <script>
     (function() {
+        // ---------- Модалки правой колонки (Подробный расчёт, Как оформить) ----------
+        function initOrderModals() {
+            var calcOverlay = document.getElementById('calcModalOverlay');
+            var calcBody = document.getElementById('calcModalBody');
+            var calcTotal = document.getElementById('calcModalTotal');
+            var calcTelegram = document.getElementById('calcModalTelegram');
+            var howtoOverlay = document.getElementById('howtoModalOverlay');
+            if (!calcOverlay || !howtoOverlay) return;
+
+            function openCalcModal() {
+                var full = document.getElementById('orderCardCalcFull');
+                if (full) {
+                    var list = full.querySelector('.calc-list');
+                    calcBody.innerHTML = list ? list.outerHTML : '';
+                    calcTotal.textContent = full.getAttribute('data-total') || '—';
+                    calcTelegram.href = typeof TELEGRAM_MANAGER_URL !== 'undefined' ? TELEGRAM_MANAGER_URL : 'https://t.me/nikits15';
+                }
+                calcOverlay.classList.add('is-open');
+                calcOverlay.setAttribute('aria-hidden', 'false');
+            }
+            function closeCalcModal() {
+                calcOverlay.classList.remove('is-open');
+                calcOverlay.setAttribute('aria-hidden', 'true');
+            }
+            function openHowToModal(e) {
+                if (e) e.preventDefault();
+                howtoOverlay.classList.add('is-open');
+                howtoOverlay.setAttribute('aria-hidden', 'false');
+            }
+            function closeHowToModal() {
+                howtoOverlay.classList.remove('is-open');
+                howtoOverlay.setAttribute('aria-hidden', 'true');
+            }
+
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('#openCalcModal')) { openCalcModal(); return; }
+                if (e.target.closest('#openHowToModal')) { openHowToModal(e); return; }
+                if (e.target.id === 'calcModalClose' || e.target.closest('#calcModalClose')) closeCalcModal();
+                if (e.target.id === 'howtoModalClose' || e.target.closest('#howtoModalClose')) closeHowToModal();
+                if (e.target === calcOverlay) closeCalcModal();
+                if (e.target === howtoOverlay) closeHowToModal();
+            });
+            document.getElementById('calcModalClose').addEventListener('click', closeCalcModal);
+            document.getElementById('howtoModalClose').addEventListener('click', closeHowToModal);
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initOrderModals);
+        } else {
+            initOrderModals();
+        }
+
         // ---------- СЛОВАРИ ДЛЯ ПЕРЕВОДА ----------
         const partNamesRu = {
+            // Детали кузова (outers), если придут с API без маппинга в парсере
+            '프론트 펜더 왼쪽': 'Левое переднее крыло',
+            '프론트 펜더 오른쪽': 'Правое переднее крыло',
+            '리어 펜더 왼쪽': 'Левое заднее крыло',
+            '리어 펜더 오른쪽': 'Правое заднее крыло',
+            '후드': 'Капот',
+            '트렁크 리드': 'Крышка багажника',
+            '프론트 도어 왼쪽': 'Левая передняя дверь',
+            '프론트 도어 오른쪽': 'Правая передняя дверь',
+            '리어 도어 왼쪽': 'Левая задняя дверь',
+            '리어 도어 오른쪽': 'Правая задняя дверь',
             '실린더 커버(로커암 커버)': 'Клапанная крышка',
             '실린더 헤드 / 개스킷': 'ГБЦ / прокладка',
             '실린더 블록 / 오일팬': 'Блок цилиндров / поддон',
@@ -997,6 +1467,15 @@
             '부족': 'Недостаток',
             '정상': 'Норма',
             '있음': 'Присутствует',
+            '교체': 'замена',
+            '도장': 'покрашено',
+            '판금': 'ремонт',
+            '수리': 'ремонт',
+            '교환': 'замена',
+            '도색': 'покрашено',
+            '리폼': 'ремонт',
+            '부품교체': 'замена',
+            '원장': 'оригинал',
         };
         // Перевод данных с корейского на русский (марка, модель, комплектация — на английском)
         const displayRu = {
@@ -1221,6 +1700,60 @@
             return html + '</div></div>';
         }
 
+        // Зоны схемы кузова (left%, top%, width%, height% — вид сверху: центр капот/багажник, слева и справа боковые панели)
+        var conditionDiagramZones = [
+            { part: 'Капот', left: 20, top: 0, width: 60, height: 28 },
+            { part: 'Крышка багажника', left: 20, top: 56, width: 60, height: 44 },
+            { part: 'Левое переднее крыло', left: 0, top: 0, width: 20, height: 22 },
+            { part: 'Левая передняя дверь', left: 0, top: 22, width: 20, height: 26 },
+            { part: 'Левая задняя дверь', left: 0, top: 48, width: 20, height: 26 },
+            { part: 'Левое заднее крыло', left: 0, top: 74, width: 20, height: 26 },
+            { part: 'Правое переднее крыло', left: 80, top: 0, width: 20, height: 22 },
+            { part: 'Правая передняя дверь', left: 80, top: 22, width: 20, height: 26 },
+            { part: 'Правая задняя дверь', left: 80, top: 48, width: 20, height: 26 },
+            { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 26 },
+        ];
+
+        function renderConditionDiagram(insp) {
+            var bodyChanged = insp.bodyChanged || {};
+            var bodyPanels = insp.bodyPanels || [];
+            var zoneStatus = {};
+            function setStatus(part, statusKey, label) {
+                if (!zoneStatus[part] || statusKey === 'replaced') zoneStatus[part] = { key: statusKey, label: label };
+            }
+            Object.keys(bodyChanged).forEach(function(part) {
+                var status = (bodyChanged[part] || '').toLowerCase();
+                if (status.indexOf('замен') >= 0) setStatus(part, 'replaced', 'Замена');
+                else if (status.indexOf('покраск') >= 0 || status === 'покрашено') setStatus(part, 'painted', 'Окрашивание');
+                else if (status.indexOf('ремонт') >= 0) setStatus(part, 'repair', 'Ремонт');
+                else setStatus(part, 'replaced', 'Замена');
+            });
+            bodyPanels.forEach(function(p) {
+                if (p.status === 'замена') setStatus(p.part, 'replaced', 'Замена');
+                if (p.status === 'покрашено') setStatus(p.part, 'painted', 'Окрашивание');
+                if (p.status === 'ремонт') setStatus(p.part, 'repair', 'Ремонт');
+            });
+            var zonesHtml = conditionDiagramZones.map(function(z) {
+                var info = zoneStatus[z.part];
+                var cls = info ? info.key : '';
+                var label = info ? info.label : '';
+                var indicator = label ? '<span class="zone-indicator">' + label + '</span>' : '';
+                return '<div class="condition-zone ' + cls + '" data-part="' + z.part + '" data-status="' + (info ? info.key : '') + '" style="left:' + z.left + '%;top:' + z.top + '%;width:' + z.width + '%;height:' + z.height + '%">' + indicator + '</div>';
+            }).join('');
+            var legend = '<div class="condition-legend">' +
+                '<span><span class="dot-replaced"></span> Замена</span>' +
+                '<span><span class="dot-painted"></span> Окрашивание</span>' +
+                '<span><span class="dot-repair"></span> Ремонт</span>' +
+                '<span><span class="dot-original"></span> Оригинал</span>' +
+                '</div>';
+            return '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-car-side text-blue-500 mr-2"></i>Схема состояния кузова</h2>' +
+                '<div class="condition-diagrams-row">' +
+                '<div class="condition-diagram-item"><div class="condition-diagram-wrap"><img src="image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div><p class="condition-diagram-caption">Внешние элементы</p></div>' +
+                '<div class="condition-diagram-item"><div class="condition-diagram-wrap"><img src="image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div><p class="condition-diagram-caption">Внутренние элементы</p></div>' +
+                '</div>' +
+                legend + '</div>';
+        }
+
         function renderComments(c) { return c ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-comment text-blue-500 mr-2"></i>Комментарии инспектора</h2><div class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">${c}</div></div>` : ''; }
 
         function renderInspectionCombined(insp) {
@@ -1283,6 +1816,7 @@
 
             updateModal();
             modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
         }
 
         function updateModal() {
@@ -1301,7 +1835,9 @@
         }
 
         function closeModal() {
-            document.getElementById('galleryModal').classList.remove('active');
+            var m = document.getElementById('galleryModal');
+            if (m) m.classList.remove('active');
+            document.body.style.overflow = '';
         }
 
         // Рендер главного блока галереи
@@ -1345,7 +1881,10 @@
             `;
         }
 
-        // ---------- Рендер правой колонки (карточка авто + заглушки статей) ----------
+        const TELEGRAM_MANAGER_URL = 'https://t.me/nikits15';
+        const TELEGRAM_REG_URL = 'https://telegram.org/';
+
+        // ---------- Рендер правой колонки: компактная карточка заказа + скрытый полный расчёт (для модалки) ----------
         function renderPriceColumn(carData) {
             const d = carData.data || {};
             const manufacturer = d.manufacturerName || d.mark || '';
@@ -1359,13 +1898,11 @@
             const sellerType = d.seller_type || '';
             const isDealer = d.is_dealer ? 'Дилер' : '';
 
-            // Цены
-            const priceWon = d.price_won; // в единицах по 10 000 вон
+            const priceWon = d.price_won;
             const priceWonFormatted = priceWon ? (priceWon * 10000).toLocaleString() + ' вон' : '—';
             const myPrice = d.my_price;
             const myPriceFormatted = myPrice ? Math.round(myPrice).toLocaleString() + ' ₽' : '—';
 
-            // Промежуточные значения
             const priceRub = d.price_rub_estimate;
             const customsFee = d.customs_fee_rub;
             const duty = d.duty_rub;
@@ -1378,96 +1915,64 @@
             const insurance = d.insurance_rub;
             const totalNoCommission = d.total_cost_no_commission;
 
+            const calcItems = [
+                { key: 'Стоимость авто в Корее', val: priceWonFormatted },
+                { key: 'Цена в рублях (крипто)', val: priceRub ? Math.round(priceRub).toLocaleString() + ' ₽' : '—' },
+                { key: 'Таможенный сбор', val: customsFee ? Math.round(customsFee).toLocaleString() + ' ₽' : '—' },
+                { key: 'Единый таможенный платёж', val: duty ? Math.round(duty).toLocaleString() + ' ₽' : '—' },
+                { key: 'Утилизационный сбор', val: util ? Math.round(util).toLocaleString() + ' ₽' : '—' },
+                { key: 'Экспортные документы (Корея)', val: exportRub ? Math.round(exportRub).toLocaleString() + ' ₽' : '—' },
+                { key: 'Фрахт (до Владивостока)', val: freightRub ? Math.round(freightRub).toLocaleString() + ' ₽' : '—' },
+                { key: 'Таможенный брокер', val: brokerRub ? Math.round(brokerRub).toLocaleString() + ' ₽' : '—' },
+                { key: 'Резерв', val: reserveRub ? Math.round(reserveRub).toLocaleString() + ' ₽' : '—' },
+                { key: 'Автовоз', val: avtovozRub ? Math.round(avtovozRub).toLocaleString() + ' ₽' : '—' },
+                { key: 'Страховка', val: insurance ? Math.round(insurance).toLocaleString() + ' ₽' : '—' },
+                { key: 'Все расходы без комиссии', val: totalNoCommission ? Math.round(totalNoCommission).toLocaleString() + ' ₽' : '—', bold: true },
+                { key: 'Наша цена (с комиссией 10%)', val: myPriceFormatted, bold: true }
+            ];
+
+            const metaParts = [year + ' г.', km, address].filter(Boolean);
+            if (sellerType) metaParts.push(sellerType);
+            if (isDealer) metaParts.push(isDealer);
+            const metaHtml = metaParts.length ? metaParts.join(' · ') : '—';
+
+            const calcListHtml = calcItems.map(function(item) {
+                return '<li class="' + (item.bold ? 'font-bold' : '') + '"><span class="key">' + item.key + '</span><span class="price">' + item.val + '</span></li>';
+            }).join('');
+
             return `
-                <div class="calc-card">
-                    <div class="mb-4">
-                        <h3 class="text-xl font-bold leading-tight">${fullName}</h3>
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-sm text-gray-600">
-                            <span>${year} г.</span>
-                            <span>${km}</span>
-                            <span>${address}</span>
-                            ${sellerType ? `<span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">${sellerType}</span>` : ''}
-                            ${isDealer ? `<span class="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs">${isDealer}</span>` : ''}
-                        </div>
+                <div class="order-card" id="orderCard">
+                    <h3 class="order-title">${fullName}</h3>
+                    <div class="order-meta">${metaHtml}</div>
+                    <div class="order-price-total">${myPriceFormatted}</div>
+                    <button type="button" class="order-link" id="openCalcModal" aria-label="Подробный расчёт">
+                        Подробный расчёт
+                        <svg class="chevron" viewBox="0 0 10 16" fill="currentColor"><path d="M1 0L9 8 1 16V0z"/></svg>
+                    </button>
+                    <a href="#" class="order-howto" id="openHowToModal">
+                        Как оформить заказ?
+                        <svg class="chevron" viewBox="0 0 10 16" fill="currentColor"><path d="M1 0L9 8 1 16V0z"/></svg>
+                    </a>
+                    <a href="${TELEGRAM_MANAGER_URL}" target="_blank" rel="noopener" class="telegram-btn">
+                        <i class="fa-regular fa-telegram"></i> Написать в Telegram
+                    </a>
+                    <div class="order-footer-text">
+                        Нет аккаунта? <a href="${TELEGRAM_REG_URL}" target="_blank" rel="noopener">Зарегистрироваться</a>
                     </div>
-
-                    <div class="space-y-4 mt-6">
-                        <div class="calc-row">
-                            <span>Стоимость авто в Корее</span>
-                            <span class="font-medium">${priceWonFormatted}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Цена в рублях (крипто)</span>
-                            <span class="font-medium">${priceRub ? Math.round(priceRub).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Таможенный сбор</span>
-                            <span class="font-medium">${customsFee ? Math.round(customsFee).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Единый таможенный платёж</span>
-                            <span class="font-medium">${duty ? Math.round(duty).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Утилизационный сбор</span>
-                            <span class="font-medium">${util ? Math.round(util).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Экспортные документы (Корея)</span>
-                            <span class="font-medium">${exportRub ? Math.round(exportRub).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Фрахт (до Владивостока)</span>
-                            <span class="font-medium">${freightRub ? Math.round(freightRub).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Таможенный брокер</span>
-                            <span class="font-medium">${brokerRub ? Math.round(brokerRub).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Резерв</span>
-                            <span class="font-medium">${reserveRub ? Math.round(reserveRub).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Автовоз</span>
-                            <span class="font-medium">${avtovozRub ? Math.round(avtovozRub).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row">
-                            <span>Страховка</span>
-                            <span class="font-medium">${insurance ? Math.round(insurance).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row border-t-2 border-gray-200 pt-2 font-bold">
-                            <span>Все расходы без комиссии</span>
-                            <span class="font-medium">${totalNoCommission ? Math.round(totalNoCommission).toLocaleString() + ' ₽' : '—'}</span>
-                        </div>
-                        <div class="calc-row border-t-2 border-gray-200 pt-2 font-bold text-lg">
-                            <span>Наша цена (с комиссией 10%)</span>
-                            <span class="text-indigo-600">${myPriceFormatted}</span>
-                        </div>
+                    <div class="calc-full" id="orderCardCalcFull" data-total="${myPriceFormatted}">
+                        <ul class="calc-list">${calcListHtml}</ul>
                     </div>
-
-                    <div class="mt-6">
-                        <a href="#" class="manager-button">
-                            <i class="fa-regular fa-telegram mr-2"></i> Написать менеджеру
-                        </a>
-                        <div class="text-center mt-2">
-                            <span class="text-gray-500 text-sm">Нет аккаунта Telegram? </span>
-                            <a href="#" class="telegram-link">Зарегистрироваться</a>
+                    <details class="mt-4 text-xs" style="color: var(--color-neutral-600);">
+                        <summary class="cursor-pointer" style="color: var(--color-primary);">Почему такой курс?</summary>
+                        <div class="mt-2 p-3 rounded-lg" style="background: var(--color-neutral-200);">
+                            <p>У любой криптовалюты есть курс покупки и курс продажи. Разница между ними — это комиссия обменников, спред и риски ликвидности.</p>
+                            <p class="mt-1">Например, курс USDT к южнокорейской воне (KRW) может быть:<br>
+                            — Покупка USDT за KRW: 1 USDT = 1 480 ₽<br>
+                            — Продажа USDT за KRW: 1 USDT = 1 420 ₽</p>
+                            <p class="mt-1">В России при переводе из RUB в USDT через P2P-обменники вы получите ~1 USDT = 75–85 ₽ (в зависимости от реального курса USD). А при обратном обмене (USDT → RUB) — уже ~1 USDT = 75–70 ₽.</p>
+                            <p class="mt-1">При расчёте стоимости автомобиля мы используем реальный курс покупки USDT (т.е. сколько вам придётся потратить в рублях или вонах, чтобы получить нужное количество USDT для оплаты). Это не «официальный» курс биржи — это то, что вы реально заплатите в обменнике сейчас, с учётом спроса, лимитов и комиссий.</p>
                         </div>
-                    </div>
-                    <div class="mt-4 text-xs text-gray-500">
-                        <details>
-                            <summary class="cursor-pointer text-indigo-600">Почему такой курс?</summary>
-                            <div class="mt-2 p-3 bg-gray-50 rounded-lg">
-                                <p>У любой криптовалюты есть курс покупки и курс продажи. Разница между ними — это комиссия обменников, спред и риски ликвидности.</p>
-                                <p class="mt-1">Например, курс USDT к южнокорейской воне (KRW) может быть:<br>
-                                — Покупка USDT за KRW: 1 USDT = 1 480 ₽<br>
-                                — Продажа USDT за KRW: 1 USDT = 1 420 ₽</p>
-                                <p class="mt-1">В России при переводе из RUB в USDT через P2P-обменники вы получите ~1 USDT = 75–85 ₽ (в зависимости от реального курса USD). А при обратном обмене (USDT → RUB) — уже ~1 USDT = 75–70 ₽.</p>
-                                <p class="mt-1">При расчёте стоимости автомобиля мы используем реальный курс покупки USDT (т.е. сколько вам придётся потратить в рублях или вонах, чтобы получить нужное количество USDT для оплаты). Это не «официальный» курс биржи — это то, что вы реально заплатите в обменнике сейчас, с учётом спроса, лимитов и комиссий.</p>
-                            </div>
-                        </details>
-                    </div>
+                    </details>
                 </div>
             `;
         }
@@ -1513,7 +2018,6 @@
                     <div class="similar-cars-section">
                         <div class="similar-cars-header">
                             <h2 class="similar-cars-title">Похожие по цене ${currentMark}</h2>
-                            <button class="text-indigo-600 hover:text-indigo-800 font-medium" onclick="document.getElementById('similar-cars-grid').classList.toggle('hidden')">Скрыть / Показать</button>
                         </div>
                         <div class="similar-cars-grid" id="similar-cars-grid">
                 `;
@@ -1643,7 +2147,32 @@
             var origLink = document.getElementById('original-link');
             if (origLink) origLink.href = rawData.data && rawData.data.url ? rawData.data.url : '#';
             const extra = d.extra || {};
-            const insp = extra.inspection_structured || {};
+            let insp = extra.inspection_structured || {};
+            // Fallback: если диагностики кузова нет, собираем из сырого extra.diagnosis (для старых cars.json)
+            if ((!insp.bodyPanels || !insp.bodyPanels.length) && (!insp.bodyChanged || !Object.keys(insp.bodyChanged).length) && extra.diagnosis && extra.diagnosis.items && extra.diagnosis.items.length) {
+                const panelMap = {
+                    'FRONT_DOOR_LEFT': 'Левая передняя дверь', 'FRONT_DOOR_RIGHT': 'Правая передняя дверь',
+                    'BACK_DOOR_LEFT': 'Левая задняя дверь', 'BACK_DOOR_RIGHT': 'Правая задняя дверь',
+                    'HOOD': 'Капот', 'TRUNK_LID': 'Крышка багажника',
+                    'FRONT_FENDER_LEFT': 'Левое переднее крыло', 'FRONT_FENDER_RIGHT': 'Правое переднее крыло',
+                    'REAR_FENDER_LEFT': 'Левое заднее крыло', 'REAR_FENDER_RIGHT': 'Правое заднее крыло',
+                    'BACK_FENDER_LEFT': 'Левое заднее крыло', 'BACK_FENDER_RIGHT': 'Правое заднее крыло'
+                };
+                const statusMap = { 'NORMAL': 'оригинал', 'REPLACEMENT': 'замена' };
+                const bodyPanels = [];
+                const bodyChanged = {};
+                extra.diagnosis.items.forEach(function(item) {
+                    const name = item.name;
+                    const part = panelMap[name];
+                    if (!part) return;
+                    const code = item.resultCode || item.resultCodeType;
+                    const raw = (item.result || '').trim();
+                    let status = code ? (statusMap[code] || code) : (raw === '정상' || raw === '원장' ? 'оригинал' : raw === '교체' ? 'замена' : raw || 'оригинал');
+                    bodyPanels.push({ part: part, status: status });
+                    if (status === 'замена') bodyChanged[part] = 'замена';
+                });
+                insp = Object.assign({}, insp, { bodyPanels: bodyPanels, bodyChanged: bodyChanged });
+            }
 
             // Фото
             let hImagesList = [];
@@ -1684,11 +2213,12 @@
             const optionsHtml = renderOptionsGrouped(d.options?.standard || []);
             const bodyPanelsHtml = renderBodyPanels(insp.bodyPanels);
             const commentsHtml = renderComments(insp.bodyComments);
-            const additionalHtml = (insp.additional && Object.keys(insp.additional).length) 
+            const additionalHtml = (insp.additional && Object.keys(insp.additional).length)
                 ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-circle-info text-blue-500 mr-2"></i>Дополнительная информация</h2><table class="w-full text-sm data-table">${Object.entries(insp.additional).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table></div>` : '';
             const bodyChangedHtml = (insp.bodyChanged && Object.keys(insp.bodyChanged).length)
                 ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-paintbrush text-blue-500 mr-2"></i>Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${partNamesRu[k] || k}</td><td>${statusRu[v] || v}</td></tr>`).join('')}</table></div>` : '';
 
+            const conditionDiagramHtml = renderConditionDiagram(insp);
             const inspectionCombinedHtml = renderInspectionCombined(insp);
 
             let recordHtml = '';
@@ -1748,10 +2278,11 @@
             leftColumnContent.push(`<div id="basic-info">${specHtml}</div>`);
             leftColumnContent.push(`<div id="options">${optionsHtml}</div>`);
 
-            // Блок диагностики (объединяем все поддиагностики в один контейнер)
+            // Блок диагностики (объединяем все поддиагностики + схема кузова)
             let inspectionHtml = '';
-            if (bodyPanelsHtml || commentsHtml || additionalHtml || bodyChangedHtml || inspectionCombinedHtml) {
+            if (bodyPanelsHtml || commentsHtml || additionalHtml || bodyChangedHtml || inspectionCombinedHtml || conditionDiagramHtml) {
                 inspectionHtml = '<div id="inspection">';
+                if (conditionDiagramHtml) inspectionHtml += conditionDiagramHtml;
                 if (bodyPanelsHtml) inspectionHtml += bodyPanelsHtml;
                 if (commentsHtml) inspectionHtml += commentsHtml;
                 if (additionalHtml) inspectionHtml += additionalHtml;

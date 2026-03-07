@@ -293,16 +293,56 @@ class EncarFullParser:
             body_changed = {}
             interior = {}
 
+            # Корейские названия деталей кузова → русские (как на Encar)
+            outer_part_ru = {
+                '프론트 펜더 왼쪽': 'Левое переднее крыло',
+                '프론트 펜더 오른쪽': 'Правое переднее крыло',
+                '리어 펜더 왼쪽': 'Левое заднее крыло',
+                '리어 펜더 오른쪽': 'Правое заднее крыло',
+                '후드': 'Капот',
+                '트렁크 리드': 'Крышка багажника',
+                '프론트 도어 왼쪽': 'Левая передняя дверь',
+                '프론트 도어 오른쪽': 'Правая передняя дверь',
+                '리어 도어 왼쪽': 'Левая задняя дверь',
+                '리어 도어 오른쪽': 'Правая задняя дверь',
+                '프론트 도어': 'Передняя дверь',
+                '리어 도어': 'Задняя дверь',
+                '펜더': 'Крыло',
+                '도어': 'Дверь',
+            }
+            # Корейский статус → русский
+            status_ru = {
+                '교체': 'замена',
+                '도장': 'покрашено',
+                '판금': 'ремонт',
+                '수리': 'ремонт',
+                '교환': 'замена',
+                '도색': 'покрашено',
+                '리폼': 'ремонт',
+                '부품교체': 'замена',
+                '정상': 'оригинал',
+            }
+
             for part in inspection.get('outers', []):
-                part_name = part.get('title') or part.get('partName')
-                status = (part.get('statusType') or {}).get('title', '')
+                part_name = (part.get('title') or part.get('partName') or part.get('name') or part.get('part') or '').strip()
+                status_type = part.get('statusType') or {}
+                status = (status_type.get('title') or status_type.get('name') or part.get('status') or part.get('result') or '').strip()
                 if not part_name:
                     continue
 
-                # Для bodyChanged – если есть замена/покраска
-                status_lower = status.lower()
-                if any(k in status_lower for k in ['заменено', 'покрашено', 'замена', 'painted', 'replaced']):
-                    body_changed[part_name] = status
+                # Нормализуем название детали для bodyChanged (русский, если есть маппинг)
+                part_name_ru = outer_part_ru.get(part_name, part_name)
+                status_ru_val = status_ru.get(status, status)
+
+                # Для bodyChanged – замена/покраска: русские, английские и корейские маркеры
+                status_lower = (status or '').lower()
+                status_raw = (status or '')
+                is_replacement = (
+                    any(k in status_lower for k in ['заменено', 'покрашено', 'замена', 'painted', 'replaced']) or
+                    any(k in status_raw for k in ['교체', '도장', '판금', '수리', '교환', '도색', '리폼', '부품교체'])
+                )
+                if is_replacement:
+                    body_changed[part_name_ru] = status_ru_val
 
                 # Для interior – элементы салона по ключевым словам
                 low = part_name.lower()
@@ -329,7 +369,7 @@ class EncarFullParser:
         if diagnosis and isinstance(diagnosis, dict):
             items = diagnosis.get('items', [])
 
-            # Маппинг английских названий на русские
+            # Маппинг английских названий панелей на русские (как на Encar)
             panel_mapping = {
                 'FRONT_DOOR_LEFT': 'Левая передняя дверь',
                 'FRONT_DOOR_RIGHT': 'Правая передняя дверь',
@@ -339,11 +379,17 @@ class EncarFullParser:
                 'TRUNK_LID': 'Крышка багажника',
                 'FRONT_FENDER_LEFT': 'Левое переднее крыло',
                 'FRONT_FENDER_RIGHT': 'Правое переднее крыло',
+                'REAR_FENDER_LEFT': 'Левое заднее крыло',
+                'REAR_FENDER_RIGHT': 'Правое заднее крыло',
+                'BACK_FENDER_LEFT': 'Левое заднее крыло',
+                'BACK_FENDER_RIGHT': 'Правое заднее крыло',
             }
             status_mapping = {
                 'NORMAL': 'оригинал',
                 'REPLACEMENT': 'замена',
             }
+            # Текст результата с корейского
+            result_text_ru = {'정상': 'оригинал', '교체': 'замена', '원장': 'оригинал'}
 
             body_panels = []
             checker_comment = ''
@@ -352,12 +398,14 @@ class EncarFullParser:
             for item in items:
                 name = item.get('name')
                 if name in panel_mapping:
-                    result_code = item.get('resultCode')
+                    result_code = item.get('resultCode') or item.get('resultCodeType')
+                    result_raw = (item.get('result') or '').strip()
                     if result_code:
                         status = status_mapping.get(result_code, result_code)
+                    elif result_raw:
+                        status = result_text_ru.get(result_raw, result_raw)
                     else:
-                        status_raw = item.get('result', '')
-                        status = 'оригинал' if status_raw == '정상' else status_raw
+                        status = 'оригинал'
                     body_panels.append({
                         'part': panel_mapping[name],
                         'status': status
@@ -368,6 +416,12 @@ class EncarFullParser:
                     outer_panel_comment = item.get('result', '')
 
             result['bodyPanels'] = body_panels
+
+            # Если в диагностике есть замены — дополняем bodyChanged (чтобы блок «Заменённые детали» не был пустым)
+            for p in body_panels:
+                if p.get('status') == 'замена' and p.get('part'):
+                    if p['part'] not in result['bodyChanged']:
+                        result['bodyChanged'][p['part']] = 'замена'
 
             # Сбор всех комментариев
             comments_parts = []
@@ -622,21 +676,10 @@ class EncarFullParser:
                     detail = self.fetch_vehicle_detail(car_id)
                     plate_number = detail.get('vehicleNo') if detail else None
 
-                    # 2. Диагностика
+                    # 2. Диагностика (всегда запрашиваем — для блока «Диагностика кузова» и заменённых панелей)
                     diagnosis = None
-                    has_diag = False
-                    if detail:
-                        adv = detail.get("advertisement", {})
-                        if adv.get("hasUnderBodyPhoto"):
-                            has_diag = True
-                        for p in detail.get("photos", []):
-                            if p.get("type") == "DIAG2":
-                                has_diag = True
-                                break
-
-                    if has_diag:
-                        print(f"    ⏳ Запрос диагностики...")
-                        diagnosis = self.fetch_diagnosis(car_id)
+                    print(f"    ⏳ Запрос диагностики...")
+                    diagnosis = self.fetch_diagnosis(car_id)
 
                     # 3. История
                     record = None
