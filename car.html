@@ -145,17 +145,44 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         
-        /* Галерея (как у конкурента: высота 454px, скругление 20px) */
+        /* Галерея в стиле Encar: блок на 3/4 страницы, миниатюры справа */
+        .gallery-section {
+            width: 100%;
+            margin-bottom: 24px;
+        }
+        .gallery-card {
+            background: var(--color-neutral-100);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .gallery-card h2 {
+            margin: 0 0 12px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .gallery-encar-row {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+            min-height: 0;
+        }
+        .gallery-main-wrap {
+            flex: 0 0 75%;
+            min-width: 0;
+            position: relative;
+            aspect-ratio: 1160 / 696;
+        }
         .gallery-main {
             position: relative;
             width: 100%;
-            height: 454px;
+            height: 100%;
             background: var(--color-neutral-200);
-            border-radius: 20px;
+            border-radius: 16px;
             overflow: hidden;
             cursor: pointer;
             box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1);
-            margin-bottom: 16px;
         }
         .gallery-main img {
             width: 100%;
@@ -164,17 +191,60 @@
             object-position: center center;
             transition: transform 0.3s ease;
         }
-        @media (max-width: 768px) {
-            .gallery-main { height: 280px; }
-        }
         .gallery-main:hover img {
             transform: scale(1.02);
+        }
+        .gallery-thumbs-col {
+            flex: 0 0 calc(25% - 12px);
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .gallery-thumbs-col::-webkit-scrollbar {
+            display: none;
+        }
+        .gallery-thumbs-col .thumbnail {
+            flex: 1 1 0;
+            min-height: 0;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            background: #eef2f6;
+        }
+        .gallery-thumbs-col .thumbnail.active {
+            border-color: var(--color-primary, #3b82f6);
+            box-shadow: 0 0 0 1px var(--color-primary, #3b82f6);
+        }
+        .gallery-thumbs-col .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .gallery-thumbs-col .thumbnail.more span {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.5);
+            color: #f9fafb;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border-radius: 12px;
         }
         .gallery-nav {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255,255,255,0.7);
+            background: rgba(255,255,255,0.85);
             backdrop-filter: blur(4px);
             width: 40px;
             height: 40px;
@@ -200,24 +270,10 @@
             position: absolute;
             bottom: 16px;
             right: 16px;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.55);
             backdrop-filter: blur(4px);
             color: white;
-            padding: 4px 12px;
-            border-radius: 40px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.2);
-            z-index: 5;
-        }
-        .photo-count {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
-            color: white;
-            padding: 4px 12px;
+            padding: 6px 14px;
             border-radius: 40px;
             font-size: 0.85rem;
             font-weight: 500;
@@ -241,42 +297,39 @@
             border: 1px solid rgba(255,255,255,0.2);
             z-index: 5;
         }
-        .gallery-views i {
-            font-size: 0.85rem;
+        .gallery-views i { font-size: 0.85rem; }
+        @media (max-width: 900px) {
+            .gallery-encar-row { flex-direction: column; }
+            .gallery-main-wrap { flex: 1 1 auto; aspect-ratio: 1160/696; }
+            .gallery-thumbs-col {
+                flex: 0 0 auto;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                scrollbar-width: none;
+            }
+            .gallery-thumbs-col .thumbnail { flex: 0 0 auto; min-width: 100px; min-height: 0; aspect-ratio: 4/3; }
         }
         .thumbnails-row {
             display: flex;
-            gap: 12px;
-            margin-top: 0;
+            gap: 8px;
             flex-wrap: nowrap;
-            width: 100%;
-            overflow: hidden;
+            overflow-x: auto;
         }
         .thumbnail {
-            flex: 1 1 0;
+            flex: 0 0 auto;
+            width: 80px;
             aspect-ratio: 4 / 3;
-            border-radius: 16px;
+            border-radius: 12px;
             overflow: hidden;
             cursor: pointer;
             border: 2px solid transparent;
             transition: all 0.2s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             background: #eef2f6;
-            position: relative;
         }
-        .thumbnail.active {
-            border-color: #3b82f6;
-            transform: scale(1.02);
-        }
-        .thumbnail img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .thumbnail.more {
-            position: relative;
-            border: 2px solid rgba(255,255,255,0.3);
-        }
+        .thumbnail.active { border-color: var(--color-primary, #3b82f6); }
+        .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+        .thumbnail.more { position: relative; }
         .thumbnail.more span {
             position: absolute;
             inset: 0;
@@ -286,8 +339,8 @@
             background: rgba(0,0,0,0.5);
             color: #f9fafb;
             font-weight: 700;
-            font-size: 1.2rem;
-            border-radius: 16px;
+            font-size: 0.85rem;
+            border-radius: 12px;
         }
         
         /* Модальное окно просмотра фото (как у конкурентов) */
@@ -1864,18 +1917,24 @@
             }
 
             return `
-                <div class="card rounded-3xl p-6">
-                    <h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-images text-blue-500 mr-2"></i>Фотографии (${photos.length})</h2>
-                    <div class="gallery-main" id="galleryMain">
-                        <img src="${mainImgUrl}" alt="${title || 'Фото автомобиля'}" id="mainPhoto">
-                        <div class="gallery-counter" id="galleryCounter">1/${photos.length}</div>
-                        <div class="gallery-views">
-                            <i class="fa-regular fa-eye"></i>
-                            <span id="galleryViewsLabel">кол-во просмотров</span>
+                <div class="gallery-section">
+                    <div class="gallery-card">
+                        <h2 class="text-lg font-semibold flex items-center"><i class="fa-regular fa-images text-blue-500 mr-2"></i>Фотографии (${photos.length})</h2>
+                        <div class="gallery-encar-row">
+                            <div class="gallery-main-wrap">
+                                <div class="gallery-main" id="galleryMain">
+                                    <img src="${mainImgUrl}" alt="${title || 'Фото автомобиля'}" id="mainPhoto">
+                                    <div class="gallery-counter" id="galleryCounter">1/${photos.length}</div>
+                                    <div class="gallery-views">
+                                        <i class="fa-regular fa-eye"></i>
+                                        <span id="galleryViewsLabel">кол-во просмотров</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="gallery-thumbs-col" id="thumbnailsRow">
+                                ${thumbnailsHtml}
+                            </div>
                         </div>
-                    </div>
-                    <div class="thumbnails-row" id="thumbnailsRow">
-                        ${thumbnailsHtml}
                     </div>
                 </div>
             `;
@@ -2271,10 +2330,8 @@
             // Правая колонка
             const priceColumnHtml = renderPriceColumn(rawData);
 
-            // Собираем контент левой колонки с id для навигации
+            // Галерея — отдельным блоком сверху (3/4 страницы, миниатюры справа). Ниже — сетка: инфо слева, правое меню справа.
             const leftColumnContent = [];
-
-            leftColumnContent.push(galleryHtml);
             leftColumnContent.push(`<div id="basic-info">${specHtml}</div>`);
             leftColumnContent.push(`<div id="options">${optionsHtml}</div>`);
 
@@ -2298,6 +2355,7 @@
             const leftColumnHtml = leftColumnContent.join('');
 
             container.innerHTML = `
+                ${galleryHtml}
                 <div class="details-layout">
                     <div class="details-left space-y-8">
                         ${leftColumnHtml}
@@ -2360,8 +2418,8 @@
                 mainPhoto.src = imgUrl;
                 galleryCounter.textContent = (index+1) + '/' + photosArray.length;
 
-                document.querySelectorAll('.thumbnail').forEach((thumb, i) => {
-                    if (i < 4) thumb.classList.toggle('active', i === index);
+                document.querySelectorAll('.thumbnail').forEach(function(thumb) {
+                    thumb.classList.toggle('active', thumb.dataset.index === String(index));
                 });
             }
 
