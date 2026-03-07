@@ -557,6 +557,40 @@
     .preview img.active {
       opacity: 1;
     }
+    .preview-nav {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.25);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      z-index: 2;
+      transition: background 0.2s;
+      font-size: 1.2rem;
+    }
+    .preview-nav:hover {
+      background: rgba(0,0,0,0.45);
+    }
+    .preview-prev { left: 0; }
+    .preview-next { right: 0; }
+    .preview-counter {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      z-index: 2;
+    }
 
     .car-info {
       padding: 16px 20px 16px;
@@ -1508,7 +1542,7 @@
           </div>
         `;
 
-        // Ховер для фото
+        // Переключение фото по положению курсора: влево/вправо по превью
         const preview = card.querySelector('.preview');
         const imgs = preview.querySelectorAll('img');
         preview.addEventListener('mousemove', (e) => {
@@ -1516,12 +1550,11 @@
           const w = preview.offsetWidth;
           const pos = e.offsetX / w;
           const index = Math.floor(pos * imgs.length);
-          imgs.forEach(i => i.classList.remove('active'));
-          imgs[Math.min(index, imgs.length - 1)].classList.add('active');
+          const idx = Math.min(index, imgs.length - 1);
+          imgs.forEach((img, i) => img.classList.toggle('active', i === idx));
         });
         preview.addEventListener('mouseleave', () => {
-          imgs.forEach(i => i.classList.remove('active'));
-          if (imgs[0]) imgs[0].classList.add('active');
+          imgs.forEach((img, i) => img.classList.toggle('active', i === 0));
         });
 
         // Тултип для кнопки ставки
@@ -1554,7 +1587,7 @@
 
         // Клик по карточке для перехода на детальную страницу
         card.addEventListener('click', (e) => {
-            // Игнорируем клики по ссылкам, кнопкам и иконке info (чтобы не мешать их работе)
+            // Игнорируем клики по ссылкам, кнопкам (в т.ч. стрелки превью), иконке info
             if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.info-icon')) {
                 return;
             }

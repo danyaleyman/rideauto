@@ -54,15 +54,15 @@
         .back-link {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             color: var(--color-neutral-900);
             text-decoration: none;
             font-weight: 500;
-            font-size: 0.95rem;
+            font-size: 12px;
             transition: color 0.2s;
         }
         .back-link:hover { color: var(--color-primary); }
-        .back-link svg { width: 20px; height: 20px; transform: rotate(180deg); fill: currentColor; }
+        .back-link .back-arrow { width: 16px; height: 16px; display: block; }
         .breadcrumbs {
             display: flex;
             align-items: center;
@@ -77,6 +77,28 @@
         .breadcrumbs a:hover { color: var(--color-neutral-600); }
         .breadcrumbs .sep { margin: 0 8px; color: var(--color-neutral-600); }
         .breadcrumbs .current { color: var(--color-neutral-600); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Кастомные тултипы */
+        .has-tooltip { position: relative; cursor: help; display: inline-flex; align-items: center; }
+        .has-tooltip .tooltip-popup {
+            position: absolute;
+            left: 0;
+            bottom: 100%;
+            margin-bottom: 8px;
+            background: #1f2937;
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 1.45;
+            white-space: normal;
+            max-width: 320px;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            pointer-events: none;
+        }
+        .has-tooltip:hover .tooltip-popup { display: block; }
         /* Сетка: левая колонка фикс. ширина, правая sticky */
         .details-layout {
             display: grid;
@@ -130,7 +152,7 @@
             margin-bottom: 5px;
             min-width: 12px;
         }
-        .dotted-pair .value { font-weight: 500; color: var(--color-neutral-900); align-self: flex-end; white-space: nowrap; }
+        .dotted-pair .value { font-weight: 500; color: var(--color-neutral-900); align-self: flex-end; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
         
         .card {
             background: var(--color-neutral-100);
@@ -151,11 +173,10 @@
             margin-bottom: 24px;
         }
         .gallery-card {
-            background: var(--color-neutral-100);
-            border: 1px solid var(--color-neutral-200);
+            background: transparent;
+            border: none;
             border-radius: 20px;
-            padding: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 0;
         }
         .gallery-card h2 {
             margin: 0 0 12px 0;
@@ -178,11 +199,10 @@
             position: relative;
             width: 100%;
             height: 100%;
-            background: var(--color-neutral-200);
+            background: transparent;
             border-radius: 16px;
             overflow: hidden;
             cursor: pointer;
-            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1);
         }
         .gallery-main img {
             width: 100%;
@@ -203,6 +223,7 @@
             overflow: hidden;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            padding: 0;
         }
         .gallery-thumbs-col::-webkit-scrollbar {
             display: none;
@@ -214,19 +235,25 @@
             border-radius: 12px;
             overflow: hidden;
             cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.2s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            background: #eef2f6;
+            border: none;
+            outline: none;
+            box-shadow: none;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         }
         .gallery-thumbs-col .thumbnail.active {
-            border-color: var(--color-primary, #3b82f6);
-            box-shadow: 0 0 0 1px var(--color-primary, #3b82f6);
+            box-shadow: none;
         }
         .gallery-thumbs-col .thumbnail img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            object-position: center;
+            border-radius: 12px;
+            display: block;
         }
         .gallery-thumbs-col .thumbnail.more span {
             position: absolute;
@@ -266,19 +293,41 @@
         }
         .gallery-nav.left { left: 16px; }
         .gallery-nav.right { right: 16px; }
-        .gallery-counter {
+        .gallery-counter-wrap {
             position: absolute;
             bottom: 16px;
             right: 16px;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(4px);
-            color: white;
-            padding: 6px 14px;
-            border-radius: 40px;
+            padding: 0;
+            z-index: 5;
+        }
+        .gallery-main-prev, .gallery-main-next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: auto;
+            transition: background 0.2s;
+        }
+        .gallery-main-prev:hover, .gallery-main-next:hover { background: rgba(0,0,0,0.7); }
+        .gallery-main-prev { left: 16px; }
+        .gallery-main-next { right: 16px; }
+        .gallery-counter {
             font-size: 0.85rem;
             font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.2);
-            z-index: 5;
+            color: var(--color-neutral-800);
+            min-width: 2.5em;
+            text-align: right;
         }
         .gallery-views {
             position: absolute;
@@ -492,16 +541,66 @@
             box-shadow: 0 2px 12px rgba(0,0,0,0.06);
             position: relative;
         }
+        .order-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
         .order-card .order-title {
             font-size: 1.1rem;
             font-weight: 700;
             color: var(--color-neutral-900);
-            margin: 0 0 12px 0;
-            max-width: 100%;
+            margin: 0;
+            flex: 1;
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .order-title-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .order-icon-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            border: none;
+            background: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .order-icon-btn img { width: 22px; height: 22px; display: block; }
+        .order-icon-original .img-active,
+        .order-icon-favourite .img-active { display: none; }
+        .order-icon-original:hover .img-static,
+        .order-icon-favourite:hover .img-static { display: none; }
+        .order-icon-original:hover .img-active,
+        .order-icon-favourite:hover .img-active { display: block; }
+        .order-icon-favourite { cursor: default; } /* пока неактивное нажатие */
+        .order-card .telegram-btn .telegram-logo { width: 20px; height: 20px; }
+        .order-card .order-calc-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 15px;
+            background: transparent;
+            color: var(--color-primary);
+            border: 2px solid var(--color-primary);
+            cursor: pointer;
+            margin-bottom: 12px;
+            font-family: inherit;
+            text-decoration: none;
+            transition: background 0.2s, color 0.2s;
+        }
+        .order-card .order-calc-btn:hover { background: rgba(59, 130, 246, 0.08); }
         .order-card .order-meta {
             font-size: 13px;
             color: var(--color-neutral-600);
@@ -769,18 +868,19 @@
             transform: scale(1.02);
         }
 
-        /* Схема состояния кузова: две схемы в ряд + индикаторы на зонах + легенда внизу */
+        /* Схема состояния кузова: две схемы в ряд по горизонтали */
         .condition-diagrams-row {
             display: flex;
+            flex-direction: row;
             flex-wrap: wrap;
             gap: 16px;
             align-items: flex-start;
             justify-content: center;
         }
         .condition-diagram-item {
-            flex: 1 1 280px;
+            flex: 1 1 calc(50% - 8px);
             min-width: 0;
-            max-width: 320px;
+            max-width: calc(50% - 8px);
         }
         .condition-diagram-wrap {
             position: relative;
@@ -835,10 +935,30 @@
             background: rgba(59, 130, 246, 0.5);
             border-color: rgba(59, 130, 246, 0.9);
         }
+        .condition-zone.scratch {
+            opacity: 0.45;
+            background: rgba(168, 85, 247, 0.5);
+            border-color: rgba(168, 85, 247, 0.9);
+        }
+        .condition-zone.unevenness {
+            opacity: 0.45;
+            background: rgba(236, 72, 153, 0.5);
+            border-color: rgba(236, 72, 153, 0.9);
+        }
+        .condition-zone.damage {
+            opacity: 0.5;
+            background: rgba(239, 68, 68, 0.55);
+            border-color: rgba(239, 68, 68, 0.95);
+        }
+        .condition-zone.corrosion {
+            opacity: 0.5;
+            background: rgba(113, 113, 122, 0.55);
+            border-color: rgba(113, 113, 122, 0.95);
+        }
         .condition-diagram-caption {
             font-size: 0.8rem;
             color: var(--color-neutral-600);
-            margin-top: 4px;
+            margin: 0 0 8px 0;
             text-align: center;
         }
         .condition-legend {
@@ -849,7 +969,7 @@
             padding-top: 12px;
             border-top: 1px solid var(--color-neutral-200);
             font-size: 0.8rem;
-            color: var(--color-neutral-700);
+            color: #111827;
             justify-content: center;
         }
         .condition-legend span {
@@ -857,13 +977,26 @@
             align-items: center;
             gap: 6px;
         }
-        .condition-legend .dot-replaced { width: 14px; height: 14px; border-radius: 4px; background: rgba(234, 88, 12, 0.7); flex-shrink: 0; }
-        .condition-legend .dot-painted { width: 14px; height: 14px; border-radius: 4px; background: rgba(202, 138, 4, 0.7); flex-shrink: 0; }
-        .condition-legend .dot-repair { width: 14px; height: 14px; border-radius: 4px; background: rgba(59, 130, 246, 0.6); flex-shrink: 0; }
-        .condition-legend .dot-original { width: 14px; height: 14px; border-radius: 4px; background: rgba(34, 197, 94, 0.6); flex-shrink: 0; }
+        .condition-legend .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            color: #111827;
+        }
+        .condition-legend .legend-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        .condition-legend .legend-item:hover .legend-icon {
+            transform: translateY(-2px);
+        }
         @media (max-width: 640px) {
             .condition-diagrams-row { flex-direction: column; align-items: center; }
-            .condition-diagram-item { max-width: 100%; }
+            .condition-diagram-item { max-width: 100%; flex: 1 1 100%; }
         }
 
         /* Появление секций (как у конкурента) */
@@ -1164,7 +1297,7 @@
             z-index: 100;
         }
 
-        /* Логотип */
+        /* Логотип (шрифт и размер как в index.html) */
         .logo {
             display: inline-block;
             margin: 0;
@@ -1176,11 +1309,10 @@
             gap: 12px;
             padding: 12px 16px;
             text-decoration: none;
-            color: #181818;
-            font-size: 24px;
-            font-weight: 800;
+            color: #111827;
+            font-size: 1.5rem;
+            font-weight: 700;
             line-height: 1.2;
-            letter-spacing: -0.5px;
         }
         .logo .logo-text {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1337,13 +1469,9 @@
 </div>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="app">
-    <!-- Контент-шапка: назад + хлебные крошки (как у конкурента) -->
+    <!-- Контент-шапка: хлебные крошки -->
     <div class="content-header">
         <div class="content-header-inner">
-            <a href="index.html" class="back-link" aria-label="Назад к каталогу">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                <span>Назад к каталогу</span>
-            </a>
             <nav class="breadcrumbs" aria-label="Хлебные крошки">
                 <a href="index.html">Каталог</a>
                 <span class="sep">›</span>
@@ -1352,9 +1480,6 @@
                 <span class="current" id="breadcrumb-id">ID</span>
             </nav>
         </div>
-        <a href="#" target="_blank" rel="noopener" id="original-link" class="back-link" style="font-size: 12px;">
-            <i class="fa-regular fa-external-link"></i> Оригинал
-        </a>
     </div>
 
     <!-- динамический контент (две колонки) -->
@@ -1389,7 +1514,7 @@
                 <span>Итого</span>
                 <span id="calcModalTotal">—</span>
             </div>
-            <a href="#" id="calcModalTelegram" class="telegram-btn" target="_blank" rel="noopener"><i class="fa-regular fa-telegram"></i> Написать в Telegram</a>
+            <a href="#" id="calcModalTelegram" class="telegram-btn" target="_blank" rel="noopener"><img src="image/telegram logo.svg" alt="" class="telegram-logo" style="width:20px;height:20px;"> Написать в Telegram</a>
         </div>
     </div>
 </div>
@@ -1708,8 +1833,9 @@
             if (!optionCodes || optionCodes.length === 0) return '';
             const groups = groupOptionsRu(optionCodes);
             const orderedCategories = ['Экстерьер и салон', 'Безопасность', 'Комфорт и мультимедиа', 'Сиденья', 'Другое'];
+            var optionsTooltip = 'В комплектацию входят стандартные опции, которые указал продавец.<br><br>Для получения точного списка опций, необходима выгрузка по VIN-номеру';
             let html = '<div class="card rounded-3xl p-6">';
-            html += '<h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-screwdriver-wrench text-blue-500 mr-2"></i>Опции и оборудование</h2>';
+            html += '<h2 class="text-lg font-semibold mb-4 flex items-center has-tooltip"><i class="fa-regular fa-screwdriver-wrench text-blue-500 mr-2"></i>Опции и оборудование<span class="tooltip-popup">' + optionsTooltip + '</span></h2>';
             orderedCategories.forEach(cat => {
                 if (groups[cat] && groups[cat].length > 0) {
                     html += `<div class="option-group mb-4">`;
@@ -1767,44 +1893,88 @@
             { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 26 },
         ];
 
-        function renderConditionDiagram(insp) {
+        function renderConditionDiagram(insp, diagnosisPhotos) {
             var bodyChanged = insp.bodyChanged || {};
             var bodyPanels = insp.bodyPanels || [];
             var zoneStatus = {};
+            function norm(s) { return (s || '').trim().replace(/\s+/g, ' '); }
             function setStatus(part, statusKey, label) {
-                if (!zoneStatus[part] || statusKey === 'replaced') zoneStatus[part] = { key: statusKey, label: label };
+                var key = norm(String(part));
+                if (!key) return;
+                if (!zoneStatus[key] || statusKey === 'replaced') zoneStatus[key] = { key: statusKey, label: label };
             }
             Object.keys(bodyChanged).forEach(function(part) {
                 var status = (bodyChanged[part] || '').toLowerCase();
                 if (status.indexOf('замен') >= 0) setStatus(part, 'replaced', 'Замена');
                 else if (status.indexOf('покраск') >= 0 || status === 'покрашено') setStatus(part, 'painted', 'Окрашивание');
                 else if (status.indexOf('ремонт') >= 0) setStatus(part, 'repair', 'Ремонт');
+                else if (status.indexOf('царапин') >= 0) setStatus(part, 'scratch', 'Царапины');
+                else if (status.indexOf('неровност') >= 0) setStatus(part, 'unevenness', 'Неровности');
+                else if (status.indexOf('поврежд') >= 0) setStatus(part, 'damage', 'Повреждение');
+                else if (status.indexOf('коррози') >= 0) setStatus(part, 'corrosion', 'Коррозия');
                 else setStatus(part, 'replaced', 'Замена');
             });
             bodyPanels.forEach(function(p) {
-                if (p.status === 'замена') setStatus(p.part, 'replaced', 'Замена');
-                if (p.status === 'покрашено') setStatus(p.part, 'painted', 'Окрашивание');
-                if (p.status === 'ремонт') setStatus(p.part, 'repair', 'Ремонт');
+                if (p.part) {
+                    var s = (p.status || '').toLowerCase();
+                    if (s === 'замена') setStatus(p.part, 'replaced', 'Замена');
+                    else if (s === 'покрашено') setStatus(p.part, 'painted', 'Окрашивание');
+                    else if (s.indexOf('ремонт') >= 0) setStatus(p.part, 'repair', 'Ремонт');
+                    else if (s.indexOf('царапин') >= 0) setStatus(p.part, 'scratch', 'Царапины');
+                    else if (s.indexOf('неровност') >= 0) setStatus(p.part, 'unevenness', 'Неровности');
+                    else if (s.indexOf('поврежд') >= 0) setStatus(p.part, 'damage', 'Повреждение');
+                    else if (s.indexOf('коррози') >= 0) setStatus(p.part, 'corrosion', 'Коррозия');
+                }
             });
             var zonesHtml = conditionDiagramZones.map(function(z) {
-                var info = zoneStatus[z.part];
+                var partNorm = norm(z.part);
+                var info = zoneStatus[partNorm] || zoneStatus[z.part];
+                if (!info && bodyChanged) {
+                    for (var k in bodyChanged) { if (norm(k) === partNorm) { info = zoneStatus[norm(k)] || { key: 'replaced', label: 'Замена' }; break; } }
+                }
+                if (!info && bodyPanels.length) {
+                    bodyPanels.forEach(function(p) {
+                        if (norm(p.part) !== partNorm) return;
+                        var s = (p.status || '').toLowerCase();
+                        if (s === 'покрашено') info = { key: 'painted', label: 'Окрашивание' };
+                        else if (s.indexOf('ремонт') >= 0) info = { key: 'repair', label: 'Ремонт' };
+                        else if (s.indexOf('царапин') >= 0) info = { key: 'scratch', label: 'Царапины' };
+                        else if (s.indexOf('неровност') >= 0) info = { key: 'unevenness', label: 'Неровности' };
+                        else if (s.indexOf('поврежд') >= 0) info = { key: 'damage', label: 'Повреждение' };
+                        else if (s.indexOf('коррози') >= 0) info = { key: 'corrosion', label: 'Коррозия' };
+                        else info = { key: 'replaced', label: 'Замена' };
+                    });
+                }
                 var cls = info ? info.key : '';
                 var label = info ? info.label : '';
                 var indicator = label ? '<span class="zone-indicator">' + label + '</span>' : '';
                 return '<div class="condition-zone ' + cls + '" data-part="' + z.part + '" data-status="' + (info ? info.key : '') + '" style="left:' + z.left + '%;top:' + z.top + '%;width:' + z.width + '%;height:' + z.height + '%">' + indicator + '</div>';
             }).join('');
             var legend = '<div class="condition-legend">' +
-                '<span><span class="dot-replaced"></span> Замена</span>' +
-                '<span><span class="dot-painted"></span> Окрашивание</span>' +
-                '<span><span class="dot-repair"></span> Ремонт</span>' +
-                '<span><span class="dot-original"></span> Оригинал</span>' +
+                '<span class="legend-item" data-color="replaced"><img src="image/exchange.svg" alt="" class="legend-icon">Замена</span>' +
+                '<span class="legend-item" data-color="repair"><img src="image/Repair.svg" alt="" class="legend-icon">Ремонт</span>' +
+                '<span class="legend-item" data-color="scratch"><img src="image/Scratch.svg" alt="" class="legend-icon">Царапины</span>' +
+                '<span class="legend-item" data-color="unevenness"><img src="image/Unevenness.svg" alt="" class="legend-icon">Неровности</span>' +
+                '<span class="legend-item" data-color="damage"><img src="image/Damage.svg" alt="" class="legend-icon">Повреждение</span>' +
+                '<span class="legend-item" data-color="corrosion"><img src="image/Сorrosion.svg" alt="" class="legend-icon">Коррозия</span>' +
                 '</div>';
-            return '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-car-side text-blue-500 mr-2"></i>Схема состояния кузова</h2>' +
+            var diagPhotos = (diagnosisPhotos || []).filter(function(url) { return typeof url === 'string' && url.trim() !== ''; }).slice(0, 5);
+            var photoBlock = '';
+            if (diagPhotos.length) {
+                photoBlock = '<div id="diagnostics" class="mt-6"><h3 class="text-base font-semibold mb-3 flex items-center"><i class="fa-regular fa-camera text-blue-500 mr-2"></i>Фото диагностики</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
+                diagPhotos.forEach(function(url) {
+                    photoBlock += '<div class="diag-photo rounded-xl overflow-hidden border border-gray-200"><img src="' + url + '" class="w-full h-full object-cover" loading="lazy" onclick="window.open(\'' + url.replace(/'/g, "\\'") + '\')" style="cursor:pointer"></div>';
+                });
+                photoBlock += '</div></div>';
+            }
+            var diagramTitle = 'Схема состояния кузова';
+            var diagramTooltip = 'На схеме отмечены данные, полученные из страховой истории автомобиля и указанные продавцом.<br><br>Для получения точной информации о состоянии автомобиля, необходим его осмотр специалистом Ride Auto';
+            return '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center condition-diagram-title has-tooltip"><i class="fa-regular fa-car-side text-blue-500 mr-2"></i>' + diagramTitle + '<span class="tooltip-popup">' + diagramTooltip + '</span></h2>' +
                 '<div class="condition-diagrams-row">' +
-                '<div class="condition-diagram-item"><div class="condition-diagram-wrap"><img src="image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div><p class="condition-diagram-caption">Внешние элементы</p></div>' +
-                '<div class="condition-diagram-item"><div class="condition-diagram-wrap"><img src="image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div><p class="condition-diagram-caption">Внутренние элементы</p></div>' +
+                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внешние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div></div>' +
+                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внутренние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" /><div class="condition-overlay">' + zonesHtml + '</div></div></div>' +
                 '</div>' +
-                legend + '</div>';
+                legend + photoBlock + '</div>';
         }
 
         function renderComments(c) { return c ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-comment text-blue-500 mr-2"></i>Комментарии инспектора</h2><div class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">${c}</div></div>` : ''; }
@@ -1904,12 +2074,12 @@
             let thumbnailsHtml = '';
             const thumbCount = Math.min(photos.length, 3);
             for (let i = 0; i < thumbCount; i++) {
-                const thumbUrl = 'https://ci.encar.com' + photos[i].path + '?impolicy=heightRate&rh=120&cw=200&ch=120&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                const thumbUrl = 'https://ci.encar.com' + photos[i].path + '?impolicy=heightRate&rh=384&cw=640&ch=384&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
                 thumbnailsHtml += `<button type="button" class="thumbnail ${i === 0 ? 'active' : ''}" data-index="${i}" aria-label="Миниатюра ${i+1}"><img src="${thumbUrl}" alt="Миниатюра ${i+1}"></button>`;
             }
             if (photos.length > 3) {
                 const moreThumb = photos[3];
-                const moreThumbUrl = 'https://ci.encar.com' + moreThumb.path + '?impolicy=heightRate&rh=120&cw=200&ch=120&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                const moreThumbUrl = 'https://ci.encar.com' + moreThumb.path + '?impolicy=heightRate&rh=384&cw=640&ch=384&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
                 thumbnailsHtml += `<button type="button" class="thumbnail more" data-index="more" aria-label="Открыть все фотографии">
                         <img src="${moreThumbUrl}" alt="Дополнительные фото">
                         <span>+${photos.length-3} фото</span>
@@ -1919,12 +2089,15 @@
             return `
                 <div class="gallery-section">
                     <div class="gallery-card">
-                        <h2 class="text-lg font-semibold flex items-center"><i class="fa-regular fa-images text-blue-500 mr-2"></i>Фотографии (${photos.length})</h2>
                         <div class="gallery-encar-row">
                             <div class="gallery-main-wrap">
                                 <div class="gallery-main" id="galleryMain">
                                     <img src="${mainImgUrl}" alt="${title || 'Фото автомобиля'}" id="mainPhoto">
-                                    <div class="gallery-counter" id="galleryCounter">1/${photos.length}</div>
+                                    <button type="button" class="gallery-main-prev" id="galleryMainPrev" aria-label="Предыдущее фото">‹</button>
+                                    <button type="button" class="gallery-main-next" id="galleryMainNext" aria-label="Следующее фото">›</button>
+                                    <div class="gallery-counter-wrap">
+                                        <span class="gallery-counter" id="galleryCounter">1/${photos.length}</span>
+                                    </div>
                                     <div class="gallery-views">
                                         <i class="fa-regular fa-eye"></i>
                                         <span id="galleryViewsLabel">кол-во просмотров</span>
@@ -1995,25 +2168,37 @@
             if (isDealer) metaParts.push(isDealer);
             const metaHtml = metaParts.length ? metaParts.join(' · ') : '—';
 
+            const originalUrl = (d.url || '').trim() || '#';
             const calcListHtml = calcItems.map(function(item) {
                 return '<li class="' + (item.bold ? 'font-bold' : '') + '"><span class="key">' + item.key + '</span><span class="price">' + item.val + '</span></li>';
             }).join('');
 
             return `
                 <div class="order-card" id="orderCard">
-                    <h3 class="order-title">${fullName}</h3>
+                    <div class="order-title-row">
+                        <h3 class="order-title">${fullName}</h3>
+                        <div class="order-title-actions">
+                            <a href="${originalUrl}" target="_blank" rel="noopener" class="order-icon-btn order-icon-original" title="Оригинал" aria-label="Оригинал">
+                                <img src="image/link static.svg" alt="" class="img-static">
+                                <img src="image/link active.svg" alt="" class="img-active">
+                            </a>
+                            <button type="button" class="order-icon-btn order-icon-favourite" aria-label="В избранное">
+                                <img src="image/saved static.svg" alt="" class="img-static">
+                                <img src="image/saved active.svg" alt="" class="img-active">
+                            </button>
+                        </div>
+                    </div>
                     <div class="order-meta">${metaHtml}</div>
                     <div class="order-price-total">${myPriceFormatted}</div>
-                    <button type="button" class="order-link" id="openCalcModal" aria-label="Подробный расчёт">
+                    <a href="${TELEGRAM_MANAGER_URL}" target="_blank" rel="noopener" class="telegram-btn" style="margin-bottom: 12px;">
+                        <img src="image/telegram logo.svg" alt="" class="telegram-logo"> Написать в Telegram
+                    </a>
+                    <button type="button" class="order-calc-btn" id="openCalcModal" aria-label="Подробный расчёт">
                         Подробный расчёт
-                        <svg class="chevron" viewBox="0 0 10 16" fill="currentColor"><path d="M1 0L9 8 1 16V0z"/></svg>
                     </button>
                     <a href="#" class="order-howto" id="openHowToModal">
                         Как оформить заказ?
                         <svg class="chevron" viewBox="0 0 10 16" fill="currentColor"><path d="M1 0L9 8 1 16V0z"/></svg>
-                    </a>
-                    <a href="${TELEGRAM_MANAGER_URL}" target="_blank" rel="noopener" class="telegram-btn">
-                        <i class="fa-regular fa-telegram"></i> Написать в Telegram
                     </a>
                     <div class="order-footer-text">
                         Нет аккаунта? <a href="${TELEGRAM_REG_URL}" target="_blank" rel="noopener">Зарегистрироваться</a>
@@ -2203,8 +2388,6 @@
             var breadcrumbTitle = document.getElementById('breadcrumb-title');
             if (breadcrumbId) breadcrumbId.textContent = 'ID ' + (rawData.id || rawData.inner_id || '—');
             if (breadcrumbTitle) breadcrumbTitle.textContent = (d.mark || '') + ' ' + (d.model || '') + (d.generation ? ' ' + d.generation : '');
-            var origLink = document.getElementById('original-link');
-            if (origLink) origLink.href = rawData.data && rawData.data.url ? rawData.data.url : '#';
             const extra = d.extra || {};
             let insp = extra.inspection_structured || {};
             // Fallback: если диагностики кузова нет, собираем из сырого extra.diagnosis (для старых cars.json)
@@ -2277,7 +2460,7 @@
             const bodyChangedHtml = (insp.bodyChanged && Object.keys(insp.bodyChanged).length)
                 ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-paintbrush text-blue-500 mr-2"></i>Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${partNamesRu[k] || k}</td><td>${statusRu[v] || v}</td></tr>`).join('')}</table></div>` : '';
 
-            const conditionDiagramHtml = renderConditionDiagram(insp);
+            const conditionDiagramHtml = renderConditionDiagram(insp, extra.diagnosis_photos || []);
             const inspectionCombinedHtml = renderInspectionCombined(insp);
 
             let recordHtml = '';
@@ -2311,22 +2494,6 @@
                 recordHtml += '</div>';
             }
 
-            let diagPhotoHtml = '';
-            if (extra.diagnosis_photos?.length) {
-                // На фронте Encar обычно показывается до 5 фото диагностики,
-                // поэтому берём максимум 5 валидных ссылок
-                const diagPhotos = extra.diagnosis_photos
-                    .filter(url => typeof url === 'string' && url.trim() !== '')
-                    .slice(0, 5);
-                if (diagPhotos.length) {
-                    diagPhotoHtml = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-camera text-blue-500 mr-2"></i>Фото диагностики</h2><div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
-                    diagPhotos.forEach(url => {
-                        diagPhotoHtml += `<div class="diag-photo"><img src="${url}" class="w-full h-full object-cover" loading="lazy" onclick="window.open('${url}')" style="cursor:pointer"></div>`;
-                    });
-                    diagPhotoHtml += '</div></div>';
-                }
-            }
-
             // Правая колонка
             const priceColumnHtml = renderPriceColumn(rawData);
 
@@ -2350,7 +2517,6 @@
             if (inspectionHtml) leftColumnContent.push(inspectionHtml);
 
             if (recordHtml) leftColumnContent.push(`<div id="history">${recordHtml}</div>`);
-            if (diagPhotoHtml) leftColumnContent.push(`<div id="diagnostics">${diagPhotoHtml}</div>`);
 
             const leftColumnHtml = leftColumnContent.join('');
 
@@ -2433,6 +2599,7 @@
             });
 
             galleryMain.addEventListener('pointerup', (e) => {
+                if (e.target.closest('.gallery-main-prev') || e.target.closest('.gallery-main-next')) return;
                 if (!dragging || dragStartX === null) {
                     return;
                 }
@@ -2447,7 +2614,16 @@
                         updateMainPhoto(currentIdx - 1);
                     }
                 } else {
-                    openModal(currentIdx);
+                    var rect = galleryMain.getBoundingClientRect();
+                    var x = e.clientX - rect.left;
+                    var w = rect.width;
+                    if (w > 0) {
+                        if (x < w * 0.3) updateMainPhoto(currentIdx - 1);
+                        else if (x > w * 0.7) updateMainPhoto(currentIdx + 1);
+                        else openModal(currentIdx);
+                    } else {
+                        openModal(currentIdx);
+                    }
                 }
             });
 
@@ -2461,6 +2637,10 @@
                     updateMainPhoto(parseInt(index, 10));
                 }
             });
+            var galleryMainPrev = document.getElementById('galleryMainPrev');
+            var galleryMainNext = document.getElementById('galleryMainNext');
+            if (galleryMainPrev) galleryMainPrev.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); updateMainPhoto(currentIdx - 1); });
+            if (galleryMainNext) galleryMainNext.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); updateMainPhoto(currentIdx + 1); });
         }
 
         // ---------- Функция для динамического обновления шапки ----------
