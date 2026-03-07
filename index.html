@@ -69,9 +69,13 @@
       font-weight: 700;
       color: #111827;
       text-decoration: none;
+      display: inline-flex;
+      align-items: center;
     }
-    .logo span {
-      color: #3b82f6;
+    .logo img {
+      height: 40px;
+      width: auto;
+      display: block;
     }
     .nav-menu {
       display: flex;
@@ -969,7 +973,7 @@
   <!-- Шапка сайта -->
   <header class="header">
     <div class="header-content">
-      <a href="#" class="logo">Auto<span>Encar</span></a>
+      <a href="index.html" class="logo"><img src="image/logo.svg" alt="World Ride Auto"></a>
       <nav class="nav-menu">
         <a href="#">О компании</a>
         <a href="#">Каталог</a>
@@ -1460,7 +1464,7 @@
       if (!filteredCars.length) {
         gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:white; border-radius:24px;">🚗 Ничего не найдено. Попробуйте изменить фильтры.</div>';
         paginationEl.innerHTML = '';
-        foundCounter.innerText = '0';
+        if (foundCounter) foundCounter.innerText = '0';
         return;
       }
 
@@ -1562,14 +1566,16 @@
             if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.info-icon')) {
                 return;
             }
-            window.location.href = 'Car.html?id=' + car.id;
+            const linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (car.data && car.data.inner_id != null ? car.data.inner_id : null));
+            if (linkId == null) return;
+            window.location.href = 'car.html?id=' + encodeURIComponent(linkId);
         });
 
         gridEl.appendChild(card);
       });
 
       drawPagination();
-      foundCounter.innerText = `${filteredCars.length.toLocaleString('ru-RU')} автомобилей`;
+      if (foundCounter) foundCounter.innerText = `${filteredCars.length.toLocaleString('ru-RU')} автомобилей`;
     }
 
     function drawPagination() {
@@ -1687,22 +1693,26 @@
       document.querySelectorAll('.checkbox-list input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(cb => {
         cb.addEventListener('change', applyFilters);
       });
-      document.getElementById('filterDriveAwd').addEventListener('change', applyFilters);
-      document.getElementById('filterNoInsuranceCases').addEventListener('change', applyFilters);
-      document.getElementById('filterNoInsurancePayouts').addEventListener('change', applyFilters);
-      document.getElementById('filterNoDamaged').addEventListener('change', applyFilters);
+      var filterDriveAwd = document.getElementById('filterDriveAwd');
+      var filterNoInsuranceCases = document.getElementById('filterNoInsuranceCases');
+      var filterNoInsurancePayouts = document.getElementById('filterNoInsurancePayouts');
+      var filterNoDamaged = document.getElementById('filterNoDamaged');
+      if (filterDriveAwd) filterDriveAwd.addEventListener('change', applyFilters);
+      if (filterNoInsuranceCases) filterNoInsuranceCases.addEventListener('change', applyFilters);
+      if (filterNoInsurancePayouts) filterNoInsurancePayouts.addEventListener('change', applyFilters);
+      if (filterNoDamaged) filterNoDamaged.addEventListener('change', applyFilters);
 
-      markSelect.addEventListener('change', onMarkChange);
-      modelSelect.addEventListener('change', onModelChange);
-      generationSelect.addEventListener('change', onGenerationChange);
-      trimSelect.addEventListener('change', applyFilters);
+      if (markSelect) markSelect.addEventListener('change', onMarkChange);
+      if (modelSelect) modelSelect.addEventListener('change', onModelChange);
+      if (generationSelect) generationSelect.addEventListener('change', onGenerationChange);
+      if (trimSelect) trimSelect.addEventListener('change', applyFilters);
 
       ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo',
-       'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'].forEach(id => {
-        const el = document.getElementById(id);
+       'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'].forEach(function(id) {
+        var el = document.getElementById(id);
         if (el) el.addEventListener('input', applyFilters);
       });
-      [yearFromEl, yearToEl, monthFromEl, monthToEl].forEach(el => el.addEventListener('change', applyFilters));
+      [yearFromEl, yearToEl, monthFromEl, monthToEl].filter(Boolean).forEach(function(el) { el.addEventListener('change', applyFilters); });
 
       onMarkChange();
     }
@@ -1928,7 +1938,7 @@
       if (damagedFrom !== null) activeCount++;
       if (damagedTo !== null) activeCount++;
       if (noDamaged) activeCount++;
-      filterCountEl.innerText = activeCount;
+      if (filterCountEl) filterCountEl.innerText = activeCount;
 
       sortFilteredCars();
       draw();
@@ -1936,37 +1946,19 @@
 
     // Сброс всех фильтров
     function resetFilters() {
-      markSelect.value = '';
-      modelSelect.disabled = true;
-      modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
-      generationSelect.disabled = true;
-      generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
-      trimSelect.disabled = true;
-      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
-      document.querySelectorAll('.checkbox-list input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(cb => { cb.checked = false; });
-      document.querySelectorAll('input[data-filter="color"]').forEach(cb => { cb.checked = false; });
-      document.getElementById('powerFrom').value = '';
-      document.getElementById('powerTo').value = '';
-      document.getElementById('engineFrom').value = '';
-      document.getElementById('engineTo').value = '';
-      document.getElementById('yearFrom').value = '';
-      document.getElementById('monthFrom').value = '';
-      document.getElementById('yearTo').value = '';
-      document.getElementById('monthTo').value = '';
-      document.getElementById('priceFrom').value = '';
-      document.getElementById('priceTo').value = '';
-      document.getElementById('mileageFrom').value = '';
-      document.getElementById('mileageTo').value = '';
-      document.getElementById('insuranceCasesFrom').value = '';
-      document.getElementById('insuranceCasesTo').value = '';
-      document.getElementById('insurancePayoutsFrom').value = '';
-      document.getElementById('insurancePayoutsTo').value = '';
-      document.getElementById('damagedFrom').value = '';
-      document.getElementById('damagedTo').value = '';
-      document.getElementById('filterDriveAwd').checked = false;
-      document.getElementById('filterNoInsuranceCases').checked = false;
-      document.getElementById('filterNoInsurancePayouts').checked = false;
-      document.getElementById('filterNoDamaged').checked = false;
+      if (markSelect) { markSelect.value = ''; }
+      if (modelSelect) { modelSelect.disabled = true; modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>'; }
+      if (generationSelect) { generationSelect.disabled = true; generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>'; }
+      if (trimSelect) { trimSelect.disabled = true; trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>'; }
+      document.querySelectorAll('.checkbox-list input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+      document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) { cb.checked = false; });
+      var ids = ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'yearFrom', 'monthFrom', 'yearTo', 'monthTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo', 'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'];
+      ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+      var pr = document.getElementById('priceRubTo'); if (pr) pr.value = '';
+      var chk = document.getElementById('filterDriveAwd'); if (chk) chk.checked = false;
+      chk = document.getElementById('filterNoInsuranceCases'); if (chk) chk.checked = false;
+      chk = document.getElementById('filterNoInsurancePayouts'); if (chk) chk.checked = false;
+      chk = document.getElementById('filterNoDamaged'); if (chk) chk.checked = false;
       applyFilters();
     }
 
