@@ -1071,24 +1071,24 @@
           <option value="">Сначала выберите марку</option>
         </select>
       </div>
-      <!-- 3. Поколение (англ.) -->
+      <!-- 3. Поколение -->
       <div class="filter-group">
         <h4>Поколение</h4>
         <select id="generationSelect" disabled>
           <option value="">Сначала выберите модель</option>
         </select>
       </div>
-      <!-- 4. Тип/Комплектация (англ.) -->
+      <!-- 4. Тип кузова (как на Encar) -->
       <div class="filter-group">
-        <h4>Тип / Комплектация</h4>
+        <h4>Тип кузова</h4>
+        <div class="checkbox-list" id="bodyList"></div>
+      </div>
+      <!-- 5. Комплектация -->
+      <div class="filter-group">
+        <h4>Комплектация</h4>
         <select id="trimSelect" disabled>
           <option value="">Сначала выберите поколение</option>
         </select>
-      </div>
-      <!-- 5. Кузов (чекбоксы) -->
-      <div class="filter-group">
-        <h4>Кузов</h4>
-        <div class="checkbox-list" id="bodyList"></div>
       </div>
       <!-- 6. Мощность от/до (л.с.) -->
       <div class="filter-group">
@@ -1302,11 +1302,22 @@
       const bc = car.data?.extra?.inspection_structured?.bodyChanged;
       return bc && typeof bc === 'object' ? Object.keys(bc).length : 0;
     }
+    function extractPowerFromString(s) {
+      if (!s || typeof s !== 'string') return null;
+      const str = String(s).trim();
+      const m = str.match(/(\d{2,4})\s*마력/) || str.match(/(\d{2,4})\s*hp/i);
+      if (m) return parseInt(m[1], 10);
+      return null;
+    }
     function getPowerNum(car) {
-      const p = car.data?.power;
-      if (p === undefined || p === null || p === '') return null;
-      const n = parseInt(String(p).replace(/\D/g, ''), 10);
-      return Number.isNaN(n) ? null : n;
+      const d = car.data;
+      let p = d?.power;
+      if (p !== undefined && p !== null && p !== '') {
+        const n = parseInt(String(p).replace(/\D/g, ''), 10);
+        if (!Number.isNaN(n)) return n;
+      }
+      p = extractPowerFromString(d?.generation || '') || extractPowerFromString(d?.configuration || '') || extractPowerFromString(d?.gradeName || '');
+      return p;
     }
     function getEngineVolumeNum(car) {
       const d = car.data?.displacement;
@@ -1347,18 +1358,92 @@
       if (p === undefined || p === null) return '';
       return Number(p).toLocaleString('ru-RU') + ' вон';
     }
-    // Перевод подтягиваемых данных с корейского на русский (марка, модель, комплектация — остаются на английском)
+    // Маппинг корейский → английский (для фильтров и данных)
+    const filterMappingKoEn = {
+      mark: {
+        '현대': 'Hyundai', '기아': 'Kia', '제네시스': 'Genesis', '쌍용': 'SsangYong', '한국GM': 'GM Korea', '르노코리아': 'Renault Korea',
+        '벤츠': 'Mercedes-Benz', 'BMW': 'BMW', '아우디': 'Audi', '폭스바겐': 'Volkswagen', '포르쉐': 'Porsche', '미니': 'MINI',
+        '볼보': 'Volvo', '렉서스': 'Lexus', '토요타': 'Toyota', '혼다': 'Honda', '닛산': 'Nissan', '인피니티': 'Infiniti',
+        '마쓰다': 'Mazda', '미쓰비시': 'Mitsubishi', '스바루': 'Subaru', '스즈키': 'Suzuki', '다이하쓰': 'Daihatsu',
+        '포드': 'Ford', '쉐보레': 'Chevrolet', '지프': 'Jeep', '캐딜락': 'Cadillac', '테슬라': 'Tesla',         '폴스타': 'Polestar',
+        '랜드로버': 'Land Rover', '재규어': 'Jaguar', '벤틀리': 'Bentley', '롤스로이스': 'Rolls-Royce', '마세라티': 'Maserati',
+        '페라리': 'Ferrari', '람보르기니': 'Lamborghini', '알파로메오': 'Alfa Romeo', '피아트': 'Fiat'
+      },
+      bodyType: {
+        '세단': 'Sedan', 'SUV': 'SUV', '해치백': 'Hatchback', '왜건': 'Wagon', '쿠페': 'Coupe', '픽업': 'Pickup', '밴': 'Van',
+        '중형차': 'Midsize', '대형차': 'Full-size', '소형차': 'Compact', '경차': 'Light car', '미니밴': 'Minivan', 'RV': 'RV'
+      },
+      engineType: {
+        '가솔린': 'Gasoline', '디젤': 'Diesel', 'LPG': 'LPG', 'LPG/가솔린': 'LPG/Gasoline', '하이브리드': 'Hybrid',
+        '가솔린+전기': 'Hybrid', '전기': 'Electric', '수소': 'Hydrogen', '디젤+전기': 'Diesel Hybrid'
+      },
+      transmission: {
+        '자동': 'Automatic', '수동': 'Manual', '오토': 'Automatic', '세미자동': 'Semi-Auto', 'CVT': 'CVT', '듀얼 클러치': 'DCT'
+      },
+      color: {
+        '검정': 'Black', '검정색': 'Black', '흰색': 'White', '은색': 'Silver', '회색': 'Gray', '빨간색': 'Red',
+        '파란색': 'Blue', '남색': 'Navy', '베이지': 'Beige', '갈색': 'Brown', '녹색': 'Green', '노란색': 'Yellow', '주황': 'Orange',
+        '골드': 'Gold', '실버': 'Silver', '블랙': 'Black', '화이트': 'White', '레드': 'Red', '블루': 'Blue', '그레이': 'Gray', '그린': 'Green'
+      }
+    };
+    function toDisplayEn(val, category) {
+      if (!val) return val;
+      const s = String(val).trim();
+      const map = category && filterMappingKoEn[category] ? filterMappingKoEn[category] : null;
+      if (map && map[s]) return map[s];
+      if (map) {
+        const key = Object.keys(map).find(k => k.trim() === s || s.indexOf(k) >= 0);
+        if (key) return map[key];
+      }
+      return val;
+    }
+    // Словарь корейских слов/фраз в поколениях и комплектациях (когда маппинг не дал EN или вернул то же)
+    const koreanPhraseToEn = {
+      '플러그인 하이브리드': 'Plug-in Hybrid', '플러그인 HEV': 'Plug-in HEV', '하이브리드': 'Hybrid',
+      '투어링': 'Touring', '투어러': 'Tourer', '투어': 'Tour',
+      '프리미엄 초이스': 'Premium Choice', '프리미엄 플러스': 'Premium Plus', '프리미엄 패밀리': 'Premium Family', '프리미엄 밀레니얼': 'Premium Millennial', '프리미엄': 'Premium',
+      '익스클루시브 스페셜': 'Exclusive Special', '익스클루시브': 'Exclusive',
+      '인스퍼레이션': 'Inspiration', '캘리그래피': 'Calligraphy', '르블랑': 'Le Blanc', '아너스': 'Honors',
+      '스마트': 'Smart', '모던': 'Modern', '럭셔리': 'Luxury', '스포츠': 'Sport', '로열': 'Royal', '프리미어': 'Premiere',
+      '컬렉션': 'Collection', '초이스': 'Choice', '스페셜': 'Special', '플러스': 'Plus', '패밀리': 'Family', '밀레니얼': 'Millennial',
+      'N 라인': 'N Line', 'N Line': 'N Line',
+      '수출형': 'Export', '기본형': 'Base', '이지팩': 'Easy Pack', '어드밴스팩': 'Advance Pack',
+      '리미티드': 'Limited', '시그니처': 'Signature', '플래티넘': 'Platinum', '엘리트': 'Elite', '컴포트': 'Comfort', '베이직': 'Basic',
+      '세부등급 없음': '', ' (세부등급 없음)': '', '(세부등급 없음)': ''
+    };
+    const koreanPhraseKeys = Object.keys(koreanPhraseToEn).sort((a, b) => b.length - a.length);
+    function applyKoreanPhraseFallback(str) {
+      if (!str || typeof str !== 'string') return str;
+      let out = str.trim();
+      for (let i = 0; i < koreanPhraseKeys.length; i++) {
+        const ko = koreanPhraseKeys[i];
+        const en = koreanPhraseToEn[ko];
+        if (out.indexOf(ko) !== -1) out = out.split(ko).join(en || ko);
+      }
+      return out.replace(/\s+/g, ' ').trim();
+    }
+    // Перевод для UI: корейский → русский (подписи в фильтрах и карточках)
     const displayRu = {
       'AWD': 'Полный', 'FWD': 'Передний', 'RWD': 'Задний',
-      '가솔린': 'Бензин', '디젤': 'Дизель', 'LPG': 'Газ', 'LPG/가솔린': 'Газ/бензин', '하이브리드': 'Гибрид', '전기': 'Электро',
-      '세단': 'Седан', 'SUV': 'Внедорожник', '해치백': 'Хэтчбек', '왜건': 'Универсал', '쿠페': 'Купе', '픽업': 'Пикап', '밴': 'Фургон',
-      '자동': 'Автомат', '수동': 'Механика', '세미자동': 'Робот', 'CVT': 'Вариатор', '듀얼 클러치': 'Робот',
-      '검정': 'Чёрный', '흰색': 'Белый', '은색': 'Серебристый', '회색': 'Серый', '빨간색': 'Красный', '파란색': 'Синий', '남색': 'Тёмно-синий', '베이지': 'Бежевый', '갈색': 'Коричневый', '녹색': 'Зелёный', '노란색': 'Жёлтый', '주황': 'Оранжевый', '골드': 'Золотой', '실버': 'Серебро', '블랙': 'Чёрный', '화이트': 'Белый', '레드': 'Красный', '블루': 'Синий', '그레이': 'Серый', '그린': 'Зелёный'
+      '가솔린': 'Бензин', '디젤': 'Дизель', 'LPG': 'Газ', 'LPG/가솔린': 'Газ/бензин', '하이브리드': 'Гибрид', '전기': 'Электро', '가솔린+전기': 'Гибрид',
+      '세단': 'Седан', 'SUV': 'Внедорожник', '해치백': 'Хэтчбек', '왜건': 'Универсал', '쿠페': 'Купе', '픽업': 'Пикап', '밴': 'Фургон', '중형차': 'Седан средний', '대형차': 'Седан большой', '소형차': 'Компакт',
+      '자동': 'Автомат', '수동': 'Механика', '오토': 'Автомат', '세미자동': 'Робот', 'CVT': 'Вариатор', '듀얼 클러치': 'Робот',
+      '검정': 'Чёрный', '흰색': 'Белый', '검정색': 'Чёрный', '은색': 'Серебристый', '회색': 'Серый', '빨간색': 'Красный', '파란색': 'Синий', '남색': 'Тёмно-синий', '베이지': 'Бежевый', '갈색': 'Коричневый', '녹색': 'Зелёный', '노란색': 'Жёлтый', '주황': 'Оранжевый', '골드': 'Золотой', '실버': 'Серебро', '블랙': 'Чёрный', '화이트': 'Белый', '레드': 'Красный', '블루': 'Синий', '그레이': 'Серый', '그린': 'Зелёный'
     };
     function toDisplayRu(val) {
       if (!val) return val;
       const s = String(val).trim();
       return displayRu[s] || displayRu[s.replace(/\s+/g, ' ')] || val;
+    }
+    function filterOptionLabel(val, category) {
+      const s = String(val || '').trim();
+      let en = toDisplayEn(s, category);
+      if (en !== s) return en;
+      if (['model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
+        const fallback = applyKoreanPhraseFallback(s);
+        if (fallback !== s) return fallback || s;
+      }
+      return toDisplayRu(s);
     }
     function taxClass(yearStr) {
       const carYear = parseInt(String(yearStr).slice(0, 4));
@@ -1507,8 +1592,12 @@
 
         const tax = taxClass(d.year);
 
-        const fullTitle = `${d.mark_en || d.mark || ''} ${d.model_en || d.model || ''} ${d.generation_en || d.generation || d.configuration || ''}`.trim();
-        const powerPart = d.power ? `${d.power} л.с.` : '';
+        const titleMark = filterOptionLabel(d.mark, 'mark');
+        const titleModel = filterOptionLabel(d.model, 'model');
+        const titleGen = filterOptionLabel(d.generation || d.configuration, 'generation');
+        const fullTitle = [titleMark, titleModel, titleGen].filter(Boolean).join(' ').trim() || (d.mark || '') + ' ' + (d.model || '');
+        const powerNum = getPowerNum(car);
+        const powerPart = powerNum ? `${powerNum} л.с.` : '';
         const fuelPart = toDisplayRu(d.engine_type) || '';
         const volumePart = d.displacement ? `${Number(d.displacement).toLocaleString('ru-RU')} см³` : '';
         const drivePart = toDisplayRu(d.prep_drive_type) || '';
@@ -1521,7 +1610,7 @@
           <div class="car-info">
             <div class="car-main">
               <h2>
-                ${fullTitle || (d.mark || '') + ' ' + (d.model || '')}
+                ${fullTitle}
               </h2>
               <div class="meta meta-strong">
                 ${[powerPart, fuelPart, volumePart, formatKm(d.km_age)].filter(Boolean).join(', ')}
@@ -1625,13 +1714,13 @@
     const MONTH_LABELS = ['', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
     function buildFiltersFromData() {
-      // 1. Марки (англ.)
+      // 1. Марки (маппинг KO→EN)
       const marks = [...new Set(allCars.map(c => c.data?.mark).filter(Boolean))].sort();
       markSelect.innerHTML = '<option value="">Все марки</option>';
       marks.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
-        opt.textContent = m;
+        opt.textContent = filterOptionLabel(m, 'mark');
         markSelect.appendChild(opt);
       });
 
@@ -1659,13 +1748,13 @@
         }
       });
 
-      // Кузов, топливо, коробка — чекбоксы
+      // Тип кузова, топливо, коробка — чекбоксы (маппинг KO→EN)
       const bodies = [...new Set(allCars.map(c => c.data?.body_type).filter(Boolean))].sort();
       const fuels = [...new Set(allCars.map(c => c.data?.engine_type).filter(Boolean))].sort();
       const transmissions = [...new Set(allCars.map(c => c.data?.transmission_type).filter(Boolean))].sort();
-      renderCheckboxes('bodyList', bodies, 'body');
-      renderCheckboxes('fuelList', fuels, 'fuel');
-      renderCheckboxes('transmissionList', transmissions, 'transmission');
+      renderCheckboxes('bodyList', bodies, 'body', 'bodyType');
+      renderCheckboxes('fuelList', fuels, 'fuel', 'engineType');
+      renderCheckboxes('transmissionList', transmissions, 'transmission', 'transmission');
 
       // Цвета: первые 4 в меню, остальные в модалке
       const allColors = [...new Set(allCars.map(c => c.data?.color).filter(Boolean))].sort();
@@ -1680,7 +1769,7 @@
         const div = document.createElement('div');
         div.className = 'checkbox-item';
         const id = 'filter-color-' + val.replace(/\s/g, '_');
-        const labelText = toDisplayRu(val);
+        const labelText = filterOptionLabel(val, 'color');
         div.innerHTML = '<input type="checkbox" id="' + id + '" data-filter="color" value="' + escapeHtml(val) + '"><label for="' + id + '">' + escapeHtml(labelText) + '</label>';
         colorListVisible.appendChild(div);
       });
@@ -1688,7 +1777,7 @@
         const div = document.createElement('div');
         div.className = 'checkbox-item';
         const id = 'filter-color-modal-' + val.replace(/\s/g, '_');
-        const labelText = toDisplayRu(val);
+        const labelText = filterOptionLabel(val, 'color');
         div.innerHTML = '<input type="checkbox" id="' + id + '" data-filter="color" value="' + escapeHtml(val) + '"><label for="' + id + '">' + escapeHtml(labelText) + '</label>';
         colorModalList.appendChild(div);
       });
@@ -1742,17 +1831,17 @@
       onMarkChange();
     }
 
-    function renderCheckboxes(containerId, values, filterKey) {
+    function renderCheckboxes(containerId, values, filterKey, labelCategory) {
       const container = document.getElementById(containerId);
       if (!container) return;
       values.forEach(val => {
         const div = document.createElement('div');
         div.className = 'checkbox-item';
         const id = `filter-${filterKey}-${val.replace(/\s/g, '_')}`;
-        const labelText = toDisplayRu(val);
+        const labelText = labelCategory ? filterOptionLabel(val, labelCategory) : toDisplayRu(val);
         div.innerHTML = `
           <input type="checkbox" id="${id}" data-filter="${filterKey}" value="${val.replace(/"/g, '&quot;')}">
-          <label for="${id}">${labelText.replace(/</g, '&lt;')}</label>
+          <label for="${id}">${String(labelText).replace(/</g, '&lt;')}</label>
         `;
         container.appendChild(div);
       });
@@ -1776,7 +1865,7 @@
       models.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
-        opt.textContent = m;
+        opt.textContent = filterOptionLabel(m, 'model');
         modelSelect.appendChild(opt);
       });
       onModelChange();
@@ -1799,7 +1888,7 @@
       generations.forEach(g => {
         const opt = document.createElement('option');
         opt.value = g;
-        opt.textContent = g;
+        opt.textContent = filterOptionLabel(g, 'generation');
         generationSelect.appendChild(opt);
       });
       onGenerationChange();
@@ -1824,7 +1913,7 @@
       trims.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t;
-        opt.textContent = t;
+        opt.textContent = filterOptionLabel(t, 'trim');
         trimSelect.appendChild(opt);
       });
       applyFilters();
@@ -1987,10 +2076,17 @@
       applyFilters();
     }
 
-    // Загрузка данных
-    fetch('cars.json')
-      .then(r => r.json())
-      .then(data => {
+    // Загрузка данных и маппинга KO→EN (data/encar_mapping.json от scripts/build_encar_mapping.py)
+    const mappingPromise = fetch('data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null);
+    Promise.all([ fetch('cars.json').then(r => r.json()), mappingPromise ])
+      .then(([data, mapping]) => {
+        if (mapping && typeof mapping === 'object') {
+          ['mark','model','generation','type','trim'].forEach(cat => {
+            if (mapping[cat] && typeof mapping[cat] === 'object') {
+              filterMappingKoEn[cat] = Object.assign({}, filterMappingKoEn[cat] || {}, mapping[cat]);
+            }
+          });
+        }
         const rawCars = data.result || [];
         // Убираем дубликаты по ID, VIN и Car ID
         const seenIds = new Set();

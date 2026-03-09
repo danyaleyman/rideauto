@@ -1813,6 +1813,66 @@
             return displayRu[s] || val;
         }
 
+        // Маппинг корейский → английский (марка, модель, поколение, тип, комплектация); дополняется из data/encar_mapping.json
+        const filterMappingKoEn = {
+            mark: { '현대': 'Hyundai', '기아': 'Kia', '제네시스': 'Genesis', '쌍용': 'SsangYong', '한국GM': 'GM Korea', '르노코리아': 'Renault Korea', '벤츠': 'Mercedes-Benz', 'BMW': 'BMW', '아우디': 'Audi', '폭스바겐': 'Volkswagen', '포르쉐': 'Porsche', '미니': 'MINI', '볼보': 'Volvo', '렉서스': 'Lexus', '토요타': 'Toyota', '혼다': 'Honda', '닛산': 'Nissan', '인피니티': 'Infiniti', '마쓰다': 'Mazda', '미쓰비시': 'Mitsubishi', '스바루': 'Subaru', '스즈키': 'Suzuki', '다이하쓰': 'Daihatsu', '포드': 'Ford', '쉐보레': 'Chevrolet', '지프': 'Jeep', '캐딜락': 'Cadillac', '테슬라': 'Tesla', '폴스타': 'Polestar', '랜드로버': 'Land Rover', '재규어': 'Jaguar', '벤틀리': 'Bentley', '롤스로이스': 'Rolls-Royce', '마세라티': 'Maserati', '페라리': 'Ferrari', '람보르기니': 'Lamborghini', '알파로메오': 'Alfa Romeo', '피아트': 'Fiat' },
+            model: {}, generation: {}, type: {}, trim: {}
+        };
+        function toDisplayEn(val, category) {
+            if (!val) return val;
+            const s = String(val).trim();
+            const map = category && filterMappingKoEn[category] ? filterMappingKoEn[category] : null;
+            if (map && map[s]) return map[s];
+            if (map) {
+                const key = Object.keys(map).find(k => k.trim() === s || s.indexOf(k) >= 0);
+                if (key) return map[key];
+            }
+            return val;
+        }
+        const koreanPhraseToEn = {
+            '플러그인 하이브리드': 'Plug-in Hybrid', '플러그인 HEV': 'Plug-in HEV', '하이브리드': 'Hybrid',
+            '투어링': 'Touring', '투어러': 'Tourer', '투어': 'Tour',
+            '프리미엄 초이스': 'Premium Choice', '프리미엄 플러스': 'Premium Plus', '프리미엄 패밀리': 'Premium Family', '프리미엄 밀레니얼': 'Premium Millennial', '프리미엄': 'Premium',
+            '익스클루시브 스페셜': 'Exclusive Special', '익스클루시브': 'Exclusive',
+            '인스퍼레이션': 'Inspiration', '캘리그래피': 'Calligraphy', '르블랑': 'Le Blanc', '아너스': 'Honors',
+            '스마트': 'Smart', '모던': 'Modern', '럭셔리': 'Luxury', '스포츠': 'Sport', '로열': 'Royal', '프리미어': 'Premiere',
+            '컬렉션': 'Collection', '초이스': 'Choice', '스페셜': 'Special', '플러스': 'Plus', '패밀리': 'Family', '밀레니얼': 'Millennial',
+            'N 라인': 'N Line', 'N Line': 'N Line',
+            '수출형': 'Export', '기본형': 'Base', '이지팩': 'Easy Pack', '어드밴스팩': 'Advance Pack',
+            '리미티드': 'Limited', '시그니처': 'Signature', '플래티넘': 'Platinum', '엘리트': 'Elite', '컴포트': 'Comfort', '베이직': 'Basic',
+            '세부등급 없음': '', ' (세부등급 없음)': '', '(세부등급 없음)': ''
+        };
+        const koreanPhraseKeys = Object.keys(koreanPhraseToEn).sort((a, b) => b.length - a.length);
+        function applyKoreanPhraseFallback(str) {
+            if (!str || typeof str !== 'string') return str;
+            let out = str.trim();
+            for (let i = 0; i < koreanPhraseKeys.length; i++) {
+                const ko = koreanPhraseKeys[i];
+                const en = koreanPhraseToEn[ko];
+                if (out.indexOf(ko) !== -1) out = out.split(ko).join(en || ko);
+            }
+            return out.replace(/\s+/g, ' ').trim();
+        }
+        function filterOptionLabel(val, category) {
+            const s = String(val || '').trim();
+            let en = toDisplayEn(s, category);
+            if (en !== s) return en;
+            if (['model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
+                const fallback = applyKoreanPhraseFallback(s);
+                if (fallback !== s) return fallback || s;
+            }
+            return toDisplayRu(s);
+        }
+        fetch('data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null).then(m => {
+            if (m && typeof m === 'object') {
+                ['mark','model','generation','type','trim'].forEach(cat => {
+                    if (m[cat] && typeof m[cat] === 'object') {
+                        filterMappingKoEn[cat] = Object.assign({}, filterMappingKoEn[cat] || {}, m[cat]);
+                    }
+                });
+            }
+        });
+
         // ---------- Маппинг опций ----------
         const optionRu = {
             '010': 'Люк',
@@ -2096,12 +2156,20 @@
             return icons[statusKey] || '';
         }
 
+        var interiorPartNames = ['Водительское сиденье', 'Пассажирское сиденье', 'Заднее сиденье', 'Руль', 'Панель приборов', 'Потолок', 'Центральная консоль', 'Передняя дверь (левая) - внутри', 'Передняя дверь (правая) - внутри'];
+        function mapToInteriorPart(partKey) {
+            var k = (partKey || '').trim();
+            if (!k) return '';
+            return innerPartKoToRu[k] || (typeof partNamesRu !== 'undefined' && partNamesRu[k]) || k;
+        }
         function getInteriorStatus(carData) {
             var status = {};
             var d = (carData && carData.data) || {};
             var extra = d.extra || {};
             var insp = extra.inspection_structured || {};
             var inners = (extra.inspection && extra.inspection.inners) || [];
+            var bodyChanged = insp.bodyChanged || {};
+            var bodyPanels = insp.bodyPanels || [];
             function norm(s) { return (s || '').trim().replace(/\s+/g, ' '); }
             function setStatus(part, statusKey, label) {
                 var key = norm(String(part));
@@ -2125,14 +2193,38 @@
             if (typeof interior === 'object' && interior !== null) {
                 Object.keys(interior).forEach(function(k) {
                     var v = (interior[k] || '').toString().toLowerCase();
-                    var partRu = k.trim();
-                    if (!partRu) return;
+                    var partRu = mapToInteriorPart(k);
+                    if (!partRu || interiorPartNames.indexOf(partRu) === -1) return;
                     if (v.indexOf('замен') >= 0) setStatus(partRu, 'replaced', 'Замена');
                     else if (v.indexOf('ремонт') >= 0 || v.indexOf('покраск') >= 0 || v.indexOf('불량') >= 0) setStatus(partRu, 'painted', 'Окрашивание');
                     else if (v.indexOf('поврежд') >= 0) setStatus(partRu, 'damage', 'Повреждение');
                     else setStatus(partRu, 'good', 'Без замечаний');
                 });
             }
+            Object.keys(bodyChanged).forEach(function(part) {
+                var partRu = mapToInteriorPart(part);
+                if (!partRu || interiorPartNames.indexOf(partRu) === -1) return;
+                var statusStr = (bodyChanged[part] || '').toLowerCase();
+                if (statusStr.indexOf('замен') >= 0) setStatus(partRu, 'replaced', 'Замена');
+                else if (statusStr.indexOf('покраск') >= 0 || statusStr === 'покрашено') setStatus(partRu, 'painted', 'Окрашивание');
+                else if (statusStr.indexOf('ремонт') >= 0) setStatus(partRu, 'painted', 'Окрашивание');
+                else if (statusStr.indexOf('царапин') >= 0) setStatus(partRu, 'scratch', 'Царапины');
+                else if (statusStr.indexOf('неровност') >= 0) setStatus(partRu, 'unevenness', 'Неровности');
+                else if (statusStr.indexOf('поврежд') >= 0) setStatus(partRu, 'damage', 'Повреждение');
+                else if (statusStr.indexOf('коррози') >= 0) setStatus(partRu, 'corrosion', 'Коррозия');
+                else setStatus(partRu, 'replaced', 'Замена');
+            });
+            bodyPanels.forEach(function(p) {
+                if (!p.part || interiorPartNames.indexOf(norm(p.part)) === -1) return;
+                var s = (p.status || '').toLowerCase();
+                if (s === 'замена' || s.indexOf('замен') >= 0) setStatus(p.part, 'replaced', 'Замена');
+                else if (s === 'покрашено' || s.indexOf('покраск') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
+                else if (s.indexOf('ремонт') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
+                else if (s.indexOf('царапин') >= 0) setStatus(p.part, 'scratch', 'Царапины');
+                else if (s.indexOf('неровност') >= 0) setStatus(p.part, 'unevenness', 'Неровности');
+                else if (s.indexOf('поврежд') >= 0) setStatus(p.part, 'damage', 'Повреждение');
+                else if (s.indexOf('коррози') >= 0) setStatus(p.part, 'corrosion', 'Коррозия');
+            });
             return status;
         }
 
@@ -2388,10 +2480,10 @@
         // ---------- Рендер правой колонки: компактная карточка заказа + скрытый полный расчёт (для модалки) ----------
         function renderPriceColumn(carData) {
             const d = carData.data || {};
-            const manufacturer = d.manufacturerName || d.mark || '';
-            const model = d.modelName || d.model || '';
-            const grade = d.gradeName || '';
-            const fullName = `${manufacturer} ${model} ${grade}`.trim() || 'Автомобиль';
+            const manufacturer = filterOptionLabel(d.manufacturerName || d.mark || '', 'mark');
+            const model = filterOptionLabel(d.modelName || d.model || '', 'model');
+            const grade = filterOptionLabel(d.gradeName || '', 'trim');
+            const fullName = [manufacturer, model, grade].filter(Boolean).join(' ').trim() || 'Автомобиль';
 
             const year = d.year ? d.year.slice(0,4) : '—';
             const km = formatKm(d.km_age);
@@ -2539,9 +2631,9 @@
                     var cd = car.data || {};
                     var images = getPreviewImages(cd);
                     var mainImg = images[0] || '';
-                    var title = ((cd.mark_en || cd.mark || '') + ' ' + (cd.model_en || cd.model || '') + ' ' + (cd.generation_en || cd.generation || cd.configuration || '')).trim();
+                    var title = [filterOptionLabel(cd.mark, 'mark'), filterOptionLabel(cd.model, 'model'), filterOptionLabel(cd.generation || cd.configuration, 'generation')].filter(Boolean).join(' ').trim();
                     if (!title) title = (cd.mark || '') + ' ' + (cd.model || '');
-                    var model = cd.model || '';
+                    var model = filterOptionLabel(cd.model, 'model') || cd.model || '';
                     var year = cd.year ? String(cd.year).slice(0, 4) : '';
                     var km = formatKm(cd.km_age);
                     var price = cd.my_price ? Math.round(cd.my_price).toLocaleString() + ' ₽' : '—';
@@ -2656,10 +2748,10 @@
             var breadcrumbId = document.getElementById('breadcrumb-id');
             var breadcrumbTitle = document.getElementById('breadcrumb-title');
             if (breadcrumbId) breadcrumbId.textContent = 'ID ' + (rawData.id || rawData.inner_id || '—');
-            if (breadcrumbTitle) breadcrumbTitle.textContent = (d.mark || '') + ' ' + (d.model || '') + (d.generation ? ' ' + d.generation : '');
+            if (breadcrumbTitle) breadcrumbTitle.textContent = [filterOptionLabel(d.mark, 'mark'), filterOptionLabel(d.model, 'model'), d.generation ? filterOptionLabel(d.generation, 'generation') : ''].filter(Boolean).join(' ');
             const extra = d.extra || {};
             let insp = extra.inspection_structured || {};
-            // Fallback: если диагностики кузова нет, собираем из сырого extra.diagnosis (для старых cars.json)
+            // Fallback 1: из extra.diagnosis.items (внешние панели)
             if ((!insp.bodyPanels || !insp.bodyPanels.length) && (!insp.bodyChanged || !Object.keys(insp.bodyChanged).length) && extra.diagnosis && extra.diagnosis.items && extra.diagnosis.items.length) {
                 const panelMap = {
                     'FRONT_DOOR_LEFT': 'Левая передняя дверь', 'FRONT_DOOR_RIGHT': 'Правая передняя дверь',
@@ -2684,6 +2776,36 @@
                 });
                 insp = Object.assign({}, insp, { bodyPanels: bodyPanels, bodyChanged: bodyChanged });
             }
+            // Fallback 2: из extra.inspection.outers (внешние и внутренние детали, если inspection_structured пустой)
+            if ((!insp.bodyChanged || !Object.keys(insp.bodyChanged).length) && extra.inspection && extra.inspection.outers && extra.inspection.outers.length) {
+                var outerRu = { '프론트 휀더(좌)': 'Левое переднее крыло', '프론트 휀더(우)': 'Правое переднее крыло', '후드': 'Капот', '트렁크 리드': 'Крышка багажника', '프론트 도어(좌)': 'Левая передняя дверь', '프론트 도어(우)': 'Правая передняя дверь', '리어 도어(좌)': 'Левая задняя дверь', '리어 도어(우)': 'Правая задняя дверь', '리어 휀더(좌)': 'Левое заднее крыло', '리어 휀더(우)': 'Правое заднее крыло', '프론트 펜더 왼쪽': 'Левое переднее крыло', '프론트 펜더 오른쪽': 'Правое переднее крыло', '리어 펜더 왼쪽': 'Левое заднее крыло', '리어 펜더 오른쪽': 'Правое заднее крыло', '프론트 도어 왼쪽': 'Левая передняя дверь', '프론트 도어 오른쪽': 'Правая передняя дверь', '리어 도어 왼쪽': 'Левая задняя дверь', '리어 도어 오른쪽': 'Правая задняя дверь' };
+                var innerRu = { '운전석 시트': 'Водительское сиденье', '시트(좌)': 'Водительское сиденье', '앞좌석(좌)': 'Водительское сиденье', '조수석 시트': 'Пассажирское сиденье', '시트(우)': 'Пассажирское сиденье', '앞좌석(우)': 'Пассажирское сиденье', '후석': 'Заднее сиденье', '뒷좌석': 'Заднее сиденье', '스티어링 휠': 'Руль', '핸들': 'Руль', '대시보드': 'Панель приборов', '계기판': 'Панель приборов', '실링': 'Потолок', '천장': 'Потолок', '센터페시아': 'Центральная консоль', '콘솔': 'Центральная консоль', '내장(좌)': 'Передняя дверь (левая) - внутри', '도어(좌)': 'Передняя дверь (левая) - внутри', '내장(우)': 'Передняя дверь (правая) - внутри', '도어(우)': 'Передняя дверь (правая) - внутри', '시트': 'Водительское сиденье', '도어트림': 'Передняя дверь (левая) - внутри' };
+                var statusRuMap = { '교체': 'замена', '도장': 'покрашено', '판금': 'ремонт', '수리': 'ремонт', '교환': 'замена', '도색': 'покрашено', '리폼': 'ремонт', '부품교체': 'замена', '정상': 'оригинал' };
+                var bodyChangedFromOuters = {};
+                var interiorFromOuters = {};
+                extra.inspection.outers.forEach(function(part) {
+                    var typeObj = part.type || part;
+                    var partName = (typeObj.title || typeObj.partName || part.partName || part.name || part.part || part.title || '').toString().trim();
+                    if (!partName) return;
+                    var statusType = part.statusType || part.statusTypes && part.statusTypes[0] || {};
+                    var status = (statusType.title || statusType.name || part.status || part.result || '').toString().trim();
+                    var statusLower = (status || '').toLowerCase();
+                    var statusRaw = status || '';
+                    var isReplacement = (statusLower.indexOf('замен') >= 0 || statusLower.indexOf('покраш') >= 0 || statusLower.indexOf('painted') >= 0 || statusLower.indexOf('replaced') >= 0) || (/교체|도장|판금|수리|교환|도색|리폼|부품교체/.test(statusRaw));
+                    var partRu = outerRu[partName] || partName;
+                    var statusRuVal = statusRuMap[status] || status;
+                    if (isReplacement) bodyChangedFromOuters[partRu] = statusRuVal;
+                    var low = partName.toLowerCase();
+                    if (/시트|내장|트림|interior|салон|seat|сиденье/.test(partName) || /interior|салон|seat|сиденье/.test(low)) {
+                        interiorFromOuters[partName] = status;
+                        var partInteriorRu = innerRu[partName] || partName;
+                        if (isReplacement && partInteriorRu !== partName) bodyChangedFromOuters[partInteriorRu] = statusRuVal;
+                    }
+                });
+                insp = Object.assign({}, insp, { bodyChanged: Object.assign({}, insp.bodyChanged || {}, bodyChangedFromOuters), interior: Object.assign({}, insp.interior || {}, interiorFromOuters) });
+            }
+            if (!d.extra) d.extra = {};
+            d.extra.inspection_structured = insp;
 
             // Фото
             let hImagesList = [];
@@ -2691,18 +2813,18 @@
             const sortedPhotos = preparePhotos(hImagesList).filter(p => p.type !== 'THUMBNAIL');
 
             // Левая колонка (основная информация) – без верхнего блока titleHtml
-            const manufacturerName = d.manufacturerName || d.mark || '';
-            const modelName = d.modelName || d.model || '';
-            const gradeName = d.gradeName || '';
-            const fullNameForGallery = `${manufacturerName} ${modelName} ${gradeName}`.trim() || 'Автомобиль';
+            const manufacturerName = filterOptionLabel(d.manufacturerName || d.mark || '', 'mark');
+            const modelName = filterOptionLabel(d.modelName || d.model || '', 'model');
+            const gradeName = filterOptionLabel(d.gradeName || '', 'trim');
+            const fullNameForGallery = [manufacturerName, modelName, gradeName].filter(Boolean).join(' ').trim() || 'Автомобиль';
 
             const galleryHtml = renderGallery(sortedPhotos, fullNameForGallery);
 
             const specs = [
-                { label: 'Марка', value: d.mark },
-                { label: 'Модель', value: d.model },
-                { label: 'Поколение', value: d.generation },
-                { label: 'Комплектация', value: d.configuration || d.gradeName },
+                { label: 'Марка', value: filterOptionLabel(d.mark, 'mark') },
+                { label: 'Модель', value: filterOptionLabel(d.model, 'model') },
+                { label: 'Поколение', value: filterOptionLabel(d.generation, 'generation') },
+                { label: 'Комплектация', value: filterOptionLabel(d.configuration || d.gradeName, 'trim') },
                 { label: 'Год выпуска', value: d.year?.slice(0,4) },
                 { label: 'Цвет', value: toDisplayRu(d.color) },
                 { label: 'Пробег', value: formatKm(d.km_age) },

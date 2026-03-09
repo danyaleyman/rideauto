@@ -6,6 +6,7 @@ import re
 from urllib.parse import urlencode
 from typing import List, Dict, Optional
 from datetime import datetime
+from pathlib import Path
 
 class EncarFullParser:
     def __init__(self):
@@ -30,6 +31,21 @@ class EncarFullParser:
         self.user_url = f'{self.base_api}/user/{{}}'
         # Добавляем эндпоинт для полной инспекции
         self.inspection_url = f'{self.base_api}/inspection/vehicle/{{}}'
+        self._power_lookup: Optional[Dict[str, int]] = None
+
+    def _get_power_lookup(self) -> Dict[str, int]:
+        if self._power_lookup is not None:
+            return self._power_lookup
+        path = Path(__file__).resolve().parent.parent / "data" / "car_power_lookup.json"
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    self._power_lookup = json.load(f)
+            except Exception:
+                self._power_lookup = {}
+        else:
+            self._power_lookup = {}
+        return self._power_lookup
 
     # ---------- Построение URL фото ----------
     def build_carphoto_url(self, photo: dict, now: str) -> str:
@@ -77,6 +93,19 @@ class EncarFullParser:
             if kw in badge_upper:
                 return 'FWD'
         return ''
+
+    def _extract_power_from_string(self, s: str) -> Optional[str]:
+        """Извлекает мощность (л.с.) только из явных форм: 150마력, (180)hp. Не (992) — поколение."""
+        if not s or not isinstance(s, str):
+            return None
+        s = s.strip()
+        m = re.search(r'\(?\s*(\d{2,4})\s*\)?\s*마력', s)
+        if m:
+            return m.group(1)
+        m = re.search(r'(\d{2,4})\s*hp\b', s, re.IGNORECASE)
+        if m:
+            return m.group(1)
+        return None
 
     # ---------- Основные методы загрузки ----------
     def fetch_list_page(self, offset: int = 0, limit: int = 100, car_type: str = "for") -> Optional[Dict]:
@@ -310,6 +339,17 @@ class EncarFullParser:
                 '펜더': 'Крыло',
                 '도어': 'Дверь',
             }
+            inner_part_ru = {
+                '운전석 시트': 'Водительское сиденье', '시트(좌)': 'Водительское сиденье', '앞좌석(좌)': 'Водительское сиденье',
+                '조수석 시트': 'Пассажирское сиденье', '시트(우)': 'Пассажирское сиденье', '앞좌석(우)': 'Пассажирское сиденье',
+                '후석': 'Заднее сиденье', '뒷좌석': 'Заднее сиденье',
+                '스티어링 휠': 'Руль', '핸들': 'Руль',
+                '대시보드': 'Панель приборов', '계기판': 'Панель приборов',
+                '실링': 'Потолок', '천장': 'Потолок',
+                '센터페시아': 'Центральная консоль', '콘솔': 'Центральная консоль',
+                '내장(좌)': 'Передняя дверь (левая) - внутри', '도어(좌)': 'Передняя дверь (левая) - внутри',
+                '내장(우)': 'Передняя дверь (правая) - внутри', '도어(우)': 'Передняя дверь (правая) - внутри',
+            }
             # Корейский статус → русский
             status_ru = {
                 '교체': 'замена',
@@ -344,11 +384,14 @@ class EncarFullParser:
                 if is_replacement:
                     body_changed[part_name_ru] = status_ru_val
 
-                # Для interior – элементы салона по ключевым словам
+                # Для interior – элементы салона по ключевым словам; маппинг на русские названия зон схемы
                 low = part_name.lower()
                 if ('시트' in part_name or '내장' in part_name or '트림' in part_name or
                     'interior' in low or 'салон' in low or 'seat' in low or 'сиденье' in low):
                     interior[part_name] = status
+                    part_interior_ru = inner_part_ru.get(part_name, part_name)
+                    if is_replacement and part_interior_ru != part_name:
+                        body_changed[part_interior_ru] = status_ru_val
 
             result['bodyChanged'] = body_changed
             result['interior'] = interior
@@ -475,12 +518,31 @@ class EncarFullParser:
         body_type = spec.get('bodyName', '')
         seat_count = spec.get('seatCount', '')
 
-        # Мощность – пробуем из inspection, если есть
+        # Мощность: 1) inspection hcout, 2) detail.spec (если есть), 3) из badge/gradeName (150마력, 180hp)
         power = ''
         if inspection and 'master' in inspection:
             master = inspection.get('master', {})
             detail_insp = master.get('detail', {})
-            power = str(detail_insp.get('hcout', ''))
+            hcout = detail_insp.get('hcout')
+            if hcout is not None and str(hcout).strip():
+                power = str(hcout).strip()
+        if not power and spec:
+            for key in ('outputHorsepower', 'powerHp', 'horsepower', 'power', 'maxPower'):
+                val = spec.get(key)
+                if val is not None and str(val).strip():
+                    power = str(val).strip()
+                    break
+        if not power:
+            power = self._extract_power_from_string(badge) or self._extract_power_from_string(grade_name) or ''
+        if not power:
+            lookup = self._get_power_lookup()
+            for key_part in (badge, grade_name, model):
+                if not key_part:
+                    continue
+                k = f"{manufacturer}|{model}|{key_part}"
+                if k in lookup:
+                    power = str(lookup[k])
+                    break
 
         # Адрес продавца
         address = contact.get('address', '')

@@ -1,0 +1,6455 @@
+{
+  "Count": 136649,
+  "iNav": {
+    "Nodes": [
+      {
+        "IsSelected": true,
+        "PlaceholderExpression": "(And.CarType.Y._.(<!>))",
+        "MultiSelectMode": "None",
+        "RemoveAction": "CarType.Y.",
+        "Facets": [
+          {
+            "IsSelected": true,
+            "Value": "N",
+            "DisplayValue": "N",
+            "Action": "CarType.Y.",
+            "Count": 136648,
+            "Expression": "Hidden.N.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Y",
+            "DisplayValue": "Y",
+            "Action": "(And.CarType.Y._.Hidden.Y.)",
+            "Count": 7692,
+            "Expression": "Hidden.Y.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Hidden",
+        "DisplayName": "숨김데이터",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": true,
+        "PlaceholderExpression": "(And.Hidden.N._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "Hidden.N.",
+        "Facets": [
+          {
+            "IsSelected": true,
+            "Value": "Y",
+            "DisplayValue": "Y",
+            "Action": "Hidden.N.",
+            "Count": 136648,
+            "Refinements": {
+              "Nodes": [
+                {
+                  "IsSelected": false,
+                  "PlaceholderExpression": "(And.Hidden.N._.(C.CarType.Y._.(<!>)))",
+                  "MultiSelectMode": "None",
+                  "RemoveAction": "",
+                  "Facets": [
+                    {
+                      "IsSelected": false,
+                      "Value": "현대",
+                      "DisplayValue": "현대",
+                      "Action": "(And.Hidden.N._.(C.CarType.Y._.Manufacturer.현대.))",
+                      "Count": 47580,
+                      "Expression": "Manufacturer.현대.",
+                      "Metadata": {
+                        "Code": [
+                          "001"
+                        ],
+                        "EngName": [
+                          "Hyundai"
+                        ],
+                        "Ordering": [
+                          10.0
+                        ],
+                        "Expression": [
+                          "GreenType"
+                        ],
+                        "CarType": [
+                          "Y"
+                        ],
+                        "Price": [
+                          {
+                            "Min": 100.0,
+                            "Max": 6784.0
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "IsSelected": false,
+                      "Value": "제네시스",
+                      "DisplayValue": "제네시스",
+                      "Action": "(And.Hidden.N._.(C.CarType.Y._.Manufacturer.제네시스.))",
+                      "Count": 13194,
+                      "Expression": "Manufacturer.제네시스.",
+                      "Metadata": {
+                        "Code": [
+                          "007"
+                        ],
+                        "EngName": [
+                          "Genesis"
+                        ],
+                        "Ordering": [
+                          15.0
+                        ],
+                        "CarType": [
+                          "Y"
+                        ],
+                        "Price": [
+                          {
+                            "Min": 1294.0,
+                            "Max": 14503.0
+                          }
+                        ],
+                        "Expression": [
+                          "GreenType"
+                        ]
+                      }
+                    },
+                    {
+                      "IsSelected": false,
+                      "Value": "기아",
+                      "DisplayValue": "기아",
+                      "Action": "(And.Hidden.N._.(C.CarType.Y._.Manufacturer.기아.))",
+                      "Count": 49904,
+                      "Expression": "Manufacturer.기아.",
+                      "Metadata": {
+                        "Code": [
+                          "002"
+                        ],
+                        "EngName": [
+                          "Kia"
+                        ],
+                        "Ordering": [
+                          20.0
+                        ],
+                        "Expression": [
+                          "GreenType"
+                        ],
+                        "CarType": [
+                          "Y"
+                        ],
+                        "Price": [
+                          {
+                            "Min": 100.0,
+                            "Max": 9558.0
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "IsSelected": false,
+                      "Value": "쉐보레(GM대우)",
+                      "DisplayValue": "쉐보레(GM대우)",
+                      "Action": "(And.Hidden.N._.(C.CarType.Y._.Manufacturer.쉐보레(GM대우_).))",
+                      "Count": 9447,
+                      "Expression": "Manufacturer.쉐보레(GM대우_).",
+                      "Metadata": {
+                        "Code": [
+                          "003"
+                        ],
+                        "EngName": [
+                          "ChevroletGMDaewoo"
+                        ],
+                        "Ordering": [
+                          30.0
+                        ],
+                        "CarType": [
+                          "Y"
+                        ],
+                        "Price": [
+                          {
+                            "Min": 100.0,
+                            "Max": 7326.0
+                          }
+                        ],
+                        "Expression": [
+                          "GreenType"
+                        ]
+                      }
+                    },
+                    {
+                      "IsSelected": false,
+                      "Value": "르노코리아(삼성)",
+                      "DisplayValue": "르노코리아(삼성)",
+                      "Action": "(And.Hidden.N._.(C.CarType.Y._.Manufacturer.르노코리아(삼성_).))",
+                      "Count": 7034,
+                      "Expression": "Manufacturer.르노코리아(삼성_).",
+                      "Metadata": {
+                        "Code": [
+                          "005"
+                        ],
+                        "EngName": [
+                          "Renault-KoreaSamsung"
+                        ],
+                        "Ordering": [
+                          40.0
+                        ],
+                        "CarType": [
+                          "Y"
+                        ],
+                        "Price": [
+                          {
+                            "Min": 100.0,
+                            "Max": 4138.0
+                          }
+                        ],
+                        "Expression": [
+                          "GreenType"
+                        ]
+                      }
+                    },
+                    {
+                      "IsSelected": false,
+                      "Value": "KG모빌리티(쌍용)",
+                      "DisplayValue": "KG모빌리티(쌍용)",
+                      "Action": "(And.Hidden.N._.(C.CarType.Y._.Manufacturer.KG모빌리티(쌍용_).))",
+                      "Count": 9413,
+                      "Expression": "Manufacturer.KG모빌리티(쌍용_).",
+                      "Metadata": {
+                        "Code": [
+                          "004"
+                        ],
+                        "EngName": [
+                          "KG_Mobility_Ssangyong"
+                        ],
+                        "Ordering": [
+                          50.0
+                        ],
+                        "CarType": [
+                          "Y"
+                        ],
+                        "Price": [
+                          {
+                            "Min": 100.0,
+                            "Max": 5238.0
+                          }
+                        ],
+                        "Expression": [
+                          "GreenType"
+                        ]
+                      }
+                    },
+                    {
+                      "IsSelected": false,
+                      "Value": "기타 제조사",
+                      "DisplayValue": "기타 제조사",
+                      "Action": "(And.Hidden.N._.(C.CarType.Y._.Manufacturer.기타 제조사.))",
+                      "Count": 77,
+                      "Expression": "Manufacturer.기타 제조사.",
+                      "Metadata": {
+                        "Code": [
+                          "006"
+                        ],
+                        "EngName": [
+                          "Others"
+                        ],
+                        "Ordering": [
+                          100.0
+                        ],
+                        "Expression": [
+                          "GreenType"
+                        ],
+                        "CarType": [
+                          "Y"
+                        ],
+                        "Price": [
+                          {
+                            "Min": 128.0,
+                            "Max": 3423.0
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "Metadata": {},
+                  "Name": "Manufacturer",
+                  "DisplayName": "제조사",
+                  "Type": "Aspect"
+                }
+              ],
+              "BreadCrumbs": []
+            },
+            "Expression": "CarType.Y.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "A",
+            "DisplayValue": "A",
+            "Action": "(And.Hidden.N._.(Or.CarType.Y._.CarType.A.))",
+            "Count": 199078,
+            "Expression": "CarType.A.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "N",
+            "DisplayValue": "N",
+            "Action": "(And.Hidden.N._.(Or.CarType.Y._.CarType.N.))",
+            "Count": 62430,
+            "Expression": "CarType.N.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "CarType",
+        "DisplayName": "국산여부",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "경차",
+            "DisplayValue": "경차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.경차.)",
+            "Count": 10772,
+            "Expression": "Category.경차.",
+            "Metadata": {
+              "Code": [
+                "001"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "소형차",
+            "DisplayValue": "소형차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.소형차.)",
+            "Count": 1396,
+            "Expression": "Category.소형차.",
+            "Metadata": {
+              "Code": [
+                "002"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "준중형차",
+            "DisplayValue": "준중형차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.준중형차.)",
+            "Count": 12044,
+            "Expression": "Category.준중형차.",
+            "Metadata": {
+              "Code": [
+                "003"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "중형차",
+            "DisplayValue": "중형차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.중형차.)",
+            "Count": 15159,
+            "Expression": "Category.중형차.",
+            "Metadata": {
+              "Code": [
+                "004"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "대형차",
+            "DisplayValue": "대형차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.대형차.)",
+            "Count": 24011,
+            "Expression": "Category.대형차.",
+            "Metadata": {
+              "Code": [
+                "005"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스포츠카",
+            "DisplayValue": "스포츠카",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.스포츠카.)",
+            "Count": 316,
+            "Expression": "Category.스포츠카.",
+            "Metadata": {
+              "Code": [
+                "006"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "SUV",
+            "DisplayValue": "SUV",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.SUV.)",
+            "Count": 51985,
+            "Expression": "Category.SUV.",
+            "Metadata": {
+              "Code": [
+                "007"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "RV",
+            "DisplayValue": "RV",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.RV.)",
+            "Count": 12343,
+            "Expression": "Category.RV.",
+            "Metadata": {
+              "Code": [
+                "008"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "경승합차",
+            "DisplayValue": "경승합차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.경승합차.)",
+            "Count": 64,
+            "Expression": "Category.경승합차.",
+            "Metadata": {
+              "Code": [
+                "009"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "승합차",
+            "DisplayValue": "승합차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.승합차.)",
+            "Count": 4951,
+            "Expression": "Category.승합차.",
+            "Metadata": {
+              "Code": [
+                "010"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "화물차",
+            "DisplayValue": "화물차",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.화물차.)",
+            "Count": 3607,
+            "Expression": "Category.화물차.",
+            "Metadata": {
+              "Code": [
+                "011"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "기타",
+            "DisplayValue": "기타",
+            "Action": "(And.Hidden.N._.CarType.Y._.Category.기타.)",
+            "Count": 0,
+            "Expression": "Category.기타.",
+            "Metadata": {
+              "Code": [
+                "099"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "Category",
+        "DisplayName": "차종",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "N",
+            "DisplayValue": "N",
+            "Action": "(And.Hidden.N._.CarType.Y._.GreenType.N.)",
+            "Count": 118361,
+            "Expression": "GreenType.N.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Y",
+            "DisplayValue": "Y",
+            "Action": "(And.Hidden.N._.CarType.Y._.GreenType.Y.)",
+            "Count": 18287,
+            "Expression": "GreenType.Y.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "GreenType",
+        "DisplayName": "친환경차여부",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "None",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "A",
+            "DisplayValue": "A",
+            "Action": "(And.Hidden.N._.CarType.Y._.ModelCarType.A.)",
+            "Count": 136648,
+            "Expression": "ModelCarType.A.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Y",
+            "DisplayValue": "Y",
+            "Action": "(And.Hidden.N._.CarType.Y._.ModelCarType.Y.)",
+            "Count": 136648,
+            "Expression": "ModelCarType.Y.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "ModelCarType",
+        "DisplayName": "국산여부",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "Green",
+            "DisplayValue": "Green",
+            "Action": "(And.Hidden.N._.CarType.Y._.AttributeType.Green.)",
+            "Count": 18287,
+            "Expression": "AttributeType.Green.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Lease",
+            "DisplayValue": "Lease",
+            "Action": "(And.Hidden.N._.CarType.Y._.AttributeType.Lease.)",
+            "Count": 2623,
+            "Expression": "AttributeType.Lease.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "AttributeType",
+        "DisplayName": "속성타입",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "일반",
+            "DisplayValue": "일반",
+            "Action": "(And.Hidden.N._.CarType.Y._.SellType.일반.)",
+            "Count": 134025,
+            "Expression": "SellType.일반.",
+            "Metadata": {
+              "Code": [
+                "1"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "리스",
+            "DisplayValue": "리스",
+            "Action": "(And.Hidden.N._.CarType.Y._.SellType.리스.)",
+            "Count": 585,
+            "Expression": "SellType.리스.",
+            "Metadata": {
+              "Code": [
+                "2"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "렌트",
+            "DisplayValue": "렌트",
+            "Action": "(And.Hidden.N._.CarType.Y._.SellType.렌트.)",
+            "Count": 2038,
+            "Expression": "SellType.렌트.",
+            "Metadata": {
+              "Code": [
+                "3"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "SellType",
+        "DisplayName": "판매방식",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "운용리스",
+            "DisplayValue": "운용리스",
+            "Action": "(And.Hidden.N._.CarType.Y._.LeaseType.운용리스.)",
+            "Count": 577,
+            "Expression": "LeaseType.운용리스.",
+            "Metadata": {
+              "Code": [
+                "21"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "금융리스",
+            "DisplayValue": "금융리스",
+            "Action": "(And.Hidden.N._.CarType.Y._.LeaseType.금융리스.)",
+            "Count": 8,
+            "Expression": "LeaseType.금융리스.",
+            "Metadata": {
+              "Code": [
+                "22"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "렌트승계",
+            "DisplayValue": "렌트승계",
+            "Action": "(And.Hidden.N._.CarType.Y._.LeaseType.렌트승계.)",
+            "Count": 1812,
+            "Expression": "LeaseType.렌트승계.",
+            "Metadata": {
+              "Code": [
+                "31"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "장기렌트",
+            "DisplayValue": "장기렌트",
+            "Action": "(And.Hidden.N._.CarType.Y._.LeaseType.장기렌트.)",
+            "Count": 226,
+            "Expression": "LeaseType.장기렌트.",
+            "Metadata": {
+              "Code": [
+                "32"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "LeaseType",
+        "DisplayName": "리스렌트타입",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "승계지원금 포함",
+            "DisplayValue": "승계지원금 포함",
+            "Action": "(And.Hidden.N._.CarType.Y._.LeaseBenefits.승계지원금 포함.)",
+            "Count": 860,
+            "Expression": "LeaseBenefits.승계지원금 포함.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "자동차세 포함",
+            "DisplayValue": "자동차세 포함",
+            "Action": "(And.Hidden.N._.CarType.Y._.LeaseBenefits.자동차세 포함.)",
+            "Count": 2026,
+            "Expression": "LeaseBenefits.자동차세 포함.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "LeaseBenefits",
+        "DisplayName": "혜택구분",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "오토",
+            "DisplayValue": "오토",
+            "Action": "(And.Hidden.N._.CarType.Y._.Transmission.오토.)",
+            "Count": 135350,
+            "Expression": "Transmission.오토.",
+            "Metadata": {
+              "Code": [
+                "001"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "수동",
+            "DisplayValue": "수동",
+            "Action": "(And.Hidden.N._.CarType.Y._.Transmission.수동.)",
+            "Count": 1190,
+            "Expression": "Transmission.수동.",
+            "Metadata": {
+              "Code": [
+                "002"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "세미오토",
+            "DisplayValue": "세미오토",
+            "Action": "(And.Hidden.N._.CarType.Y._.Transmission.세미오토.)",
+            "Count": 27,
+            "Expression": "Transmission.세미오토.",
+            "Metadata": {
+              "Code": [
+                "003"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "CVT",
+            "DisplayValue": "CVT",
+            "Action": "(And.Hidden.N._.CarType.Y._.Transmission.CVT.)",
+            "Count": 79,
+            "Expression": "Transmission.CVT.",
+            "Metadata": {
+              "Code": [
+                "004"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "기타",
+            "DisplayValue": "기타",
+            "Action": "(And.Hidden.N._.CarType.Y._.Transmission.기타.)",
+            "Count": 1,
+            "Expression": "Transmission.기타.",
+            "Metadata": {
+              "Code": [
+                "999"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "Transmission",
+        "DisplayName": "변속기",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "p0005",
+            "DisplayValue": "500만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p0005.)",
+            "Count": 13323,
+            "Expression": "Price.p0005.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p0510",
+            "DisplayValue": "500 ~ 1,000만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p0510.)",
+            "Count": 25011,
+            "Expression": "Price.p0510.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p1015",
+            "DisplayValue": "1,000 ~ 1,500만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p1015.)",
+            "Count": 18974,
+            "Expression": "Price.p1015.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p1520",
+            "DisplayValue": "1,500 ~ 2,000만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p1520.)",
+            "Count": 18571,
+            "Expression": "Price.p1520.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p2025",
+            "DisplayValue": "2,000 ~ 2,500만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p2025.)",
+            "Count": 15215,
+            "Expression": "Price.p2025.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p2530",
+            "DisplayValue": "2,500 ~ 3,000만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p2530.)",
+            "Count": 14328,
+            "Expression": "Price.p2530.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p3035",
+            "DisplayValue": "3,000 ~ 3,500만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p3035.)",
+            "Count": 10023,
+            "Expression": "Price.p3035.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p3540",
+            "DisplayValue": "3,500 ~ 4,000만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p3540.)",
+            "Count": 7307,
+            "Expression": "Price.p3540.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p4045",
+            "DisplayValue": "4,000 ~ 4,500만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p4045.)",
+            "Count": 4742,
+            "Expression": "Price.p4045.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p4550",
+            "DisplayValue": "4,500 ~ 5,000만원 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p4550.)",
+            "Count": 2775,
+            "Expression": "Price.p4550.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "p5099",
+            "DisplayValue": "5,000만원 이상",
+            "Action": "(And.Hidden.N._.CarType.Y._.Price.p5099.)",
+            "Count": 6379,
+            "Expression": "Price.p5099.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Price",
+        "DisplayName": "가격",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "경기",
+            "DisplayValue": "경기",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.경기.)",
+            "Count": 53297,
+            "Expression": "OfficeCityState.경기.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "대구",
+            "DisplayValue": "대구",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.대구.)",
+            "Count": 13841,
+            "Expression": "OfficeCityState.대구.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산",
+            "DisplayValue": "부산",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.부산.)",
+            "Count": 13077,
+            "Expression": "OfficeCityState.부산.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "서울",
+            "DisplayValue": "서울",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.서울.)",
+            "Count": 11597,
+            "Expression": "OfficeCityState.서울.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "인천",
+            "DisplayValue": "인천",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.인천.)",
+            "Count": 9061,
+            "Expression": "OfficeCityState.인천.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "광주",
+            "DisplayValue": "광주",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.광주.)",
+            "Count": 7805,
+            "Expression": "OfficeCityState.광주.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "대전",
+            "DisplayValue": "대전",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.대전.)",
+            "Count": 6766,
+            "Expression": "OfficeCityState.대전.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "전북",
+            "DisplayValue": "전북",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.전북.)",
+            "Count": 4504,
+            "Expression": "OfficeCityState.전북.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경남",
+            "DisplayValue": "경남",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.경남.)",
+            "Count": 4465,
+            "Expression": "OfficeCityState.경남.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "충남",
+            "DisplayValue": "충남",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.충남.)",
+            "Count": 4303,
+            "Expression": "OfficeCityState.충남.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "울산",
+            "DisplayValue": "울산",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.울산.)",
+            "Count": 3257,
+            "Expression": "OfficeCityState.울산.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "충북",
+            "DisplayValue": "충북",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.충북.)",
+            "Count": 2308,
+            "Expression": "OfficeCityState.충북.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경북",
+            "DisplayValue": "경북",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.경북.)",
+            "Count": 1304,
+            "Expression": "OfficeCityState.경북.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "전남",
+            "DisplayValue": "전남",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.전남.)",
+            "Count": 528,
+            "Expression": "OfficeCityState.전남.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "강원",
+            "DisplayValue": "강원",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.강원.)",
+            "Count": 409,
+            "Expression": "OfficeCityState.강원.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "제주",
+            "DisplayValue": "제주",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.제주.)",
+            "Count": 93,
+            "Expression": "OfficeCityState.제주.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "세종",
+            "DisplayValue": "세종",
+            "Action": "(And.Hidden.N._.CarType.Y._.OfficeCityState.세종.)",
+            "Count": 16,
+            "Expression": "OfficeCityState.세종.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "OfficeCityState",
+        "DisplayName": "지역(시도)",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "전국 배송",
+            "DisplayValue": "전국 배송",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.전국 배송.)",
+            "Count": 37691,
+            "Expression": "CityState.전국 배송.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "서울",
+            "DisplayValue": "서울",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.서울.)",
+            "Count": 11596,
+            "Expression": "CityState.서울.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기",
+            "DisplayValue": "경기",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.경기.)",
+            "Count": 53297,
+            "Expression": "CityState.경기.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "인천",
+            "DisplayValue": "인천",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.인천.)",
+            "Count": 9061,
+            "Expression": "CityState.인천.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "대전",
+            "DisplayValue": "대전",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.대전.)",
+            "Count": 6766,
+            "Expression": "CityState.대전.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "세종",
+            "DisplayValue": "세종",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.세종.)",
+            "Count": 16,
+            "Expression": "CityState.세종.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "충남",
+            "DisplayValue": "충남",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.충남.)",
+            "Count": 4303,
+            "Expression": "CityState.충남.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "충북",
+            "DisplayValue": "충북",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.충북.)",
+            "Count": 2308,
+            "Expression": "CityState.충북.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "강원",
+            "DisplayValue": "강원",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.강원.)",
+            "Count": 409,
+            "Expression": "CityState.강원.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산",
+            "DisplayValue": "부산",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.부산.)",
+            "Count": 13077,
+            "Expression": "CityState.부산.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "대구",
+            "DisplayValue": "대구",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.대구.)",
+            "Count": 13841,
+            "Expression": "CityState.대구.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "울산",
+            "DisplayValue": "울산",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.울산.)",
+            "Count": 3257,
+            "Expression": "CityState.울산.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경남",
+            "DisplayValue": "경남",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.경남.)",
+            "Count": 4465,
+            "Expression": "CityState.경남.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경북",
+            "DisplayValue": "경북",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.경북.)",
+            "Count": 1304,
+            "Expression": "CityState.경북.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "광주",
+            "DisplayValue": "광주",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.광주.)",
+            "Count": 7805,
+            "Expression": "CityState.광주.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "전남",
+            "DisplayValue": "전남",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.전남.)",
+            "Count": 528,
+            "Expression": "CityState.전남.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "전북",
+            "DisplayValue": "전북",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.전북.)",
+            "Count": 4504,
+            "Expression": "CityState.전북.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "제주",
+            "DisplayValue": "제주",
+            "Action": "(And.Hidden.N._.CarType.Y._.CityState.제주.)",
+            "Count": 93,
+            "Expression": "CityState.제주.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "CityState",
+        "DisplayName": "지역",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "가솔린",
+            "DisplayValue": "가솔린",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.가솔린.)",
+            "Count": 73491,
+            "Expression": "FuelType.가솔린.",
+            "Metadata": {
+              "Code": [
+                "001"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "디젤",
+            "DisplayValue": "디젤",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.디젤.)",
+            "Count": 40509,
+            "Expression": "FuelType.디젤.",
+            "Metadata": {
+              "Code": [
+                "002"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "LPG(일반인 구입)",
+            "DisplayValue": "LPG(일반인 구입)",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.LPG(일반인 구입_).)",
+            "Count": 6999,
+            "Expression": "FuelType.LPG(일반인 구입_).",
+            "Metadata": {
+              "Code": [
+                "003"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "가솔린+전기",
+            "DisplayValue": "가솔린+전기",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.가솔린+전기.)",
+            "Count": 11914,
+            "Expression": "FuelType.가솔린+전기.",
+            "Metadata": {
+              "Code": [
+                "006"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "디젤+전기",
+            "DisplayValue": "디젤+전기",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.디젤+전기.)",
+            "Count": 0,
+            "Expression": "FuelType.디젤+전기.",
+            "Metadata": {
+              "Code": [
+                "007"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "LPG+전기",
+            "DisplayValue": "LPG+전기",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.LPG+전기.)",
+            "Count": 30,
+            "Expression": "FuelType.LPG+전기.",
+            "Metadata": {
+              "Code": [
+                "008"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "가솔린+LPG",
+            "DisplayValue": "가솔린+LPG",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.가솔린+LPG.)",
+            "Count": 208,
+            "Expression": "FuelType.가솔린+LPG.",
+            "Metadata": {
+              "Code": [
+                "005"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "가솔린+CNG",
+            "DisplayValue": "가솔린+CNG",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.가솔린+CNG.)",
+            "Count": 3,
+            "Expression": "FuelType.가솔린+CNG.",
+            "Metadata": {
+              "Code": [
+                "010"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전기",
+            "DisplayValue": "전기",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.전기.)",
+            "Count": 3216,
+            "Expression": "FuelType.전기.",
+            "Metadata": {
+              "Code": [
+                "009"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "수소",
+            "DisplayValue": "수소",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.수소.)",
+            "Count": 274,
+            "Expression": "FuelType.수소.",
+            "Metadata": {
+              "Code": [
+                "013"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "CNG",
+            "DisplayValue": "CNG",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.CNG.)",
+            "Count": 3,
+            "Expression": "FuelType.CNG.",
+            "Metadata": {
+              "Code": [
+                "012"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "기타",
+            "DisplayValue": "기타",
+            "Action": "(And.Hidden.N._.CarType.Y._.FuelType.기타.)",
+            "Count": 1,
+            "Expression": "FuelType.기타.",
+            "Metadata": {
+              "Code": [
+                "999"
+              ],
+              "Expression": [
+                "GreenType"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "FuelType",
+        "DisplayName": "연료",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "Meetgo",
+            "DisplayValue": "믿고",
+            "Action": "(And.Hidden.N._.CarType.Y._.Trust.Meetgo.)",
+            "Count": 1364,
+            "Expression": "Trust.Meetgo.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "HomeService",
+            "DisplayValue": "엔카홈서비스",
+            "Action": "(And.Hidden.N._.CarType.Y._.Trust.HomeService.)",
+            "Count": 37691,
+            "Expression": "Trust.HomeService.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Warranty",
+            "DisplayValue": "엔카진단",
+            "Action": "(And.Hidden.N._.CarType.Y._.Trust.Warranty.)",
+            "Count": 63582,
+            "Expression": "Trust.Warranty.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "ExtendWarranty",
+            "DisplayValue": "엔카보증",
+            "Action": "(And.Hidden.N._.CarType.Y._.Trust.ExtendWarranty.)",
+            "Count": 34076,
+            "Expression": "Trust.ExtendWarranty.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Compensate",
+            "DisplayValue": "헛걸음보상",
+            "Action": "(And.Hidden.N._.CarType.Y._.Trust.Compensate.)",
+            "Count": 834,
+            "Expression": "Trust.Compensate.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Trust",
+        "DisplayName": "엔카 서비스",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "EncarMeetgo",
+            "DisplayValue": "엔카믿고",
+            "Action": "(And.Hidden.N._.CarType.Y._.Service.EncarMeetgo.)",
+            "Count": 37761,
+            "Expression": "Service.EncarMeetgo.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "EncarDiagnosis",
+            "DisplayValue": "엔카진단",
+            "Action": "(And.Hidden.N._.CarType.Y._.Service.EncarDiagnosis.)",
+            "Count": 101032,
+            "Expression": "Service.EncarDiagnosis.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "ExtendWarranty",
+            "DisplayValue": "엔카종합보증",
+            "Action": "(And.Hidden.N._.CarType.Y._.Service.ExtendWarranty.)",
+            "Count": 34076,
+            "Expression": "Service.ExtendWarranty.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Compensate",
+            "DisplayValue": "헛걸음보상",
+            "Action": "(And.Hidden.N._.CarType.Y._.Service.Compensate.)",
+            "Count": 834,
+            "Expression": "Service.Compensate.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Service",
+        "DisplayName": "엔카 서비스",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "EncarDiagnosisP0",
+            "DisplayValue": "엔카진단",
+            "Action": "(And.Hidden.N._.CarType.Y._.ServiceMark.EncarDiagnosisP0.)",
+            "Count": 101032,
+            "Expression": "ServiceMark.EncarDiagnosisP0.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "EncarDiagnosisP1",
+            "DisplayValue": "엔카진단+",
+            "Action": "(And.Hidden.N._.CarType.Y._.ServiceMark.EncarDiagnosisP1.)",
+            "Count": 69586,
+            "Expression": "ServiceMark.EncarDiagnosisP1.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "EncarDiagnosisP2",
+            "DisplayValue": "엔카진단++",
+            "Action": "(And.Hidden.N._.CarType.Y._.ServiceMark.EncarDiagnosisP2.)",
+            "Count": 4729,
+            "Expression": "ServiceMark.EncarDiagnosisP2.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "ServiceMark",
+        "DisplayName": "엔카진단",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "And",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "InspectionDirect",
+            "DisplayValue": "엔카 직영 성능점검",
+            "Action": "(And.Hidden.N._.CarType.Y._.Condition.InspectionDirect.)",
+            "Count": 3885,
+            "Expression": "Condition.InspectionDirect.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Inspection",
+            "DisplayValue": "성능기록부",
+            "Action": "(And.Hidden.N._.CarType.Y._.Condition.Inspection.)",
+            "Count": 129565,
+            "Expression": "Condition.Inspection.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Record",
+            "DisplayValue": "보험이력",
+            "Action": "(And.Hidden.N._.CarType.Y._.Condition.Record.)",
+            "Count": 132965,
+            "Expression": "Condition.Record.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Resume",
+            "DisplayValue": "차량 이력 공개",
+            "Action": "(And.Hidden.N._.CarType.Y._.Condition.Resume.)",
+            "Count": 112383,
+            "Expression": "Condition.Resume.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Condition",
+        "DisplayName": "성능/보험 공개",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "Delivery",
+            "DisplayValue": "믿고 배송",
+            "Action": "(And.Hidden.N._.CarType.Y._.BuyType.Delivery.)",
+            "Count": 37691,
+            "Expression": "BuyType.Delivery.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Visit",
+            "DisplayValue": "믿고 방문",
+            "Action": "(And.Hidden.N._.CarType.Y._.BuyType.Visit.)",
+            "Count": 1364,
+            "Expression": "BuyType.Visit.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "BuyType",
+        "DisplayName": "엔카믿고 구매방식",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "A",
+            "DisplayValue": "개인",
+            "Action": "(And.Hidden.N._.CarType.Y._.Separation.A.)",
+            "Count": 705,
+            "Expression": "Separation.A.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "B",
+            "DisplayValue": "딜러",
+            "Action": "(And.Hidden.N._.CarType.Y._.Separation.B.)",
+            "Count": 133868,
+            "Expression": "Separation.B.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "F",
+            "DisplayValue": "브랜드인증",
+            "Action": "(And.Hidden.N._.CarType.Y._.Separation.F.)",
+            "Count": 0,
+            "Expression": "Separation.F.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "R",
+            "DisplayValue": "리스렌트제휴",
+            "Action": "(And.Hidden.N._.CarType.Y._.Separation.R.)",
+            "Count": 225,
+            "Expression": "Separation.R.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Separation",
+        "DisplayName": "판매구분",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "And",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "14",
+            "DisplayValue": "14",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.14.)",
+            "Count": 12267,
+            "Expression": "Hotmarks.14.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "13",
+            "DisplayValue": "13",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.13.)",
+            "Count": 11254,
+            "Expression": "Hotmarks.13.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "15",
+            "DisplayValue": "15",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.15.)",
+            "Count": 10283,
+            "Expression": "Hotmarks.15.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "09",
+            "DisplayValue": "09",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.09.)",
+            "Count": 3723,
+            "Expression": "Hotmarks.09.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "10",
+            "DisplayValue": "10",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.10.)",
+            "Count": 3016,
+            "Expression": "Hotmarks.10.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "17",
+            "DisplayValue": "17",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.17.)",
+            "Count": 2870,
+            "Expression": "Hotmarks.17.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "12",
+            "DisplayValue": "12",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.12.)",
+            "Count": 2546,
+            "Expression": "Hotmarks.12.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "19",
+            "DisplayValue": "19",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.19.)",
+            "Count": 2526,
+            "Expression": "Hotmarks.19.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "24",
+            "DisplayValue": "24",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.24.)",
+            "Count": 1927,
+            "Expression": "Hotmarks.24.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "26",
+            "DisplayValue": "26",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.26.)",
+            "Count": 1484,
+            "Expression": "Hotmarks.26.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "28",
+            "DisplayValue": "28",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.28.)",
+            "Count": 890,
+            "Expression": "Hotmarks.28.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "11",
+            "DisplayValue": "11",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.11.)",
+            "Count": 887,
+            "Expression": "Hotmarks.11.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "20",
+            "DisplayValue": "20",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.20.)",
+            "Count": 807,
+            "Expression": "Hotmarks.20.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "22",
+            "DisplayValue": "22",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.22.)",
+            "Count": 736,
+            "Expression": "Hotmarks.22.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "02",
+            "DisplayValue": "02",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.02.)",
+            "Count": 552,
+            "Expression": "Hotmarks.02.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "29",
+            "DisplayValue": "29",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.29.)",
+            "Count": 543,
+            "Expression": "Hotmarks.29.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "23",
+            "DisplayValue": "23",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.23.)",
+            "Count": 196,
+            "Expression": "Hotmarks.23.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "08",
+            "DisplayValue": "08",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.08.)",
+            "Count": 190,
+            "Expression": "Hotmarks.08.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "03",
+            "DisplayValue": "03",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.03.)",
+            "Count": 140,
+            "Expression": "Hotmarks.03.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "04",
+            "DisplayValue": "04",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.04.)",
+            "Count": 135,
+            "Expression": "Hotmarks.04.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "18",
+            "DisplayValue": "18",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.18.)",
+            "Count": 56,
+            "Expression": "Hotmarks.18.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "06",
+            "DisplayValue": "06",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.06.)",
+            "Count": 31,
+            "Expression": "Hotmarks.06.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "21",
+            "DisplayValue": "21",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.21.)",
+            "Count": 24,
+            "Expression": "Hotmarks.21.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "05",
+            "DisplayValue": "05",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.05.)",
+            "Count": 13,
+            "Expression": "Hotmarks.05.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "07",
+            "DisplayValue": "07",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.07.)",
+            "Count": 3,
+            "Expression": "Hotmarks.07.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "27",
+            "DisplayValue": "27",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.27.)",
+            "Count": 2,
+            "Expression": "Hotmarks.27.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "01",
+            "DisplayValue": "01",
+            "Action": "(And.Hidden.N._.CarType.Y._.Hotmarks.01.)",
+            "Count": 1,
+            "Expression": "Hotmarks.01.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Hotmarks",
+        "DisplayName": "핫마크",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "r0002",
+            "DisplayValue": "2만 km 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Mileage.r0002.)",
+            "Count": 11359,
+            "Expression": "Mileage.r0002.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "r0204",
+            "DisplayValue": "2만 ~ 4만 km 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Mileage.r0204.)",
+            "Count": 16193,
+            "Expression": "Mileage.r0204.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "r0406",
+            "DisplayValue": "4만 ~ 6만 km 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Mileage.r0406.)",
+            "Count": 18789,
+            "Expression": "Mileage.r0406.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "r0608",
+            "DisplayValue": "6만 ~ 8만 km 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Mileage.r0608.)",
+            "Count": 18653,
+            "Expression": "Mileage.r0608.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "r0810",
+            "DisplayValue": "8만 ~ 10만 km 미만",
+            "Action": "(And.Hidden.N._.CarType.Y._.Mileage.r0810.)",
+            "Count": 18428,
+            "Expression": "Mileage.r0810.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "r1099",
+            "DisplayValue": "10만 km 이상",
+            "Action": "(And.Hidden.N._.CarType.Y._.Mileage.r1099.)",
+            "Count": 53226,
+            "Expression": "Mileage.r1099.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Mileage",
+        "DisplayName": "주행거리",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "2인승 이하",
+            "DisplayValue": "2인승 이하",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.2인승 이하.)",
+            "Count": 1617,
+            "Expression": "SeatingCapacity.2인승 이하.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "3인승",
+            "DisplayValue": "3인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.3인승.)",
+            "Count": 822,
+            "Expression": "SeatingCapacity.3인승.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "4인승",
+            "DisplayValue": "4인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.4인승.)",
+            "Count": 2926,
+            "Expression": "SeatingCapacity.4인승.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "5인승",
+            "DisplayValue": "5인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.5인승.)",
+            "Count": 103013,
+            "Expression": "SeatingCapacity.5인승.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "6인승",
+            "DisplayValue": "6인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.6인승.)",
+            "Count": 2845,
+            "Expression": "SeatingCapacity.6인승.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "7인승",
+            "DisplayValue": "7인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.7인승.)",
+            "Count": 12546,
+            "Expression": "SeatingCapacity.7인승.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "8인승",
+            "DisplayValue": "8인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.8인승.)",
+            "Count": 665,
+            "Expression": "SeatingCapacity.8인승.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "9인승",
+            "DisplayValue": "9인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.9인승.)",
+            "Count": 8990,
+            "Expression": "SeatingCapacity.9인승.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "10인승 이상",
+            "DisplayValue": "10인승 이상",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatingCapacity.10인승 이상.)",
+            "Count": 2697,
+            "Expression": "SeatingCapacity.10인승 이상.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "SeatingCapacity",
+        "DisplayName": "인승",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "흰색",
+            "DisplayValue": "흰색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.흰색.)",
+            "Count": 54079,
+            "Expression": "Color.흰색.",
+            "Metadata": {
+              "Expression": [
+                "#ffffff;#ffffff"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "검정색",
+            "DisplayValue": "검정색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.검정색.)",
+            "Count": 31786,
+            "Expression": "Color.검정색.",
+            "Metadata": {
+              "Expression": [
+                "#000000;#000000"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "쥐색",
+            "DisplayValue": "쥐색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.쥐색.)",
+            "Count": 22621,
+            "Expression": "Color.쥐색.",
+            "Metadata": {
+              "Expression": [
+                "#585A59;#585A59"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "은색",
+            "DisplayValue": "은색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.은색.)",
+            "Count": 7047,
+            "Expression": "Color.은색.",
+            "Metadata": {
+              "Expression": [
+                "#C0C0C0;#C0C0C0"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "청색",
+            "DisplayValue": "청색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.청색.)",
+            "Count": 6782,
+            "Expression": "Color.청색.",
+            "Metadata": {
+              "Expression": [
+                "#124280;#124280"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "은회색",
+            "DisplayValue": "은회색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.은회색.)",
+            "Count": 3727,
+            "Expression": "Color.은회색.",
+            "Metadata": {
+              "Expression": [
+                "#D3D3D3;#D3D3D3"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "진주색",
+            "DisplayValue": "진주색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.진주색.)",
+            "Count": 2845,
+            "Expression": "Color.진주색.",
+            "Metadata": {
+              "Expression": [
+                "#FFFAFA;#FFFAFA"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "빨간색",
+            "DisplayValue": "빨간색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.빨간색.)",
+            "Count": 1737,
+            "Expression": "Color.빨간색.",
+            "Metadata": {
+              "Expression": [
+                "#ff0000;#ff0000"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "하늘색",
+            "DisplayValue": "하늘색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.하늘색.)",
+            "Count": 890,
+            "Expression": "Color.하늘색.",
+            "Metadata": {
+              "Expression": [
+                "#75919C;#75919C"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "녹색",
+            "DisplayValue": "녹색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.녹색.)",
+            "Count": 753,
+            "Expression": "Color.녹색.",
+            "Metadata": {
+              "Expression": [
+                "#00cc00;#00cc00"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "갈색",
+            "DisplayValue": "갈색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.갈색.)",
+            "Count": 744,
+            "Expression": "Color.갈색.",
+            "Metadata": {
+              "Expression": [
+                "#3D3624;#3D3624"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "노란색",
+            "DisplayValue": "노란색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.노란색.)",
+            "Count": 681,
+            "Expression": "Color.노란색.",
+            "Metadata": {
+              "Expression": [
+                "#ffff00;#ffff00"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "담녹색",
+            "DisplayValue": "담녹색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.담녹색.)",
+            "Count": 594,
+            "Expression": "Color.담녹색.",
+            "Metadata": {
+              "Expression": [
+                "#1D444B;#1D444B"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "연두색",
+            "DisplayValue": "연두색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.연두색.)",
+            "Count": 353,
+            "Expression": "Color.연두색.",
+            "Metadata": {
+              "Expression": [
+                "#9AB95C;#9AB95C"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "연금색",
+            "DisplayValue": "연금색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.연금색.)",
+            "Count": 331,
+            "Expression": "Color.연금색.",
+            "Metadata": {
+              "Expression": [
+                "#8E8574;#8E8574"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "명은색",
+            "DisplayValue": "명은색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.명은색.)",
+            "Count": 312,
+            "Expression": "Color.명은색.",
+            "Metadata": {
+              "Expression": [
+                "#CFD8E7;#CFD8E7"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "자주색",
+            "DisplayValue": "자주색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.자주색.)",
+            "Count": 198,
+            "Expression": "Color.자주색.",
+            "Metadata": {
+              "Expression": [
+                "#800080;#800080"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "은하색",
+            "DisplayValue": "은하색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.은하색.)",
+            "Count": 183,
+            "Expression": "Color.은하색.",
+            "Metadata": {
+              "Expression": [
+                "#A6B2B0;#A6B2B0"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "갈대색",
+            "DisplayValue": "갈대색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.갈대색.)",
+            "Count": 175,
+            "Expression": "Color.갈대색.",
+            "Metadata": {
+              "Expression": [
+                "#808275;#808275"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "주황색",
+            "DisplayValue": "주황색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.주황색.)",
+            "Count": 147,
+            "Expression": "Color.주황색.",
+            "Metadata": {
+              "Expression": [
+                "#A94828;#A94828"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "청옥색",
+            "DisplayValue": "청옥색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.청옥색.)",
+            "Count": 141,
+            "Expression": "Color.청옥색.",
+            "Metadata": {
+              "Expression": [
+                "#1F7D7C;#1F7D7C"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "보라색",
+            "DisplayValue": "보라색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.보라색.)",
+            "Count": 118,
+            "Expression": "Color.보라색.",
+            "Metadata": {
+              "Expression": [
+                "#46293B;#46293B"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "분홍색",
+            "DisplayValue": "분홍색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.분홍색.)",
+            "Count": 118,
+            "Expression": "Color.분홍색.",
+            "Metadata": {
+              "Expression": [
+                "#EECACE;#EECACE"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "검정투톤",
+            "DisplayValue": "검정투톤",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.검정투톤.)",
+            "Count": 76,
+            "Expression": "Color.검정투톤.",
+            "Metadata": {
+              "Expression": [
+                "#000000;#464741"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "흰색투톤",
+            "DisplayValue": "흰색투톤",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.흰색투톤.)",
+            "Count": 76,
+            "Expression": "Color.흰색투톤.",
+            "Metadata": {
+              "Expression": [
+                "#ffffff;#464741"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "은색투톤",
+            "DisplayValue": "은색투톤",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.은색투톤.)",
+            "Count": 63,
+            "Expression": "Color.은색투톤.",
+            "Metadata": {
+              "Expression": [
+                "#c0c0c0;#464741"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "금색",
+            "DisplayValue": "금색",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.금색.)",
+            "Count": 43,
+            "Expression": "Color.금색.",
+            "Metadata": {
+              "Expression": [
+                "#837538;#837538"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "진주투톤",
+            "DisplayValue": "진주투톤",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.진주투톤.)",
+            "Count": 21,
+            "Expression": "Color.진주투톤.",
+            "Metadata": {
+              "Expression": [
+                "#F7F7F5;#464741"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "갈색투톤",
+            "DisplayValue": "갈색투톤",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.갈색투톤.)",
+            "Count": 5,
+            "Expression": "Color.갈색투톤.",
+            "Metadata": {
+              "Expression": [
+                "#3D3624;#464741"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "금색투톤",
+            "DisplayValue": "금색투톤",
+            "Action": "(And.Hidden.N._.CarType.Y._.Color.금색투톤.)",
+            "Count": 1,
+            "Expression": "Color.금색투톤.",
+            "Metadata": {
+              "Expression": [
+                "#837538;#464741"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "Color",
+        "DisplayName": "색상",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "검정색 계열",
+            "DisplayValue": "검정색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.검정색 계열.)",
+            "Count": 86020,
+            "Expression": "SeatColor.검정색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#000000;#000000"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "갈색 계열",
+            "DisplayValue": "갈색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.갈색 계열.)",
+            "Count": 20150,
+            "Expression": "SeatColor.갈색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#DFA46E;#DFA46E"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "베이지색 계열",
+            "DisplayValue": "베이지색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.베이지색 계열.)",
+            "Count": 13865,
+            "Expression": "SeatColor.베이지색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#EFCC97;#EFCC97"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "회색 계열",
+            "DisplayValue": "회색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.회색 계열.)",
+            "Count": 12042,
+            "Expression": "SeatColor.회색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#CCCCCC;#CCCCCC"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "빨간색 계열",
+            "DisplayValue": "빨간색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.빨간색 계열.)",
+            "Count": 1235,
+            "Expression": "SeatColor.빨간색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#D72E36;#D72E36"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "청색 계열",
+            "DisplayValue": "청색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.청색 계열.)",
+            "Count": 1137,
+            "Expression": "SeatColor.청색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#1B359B;#1B359B"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "흰색 계열",
+            "DisplayValue": "흰색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.흰색 계열.)",
+            "Count": 946,
+            "Expression": "SeatColor.흰색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#E9E9E9;#E9E9E9"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "녹색 계열",
+            "DisplayValue": "녹색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.녹색 계열.)",
+            "Count": 855,
+            "Expression": "SeatColor.녹색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#1A9D4E;#1A9D4E"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "주황색 계열",
+            "DisplayValue": "주황색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.주황색 계열.)",
+            "Count": 247,
+            "Expression": "SeatColor.주황색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#EF6225;#EF6225"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "노란색 계열",
+            "DisplayValue": "노란색 계열",
+            "Action": "(And.Hidden.N._.CarType.Y._.SeatColor.노란색 계열.)",
+            "Count": 60,
+            "Expression": "SeatColor.노란색 계열.",
+            "Metadata": {
+              "Expression": [
+                "#f4c43e;#f4c43e"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "SeatColor",
+        "DisplayName": "시트 색상",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "And",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "선루프",
+            "DisplayValue": "선루프",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.선루프.)",
+            "Count": 34508,
+            "Expression": "Options.선루프.",
+            "Metadata": {
+              "Code": [
+                "010"
+              ],
+              "Ordering": [
+                1.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "헤드램프(HID)",
+            "DisplayValue": "헤드램프(HID)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.헤드램프(HID_).)",
+            "Count": 15205,
+            "Expression": "Options.헤드램프(HID_).",
+            "Metadata": {
+              "Code": [
+                "029"
+              ],
+              "Ordering": [
+                2.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "헤드램프(LED)",
+            "DisplayValue": "헤드램프(LED)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.헤드램프(LED_).)",
+            "Count": 71765,
+            "Expression": "Options.헤드램프(LED_).",
+            "Metadata": {
+              "Code": [
+                "075"
+              ],
+              "Ordering": [
+                3.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파워 전동 트렁크",
+            "DisplayValue": "파워 전동 트렁크",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.파워 전동 트렁크.)",
+            "Count": 55729,
+            "Expression": "Options.파워 전동 트렁크.",
+            "Metadata": {
+              "Code": [
+                "059"
+              ],
+              "Ordering": [
+                4.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "고스트 도어 클로징",
+            "DisplayValue": "고스트 도어 클로징",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.고스트 도어 클로징.)",
+            "Count": 4164,
+            "Expression": "Options.고스트 도어 클로징.",
+            "Metadata": {
+              "Code": [
+                "080"
+              ],
+              "Ordering": [
+                5.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전동접이 사이드 미러",
+            "DisplayValue": "전동접이 사이드 미러",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.전동접이 사이드 미러.)",
+            "Count": 132208,
+            "Expression": "Options.전동접이 사이드 미러.",
+            "Metadata": {
+              "Code": [
+                "024"
+              ],
+              "Ordering": [
+                6.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "알루미늄 휠",
+            "DisplayValue": "알루미늄 휠",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.알루미늄 휠.)",
+            "Count": 131886,
+            "Expression": "Options.알루미늄 휠.",
+            "Metadata": {
+              "Code": [
+                "017"
+              ],
+              "Ordering": [
+                7.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "루프랙",
+            "DisplayValue": "루프랙",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.루프랙.)",
+            "Count": 60770,
+            "Expression": "Options.루프랙.",
+            "Metadata": {
+              "Code": [
+                "062"
+              ],
+              "Ordering": [
+                8.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "열선 스티어링 휠",
+            "DisplayValue": "열선 스티어링 휠",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.열선 스티어링 휠.)",
+            "Count": 111622,
+            "Expression": "Options.열선 스티어링 휠.",
+            "Metadata": {
+              "Code": [
+                "082"
+              ],
+              "Ordering": [
+                9.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전동 조절 스티어링 휠",
+            "DisplayValue": "전동 조절 스티어링 휠",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.전동 조절 스티어링 휠.)",
+            "Count": 28967,
+            "Expression": "Options.전동 조절 스티어링 휠.",
+            "Metadata": {
+              "Code": [
+                "083"
+              ],
+              "Ordering": [
+                10.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "패들 시프트",
+            "DisplayValue": "패들 시프트",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.패들 시프트.)",
+            "Count": 60679,
+            "Expression": "Options.패들 시프트.",
+            "Metadata": {
+              "Code": [
+                "084"
+              ],
+              "Ordering": [
+                11.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스티어링 휠 리모컨",
+            "DisplayValue": "스티어링 휠 리모컨",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.스티어링 휠 리모컨.)",
+            "Count": 130857,
+            "Expression": "Options.스티어링 휠 리모컨.",
+            "Metadata": {
+              "Code": [
+                "031"
+              ],
+              "Ordering": [
+                12.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "ECM 룸미러",
+            "DisplayValue": "ECM 룸미러",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.ECM 룸미러.)",
+            "Count": 105622,
+            "Expression": "Options.ECM 룸미러.",
+            "Metadata": {
+              "Code": [
+                "030"
+              ],
+              "Ordering": [
+                13.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "하이패스",
+            "DisplayValue": "하이패스",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.하이패스.)",
+            "Count": 113280,
+            "Expression": "Options.하이패스.",
+            "Metadata": {
+              "Code": [
+                "074"
+              ],
+              "Ordering": [
+                14.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파워 도어록",
+            "DisplayValue": "파워 도어록",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.파워 도어록.)",
+            "Count": 135257,
+            "Expression": "Options.파워 도어록.",
+            "Metadata": {
+              "Code": [
+                "006"
+              ],
+              "Ordering": [
+                15.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파워 스티어링 휠",
+            "DisplayValue": "파워 스티어링 휠",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.파워 스티어링 휠.)",
+            "Count": 135368,
+            "Expression": "Options.파워 스티어링 휠.",
+            "Metadata": {
+              "Code": [
+                "008"
+              ],
+              "Ordering": [
+                16.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파워 윈도우",
+            "DisplayValue": "파워 윈도우",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.파워 윈도우.)",
+            "Count": 135796,
+            "Expression": "Options.파워 윈도우.",
+            "Metadata": {
+              "Code": [
+                "007"
+              ],
+              "Ordering": [
+                17.0
+              ],
+              "Expression": [
+                "외관/내장"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "에어백(운전석)",
+            "DisplayValue": "에어백(운전석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.에어백(운전석_).)",
+            "Count": 135716,
+            "Expression": "Options.에어백(운전석_).",
+            "Metadata": {
+              "Code": [
+                "026"
+              ],
+              "Ordering": [
+                1.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "에어백(동승석)",
+            "DisplayValue": "에어백(동승석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.에어백(동승석_).)",
+            "Count": 134009,
+            "Expression": "Options.에어백(동승석_).",
+            "Metadata": {
+              "Code": [
+                "027"
+              ],
+              "Ordering": [
+                2.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "에어백(사이드)",
+            "DisplayValue": "에어백(사이드)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.에어백(사이드_).)",
+            "Count": 126870,
+            "Expression": "Options.에어백(사이드_).",
+            "Metadata": {
+              "Code": [
+                "020"
+              ],
+              "Ordering": [
+                3.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "에어백(커튼)",
+            "DisplayValue": "에어백(커튼)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.에어백(커튼_).)",
+            "Count": 122816,
+            "Expression": "Options.에어백(커튼_).",
+            "Metadata": {
+              "Code": [
+                "056"
+              ],
+              "Ordering": [
+                4.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "브레이크 잠김 방지(ABS)",
+            "DisplayValue": "브레이크 잠김 방지(ABS)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.브레이크 잠김 방지(ABS_).)",
+            "Count": 134766,
+            "Expression": "Options.브레이크 잠김 방지(ABS_).",
+            "Metadata": {
+              "Code": [
+                "001"
+              ],
+              "Ordering": [
+                5.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "미끄럼 방지(TCS)",
+            "DisplayValue": "미끄럼 방지(TCS)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.미끄럼 방지(TCS_).)",
+            "Count": 129626,
+            "Expression": "Options.미끄럼 방지(TCS_).",
+            "Metadata": {
+              "Code": [
+                "019"
+              ],
+              "Ordering": [
+                6.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "차체자세 제어장치(ESC)",
+            "DisplayValue": "차체자세 제어장치(ESC)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.차체자세 제어장치(ESC_).)",
+            "Count": 129217,
+            "Expression": "Options.차체자세 제어장치(ESC_).",
+            "Metadata": {
+              "Code": [
+                "055"
+              ],
+              "Ordering": [
+                7.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "타이어 공기압센서(TPMS)",
+            "DisplayValue": "타이어 공기압센서(TPMS)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.타이어 공기압센서(TPMS_).)",
+            "Count": 121955,
+            "Expression": "Options.타이어 공기압센서(TPMS_).",
+            "Metadata": {
+              "Code": [
+                "033"
+              ],
+              "Ordering": [
+                8.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "차선이탈 경보 시스템(LDWS)",
+            "DisplayValue": "차선이탈 경보 시스템(LDWS)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.차선이탈 경보 시스템(LDWS_).)",
+            "Count": 83121,
+            "Expression": "Options.차선이탈 경보 시스템(LDWS_).",
+            "Metadata": {
+              "Code": [
+                "088"
+              ],
+              "Ordering": [
+                9.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전자제어 서스펜션(ECS)",
+            "DisplayValue": "전자제어 서스펜션(ECS)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.전자제어 서스펜션(ECS_).)",
+            "Count": 10444,
+            "Expression": "Options.전자제어 서스펜션(ECS_).",
+            "Metadata": {
+              "Code": [
+                "002"
+              ],
+              "Ordering": [
+                10.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "주차감지센서(전방)",
+            "DisplayValue": "주차감지센서(전방)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.주차감지센서(전방_).)",
+            "Count": 85797,
+            "Expression": "Options.주차감지센서(전방_).",
+            "Metadata": {
+              "Code": [
+                "085"
+              ],
+              "Ordering": [
+                11.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "주차감지센서(후방)",
+            "DisplayValue": "주차감지센서(후방)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.주차감지센서(후방_).)",
+            "Count": 133929,
+            "Expression": "Options.주차감지센서(후방_).",
+            "Metadata": {
+              "Code": [
+                "032"
+              ],
+              "Ordering": [
+                12.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "후측방 경보 시스템",
+            "DisplayValue": "후측방 경보 시스템",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.후측방 경보 시스템.)",
+            "Count": 73838,
+            "Expression": "Options.후측방 경보 시스템.",
+            "Metadata": {
+              "Code": [
+                "086"
+              ],
+              "Ordering": [
+                13.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "후방 카메라",
+            "DisplayValue": "후방 카메라",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.후방 카메라.)",
+            "Count": 126391,
+            "Expression": "Options.후방 카메라.",
+            "Metadata": {
+              "Code": [
+                "058"
+              ],
+              "Ordering": [
+                14.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "360도 어라운드 뷰",
+            "DisplayValue": "360도 어라운드 뷰",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.360도 어라운드 뷰.)",
+            "Count": 43915,
+            "Expression": "Options.360도 어라운드 뷰.",
+            "Metadata": {
+              "Code": [
+                "087"
+              ],
+              "Ordering": [
+                15.0
+              ],
+              "Expression": [
+                "안전"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "크루즈 컨트롤(일반)",
+            "DisplayValue": "크루즈 컨트롤(일반)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.크루즈 컨트롤(일반_).)",
+            "Count": 51182,
+            "Expression": "Options.크루즈 컨트롤(일반_).",
+            "Metadata": {
+              "Code": [
+                "068"
+              ],
+              "Ordering": [
+                1.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "크루즈 컨트롤(어댑티브)",
+            "DisplayValue": "크루즈 컨트롤(어댑티브)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.크루즈 컨트롤(어댑티브_).)",
+            "Count": 64866,
+            "Expression": "Options.크루즈 컨트롤(어댑티브_).",
+            "Metadata": {
+              "Code": [
+                "079"
+              ],
+              "Ordering": [
+                2.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "헤드업 디스플레이(HUD)",
+            "DisplayValue": "헤드업 디스플레이(HUD)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.헤드업 디스플레이(HUD_).)",
+            "Count": 29454,
+            "Expression": "Options.헤드업 디스플레이(HUD_).",
+            "Metadata": {
+              "Code": [
+                "095"
+              ],
+              "Ordering": [
+                3.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전자식 주차브레이크(EPB)",
+            "DisplayValue": "전자식 주차브레이크(EPB)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.전자식 주차브레이크(EPB_).)",
+            "Count": 84672,
+            "Expression": "Options.전자식 주차브레이크(EPB_).",
+            "Metadata": {
+              "Code": [
+                "094"
+              ],
+              "Ordering": [
+                4.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "자동 에어컨",
+            "DisplayValue": "자동 에어컨",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.자동 에어컨.)",
+            "Count": 113522,
+            "Expression": "Options.자동 에어컨.",
+            "Metadata": {
+              "Code": [
+                "023"
+              ],
+              "Ordering": [
+                5.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스마트키",
+            "DisplayValue": "스마트키",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.스마트키.)",
+            "Count": 121350,
+            "Expression": "Options.스마트키.",
+            "Metadata": {
+              "Code": [
+                "057"
+              ],
+              "Ordering": [
+                6.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "무선도어 잠금장치",
+            "DisplayValue": "무선도어 잠금장치",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.무선도어 잠금장치.)",
+            "Count": 134137,
+            "Expression": "Options.무선도어 잠금장치.",
+            "Metadata": {
+              "Code": [
+                "015"
+              ],
+              "Ordering": [
+                7.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "레인센서",
+            "DisplayValue": "레인센서",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.레인센서.)",
+            "Count": 76980,
+            "Expression": "Options.레인센서.",
+            "Metadata": {
+              "Code": [
+                "081"
+              ],
+              "Ordering": [
+                8.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "오토 라이트",
+            "DisplayValue": "오토 라이트",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.오토 라이트.)",
+            "Count": 126206,
+            "Expression": "Options.오토 라이트.",
+            "Metadata": {
+              "Code": [
+                "097"
+              ],
+              "Ordering": [
+                9.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "커튼/블라인드(뒷좌석)",
+            "DisplayValue": "커튼/블라인드(뒷좌석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.커튼/블라인드(뒷좌석_).)",
+            "Count": 41843,
+            "Expression": "Options.커튼/블라인드(뒷좌석_).",
+            "Metadata": {
+              "Code": [
+                "092"
+              ],
+              "Ordering": [
+                10.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "커튼/블라인드(후방)",
+            "DisplayValue": "커튼/블라인드(후방)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.커튼/블라인드(후방_).)",
+            "Count": 15132,
+            "Expression": "Options.커튼/블라인드(후방_).",
+            "Metadata": {
+              "Code": [
+                "093"
+              ],
+              "Ordering": [
+                11.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "내비게이션",
+            "DisplayValue": "내비게이션",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.내비게이션.)",
+            "Count": 116768,
+            "Expression": "Options.내비게이션.",
+            "Metadata": {
+              "Code": [
+                "005"
+              ],
+              "Ordering": [
+                12.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "앞좌석 AV 모니터",
+            "DisplayValue": "앞좌석 AV 모니터",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.앞좌석 AV 모니터.)",
+            "Count": 114344,
+            "Expression": "Options.앞좌석 AV 모니터.",
+            "Metadata": {
+              "Code": [
+                "004"
+              ],
+              "Ordering": [
+                13.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "뒷좌석 AV 모니터",
+            "DisplayValue": "뒷좌석 AV 모니터",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.뒷좌석 AV 모니터.)",
+            "Count": 4005,
+            "Expression": "Options.뒷좌석 AV 모니터.",
+            "Metadata": {
+              "Code": [
+                "054"
+              ],
+              "Ordering": [
+                14.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "블루투스",
+            "DisplayValue": "블루투스",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.블루투스.)",
+            "Count": 128405,
+            "Expression": "Options.블루투스.",
+            "Metadata": {
+              "Code": [
+                "096"
+              ],
+              "Ordering": [
+                15.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "CD 플레이어",
+            "DisplayValue": "CD 플레이어",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.CD 플레이어.)",
+            "Count": 33663,
+            "Expression": "Options.CD 플레이어.",
+            "Metadata": {
+              "Code": [
+                "003"
+              ],
+              "Ordering": [
+                16.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "USB 단자",
+            "DisplayValue": "USB 단자",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.USB 단자.)",
+            "Count": 133526,
+            "Expression": "Options.USB 단자.",
+            "Metadata": {
+              "Code": [
+                "072"
+              ],
+              "Ordering": [
+                17.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "AUX 단자",
+            "DisplayValue": "AUX 단자",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.AUX 단자.)",
+            "Count": 63141,
+            "Expression": "Options.AUX 단자.",
+            "Metadata": {
+              "Code": [
+                "071"
+              ],
+              "Ordering": [
+                18.0
+              ],
+              "Expression": [
+                "편의/멀티미디어"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "가죽시트",
+            "DisplayValue": "가죽시트",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.가죽시트.)",
+            "Count": 132618,
+            "Expression": "Options.가죽시트.",
+            "Metadata": {
+              "Code": [
+                "014"
+              ],
+              "Ordering": [
+                1.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전동시트(운전석)",
+            "DisplayValue": "전동시트(운전석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.전동시트(운전석_).)",
+            "Count": 94743,
+            "Expression": "Options.전동시트(운전석_).",
+            "Metadata": {
+              "Code": [
+                "021"
+              ],
+              "Ordering": [
+                2.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전동시트(동승석)",
+            "DisplayValue": "전동시트(동승석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.전동시트(동승석_).)",
+            "Count": 72005,
+            "Expression": "Options.전동시트(동승석_).",
+            "Metadata": {
+              "Code": [
+                "035"
+              ],
+              "Ordering": [
+                3.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전동시트(뒷좌석)",
+            "DisplayValue": "전동시트(뒷좌석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.전동시트(뒷좌석_).)",
+            "Count": 9313,
+            "Expression": "Options.전동시트(뒷좌석_).",
+            "Metadata": {
+              "Code": [
+                "089"
+              ],
+              "Ordering": [
+                4.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "열선시트(앞좌석)",
+            "DisplayValue": "열선시트(앞좌석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.열선시트(앞좌석_).)",
+            "Count": 131801,
+            "Expression": "Options.열선시트(앞좌석_).",
+            "Metadata": {
+              "Code": [
+                "022"
+              ],
+              "Ordering": [
+                5.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "열선시트(뒷좌석)",
+            "DisplayValue": "열선시트(뒷좌석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.열선시트(뒷좌석_).)",
+            "Count": 89192,
+            "Expression": "Options.열선시트(뒷좌석_).",
+            "Metadata": {
+              "Code": [
+                "063"
+              ],
+              "Ordering": [
+                6.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "메모리 시트(운전석)",
+            "DisplayValue": "메모리 시트(운전석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.메모리 시트(운전석_).)",
+            "Count": 54120,
+            "Expression": "Options.메모리 시트(운전석_).",
+            "Metadata": {
+              "Code": [
+                "051"
+              ],
+              "Ordering": [
+                7.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "메모리 시트(동승석)",
+            "DisplayValue": "메모리 시트(동승석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.메모리 시트(동승석_).)",
+            "Count": 4543,
+            "Expression": "Options.메모리 시트(동승석_).",
+            "Metadata": {
+              "Code": [
+                "078"
+              ],
+              "Ordering": [
+                8.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "통풍시트(운전석)",
+            "DisplayValue": "통풍시트(운전석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.통풍시트(운전석_).)",
+            "Count": 95383,
+            "Expression": "Options.통풍시트(운전석_).",
+            "Metadata": {
+              "Code": [
+                "034"
+              ],
+              "Ordering": [
+                9.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "통풍시트(동승석)",
+            "DisplayValue": "통풍시트(동승석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.통풍시트(동승석_).)",
+            "Count": 86169,
+            "Expression": "Options.통풍시트(동승석_).",
+            "Metadata": {
+              "Code": [
+                "077"
+              ],
+              "Ordering": [
+                10.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "통풍시트(뒷좌석)",
+            "DisplayValue": "통풍시트(뒷좌석)",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.통풍시트(뒷좌석_).)",
+            "Count": 14730,
+            "Expression": "Options.통풍시트(뒷좌석_).",
+            "Metadata": {
+              "Code": [
+                "090"
+              ],
+              "Ordering": [
+                11.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "마사지 시트",
+            "DisplayValue": "마사지 시트",
+            "Action": "(And.Hidden.N._.CarType.Y._.Options.마사지 시트.)",
+            "Count": 9698,
+            "Expression": "Options.마사지 시트.",
+            "Metadata": {
+              "Code": [
+                "091"
+              ],
+              "Ordering": [
+                12.0
+              ],
+              "Expression": [
+                "시트"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "Options",
+        "DisplayName": "옵션",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "And",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "기본",
+            "DisplayValue": "기본",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.기본.)",
+            "Count": 3612,
+            "Expression": "JatoOptions.기본.",
+            "Metadata": {
+              "Expression": [
+                "스포츠 패키지"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스포츠",
+            "DisplayValue": "스포츠",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스포츠.)",
+            "Count": 680,
+            "Expression": "JatoOptions.스포츠.",
+            "Metadata": {
+              "Expression": [
+                "스포츠 패키지"
+              ],
+              "Type": [
+                "01"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "유광",
+            "DisplayValue": "유광",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.유광.)",
+            "Count": 9185,
+            "Expression": "JatoOptions.유광.",
+            "Metadata": {
+              "Expression": [
+                "외장 컬러"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "무광",
+            "DisplayValue": "무광",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.무광.)",
+            "Count": 280,
+            "Expression": "JatoOptions.무광.",
+            "Metadata": {
+              "Expression": [
+                "외장 컬러"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "유광 (스페셜 컬러)",
+            "DisplayValue": "유광 (스페셜 컬러)",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.유광 (스페셜 컬러_).)",
+            "Count": 9,
+            "Expression": "JatoOptions.유광 (스페셜 컬러_).",
+            "Metadata": {
+              "Expression": [
+                "외장 컬러"
+              ],
+              "Type": [
+                "02"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "19인치",
+            "DisplayValue": "19인치",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.19인치.)",
+            "Count": 4893,
+            "Expression": "JatoOptions.19인치.",
+            "Metadata": {
+              "Expression": [
+                "휠 타입"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "18인치",
+            "DisplayValue": "18인치",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.18인치.)",
+            "Count": 4262,
+            "Expression": "JatoOptions.18인치.",
+            "Metadata": {
+              "Expression": [
+                "휠 타입"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "20인치",
+            "DisplayValue": "20인치",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.20인치.)",
+            "Count": 2479,
+            "Expression": "JatoOptions.20인치.",
+            "Metadata": {
+              "Expression": [
+                "휠 타입"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "22인치",
+            "DisplayValue": "22인치",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.22인치.)",
+            "Count": 1343,
+            "Expression": "JatoOptions.22인치.",
+            "Metadata": {
+              "Expression": [
+                "휠 타입"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "21인치",
+            "DisplayValue": "21인치",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.21인치.)",
+            "Count": 485,
+            "Expression": "JatoOptions.21인치.",
+            "Metadata": {
+              "Expression": [
+                "휠 타입"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "17인치",
+            "DisplayValue": "17인치",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.17인치.)",
+            "Count": 12,
+            "Expression": "JatoOptions.17인치.",
+            "Metadata": {
+              "Expression": [
+                "휠 타입"
+              ],
+              "Type": [
+                "03"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "5인승",
+            "DisplayValue": "5인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.5인승.)",
+            "Count": 3028,
+            "Expression": "JatoOptions.5인승.",
+            "Metadata": {
+              "Expression": [
+                "시트 구성"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "7인승",
+            "DisplayValue": "7인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.7인승.)",
+            "Count": 337,
+            "Expression": "JatoOptions.7인승.",
+            "Metadata": {
+              "Expression": [
+                "시트 구성"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "VIP 시트 (4인승)",
+            "DisplayValue": "VIP 시트 (4인승)",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.VIP 시트 (4인승_).)",
+            "Count": 308,
+            "Expression": "JatoOptions.VIP 시트 (4인승_).",
+            "Metadata": {
+              "Expression": [
+                "시트 구성"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "6인승",
+            "DisplayValue": "6인승",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.6인승.)",
+            "Count": 265,
+            "Expression": "JatoOptions.6인승.",
+            "Metadata": {
+              "Expression": [
+                "시트 구성"
+              ],
+              "Type": [
+                "04"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스탠다드 디자인",
+            "DisplayValue": "스탠다드 디자인",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스탠다드 디자인.)",
+            "Count": 8706,
+            "Expression": "JatoOptions.스탠다드 디자인.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스포츠 스탠다드 디자인",
+            "DisplayValue": "스포츠 스탠다드 디자인",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스포츠 스탠다드 디자인.)",
+            "Count": 3975,
+            "Expression": "JatoOptions.스포츠 스탠다드 디자인.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션 II",
+            "DisplayValue": "시그니쳐 디자인 셀렉션 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션 II.)",
+            "Count": 3061,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션 II.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션 I",
+            "DisplayValue": "시그니쳐 디자인 셀렉션 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션 I.)",
+            "Count": 1375,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션 I.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션",
+            "DisplayValue": "시그니쳐 디자인 셀렉션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션.)",
+            "Count": 701,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스포츠 디자인 셀렉션",
+            "DisplayValue": "스포츠 디자인 셀렉션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스포츠 디자인 셀렉션.)",
+            "Count": 231,
+            "Expression": "JatoOptions.스포츠 디자인 셀렉션.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스포츠 디자인 셀렉션 II",
+            "DisplayValue": "스포츠 디자인 셀렉션 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스포츠 디자인 셀렉션 II.)",
+            "Count": 225,
+            "Expression": "JatoOptions.스포츠 디자인 셀렉션 II.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "쿠페 디자인 셀렉션 ll",
+            "DisplayValue": "쿠페 디자인 셀렉션 ll",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.쿠페 디자인 셀렉션 ll.)",
+            "Count": 106,
+            "Expression": "JatoOptions.쿠페 디자인 셀렉션 ll.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션 I+렉시콘 사운드",
+            "DisplayValue": "시그니쳐 디자인 셀렉션 I+렉시콘 사운드",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션 I+렉시콘 사운드.)",
+            "Count": 104,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션 I+렉시콘 사운드.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "천연가죽 패키지",
+            "DisplayValue": "천연가죽 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.천연가죽 패키지.)",
+            "Count": 89,
+            "Expression": "JatoOptions.천연가죽 패키지.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스포츠 디자인 셀렉션 I",
+            "DisplayValue": "스포츠 디자인 셀렉션 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스포츠 디자인 셀렉션 I.)",
+            "Count": 83,
+            "Expression": "JatoOptions.스포츠 디자인 셀렉션 I.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션 & G-MATRIX 패턴",
+            "DisplayValue": "시그니쳐 디자인 셀렉션 & G-MATRIX 패턴",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션 & G-MATRIX 패턴.)",
+            "Count": 43,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션 & G-MATRIX 패턴.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션 II & 렉시콘 사운드",
+            "DisplayValue": "시그니쳐 디자인 셀렉션 II & 렉시콘 사운드",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션 II & 렉시콘 사운드.)",
+            "Count": 37,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션 II & 렉시콘 사운드.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "쿠페 디자인 셀렉션 I",
+            "DisplayValue": "쿠페 디자인 셀렉션 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.쿠페 디자인 셀렉션 I.)",
+            "Count": 35,
+            "Expression": "JatoOptions.쿠페 디자인 셀렉션 I.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션 III & 렉시콘 사운드",
+            "DisplayValue": "시그니쳐 디자인 셀렉션 III & 렉시콘 사운드",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션 III & 렉시콘 사운드.)",
+            "Count": 30,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션 III & 렉시콘 사운드.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "G-MATRIX 패턴",
+            "DisplayValue": "G-MATRIX 패턴",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.G-MATRIX 패턴.)",
+            "Count": 13,
+            "Expression": "JatoOptions.G-MATRIX 패턴.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "퍼포먼스 스탠다드 디자인",
+            "DisplayValue": "퍼포먼스 스탠다드 디자인",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.퍼포먼스 스탠다드 디자인.)",
+            "Count": 7,
+            "Expression": "JatoOptions.퍼포먼스 스탠다드 디자인.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "퍼포먼스 디자인 셀렉션",
+            "DisplayValue": "퍼포먼스 디자인 셀렉션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.퍼포먼스 디자인 셀렉션.)",
+            "Count": 6,
+            "Expression": "JatoOptions.퍼포먼스 디자인 셀렉션.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시그니쳐 디자인 셀렉션(X)",
+            "DisplayValue": "시그니쳐 디자인 셀렉션(X)",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시그니쳐 디자인 셀렉션(X_).)",
+            "Count": 3,
+            "Expression": "JatoOptions.시그니쳐 디자인 셀렉션(X_).",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스포츠 디자인 셀렉션 III",
+            "DisplayValue": "스포츠 디자인 셀렉션 III",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스포츠 디자인 셀렉션 III.)",
+            "Count": 2,
+            "Expression": "JatoOptions.스포츠 디자인 셀렉션 III.",
+            "Metadata": {
+              "Expression": [
+                "내장 디자인"
+              ],
+              "Type": [
+                "05"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파퓰러 패키지",
+            "DisplayValue": "파퓰러 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.파퓰러 패키지.)",
+            "Count": 4223,
+            "Expression": "JatoOptions.파퓰러 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "빌트인 캠 패키지",
+            "DisplayValue": "빌트인 캠 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.빌트인 캠 패키지.)",
+            "Count": 3640,
+            "Expression": "JatoOptions.빌트인 캠 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "컨비니언스 패키지",
+            "DisplayValue": "컨비니언스 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.컨비니언스 패키지.)",
+            "Count": 2188,
+            "Expression": "JatoOptions.컨비니언스 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "드라이빙 어시스턴스 패키지 II",
+            "DisplayValue": "드라이빙 어시스턴스 패키지 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.드라이빙 어시스턴스 패키지 II.)",
+            "Count": 2158,
+            "Expression": "JatoOptions.드라이빙 어시스턴스 패키지 II.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "드라이빙 어시스턴스 패키지 I",
+            "DisplayValue": "드라이빙 어시스턴스 패키지 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.드라이빙 어시스턴스 패키지 I.)",
+            "Count": 1494,
+            "Expression": "JatoOptions.드라이빙 어시스턴스 패키지 I.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "렉시콘 사운드 패키지",
+            "DisplayValue": "렉시콘 사운드 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.렉시콘 사운드 패키지.)",
+            "Count": 1356,
+            "Expression": "JatoOptions.렉시콘 사운드 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파퓰러 패키지 I",
+            "DisplayValue": "파퓰러 패키지 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.파퓰러 패키지 I.)",
+            "Count": 973,
+            "Expression": "JatoOptions.파퓰러 패키지 I.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "뱅앤올룹슨 사운드 패키지",
+            "DisplayValue": "뱅앤올룹슨 사운드 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.뱅앤올룹슨 사운드 패키지.)",
+            "Count": 731,
+            "Expression": "JatoOptions.뱅앤올룹슨 사운드 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "하이테크 패키지",
+            "DisplayValue": "하이테크 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.하이테크 패키지.)",
+            "Count": 707,
+            "Expression": "JatoOptions.하이테크 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "2열 컴포트 패키지",
+            "DisplayValue": "2열 컴포트 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.2열 컴포트 패키지.)",
+            "Count": 567,
+            "Expression": "JatoOptions.2열 컴포트 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "스마트 센스 패키지",
+            "DisplayValue": "스마트 센스 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.스마트 센스 패키지.)",
+            "Count": 479,
+            "Expression": "JatoOptions.스마트 센스 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "아웃도어 패키지",
+            "DisplayValue": "아웃도어 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.아웃도어 패키지.)",
+            "Count": 428,
+            "Expression": "JatoOptions.아웃도어 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파퓰러 패키지 II",
+            "DisplayValue": "파퓰러 패키지 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.파퓰러 패키지 II.)",
+            "Count": 400,
+            "Expression": "JatoOptions.파퓰러 패키지 II.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "2열 컴포트 패키지 II",
+            "DisplayValue": "2열 컴포트 패키지 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.2열 컴포트 패키지 II.)",
+            "Count": 374,
+            "Expression": "JatoOptions.2열 컴포트 패키지 II.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "뒷좌석 컴포트 패키지",
+            "DisplayValue": "뒷좌석 컴포트 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.뒷좌석 컴포트 패키지.)",
+            "Count": 340,
+            "Expression": "JatoOptions.뒷좌석 컴포트 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "컴포트 패키지",
+            "DisplayValue": "컴포트 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.컴포트 패키지.)",
+            "Count": 331,
+            "Expression": "JatoOptions.컴포트 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "드라이빙 어시스턴스 패키지",
+            "DisplayValue": "드라이빙 어시스턴스 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.드라이빙 어시스턴스 패키지.)",
+            "Count": 291,
+            "Expression": "JatoOptions.드라이빙 어시스턴스 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "프리미엄 컬렉션",
+            "DisplayValue": "프리미엄 컬렉션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.프리미엄 컬렉션.)",
+            "Count": 218,
+            "Expression": "JatoOptions.프리미엄 컬렉션.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "뒷좌석 컴포트 패키지 II",
+            "DisplayValue": "뒷좌석 컴포트 패키지 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.뒷좌석 컴포트 패키지 II.)",
+            "Count": 170,
+            "Expression": "JatoOptions.뒷좌석 컴포트 패키지 II.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "프레스티지 컬렉션",
+            "DisplayValue": "프레스티지 컬렉션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.프레스티지 컬렉션.)",
+            "Count": 162,
+            "Expression": "JatoOptions.프레스티지 컬렉션.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "컴포트 패키지 I",
+            "DisplayValue": "컴포트 패키지 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.컴포트 패키지 I.)",
+            "Count": 148,
+            "Expression": "JatoOptions.컴포트 패키지 I.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "2열 컴포트 패키지 I",
+            "DisplayValue": "2열 컴포트 패키지 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.2열 컴포트 패키지 I.)",
+            "Count": 128,
+            "Expression": "JatoOptions.2열 컴포트 패키지 I.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "뒷좌석 컴포트 패키지 I",
+            "DisplayValue": "뒷좌석 컴포트 패키지 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.뒷좌석 컴포트 패키지 I.)",
+            "Count": 109,
+            "Expression": "JatoOptions.뒷좌석 컴포트 패키지 I.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "컴포트 패키지 II",
+            "DisplayValue": "컴포트 패키지 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.컴포트 패키지 II.)",
+            "Count": 105,
+            "Expression": "JatoOptions.컴포트 패키지 II.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "LED 라이팅 패키지",
+            "DisplayValue": "LED 라이팅 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.LED 라이팅 패키지.)",
+            "Count": 74,
+            "Expression": "JatoOptions.LED 라이팅 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "시트 패키지",
+            "DisplayValue": "시트 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.시트 패키지.)",
+            "Count": 39,
+            "Expression": "JatoOptions.시트 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "라이프 스타일 패키지",
+            "DisplayValue": "라이프 스타일 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.라이프 스타일 패키지.)",
+            "Count": 31,
+            "Expression": "JatoOptions.라이프 스타일 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파퓰러 컬렉션",
+            "DisplayValue": "파퓰러 컬렉션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.파퓰러 컬렉션.)",
+            "Count": 19,
+            "Expression": "JatoOptions.파퓰러 컬렉션.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "다이내믹 패키지",
+            "DisplayValue": "다이내믹 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.다이내믹 패키지.)",
+            "Count": 5,
+            "Expression": "JatoOptions.다이내믹 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "카본 패키지",
+            "DisplayValue": "카본 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.카본 패키지.)",
+            "Count": 5,
+            "Expression": "JatoOptions.카본 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "다이내믹 패키지 l",
+            "DisplayValue": "다이내믹 패키지 l",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.다이내믹 패키지 l.)",
+            "Count": 4,
+            "Expression": "JatoOptions.다이내믹 패키지 l.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "2열 엔터테인먼트 패키지",
+            "DisplayValue": "2열 엔터테인먼트 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.2열 엔터테인먼트 패키지.)",
+            "Count": 2,
+            "Expression": "JatoOptions.2열 엔터테인먼트 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "앞좌석 컴포트 패키지",
+            "DisplayValue": "앞좌석 컴포트 패키지",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.앞좌석 컴포트 패키지.)",
+            "Count": 2,
+            "Expression": "JatoOptions.앞좌석 컴포트 패키지.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "얼티밋 패키지 lll",
+            "DisplayValue": "얼티밋 패키지 lll",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.얼티밋 패키지 lll.)",
+            "Count": 2,
+            "Expression": "JatoOptions.얼티밋 패키지 lll.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "아웃도어 패키지 & 비전루프",
+            "DisplayValue": "아웃도어 패키지 & 비전루프",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.아웃도어 패키지 & 비전루프.)",
+            "Count": 1,
+            "Expression": "JatoOptions.아웃도어 패키지 & 비전루프.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "얼티밋 패키지 l",
+            "DisplayValue": "얼티밋 패키지 l",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.얼티밋 패키지 l.)",
+            "Count": 1,
+            "Expression": "JatoOptions.얼티밋 패키지 l.",
+            "Metadata": {
+              "Expression": [
+                "패키지"
+              ],
+              "Type": [
+                "06"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "파노라마 선루프",
+            "DisplayValue": "파노라마 선루프",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.파노라마 선루프.)",
+            "Count": 4080,
+            "Expression": "JatoOptions.파노라마 선루프.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "헤드업 디스플레이",
+            "DisplayValue": "헤드업 디스플레이",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.헤드업 디스플레이.)",
+            "Count": 1185,
+            "Expression": "JatoOptions.헤드업 디스플레이.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "와이드 선루프",
+            "DisplayValue": "와이드 선루프",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.와이드 선루프.)",
+            "Count": 569,
+            "Expression": "JatoOptions.와이드 선루프.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "세이프티 선루프",
+            "DisplayValue": "세이프티 선루프",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.세이프티 선루프.)",
+            "Count": 381,
+            "Expression": "JatoOptions.세이프티 선루프.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "엑티브 세이프티 컨트롤 II",
+            "DisplayValue": "엑티브 세이프티 컨트롤 II",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.엑티브 세이프티 컨트롤 II.)",
+            "Count": 378,
+            "Expression": "JatoOptions.엑티브 세이프티 컨트롤 II.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "뒷좌석 듀얼 모니터",
+            "DisplayValue": "뒷좌석 듀얼 모니터",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.뒷좌석 듀얼 모니터.)",
+            "Count": 335,
+            "Expression": "JatoOptions.뒷좌석 듀얼 모니터.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "프리뷰 전자제어 서스펜션",
+            "DisplayValue": "프리뷰 전자제어 서스펜션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.프리뷰 전자제어 서스펜션.)",
+            "Count": 294,
+            "Expression": "JatoOptions.프리뷰 전자제어 서스펜션.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "멀티 챔버 에어 서스펜션",
+            "DisplayValue": "멀티 챔버 에어 서스펜션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.멀티 챔버 에어 서스펜션.)",
+            "Count": 277,
+            "Expression": "JatoOptions.멀티 챔버 에어 서스펜션.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "엑티브 세이프티 컨트롤",
+            "DisplayValue": "엑티브 세이프티 컨트롤",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.엑티브 세이프티 컨트롤.)",
+            "Count": 227,
+            "Expression": "JatoOptions.엑티브 세이프티 컨트롤.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "능동형 후륜 조향",
+            "DisplayValue": "능동형 후륜 조향",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.능동형 후륜 조향.)",
+            "Count": 220,
+            "Expression": "JatoOptions.능동형 후륜 조향.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "이지 클로즈 시스템",
+            "DisplayValue": "이지 클로즈 시스템",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.이지 클로즈 시스템.)",
+            "Count": 91,
+            "Expression": "JatoOptions.이지 클로즈 시스템.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전동식 뒷좌석 듀얼모니터",
+            "DisplayValue": "전동식 뒷좌석 듀얼모니터",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.전동식 뒷좌석 듀얼모니터.)",
+            "Count": 52,
+            "Expression": "JatoOptions.전동식 뒷좌석 듀얼모니터.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "비전루프",
+            "DisplayValue": "비전루프",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.비전루프.)",
+            "Count": 42,
+            "Expression": "JatoOptions.비전루프.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "후석 스마트 엔터테인먼트",
+            "DisplayValue": "후석 스마트 엔터테인먼트",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.후석 스마트 엔터테인먼트.)",
+            "Count": 40,
+            "Expression": "JatoOptions.후석 스마트 엔터테인먼트.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "3D 클러스터 (12.3인치)",
+            "DisplayValue": "3D 클러스터 (12.3인치)",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.3D 클러스터 (12_.3인치_).)",
+            "Count": 32,
+            "Expression": "JatoOptions.3D 클러스터 (12_.3인치_).",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "엑티브 세이프티 컨트롤 I",
+            "DisplayValue": "엑티브 세이프티 컨트롤 I",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.엑티브 세이프티 컨트롤 I.)",
+            "Count": 27,
+            "Expression": "JatoOptions.엑티브 세이프티 컨트롤 I.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "후석 스마트 엔터테인먼트 시스템",
+            "DisplayValue": "후석 스마트 엔터테인먼트 시스템",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.후석 스마트 엔터테인먼트 시스템.)",
+            "Count": 21,
+            "Expression": "JatoOptions.후석 스마트 엔터테인먼트 시스템.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "전자제어 서스펜션",
+            "DisplayValue": "전자제어 서스펜션",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.전자제어 서스펜션.)",
+            "Count": 20,
+            "Expression": "JatoOptions.전자제어 서스펜션.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "브렘보 브레이크",
+            "DisplayValue": "브렘보 브레이크",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.브렘보 브레이크.)",
+            "Count": 19,
+            "Expression": "JatoOptions.브렘보 브레이크.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "뱅앤올룹슨 사운드 시스템",
+            "DisplayValue": "뱅앤올룹슨 사운드 시스템",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.뱅앤올룹슨 사운드 시스템.)",
+            "Count": 15,
+            "Expression": "JatoOptions.뱅앤올룹슨 사운드 시스템.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "디지털 사이드 미러",
+            "DisplayValue": "디지털 사이드 미러",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.디지털 사이드 미러.)",
+            "Count": 14,
+            "Expression": "JatoOptions.디지털 사이드 미러.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "솔라루프",
+            "DisplayValue": "솔라루프",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.솔라루프.)",
+            "Count": 8,
+            "Expression": "JatoOptions.솔라루프.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          },
+          {
+            "IsSelected": false,
+            "Value": "후방 충돌 경고",
+            "DisplayValue": "후방 충돌 경고",
+            "Action": "(And.Hidden.N._.CarType.Y._.JatoOptions.후방 충돌 경고.)",
+            "Count": 1,
+            "Expression": "JatoOptions.후방 충돌 경고.",
+            "Metadata": {
+              "Expression": [
+                "선택 품목"
+              ],
+              "Type": [
+                "07"
+              ]
+            }
+          }
+        ],
+        "Metadata": {},
+        "Name": "JatoOptions",
+        "DisplayName": "Jato 옵션",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "G",
+            "DisplayValue": "모바일강조형",
+            "Action": "(And.Hidden.N._.CarType.Y._.AdType.G.)",
+            "Count": 115575,
+            "Expression": "AdType.G.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "B",
+            "DisplayValue": "우대등록",
+            "Action": "(And.Hidden.N._.CarType.Y._.AdType.B.)",
+            "Count": 20011,
+            "Expression": "AdType.B.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "C",
+            "DisplayValue": "핫마크",
+            "Action": "(And.Hidden.N._.CarType.Y._.AdType.C.)",
+            "Count": 19074,
+            "Expression": "AdType.C.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "A",
+            "DisplayValue": "사진우대",
+            "Action": "(And.Hidden.N._.CarType.Y._.AdType.A.)",
+            "Count": 18626,
+            "Expression": "AdType.A.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "E",
+            "DisplayValue": "모바일프리미엄",
+            "Action": "(And.Hidden.N._.CarType.Y._.AdType.E.)",
+            "Count": 11903,
+            "Expression": "AdType.E.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "D",
+            "DisplayValue": "파워팩",
+            "Action": "(And.Hidden.N._.CarType.Y._.AdType.D.)",
+            "Count": 5090,
+            "Expression": "AdType.D.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "F",
+            "DisplayValue": "모바일우대",
+            "Action": "(And.Hidden.N._.CarType.Y._.AdType.F.)",
+            "Count": 513,
+            "Expression": "AdType.F.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "AdType",
+        "DisplayName": "광고구분",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "N",
+            "DisplayValue": "N",
+            "Action": "(And.Hidden.N._.CarType.Y._.Accident.N.)",
+            "Count": 77760,
+            "Expression": "Accident.N.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "F",
+            "DisplayValue": "F",
+            "Action": "(And.Hidden.N._.CarType.Y._.Accident.F.)",
+            "Count": 40470,
+            "Expression": "Accident.F.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "Y",
+            "DisplayValue": "Y",
+            "Action": "(And.Hidden.N._.CarType.Y._.Accident.Y.)",
+            "Count": 11335,
+            "Expression": "Accident.Y.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Accident",
+        "DisplayName": "사고구분",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "1",
+            "DisplayValue": "1",
+            "Action": "(And.Hidden.N._.CarType.Y._.Lease.1.)",
+            "Count": 577,
+            "Expression": "Lease.1.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "2",
+            "DisplayValue": "2",
+            "Action": "(And.Hidden.N._.CarType.Y._.Lease.2.)",
+            "Count": 8,
+            "Expression": "Lease.2.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Lease",
+        "DisplayName": "리스구분",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "None",
+        "RemoveAction": "",
+        "Facets": [],
+        "Metadata": {},
+        "Name": "Exhibition",
+        "DisplayName": "전시장",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "강원 원주단지",
+            "DisplayValue": "강원 원주단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.강원 원주단지.)",
+            "Count": 139,
+            "Expression": "DealerShipNm.강원 원주단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 SAC",
+            "DisplayValue": "경기 SAC",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 SAC.)",
+            "Count": 2,
+            "Expression": "DealerShipNm.경기 SAC.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 SAC1",
+            "DisplayValue": "경기 SAC1",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 SAC1.)",
+            "Count": 3353,
+            "Expression": "DealerShipNm.경기 SAC1.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 SAC2",
+            "DisplayValue": "경기 SAC2",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 SAC2.)",
+            "Count": 928,
+            "Expression": "DealerShipNm.경기 SAC2.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 경기매매단지",
+            "DisplayValue": "경기 경기매매단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 경기매매단지.)",
+            "Count": 1080,
+            "Expression": "DealerShipNm.경기 경기매매단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 김포 국민차매매단지",
+            "DisplayValue": "경기 김포 국민차매매단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 김포 국민차매매단지.)",
+            "Count": 1822,
+            "Expression": "DealerShipNm.경기 김포 국민차매매단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 도이치오토월드1",
+            "DisplayValue": "경기 도이치오토월드1",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 도이치오토월드1.)",
+            "Count": 10637,
+            "Expression": "DealerShipNm.경기 도이치오토월드1.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 도이치오토월드2",
+            "DisplayValue": "경기 도이치오토월드2",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 도이치오토월드2.)",
+            "Count": 826,
+            "Expression": "DealerShipNm.경기 도이치오토월드2.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 라성단지",
+            "DisplayValue": "경기 라성단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 라성단지.)",
+            "Count": 1167,
+            "Expression": "DealerShipNm.경기 라성단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 마트단지",
+            "DisplayValue": "경기 마트단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 마트단지.)",
+            "Count": 1706,
+            "Expression": "DealerShipNm.경기 마트단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 수원모터파크",
+            "DisplayValue": "경기 수원모터파크",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 수원모터파크.)",
+            "Count": 941,
+            "Expression": "DealerShipNm.경기 수원모터파크.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 양주 타이거오토몰",
+            "DisplayValue": "경기 양주 타이거오토몰",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 양주 타이거오토몰.)",
+            "Count": 755,
+            "Expression": "DealerShipNm.경기 양주 타이거오토몰.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 오토돔",
+            "DisplayValue": "경기 오토돔",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 오토돔.)",
+            "Count": 3447,
+            "Expression": "DealerShipNm.경기 오토돔.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 오토허브",
+            "DisplayValue": "경기 오토허브",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 오토허브.)",
+            "Count": 3069,
+            "Expression": "DealerShipNm.경기 오토허브.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 용인모빌월드",
+            "DisplayValue": "경기 용인모빌월드",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 용인모빌월드.)",
+            "Count": 448,
+            "Expression": "DealerShipNm.경기 용인모빌월드.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경기 포천 경기매매단지",
+            "DisplayValue": "경기 포천 경기매매단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경기 포천 경기매매단지.)",
+            "Count": 359,
+            "Expression": "DealerShipNm.경기 포천 경기매매단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경남 KC월드카프라자",
+            "DisplayValue": "경남 KC월드카프라자",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경남 KC월드카프라자.)",
+            "Count": 1844,
+            "Expression": "DealerShipNm.경남 KC월드카프라자.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경남 M모터스프라자",
+            "DisplayValue": "경남 M모터스프라자",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경남 M모터스프라자.)",
+            "Count": 761,
+            "Expression": "DealerShipNm.경남 M모터스프라자.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "경북 포항 중고차 일번지 매매단지",
+            "DisplayValue": "경북 포항 중고차 일번지 매매단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.경북 포항 중고차 일번지 매매단지.)",
+            "Count": 151,
+            "Expression": "DealerShipNm.경북 포항 중고차 일번지 매매단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "광주 엠플러스A",
+            "DisplayValue": "광주 엠플러스A",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.광주 엠플러스A.)",
+            "Count": 2037,
+            "Expression": "DealerShipNm.광주 엠플러스A.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "광주 오토갤러리",
+            "DisplayValue": "광주 오토갤러리",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.광주 오토갤러리.)",
+            "Count": 1286,
+            "Expression": "DealerShipNm.광주 오토갤러리.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "대구 삼공단",
+            "DisplayValue": "대구 삼공단",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.대구 삼공단.)",
+            "Count": 251,
+            "Expression": "DealerShipNm.대구 삼공단.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "대구 오토월드",
+            "DisplayValue": "대구 오토월드",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.대구 오토월드.)",
+            "Count": 1092,
+            "Expression": "DealerShipNm.대구 오토월드.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 1001",
+            "DisplayValue": "부산 1001",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 1001.)",
+            "Count": 737,
+            "Expression": "DealerShipNm.부산 1001.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 KC오토월드",
+            "DisplayValue": "부산 KC오토월드",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 KC오토월드.)",
+            "Count": 564,
+            "Expression": "DealerShipNm.부산 KC오토월드.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 부산 오토셀렉션",
+            "DisplayValue": "부산 부산 오토셀렉션",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 부산 오토셀렉션.)",
+            "Count": 726,
+            "Expression": "DealerShipNm.부산 부산 오토셀렉션.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 부산감만단지",
+            "DisplayValue": "부산 부산감만단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 부산감만단지.)",
+            "Count": 1100,
+            "Expression": "DealerShipNm.부산 부산감만단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 부산경동오토필드",
+            "DisplayValue": "부산 부산경동오토필드",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 부산경동오토필드.)",
+            "Count": 3602,
+            "Expression": "DealerShipNm.부산 부산경동오토필드.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 사직오토랜드",
+            "DisplayValue": "부산 사직오토랜드",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 사직오토랜드.)",
+            "Count": 1696,
+            "Expression": "DealerShipNm.부산 사직오토랜드.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 신사상",
+            "DisplayValue": "부산 신사상",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 신사상.)",
+            "Count": 839,
+            "Expression": "DealerShipNm.부산 신사상.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "부산 신평",
+            "DisplayValue": "부산 신평",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.부산 신평.)",
+            "Count": 975,
+            "Expression": "DealerShipNm.부산 신평.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "서울 강서오토플렉스",
+            "DisplayValue": "서울 강서오토플렉스",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.서울 강서오토플렉스.)",
+            "Count": 1969,
+            "Expression": "DealerShipNm.서울 강서오토플렉스.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "울산 국민차매매단지",
+            "DisplayValue": "울산 국민차매매단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.울산 국민차매매단지.)",
+            "Count": 2146,
+            "Expression": "DealerShipNm.울산 국민차매매단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "인천 엠파크타워",
+            "DisplayValue": "인천 엠파크타워",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.인천 엠파크타워.)",
+            "Count": 3250,
+            "Expression": "DealerShipNm.인천 엠파크타워.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "인천 엠파크허브",
+            "DisplayValue": "인천 엠파크허브",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.인천 엠파크허브.)",
+            "Count": 3418,
+            "Expression": "DealerShipNm.인천 엠파크허브.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "인천 오토드림",
+            "DisplayValue": "인천 오토드림",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.인천 오토드림.)",
+            "Count": 412,
+            "Expression": "DealerShipNm.인천 오토드림.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "인천 주안매매단지",
+            "DisplayValue": "인천 주안매매단지",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.인천 주안매매단지.)",
+            "Count": 483,
+            "Expression": "DealerShipNm.인천 주안매매단지.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "인천 청라 오토플러스",
+            "DisplayValue": "인천 청라 오토플러스",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.인천 청라 오토플러스.)",
+            "Count": 533,
+            "Expression": "DealerShipNm.인천 청라 오토플러스.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "전북 팔봉오토파크",
+            "DisplayValue": "전북 팔봉오토파크",
+            "Action": "(And.Hidden.N._.CarType.Y._.DealerShipNm.전북 팔봉오토파크.)",
+            "Count": 377,
+            "Expression": "DealerShipNm.전북 팔봉오토파크.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "DealerShipNm",
+        "DisplayName": "제휴단지",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "None",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "ORIGINAL",
+            "DisplayValue": "ORIGINAL",
+            "Action": "(And.Hidden.N._.CarType.Y._.ServiceCopyCar.ORIGINAL.)",
+            "Count": 98887,
+            "Expression": "ServiceCopyCar.ORIGINAL.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "DUPLICATION",
+            "DisplayValue": "DUPLICATION",
+            "Action": "(And.Hidden.N._.CarType.Y._.ServiceCopyCar.DUPLICATION.)",
+            "Count": 37761,
+            "Expression": "ServiceCopyCar.DUPLICATION.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "ServiceCopyCar",
+        "DisplayName": "복제여부",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "엔카 안심거래존 김포점",
+            "DisplayValue": "엔카 안심거래존 김포점",
+            "Action": "(And.Hidden.N._.CarType.Y._.MeetgoCenterNm.엔카 안심거래존 김포점.)",
+            "Count": 3,
+            "Expression": "MeetgoCenterNm.엔카 안심거래존 김포점.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "엔카 안심거래존 서울 강서점",
+            "DisplayValue": "엔카 안심거래존 서울 강서점",
+            "Action": "(And.Hidden.N._.CarType.Y._.MeetgoCenterNm.엔카 안심거래존 서울 강서점.)",
+            "Count": 883,
+            "Expression": "MeetgoCenterNm.엔카 안심거래존 서울 강서점.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "엔카 안심거래존 일산점",
+            "DisplayValue": "엔카 안심거래존 일산점",
+            "Action": "(And.Hidden.N._.CarType.Y._.MeetgoCenterNm.엔카 안심거래존 일산점.)",
+            "Count": 344,
+            "Expression": "MeetgoCenterNm.엔카 안심거래존 일산점.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "엔카믿고센터 수원점",
+            "DisplayValue": "엔카믿고센터 수원점",
+            "Action": "(And.Hidden.N._.CarType.Y._.MeetgoCenterNm.엔카믿고센터 수원점.)",
+            "Count": 117,
+            "Expression": "MeetgoCenterNm.엔카믿고센터 수원점.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "MeetgoCenterNm",
+        "DisplayName": "믿고센터명",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "21",
+            "DisplayValue": "21",
+            "Action": "(And.Hidden.N._.CarType.Y._.Promotion.21.)",
+            "Count": 3,
+            "Expression": "Promotion.21.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "41",
+            "DisplayValue": "41",
+            "Action": "(And.Hidden.N._.CarType.Y._.Promotion.41.)",
+            "Count": 68,
+            "Expression": "Promotion.41.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "Promotion",
+        "DisplayName": "프로모션",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "SK렌터카",
+            "DisplayValue": "SK렌터카",
+            "Action": "(And.Hidden.N._.CarType.Y._.RentCompanyNm.SK렌터카.)",
+            "Count": 22,
+            "Expression": "RentCompanyNm.SK렌터카.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "롯데렌터카",
+            "DisplayValue": "롯데렌터카",
+            "Action": "(And.Hidden.N._.CarType.Y._.RentCompanyNm.롯데렌터카.)",
+            "Count": 167,
+            "Expression": "RentCompanyNm.롯데렌터카.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "아이카",
+            "DisplayValue": "아이카",
+            "Action": "(And.Hidden.N._.CarType.Y._.RentCompanyNm.아이카.)",
+            "Count": 13,
+            "Expression": "RentCompanyNm.아이카.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "오토핸즈",
+            "DisplayValue": "오토핸즈",
+            "Action": "(And.Hidden.N._.CarType.Y._.RentCompanyNm.오토핸즈.)",
+            "Count": 6,
+            "Expression": "RentCompanyNm.오토핸즈.",
+            "Metadata": {}
+          },
+          {
+            "IsSelected": false,
+            "Value": "토마토렌트카",
+            "DisplayValue": "토마토렌트카",
+            "Action": "(And.Hidden.N._.CarType.Y._.RentCompanyNm.토마토렌트카.)",
+            "Count": 17,
+            "Expression": "RentCompanyNm.토마토렌트카.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "RentCompanyNm",
+        "DisplayName": "렌트제휴사명",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "Or",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "none",
+            "DisplayValue": "none",
+            "Action": "(And.Hidden.N._.CarType.Y._.CertifiedBrandNm.none.)",
+            "Count": 136646,
+            "Expression": "CertifiedBrandNm.none.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "CertifiedBrandNm",
+        "DisplayName": "인증브랜드명",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "None",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "N",
+            "DisplayValue": "N",
+            "Action": "(And.Hidden.N._.CarType.Y._.MultiViewHidden.N.)",
+            "Count": 136645,
+            "Expression": "MultiViewHidden.N.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "MultiViewHidden",
+        "DisplayName": "멀티뷰타입 숨김",
+        "Type": "Aspect"
+      },
+      {
+        "IsSelected": false,
+        "PlaceholderExpression": "(And.Hidden.N._.CarType.Y._.(<!>))",
+        "MultiSelectMode": "None",
+        "RemoveAction": "",
+        "Facets": [
+          {
+            "IsSelected": false,
+            "Value": "N",
+            "DisplayValue": "N",
+            "Action": "(And.Hidden.N._.CarType.Y._.MultiView2Hidden.N.)",
+            "Count": 136645,
+            "Expression": "MultiView2Hidden.N.",
+            "Metadata": {}
+          }
+        ],
+        "Metadata": {},
+        "Name": "MultiView2Hidden",
+        "DisplayName": "멀티뷰타입 숨김 2차",
+        "Type": "Aspect"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.Year.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "Year",
+        "DisplayName": "연식",
+        "Type": "RangeAction"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.Price.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "Price",
+        "DisplayName": "가격",
+        "Type": "RangeAction"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.Mileage.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "Mileage",
+        "DisplayName": "주행거리",
+        "Type": "RangeAction"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.AcceptanceCharge.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "AcceptanceCharge",
+        "DisplayName": "인수비용",
+        "Type": "RangeAction"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.MonthLeasePrice.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "MonthLeasePrice",
+        "DisplayName": "월리스료",
+        "Type": "RangeAction"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.MonthLeaseRest.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "MonthLeaseRest",
+        "DisplayName": "잔여개월",
+        "Type": "RangeAction"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.MonthLeaseRentPrice.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "MonthLeaseRentPrice",
+        "DisplayName": "월리스렌트료",
+        "Type": "RangeAction"
+      },
+      {
+        "LowerPlaceholder": "<!lower>",
+        "UpperPlaceholder": "<!upper>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.CreatedDate.range(<!lower>..<!upper>).)",
+        "IsSelected": false,
+        "Name": "CreatedDate",
+        "DisplayName": "등록일자",
+        "Type": "RangeAction"
+      },
+      {
+        "Placeholder": "<!>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.Simple.keyword(<!>).)",
+        "IsSelected": false,
+        "Name": "Simple",
+        "DisplayName": "Simple",
+        "Type": "KeywordAction"
+      },
+      {
+        "Placeholder": "<!>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.Search.keyword(<!>).)",
+        "IsSelected": false,
+        "Name": "Search",
+        "DisplayName": "Search",
+        "Type": "KeywordAction"
+      },
+      {
+        "Placeholder": "<!>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.MetaData.custom(<!>).)",
+        "IsSelected": false,
+        "Name": "MetaData",
+        "DisplayName": "MetaData",
+        "Type": "CustomIndexAction"
+      },
+      {
+        "Placeholder": "<!>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.Plate.<!>.)",
+        "IsSelected": false,
+        "Name": "Plate",
+        "DisplayName": "Plate",
+        "Type": "RefinementAction"
+      },
+      {
+        "Placeholder": "<!>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.PlateRegistrationNumber.<!>.)",
+        "IsSelected": false,
+        "Name": "PlateRegistrationNumber",
+        "DisplayName": "PlateRegistrationNumber",
+        "Type": "RefinementAction"
+      },
+      {
+        "Placeholder": "<!>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.DealerName.<!>.)",
+        "IsSelected": false,
+        "Name": "DealerName",
+        "DisplayName": "DealerName",
+        "Type": "RefinementAction"
+      },
+      {
+        "Placeholder": "<!>",
+        "QueryWithPlaceholder": "(And.Hidden.N._.CarType.Y._.UserId.<!>.)",
+        "IsSelected": false,
+        "Name": "UserId",
+        "DisplayName": "UserId",
+        "Type": "RefinementAction"
+      }
+    ],
+    "BreadCrumbs": [
+      {
+        "Aspect": "Hidden",
+        "AspectDisplay": "숨김데이터",
+        "Facet": "N",
+        "FacetDisplay": "N",
+        "Children": [],
+        "Type": "FacetBreadCrumb",
+        "RemoveAction": "CarType.Y."
+      },
+      {
+        "Aspect": "CarType",
+        "AspectDisplay": "국산여부",
+        "Facet": "Y",
+        "FacetDisplay": "Y",
+        "Children": [],
+        "Type": "FacetBreadCrumb",
+        "RemoveAction": "Hidden.N."
+      }
+    ]
+  }
+}
