@@ -57,7 +57,7 @@
       color: #ffffff;
     }
     .header-content {
-      max-width: 1440px;
+      max-width: 1280px;
       margin: 0 auto;
       display: flex;
       justify-content: space-between;
@@ -159,24 +159,24 @@
     }
     .main-layout {
       display: flex;
-      gap: 25px;
-      max-width: 1440px;
+      gap: 24px;
+      max-width: 1280px;
       margin: 0 auto;
       align-items: flex-start;
       padding: 20px;
     }
 
-    /* Панель фильтров */
+    /* Панель фильтров (стиль как на скриншотах: светлая панель, скругления) */
     .filters-panel {
       width: 320px;
-      background: white;
-      border-radius: 20px;
+      background: #f8f9fa;
+      border-radius: 16px;
       padding: 0;
       position: sticky;
       top: 20px;
       max-height: calc(100vh - 40px);
       flex-shrink: 0;
-      border: 1px solid #DDDDDD;
+      border: 1px solid #e5e7eb;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -203,8 +203,8 @@
     .filters-panel-footer {
       flex-shrink: 0;
       padding: 16px 24px 24px;
-      border-top: 1px solid #f3f4f6;
-      background: white;
+      border-top: 1px solid #e5e7eb;
+      background: #f8f9fa;
     }
     .filter-group {
       margin-bottom: 28px;
@@ -217,15 +217,13 @@
       padding-bottom: 0;
     }
     .filter-group h4 {
-      margin: 0 0 16px 0;
-      font-size: 1rem;
-      color: #374151;
-      font-weight: 600;
+      margin: 0 0 12px 0;
+      font-size: 0.95rem;
+      color: #1f2937;
+      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 8px;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 8px;
     }
     .filter-group h4 i {
       font-style: normal;
@@ -500,8 +498,8 @@
     .car-grid {
       display: flex;
       flex-direction: column;
-      max-width: 1120px;
-      margin: 0 auto 30px;
+      width: 100%;
+      margin: 0 0 30px 0;
       gap: 20px;
     }
     /* на совсем узких экранах просто уменьшаем отступы */
@@ -512,27 +510,43 @@
     }
 
     .car-card {
-      background: #F3F3F3;
-      border-radius: 16px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
       overflow: hidden;
       transition: transform 0.2s, box-shadow 0.2s;
       display: flex;
       flex-direction: row;
       width: 100%;
+      border: 1px solid #edeef2;
     }
     .car-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 14px 28px rgba(0,0,0,0.1);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.08);
     }
 
     .preview {
       position: relative;
-      flex: 0 0 40%;
-      max-width: 420px;
+      flex: 0 0 320px;
+      width: 320px;
       height: 200px;
       overflow: hidden;
-      background: #edf2f7;
+      background: #edeef2;
+    }
+    .card-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 2;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(0,0,0,0.55);
+    }
+    .preview img {
+      border-radius: 20px;
     }
     @media (max-width: 900px) {
       .car-card {
@@ -543,6 +557,9 @@
         width: 100%;
         max-width: none;
         height: 220px;
+      }
+      .preview img {
+        border-radius: 20px 20px 0 0;
       }
     }
     .preview img {
@@ -593,13 +610,43 @@
     }
 
     .car-info {
-      padding: 16px 20px 16px;
+      padding: 20px 24px;
       font-size: 0.9rem;
       display: flex;
       flex-direction: column;
+      min-width: 0;
       justify-content: space-between;
       gap: 10px;
       flex: 1;
+    }
+    .car-info-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .car-info-header h2 { flex: 1; min-width: 0; }
+    .car-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .car-actions .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: #f1f5f9;
+      color: #64748b;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+    }
+    .car-actions .icon-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
     }
     .car-main {
       display: flex;
@@ -607,12 +654,15 @@
       gap: 4px;
     }
     .car-info h2 {
-      font-size: 1.05rem;
+      font-size: 1.1rem;
       margin: 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      font-weight: 650;
+      font-weight: 700;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .origin a {
       text-decoration: none;
@@ -630,9 +680,22 @@
       color: #111827;
       font-weight: 500;
     }
-    .price-row {
+    .delivery-line {
       display: flex;
       align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .delivery-line .info-icon {
+      width: 16px;
+      height: 16px;
+      font-size: 10px;
+    }
+    .price-row {
+      display: flex;
+      align-items: flex-end;
       justify-content: space-between;
       margin-top: 8px;
       border-top: 1px solid #edf2f7;
@@ -719,28 +782,58 @@
 
     .pagination {
       display: flex;
+      align-items: center;
       justify-content: center;
-      gap: 8px;
-      margin: 30px 0 10px;
+      gap: 6px;
+      margin: 28px 0 16px;
       flex-wrap: wrap;
     }
-    .pagination button {
+    .pagination .pagination-prev,
+    .pagination .pagination-next {
       border: 1px solid #cbd5e1;
-      padding: 8px 15px;
+      padding: 8px 14px;
       background: white;
-      border-radius: 30px;
+      border-radius: 12px;
       cursor: pointer;
-      font-weight: 500;
+      font-weight: 600;
+      color: #374151;
       transition: all 0.2s ease;
     }
-    .pagination button.active {
-      background: #3b82f6;
-      color: white;
-      border-color: #3b82f6;
-    }
-    .pagination button:hover:not(.active) {
+    .pagination .pagination-prev:hover:not(:disabled),
+    .pagination .pagination-next:hover:not(:disabled) {
       background: #f1f5f9;
-      border-color: #cbd5e1;
+      border-color: #94a3b8;
+    }
+    .pagination .pagination-prev:disabled,
+    .pagination .pagination-next:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .pagination button.page-num {
+      min-width: 40px;
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+    .pagination button.page-num.active {
+      background: #071224;
+      color: white;
+      border-color: #071224;
+    }
+    .pagination button.page-num:hover:not(.active) {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .pagination .pagination-ellipsis {
+      padding: 0 4px;
+      color: #94a3b8;
+      font-weight: 500;
+      user-select: none;
     }
 
     @media (max-width: 900px) {
@@ -748,68 +841,223 @@
       .filters-panel { width: 100%; position: static; max-height: none; }
     }
 
-    /* Футер (как у конкурента: юридический блок + копирайт) */
-    .footer {
-      background-color: #1a202c;
-      color: #ffffff;
-      padding: 2rem 0;
-      margin-top: 3rem;
-      border-top: 1px solid #2d3748;
-    }
-    .footer-content {
-      max-width: 1200px;
+    /* Футер как у PAN AUTO: скруглённый сверху, верхняя полоса + юридический текст */
+    .footer-wrap {
+      max-width: 1280px;
       margin: 0 auto;
-      padding: 0 2rem;
+      padding: 35px 20px 32px;
     }
-    .footer-section {
-      margin-bottom: 2rem;
+    .footer {
+      background: #f8f8f8;
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
     }
-    .footer-section h3 {
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
-      color: #e2e8f0;
+    .footer-top {
+      background: #efefef;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 28px;
+      gap: 16px;
     }
-    .footer-text {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
+    .footer-logo {
+      display: inline-block;
+      line-height: 0;
     }
-    .footer-column {
+    .footer-logo img {
+      height: 36px;
+      width: auto;
+      display: block;
+    }
+    .footer-nav {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+    .footer-nav a {
+      color: #333;
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: opacity 0.2s;
+    }
+    .footer-nav a:hover { opacity: 0.7; }
+    .footer-copy {
+      text-align: right;
       font-size: 0.9rem;
-      line-height: 1.6;
-      color: #cbd5e0;
+      color: #333;
     }
-    .footer-column p {
-      margin-bottom: 1rem;
+    .footer-copy .copy-line { display: block; }
+    .footer-copy .copy-made { font-size: 0.8rem; color: #666; }
+    .footer-legal {
+      padding: 24px 28px 28px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #666;
     }
-    .footer-bottom {
-      text-align: center;
-      padding-top: 1rem;
-      border-top: 1px solid #2d3748;
-      color: #a0aec0;
-      font-size: 0.85rem;
+    .footer-legal p {
+      margin: 0 0 14px 0;
     }
-    .footer-bottom p { margin: 0; }
+    .footer-legal p:last-child { margin-bottom: 0; }
     @media (max-width: 768px) {
-      .footer-text {
-        grid-template-columns: 1fr;
+      .footer-wrap { padding: 16px; }
+      .footer-top {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px 20px;
       }
+      .footer-copy { text-align: left; }
+      .footer-legal { padding: 20px; font-size: 11px; }
     }
 
-    /* Герой-баннер */
-    .hero-banner {
-      background: #F3F3F3;
-      border: 2px solid #DDDDDD;
-      position: relative;
-      overflow: hidden;
+    /* Баннер: бренд слева + 2 статичных карточки и 1 активный слайдер, отступ как у контента */
+    .hero-banner-wrap {
+      max-width: 1280px;
+      margin: 24px auto 24px;
       padding: 0 20px;
       box-sizing: border-box;
-      color: #111827;
-      margin: 30px auto;
-      height: 200px;
-      max-width: 1440px;
+    }
+    .hero-banner {
+      background: #f3f4f6;
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+      min-height: 140px;
+      border: 1px solid #e5e7eb;
+    }
+    .hero-banner-brand {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 200px;
+    }
+    .hero-banner-brand .brand-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #071224;
+      letter-spacing: -0.02em;
+      margin: 0 0 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero-banner-brand .brand-name .flag { font-size: 1.35rem; line-height: 1; }
+    .hero-banner-brand .tagline {
+      font-size: 0.9rem;
+      font-style: italic;
+      color: #de191f;
+      margin: 0;
+    }
+    .hero-banner-cards {
+      flex: 1;
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+      min-width: 0;
+    }
+    .hero-banner-card-static {
+      flex: 0 0 200px;
+      min-width: 0;
+    }
+    .hero-banner-slider-wrap {
+      flex: 1;
+      min-width: 220px;
+      max-width: 320px;
+      position: relative;
+      padding-bottom: 24px;
+    }
+    .hero-banner-slider .swiper-slide { height: auto; }
+    .hero-banner-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 18px;
+      height: 100%;
+      min-height: 100px;
+      box-sizing: border-box;
+      border: 1px solid #e5e7eb;
+    }
+    .hero-banner-card.dark {
+      background: #384452;
+      border-color: #384452;
+      color: #fff;
+    }
+    .hero-banner-card.dark .card-title,
+    .hero-banner-card.dark .card-value { color: #fff; }
+    .hero-banner-card .card-title {
+      font-size: 0.75rem;
+      color: #748191;
+      margin: 0 0 4px 0;
+      font-weight: 500;
+    }
+    .hero-banner-card.dark .card-title { color: rgba(255,255,255,0.85); }
+    .hero-banner-card .card-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #071224;
+      margin: 0;
+    }
+    .hero-banner-card .card-sub {
+      font-size: 0.75rem;
+      color: #748191;
+      margin: 2px 0 0 0;
+    }
+    .hero-banner-card.dark .card-sub { color: rgba(255,255,255,0.8); }
+    .hero-banner-card.app-card .card-title { margin-bottom: 6px; }
+    .hero-banner-card.app-card .card-desc {
+      font-size: 0.8rem;
+      color: #384452;
+      margin: 0 0 10px 0;
+      line-height: 1.4;
+    }
+    .hero-banner-card.app-card .card-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: #071224;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .hero-banner-card.app-card .card-btn:hover { background: #384452; }
+    .hero-banner-slider-wrap .swiper-pagination {
+      position: absolute;
+      bottom: 0;
+      left: 0;
       width: 100%;
-      border-radius: 10px;
+      text-align: center;
+      z-index: 10;
+    }
+    .hero-banner-slider-wrap .swiper-pagination-bullet {
+      background: #96a2b2;
+      opacity: 0.8;
+      width: 6px;
+      height: 6px;
+      margin: 0 3px;
+      border-radius: 50%;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .hero-banner-slider-wrap .swiper-pagination-bullet-active {
+      background: #071224;
+      transform: scale(1.2);
+    }
+    @media (max-width: 900px) {
+      .hero-banner {
+        flex-direction: column;
+        padding: 20px;
+        gap: 20px;
+      }
+      .hero-banner-brand { min-width: 0; align-items: center; text-align: center; }
+      .hero-banner-brand .brand-name { justify-content: center; }
+      .hero-banner-cards { flex-direction: column; }
+      .hero-banner-card-static { flex: 1 1 auto; }
+      .hero-banner-slider-wrap { max-width: none; }
     }
     .hero-content {
       max-width: 1200px;
@@ -958,41 +1206,13 @@
     }
     @media (max-width: 600px) {
       .hero-banner {
-        padding: 40px 20px;
+        padding: 20px 12px 44px;
+        min-height: 120px;
       }
-      .hero-title {
-        font-size: 2rem;
-      }
-      .hero-features {
-        grid-template-columns: 1fr;
-      }
-      .hero-actions {
-        justify-content: center;
-      }
+      .hero-banner .slide-content h3 { font-size: 1.1rem; }
+      .hero-banner .slide-content p { font-size: 0.9rem; }
     }
 
-
-    /* Пагинация Swiper слайдера */
-    .hero-slider .swiper-pagination {
-      position: absolute;
-      bottom: 10px;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      z-index: 10;
-    }
-    .hero-slider .swiper-pagination-bullet {
-      background: #cbd5e1;
-      opacity: 1;
-      width: 10px;
-      height: 10px;
-      margin: 0 4px;
-      border-radius: 50%;
-      transition: background 0.2s;
-    }
-    .hero-slider .swiper-pagination-bullet-active {
-      background: #3b82f6;
-    }
   </style>
 </head>
 <body>
@@ -1013,39 +1233,52 @@
     </div>
   </header>
 
-  <!-- Баннер с названием компании -->
-  <section class="hero-banner">
-    <div class="swiper hero-slider">
-      <div class="swiper-wrapper">
-        <div class="swiper-slide">
-          <div class="slide-content">
-            <h3>Профессиональный подбор</h3>
-            <p>Тщательный отбор автомобилей по вашим требованиям</p>
+  <!-- Баннер: бренд слева + 2 статичных карточки и 1 активный слайдер по центру -->
+  <div class="hero-banner-wrap">
+    <section class="hero-banner">
+      <div class="hero-banner-brand">
+        <h2 class="brand-name">World Ride Auto <span class="flag" aria-hidden="true">🇰🇷</span></h2>
+        <p class="tagline">Авто из Южной Кореи без посредников</p>
+      </div>
+      <div class="hero-banner-cards">
+        <div class="hero-banner-card-static">
+          <div class="hero-banner-card dark">
+            <p class="card-title">За сегодня</p>
+            <p class="card-value" id="bannerTodayCount">+0</p>
+            <p class="card-sub">авто добавлено</p>
           </div>
         </div>
-        <div class="swiper-slide">
-          <div class="slide-content">
-            <h3>Таможенное оформление</h3>
-            <p>Полное сопровождение на всех этапах растаможки</p>
+        <div class="hero-banner-slider-wrap">
+          <div class="swiper hero-banner-slider">
+            <div class="swiper-wrapper">
+              <div class="swiper-slide">
+                <div class="hero-banner-card">
+                  <p class="card-title">Привезли за 5 лет</p>
+                  <p class="card-value">4,517+</p>
+                  <p class="card-sub">автомобилей</p>
+                </div>
+              </div>
+              <div class="swiper-slide">
+                <div class="hero-banner-card app-card">
+                  <p class="card-title">Связь с менеджером — это удобно!</p>
+                  <p class="card-desc">Ответим на вопросы и поможем с подбором авто</p>
+                  <a href="https://t.me/nikits15" class="card-btn" target="_blank" rel="noopener">Подробнее →</a>
+                </div>
+              </div>
+            </div>
+            <div class="swiper-pagination"></div>
           </div>
         </div>
-        <div class="swiper-slide">
-          <div class="slide-content">
-            <h3>Доставка в Россию</h3>
-            <p>Безопасная и надежная доставка до вашего города</p>
-          </div>
-        </div>
-        <div class="swiper-slide">
-          <div class="slide-content">
-            <h3>Гарантия качества</h3>
-            <p>Проверка истории автомобиля и техническое состояние</p>
+        <div class="hero-banner-card-static">
+          <div class="hero-banner-card">
+            <p class="card-title">Привезли за 5 лет</p>
+            <p class="card-value">4,517+</p>
+            <p class="card-sub">автомобилей</p>
           </div>
         </div>
       </div>
-      <!-- Пагинация (точки) под слайдером -->
-      <div class="swiper-pagination"></div>
-    </div>
-  </section>
+    </section>
+  </div>
 
 <div class="main-layout">
   <!-- Левая панель фильтров (как на Encar) -->
@@ -1209,7 +1442,7 @@
       </div>
     </div>
     <div class="filters-panel-footer">
-      <button class="reset-btn" id="resetFiltersBtn">Сбросить фильтры</button>
+      <button class="reset-btn" id="resetFiltersBtn">Сбросить фильтр</button>
     </div>
   </aside>
 
@@ -1249,22 +1482,28 @@
   </main>
 </div>
 
-<!-- Футер -->
-<footer class="footer">
-  <div class="footer-content">
-    <div class="footer-section">
-      <h3>Юридическая информация</h3>
-      <div class="footer-text">
-        <div class="footer-column">
-          <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление покупателей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
-        </div>
+<!-- Футер как у PAN AUTO: верхняя полоса (лого, ссылки, копирайт) + юридический текст -->
+<div class="footer-wrap">
+  <footer class="footer">
+    <div class="footer-top">
+      <a href="index.html" class="footer-logo">
+        <img src="image/logo.svg" alt="World Ride Auto">
+      </a>
+      <nav class="footer-nav">
+        <a href="#">Политика конфиденциальности</a>
+        <a href="#">Пользовательское соглашение</a>
+      </nav>
+      <div class="footer-copy">
+        <span class="copy-line">&copy; World Ride Auto 2026</span>
+        <span class="copy-made">сделано в World Ride Auto</span>
       </div>
     </div>
-    <div class="footer-bottom">
-      <p>&copy; World Ride Auto 2026</p>
+    <div class="footer-legal">
+      <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление пользователей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
+      <p>본 카탈로그에 게시된 정보는 러시아 연방 민법 제437조 및 대한민국 민법 제1435조에 따른 공개적인 청약으로 간주되지 않습니다. 차량에 대한 모든 정보, 포함하여 예시 계산 및 가격은 오직 정보 제공을 목적으로 하며, 대한민국 내에서 접근 가능한 공개 출처를 기반으로 작성되었습니다. 본 정보 제공의 목적은 사용자에게 한국 시장에서 제공되는 차량의 품목 구성과 가격 수준에 대한 이해를 돕기 위한 것입니다. 본 서비스의 운영은 러시아 연방 및 대한민국의 관련 법령을 철저히 준수하여 이루어집니다.</p>
     </div>
-  </div>
-</footer>
+  </footer>
+</div>
 
 <script>
   (function() {
@@ -1591,6 +1830,9 @@
         card.className = 'car-card';
 
         const tax = taxClass(d.year);
+        const iso = d.offer_created || d.created_at || '';
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const isToday = String(iso).slice(0, 10) === todayStr;
 
         const titleMark = filterOptionLabel(d.mark, 'mark');
         const titleModel = filterOptionLabel(d.model, 'model');
@@ -1602,16 +1844,23 @@
         const volumePart = d.displacement ? `${Number(d.displacement).toLocaleString('ru-RU')} см³` : '';
         const drivePart = toDisplayRu(d.prep_drive_type) || '';
         const bodyRu = toDisplayRu(d.body_type) || '';
+        const carUrl = (d.url || '#');
+        const detailUrl = car.id != null ? 'car.html?id=' + encodeURIComponent(car.id) : (car.inner_id != null ? 'car.html?id=' + encodeURIComponent(car.inner_id) : (d.inner_id != null ? 'car.html?id=' + encodeURIComponent(d.inner_id) : '#'));
 
         card.innerHTML = `
           <div class="preview">
+            ${isToday ? '<span class="card-badge card-badge-today">Добавлен сегодня</span>' : ''}
             ${images.map((img, i) => `<img src="${img}" class="${i === 0 ? 'active' : ''}">`).join('')}
           </div>
           <div class="car-info">
             <div class="car-main">
-              <h2>
-                ${fullTitle}
-              </h2>
+              <div class="car-info-header">
+                <h2>${fullTitle}</h2>
+                <div class="car-actions">
+                  <button type="button" class="icon-btn" aria-label="Поделиться"><i class="fas fa-external-link-alt"></i></button>
+                  <button type="button" class="icon-btn" aria-label="В избранное"><i class="far fa-heart"></i></button>
+                </div>
+              </div>
               <div class="meta meta-strong">
                 ${[powerPart, fuelPart, volumePart, formatKm(d.km_age)].filter(Boolean).join(', ')}
               </div>
@@ -1620,13 +1869,13 @@
               </div>
             </div>
             <div class="price-row">
-              <div class="price-block" style="display: flex; flex-direction: column; gap: 4px;">
+              <div class="price-block" style="display: flex; flex-direction: column; gap: 2px;">
                 <span class="price-rub" style="font-weight: 750; font-size: 1.4rem; color: #2563eb;">
                   ${d.my_price ? Math.round(d.my_price).toLocaleString() + ' ₽' : '—'}
                 </span>
-                <span class="info-icon" style="align-self: flex-start;">i</span>
+                <span class="delivery-line">до Владивостока <span class="info-icon" title="Доставка до Владивостока">i</span></span>
               </div>
-              <a href="${d.url || '#'}" target="_blank" class="tax-btn ${tax.cls}">${tax.text}</a>
+              <a href="${carUrl}" target="_blank" class="tax-btn ${tax.cls}">${tax.text}</a>
             </div>
           </div>
         `;
@@ -1664,7 +1913,7 @@
         const info = card.querySelector('.info-icon');
         const infoTooltip = document.createElement('div');
         infoTooltip.className = 'tooltip';
-        infoTooltip.innerHTML = 'Наша итоговая цена в рублях, включая все расходы (доставка, таможня, брокер, страхование) и комиссию компании.';
+        infoTooltip.innerHTML = 'Доставка до Владивостока. Срок и стоимость уточняйте у менеджера.';
         document.body.appendChild(infoTooltip);
         info.addEventListener('mouseenter', (e) => {
           const rect = info.getBoundingClientRect();
@@ -1674,12 +1923,19 @@
         });
         info.addEventListener('mouseleave', () => { infoTooltip.style.display = 'none'; });
 
+        // Поделиться — открыть ссылку в новой вкладке
+        const shareBtn = card.querySelector('.car-actions .icon-btn:first-child');
+        if (shareBtn) shareBtn.addEventListener('click', (e) => { e.stopPropagation(); window.open(carUrl, '_blank'); });
+        // Избранное — переключение иконки
+        const favBtn = card.querySelector('.car-actions .icon-btn:last-child');
+        if (favBtn) favBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const icon = favBtn.querySelector('i');
+          if (icon) { icon.classList.toggle('far'); icon.classList.toggle('fas'); }
+        });
         // Клик по карточке для перехода на детальную страницу
         card.addEventListener('click', (e) => {
-            // Игнорируем клики по ссылкам, кнопкам (в т.ч. стрелки превью), иконке info
-            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.info-icon')) {
-                return;
-            }
+            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.info-icon') || e.target.closest('.car-actions')) return;
             const linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (car.data && car.data.inner_id != null ? car.data.inner_id : null));
             if (linkId == null) return;
             window.location.href = 'car.html?id=' + encodeURIComponent(linkId);
@@ -1696,17 +1952,67 @@
       const total = Math.ceil(filteredCars.length / PER_PAGE);
       paginationEl.innerHTML = '';
       if (total <= 1) return;
-      for (let i = 1; i <= total; i++) {
+
+      const go = (p) => {
+        page = p;
+        draw();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'pagination-prev';
+      prevBtn.textContent = '‹';
+      prevBtn.title = 'Назад';
+      prevBtn.disabled = page <= 1;
+      prevBtn.onclick = () => { if (page > 1) go(page - 1); };
+      paginationEl.appendChild(prevBtn);
+
+      const maxVisible = 7;
+      let from = Math.max(1, page - 2);
+      let to = Math.min(total, from + maxVisible - 1);
+      if (to - from + 1 < maxVisible) from = Math.max(1, to - maxVisible + 1);
+      if (from > 1) {
+        const b1 = document.createElement('button');
+        b1.className = 'page-num';
+        b1.textContent = '1';
+        b1.onclick = () => go(1);
+        paginationEl.appendChild(b1);
+        if (from > 2) {
+          const ell = document.createElement('span');
+          ell.className = 'pagination-ellipsis';
+          ell.textContent = '…';
+          paginationEl.appendChild(ell);
+        }
+      }
+      for (let i = from; i <= to; i++) {
         const btn = document.createElement('button');
+        btn.className = 'page-num';
         btn.textContent = i;
         if (i === page) btn.classList.add('active');
-        btn.onclick = () => {
-          page = i;
-          draw();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
+        btn.onclick = () => go(i);
         paginationEl.appendChild(btn);
       }
+      if (to < total) {
+        if (to < total - 1) {
+          const ell = document.createElement('span');
+          ell.className = 'pagination-ellipsis';
+          ell.textContent = '…';
+          paginationEl.appendChild(ell);
+        }
+        const bN = document.createElement('button');
+        bN.className = 'page-num';
+        bN.textContent = total;
+        bN.onclick = () => go(total);
+        paginationEl.appendChild(bN);
+      }
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'pagination-next';
+      nextBtn.textContent = '›';
+      nextBtn.title = 'Вперёд';
+      nextBtn.disabled = page >= total;
+      nextBtn.onclick = () => { if (page < total) go(page + 1); };
+      paginationEl.appendChild(nextBtn);
     }
 
     // ---------- Построение фильтров на основе данных ----------
@@ -2118,6 +2424,15 @@
         filteredCars = [...allCars];
         sortFilteredCars();
         buildFiltersFromData();
+        var todayEl = document.getElementById('bannerTodayCount');
+        if (todayEl) {
+          var todayStr = new Date().toISOString().slice(0, 10);
+          var todayCount = allCars.filter(function(c) {
+            var d = (c.data && (c.data.offer_created || c.data.created_at)) || '';
+            return String(d).slice(0, 10) === todayStr;
+          }).length;
+          todayEl.textContent = todayCount > 0 ? '+' + todayCount.toLocaleString('ru-RU') : '+0';
+        }
         draw();
       })
       .catch(err => {
@@ -2183,23 +2498,16 @@
        });
     }
 
-    // Инициализация Swiper слайдера
-    const heroSwiper = new Swiper('.hero-slider', {
+    // Инициализация Swiper баннера (карточки)
+    const heroSwiper = new Swiper('.hero-banner-slider', {
       speed: 400,
       loop: true,
-      autoplay: {
-        delay: 7000,
-        disableOnInteraction: false,
-      },
+      autoplay: { delay: 6000, disableOnInteraction: false },
       pagination: {
-        el: '.swiper-pagination',
+        el: '.hero-banner-slider .swiper-pagination',
         clickable: true,
       },
-      freeMode: {
-        enabled: true,
-        sticky: true,
-      },
-      spaceBetween: 20,
+      spaceBetween: 0,
     });
   })();
 </script>
