@@ -3,27 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAN AUTO — покупка авто из Кореи под ключ</title>
-    <!-- Font Awesome для иконок -->
+    <title>Как купить авто из Кореи — World Ride Auto</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         :root {
-            --bg-body: #f6f8fa;
+            --bg-body: #f3f4f6;
             --bg-card: #ffffff;
-            --bg-primary: #0b1e33;
-            --bg-secondary: #133e6f;
-            --bg-accent: #2a7de1;
-            --bg-accent-2: #ffbb2e;
-            --text-main: #1a2634;
-            --text-muted: #5b6f88;
+            --bg-primary: #071224;
+            --bg-secondary: #0f1f38;
+            --bg-accent: #de191f;
+            --bg-accent-2: #ff4448;
+            --text-main: #111827;
+            --text-muted: #6b7280;
             --text-light: #ffffff;
-            --border: #eef2f8;
-            --shadow: 0 15px 35px -10px rgba(0, 35, 70, 0.1);
-            --shadow-hover: 0 25px 40px -12px rgba(18, 67, 133, 0.2);
-            --radius-lg: 2rem;
-            --radius-md: 1.2rem;
-            --radius-sm: 0.8rem;
+            --border: #e5e7eb;
+            --shadow: 0 15px 35px -10px rgba(7, 18, 36, 0.08);
+            --shadow-hover: 0 25px 40px -12px rgba(7, 18, 36, 0.15);
+            --radius-lg: 1.25rem;
+            --radius-md: 1rem;
+            --radius-sm: 0.75rem;
         }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-in { animation: fadeInUp 0.6s ease-out forwards; }
+        .animate-fade { animation: fadeIn 0.5s ease-out forwards; }
+        .step-card { opacity: 0; }
+        .step-card.visible { animation: fadeInUp 0.5s ease-out forwards; }
 
         * {
             margin: 0;
@@ -44,102 +55,107 @@
             padding: 2rem 1.5rem;
         }
 
-        /* Верхнее навигационное меню */
+        /* Шапка как на главной */
         .navbar {
-            background: var(--bg-primary);
-            color: white;
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 16px 20px;
             position: sticky;
             top: 0;
             z-index: 1000;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
-        
         .nav-container {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 1rem 1.5rem;
+            padding: 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 2rem;
-        }
-        
-        .nav-logo {
-            display: flex;
-            align-items: center;
             gap: 1rem;
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: white;
+        }
+        .nav-logo {
+            display: inline-flex;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
             text-decoration: none;
         }
-        
-        .nav-logo i {
-            color: var(--bg-accent-2);
-            font-size: 1.8rem;
-        }
-        
+        .nav-logo img { height: 40px; width: auto; display: block; }
         .nav-menu {
             display: flex;
-            gap: 1.5rem;
+            gap: 32px;
             flex: 1;
+            justify-content: center;
         }
-        
         .nav-link {
-            color: rgba(255,255,255,0.8);
+            color: #374151;
             text-decoration: none;
             font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 30px;
-            transition: all 0.3s ease;
-            position: relative;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
         }
-        
-        .nav-link:hover {
-            color: white;
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .nav-link.active {
-            color: white;
-            background: var(--bg-accent);
-            box-shadow: 0 4px 15px rgba(42, 125, 225, 0.3);
-        }
-        
+        .nav-link:hover { color: var(--bg-accent); }
+        .nav-link.active { color: var(--bg-accent); font-weight: 600; }
         .nav-actions {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.75rem;
         }
-        
         .btn-calculate {
-            background: var(--bg-accent-2);
-            color: var(--bg-primary);
+            background: var(--bg-accent);
+            color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
+            padding: 0.6rem 1.25rem;
             border-radius: 50px;
-            font-weight: 700;
+            font-weight: 600;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
+            transition: all 0.2s ease;
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            box-shadow: 0 4px 15px rgba(255, 187, 46, 0.4);
+            text-decoration: none;
         }
-        
         .btn-calculate:hover {
+            background: var(--bg-accent-2);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 187, 46, 0.6);
         }
-        
-        .nav-contact {
+        .nav-contact { display: none; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--bg-accent);
+            border: 2px solid var(--bg-accent);
+            padding: 0.6rem 1.25rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover { background: var(--bg-accent); color: white; }
+        .nav-link.active { cursor: default; }
+        .hero-block { opacity: 0; }
+        .hero-block.visible { animation: fadeInUp 0.7s ease-out forwards; }
+        .contact-messengers {
             display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.5rem;
-            color: rgba(255,255,255,0.9);
-            font-weight: 500;
+            margin: 2.5rem 0 1rem;
         }
+        .contact-messengers-title { font-size: 1.4rem; font-weight: 500; }
+        .contact-messengers-btns { display: flex; gap: 1rem; }
+        .btn-messenger {
+            background: var(--bg-primary);
+            color: white;
+            padding: 0.7rem 2rem;
+            border-radius: 40px;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+        .btn-messenger:hover { background: var(--bg-accent); }
         
         /* Заголовок */
         .hero {
@@ -197,7 +213,7 @@
 
         .step-card:hover {
             box-shadow: var(--shadow-hover);
-            border-color: #cbd9f0;
+            border-color: #e5e7eb;
             transform: translateY(-2px);
         }
 
@@ -238,14 +254,14 @@
         .step-title i {
             color: var(--bg-accent);
             font-size: 1.8rem;
-            background: #e9effb;
+            background: #fef2f2;
             width: 48px;
             height: 48px;
             border-radius: 30px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(42, 125, 225, 0.15);
+            box-shadow: 0 4px 12px rgba(222, 25, 31, 0.15);
         }
 
         .step-desc {
@@ -323,7 +339,7 @@
         }
 
         .info-box strong {
-            color: #0f2b50;
+            color: var(--bg-primary);
             font-size: 1.1rem;
             display: block;
             margin-bottom: 0.5rem;
@@ -332,8 +348,8 @@
         .price-tag {
             font-size: 1.4rem;
             font-weight: 700;
-            color: #1e3a8a;
-            background: #dee9fc;
+            color: var(--bg-primary);
+            background: #fef2f2;
             display: inline-block;
             padding: 0.3rem 1.2rem;
             border-radius: 40px;
@@ -364,7 +380,7 @@
 
         .divider {
             height: 2px;
-            background: linear-gradient(90deg, transparent, #acc9f0, transparent);
+            background: linear-gradient(90deg, transparent, rgba(222, 25, 31, 0.3), transparent);
             margin: 2.5rem 0;
         }
 
@@ -445,7 +461,7 @@
         .calc-form input:focus {
             outline: none;
             border-color: var(--bg-accent);
-            box-shadow: 0 0 0 4px rgba(42, 125, 225, 0.15);
+            box-shadow: 0 0 0 4px rgba(222, 25, 31, 0.15);
         }
         
         .calc-result {
@@ -557,6 +573,7 @@
             gap: 0.8rem;
         }
 
+        .time-zone span.live-time,
         .time-zone span {
             font-size: 1.6rem;
             font-weight: 700;
@@ -750,34 +767,26 @@
     </style>
 </head>
 <body>
-        <!-- Верхнее навигационное меню -->
-        <nav class="navbar">
+        <!-- Шапка как на главной -->
+        <header class="navbar">
             <div class="nav-container">
-                <div class="nav-logo">
-                    <i class="fas fa-car"></i>
-                    <span>PAN AUTO</span>
-                </div>
-                <div class="nav-menu">
-                    <a href="index.html" class="nav-link">Главная</a>
-                    <a href="car.html" class="nav-link">Каталог</a>
-                    <a href="#" class="nav-link active">Как купить</a>
+                <a href="index.html" class="nav-logo"><img src="image/logo.svg" alt="World Ride Auto"></a>
+                <nav class="nav-menu">
+                    <a href="#" class="nav-link">О компании</a>
+                    <a href="index.html" class="nav-link">Каталог</a>
+                    <span class="nav-link active">Как купить</span>
                     <a href="#" class="nav-link">Контакты</a>
-                </div>
+                </nav>
                 <div class="nav-actions">
-                    <button class="btn-calculate" onclick="scrollToCalculator()">
-                        <i class="fas fa-calculator"></i> Рассчитать стоимость
-                    </button>
-                    <div class="nav-contact">
-                        <i class="fas fa-phone-alt"></i>
-                        <span>+7 (495) 123-45-67</span>
-                    </div>
+                    <a href="https://t.me/nikits15" class="btn-calculate" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a>
+                    <button class="btn-secondary" onclick="scrollToCalculator()"><i class="fas fa-calculator"></i> Калькулятор</button>
                 </div>
             </div>
-        </nav>
+        </header>
 
         <div class="container">
-            <div class="hero">
-                <h1><i class="fas fa-car"></i>PAN AUTO</h1>
+            <div class="hero hero-block" id="hero-block">
+                <h1><i class="fas fa-car"></i> World Ride Auto</h1>
                 <div class="subhead">Прозрачный цикл покупки: от согласования до доставки в ваш город</div>
             </div>
 
@@ -789,7 +798,7 @@
                     <div class="step-number">01</div>
                     <div class="step-title"><i class="fas fa-clipboard-list"></i> Согласовываем автомобили для осмотра</div>
                 </div>
-                <div class="step-desc">Вы самостоятельно выбираете авто в каталоге <strong>PAN AUTO</strong> или на <strong>Encar</strong> с помощью нашего расширения. Мы поможем с подбором.</div>
+                <div class="step-desc">Вы самостоятельно выбираете авто в каталоге <strong>World Ride Auto</strong> или на <strong>Encar</strong> с помощью нашего расширения. Мы поможем с подбором.</div>
             </div>
 
             <!-- Шаг 2: Возвратный залог -->
@@ -1018,64 +1027,63 @@
         <div class="contact-row">
             <div class="contact-info">
                 <h3><i class="fas fa-comments"></i> Ответим на все вопросы</h3>
-                <p style="font-size: 1.1rem; opacity: 0.9;">Работаем по корейскому времени, но на связи до сна.</p>
-                <div class="time-badge">
-                    <div class="time-zone">
-                        <i class="fas fa-map-marker-alt"></i> Москва <span>23</span> / <span>18</span>
+                <p style="font-size: 1.1rem; opacity: 0.9;">Текущее время по городам — на связи в рабочее время.</p>
+                <div class="time-badge" id="time-by-cities">
+                    <div class="time-zone" data-tz="Europe/Moscow">
+                        <i class="fas fa-map-marker-alt"></i> Москва <span class="live-time">--:--</span>
                     </div>
-                    <div class="time-zone">
-                        <i class="fas fa-map-marker-alt"></i> Южная Корея <span>05</span> / <span>18</span>
+                    <div class="time-zone" data-tz="Asia/Seoul">
+                        <i class="fas fa-map-marker-alt"></i> Сеул <span class="live-time">--:--</span>
+                    </div>
+                    <div class="time-zone" data-tz="Asia/Vladivostok">
+                        <i class="fas fa-map-marker-alt"></i> Владивосток <span class="live-time">--:--</span>
                     </div>
                 </div>
                 <div style="margin-top: 1.5rem;">
                     <p><i class="fas fa-check-circle" style="color:#7ed957;"></i> Принимаем и обрабатываем заявки 24/7</p>
                 </div>
                 <div class="messengers" style="margin-top: 1rem;">
-                    <a href="#" class="messenger-icon"><i class="fab fa-telegram"></i> Telegram</a>
+                    <a href="https://t.me/nikits15" class="messenger-icon" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a>
                     <a href="#" class="messenger-icon"><i class="fab fa-whatsapp"></i> WhatsApp</a>
                 </div>
             </div>
 
             <div class="form-side">
                 <h3 style="margin-top: 0; color: white;">Отправьте данные — мы свяжемся</h3>
-                <form>
+                <form id="contact-form" action="#" method="get">
                     <div class="form-group">
-                        <input type="text" placeholder="ФИО / Организация" required>
+                        <input type="text" name="name" id="cf-name" placeholder="ФИО / Организация" required>
                     </div>
                     <div class="form-group">
-                        <select style="appearance: none;">
-                            <option>Выбранный способ связи</option>
-                            <option>WhatsApp</option>
-                            <option>Telegram</option>
-                            <option>Телефон</option>
+                        <select name="contact_method" id="cf-method" style="appearance: none;">
+                            <option value="">Способ связи</option>
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Telegram">Telegram</option>
+                            <option value="Телефон">Телефон</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <input type="tel" placeholder="Телефон">
+                        <input type="tel" name="phone" id="cf-phone" placeholder="Телефон">
                     </div>
                     <div class="form-group">
-                        <textarea rows="2" placeholder="Комментарий (авто, бюджет, пожелания)"></textarea>
+                        <textarea name="comment" id="cf-comment" rows="2" placeholder="Комментарий (авто, бюджет, пожелания)"></textarea>
                     </div>
                     <button type="submit" class="btn-submit">Отправить →</button>
                     <div class="policy-note">
-                        Нажимая «Отправить», вы даёте согласие на обработку персональных данных в соответствии с политикой конфиденциальности.
+                        Нажимая «Отправить», заявка уходит в Telegram менеджеру. Вы даёте согласие на обработку персональных данных.
                     </div>
                 </form>
             </div>
         </div>
 
         <!-- Нижний блок с мессенджерами -->
-        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin: 2.5rem 0 1rem;">
-            <div style="font-size: 1.4rem; font-weight: 500;">Наши мессенджеры для связи</div>
-            <div style="display: flex; gap: 1rem;">
-                <a href="#" style="background: #2b3f5c; color: white; padding: 0.7rem 2rem; border-radius: 40px; text-decoration: none;"><i class="fab fa-telegram"></i> Telegram</a>
-                <a href="#" style="background: #2b3f5c; color: white; padding: 0.7rem 2rem; border-radius: 40px; text-decoration: none;"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+        <div class="contact-messengers">
+            <span class="contact-messengers-title">Наши мессенджеры для связи</span>
+            <div class="contact-messengers-btns">
+                <a href="https://t.me/nikits15" class="btn-messenger" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a>
+                <a href="#" class="btn-messenger"><i class="fab fa-whatsapp"></i> WhatsApp</a>
             </div>
         </div>
-
-        <footer>
-            <p>PAN AUTO © 2025 — официальный импорт автомобилей из Южной Кореи</p>
-        </footer>
     </div>
 
     <script>
@@ -1177,6 +1185,71 @@
 
         // Инициализация расчета при загрузке страницы
         window.addEventListener('load', calculateCost);
+
+        // Фактическое время по городам (обновление раз в секунду)
+        (function() {
+            var zones = document.querySelectorAll('#time-by-cities .time-zone[data-tz]');
+            function formatTime(tz) {
+                try {
+                    return new Date().toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } catch (e) {
+                    return '--:--:--';
+                }
+            }
+            function update() {
+                zones.forEach(function(el) {
+                    var span = el.querySelector('.live-time');
+                    if (span) span.textContent = formatTime(el.getAttribute('data-tz'));
+                });
+            }
+            update();
+            setInterval(update, 1000);
+        })();
+
+        // Отправка заявки: открывает Telegram с предзаполненным сообщением (заявка уходит менеджеру в ЛС)
+        (function() {
+            var form = document.getElementById('contact-form');
+            var telegramBase = 'https://t.me/nikits15';
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var name = (document.getElementById('cf-name') && document.getElementById('cf-name').value) || '';
+                    var method = (document.getElementById('cf-method') && document.getElementById('cf-method').value) || '';
+                    var phone = (document.getElementById('cf-phone') && document.getElementById('cf-phone').value) || '';
+                    var comment = (document.getElementById('cf-comment') && document.getElementById('cf-comment').value) || '';
+                    var lines = ['Заявка с сайта «Как купить»'];
+                    if (name) lines.push('ФИО/Организация: ' + name);
+                    if (method) lines.push('Способ связи: ' + method);
+                    if (phone) lines.push('Телефон: ' + phone);
+                    if (comment) lines.push('Комментарий: ' + comment);
+                    var text = lines.join('\n');
+                    window.open(telegramBase + (text ? '?text=' + encodeURIComponent(text) : ''), '_blank', 'noopener');
+                });
+            }
+        })();
+
+        // Анимация появления: герой и карточки шагов
+        (function() {
+            var hero = document.getElementById('hero-block');
+            if (hero) hero.classList.add('visible');
+            var cards = document.querySelectorAll('.step-card');
+            var io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(function(entries) {
+                entries.forEach(function(e) {
+                    if (e.isIntersecting) e.target.classList.add('visible');
+                });
+            }, { rootMargin: '0px 0px -40px 0px', threshold: 0.1 }) : null;
+            if (io) {
+                cards.forEach(function(card, i) {
+                    card.style.animationDelay = (i * 0.06) + 's';
+                    io.observe(card);
+                });
+            } else {
+                cards.forEach(function(c, i) {
+                    c.classList.add('visible');
+                    c.style.animationDelay = (i * 0.06) + 's';
+                });
+            }
+        })();
     </script>
 
 <!-- Футер -->
