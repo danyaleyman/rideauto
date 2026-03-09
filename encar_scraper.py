@@ -662,10 +662,14 @@ async def detail_worker(
 # Main
 # -----------------------------------------------------------------------------
 
-async def run_scraper(config_path: str = "scraper_config.yaml") -> None:
+async def run_scraper(
+    config_path: str = "scraper_config.yaml",
+    max_cars_override: Optional[int] = None,
+    only_pending: bool = False,
+) -> None:
     config = load_config(config_path)
     log = setup_logging(config)
-    log.info("Starting Encar scraper")
+    log.info("Starting Encar scraper%s", " (only-pending)" if only_pending else "")
     checkpoint_cfg = config.get("checkpoint", {})
     cp_path = checkpoint_cfg.get("path", "scraper_checkpoint.db")
     max_pending = checkpoint_cfg.get("max_pending_ids", 500000)
@@ -701,83 +705,131 @@ async def run_scraper(config_path: str = "scraper_config.yaml") -> None:
     start_time = time.time()
     refill_done = False
 
-    # Load pending from checkpoint into queue
-    pending = checkpoint.pop_pending_batch(limit=concurrency * 100)
-    for rec in pending:
-        await queue.put(rec if len(rec) == 3 else (rec[0], rec[1], None))
-    if pending:
-        log.info("Resumed with %s pending IDs from checkpoint", len(pending))
+    try:
+        # Load pending from checkpoint into queue
+        pending = checkpoint.pop_pending_batch(limit=concurrency * 100)
+        for rec in pending:
+            await queue.put(rec if len(rec) == 3 else (rec[0], rec[1], None))
+        if pending:
+            log.info("Resumed with %s pending IDs from checkpoint", len(pending))
 
-    max_cars = int(config.get("max_cars", 0) or 0)
-    if max_cars > 0:
-        log.info("Run limited to max_cars=%s", max_cars)
+        max_cars = int(max_cars_override if max_cars_override is not None else (config.get("max_cars", 0) or 0))
+        if max_cars > 0:
+            log.info("Run limited to max_cars=%s", max_cars)
 
-    async with AsyncEncarClient(config, log) as client:
-        producer = asyncio.create_task(
-            list_producer(client, checkpoint, config, car_types, stats, log, max_cars=max_cars)
-        )
-        workers = [
-            asyncio.create_task(
-                detail_worker(i, client, checkpoint, storage, parser, config, queue, stats, log)
-            )
-            for i in range(concurrency)
-        ]
-        # Feed queue from checkpoint periodically until no more pending or max_cars reached
-        async def refill_queue():
-            nonlocal refill_done
-            while True:
-                await asyncio.sleep(15)
-                if max_cars > 0 and stats["saved"] >= max_cars:
-                    refill_done = True
-                    for _ in workers:
-                        await queue.put(None)
-                    log.info("Refill stopping: max_cars=%s reached (saved=%s)", max_cars, stats["saved"])
-                    break
-                if queue.qsize() > concurrency * 3:
-                    continue
-                batch = checkpoint.pop_pending_batch(limit=100)
-                for it in batch:
-                    await queue.put(it)
-                if producer.done() and not batch and checkpoint.pending_count() == 0:
-                    refill_done = True
-                    for _ in workers:
-                        await queue.put(None)
-                    break
-        refill_task = asyncio.create_task(refill_queue())
-        # Stats logger
-        async def log_stats():
-            while not refill_done:
-                await asyncio.sleep(60)
-                p = checkpoint.pending_count()
-                log.info(
-                    "Stats: processed=%s saved=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
-                    stats["processed"], stats["saved"], stats["detail_fail"], stats["parse_fail"], p, queue.qsize(),
+        async with AsyncEncarClient(config, log) as client:
+            if only_pending:
+                producer = asyncio.create_task(asyncio.sleep(0))
+            else:
+                producer = asyncio.create_task(
+                    list_producer(client, checkpoint, config, car_types, stats, log, max_cars=max_cars)
                 )
-        stats_task = asyncio.create_task(log_stats())
-        await producer
-        # Keep refilling from pending until empty
-        for _ in range(1000):
-            batch = checkpoint.pop_pending_batch(limit=100)
-            for it in batch:
-                await queue.put(it)
-            if not batch and checkpoint.pending_count() == 0:
-                break
-            await asyncio.sleep(0.3)
-        await asyncio.gather(*workers)
-        refill_done = True
-        stats_task.cancel()
-        try:
-            await stats_task
-        except asyncio.CancelledError:
-            pass
-        refill_task.cancel()
-        try:
-            await refill_task
-        except asyncio.CancelledError:
-            pass
+            workers = [
+                asyncio.create_task(
+                    detail_worker(i, client, checkpoint, storage, parser, config, queue, stats, log)
+                )
+                for i in range(concurrency)
+            ]
+            # Feed queue from checkpoint periodically until no more pending or max_cars reached
+            async def refill_queue():
+                nonlocal refill_done
+                while True:
+                    await asyncio.sleep(15)
+                    if max_cars > 0 and stats["saved"] >= max_cars:
+                        refill_done = True
+                        for _ in workers:
+                            await queue.put(None)
+                        log.info("Refill stopping: max_cars=%s reached (saved=%s)", max_cars, stats["saved"])
+                        break
+                    if queue.qsize() > concurrency * 3:
+                        continue
+                    batch = checkpoint.pop_pending_batch(limit=100)
+                    for it in batch:
+                        await queue.put(it)
+                    if producer.done() and not batch and checkpoint.pending_count() == 0:
+                        refill_done = True
+                        for _ in workers:
+                            await queue.put(None)
+                        break
+            refill_task = asyncio.create_task(refill_queue())
+            # Stats logger
+            async def log_stats():
+                while not refill_done:
+                    await asyncio.sleep(60)
+                    p = checkpoint.pending_count()
+                    log.info(
+                        "Stats: processed=%s saved=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
+                        stats["processed"], stats["saved"], stats["detail_fail"], stats["parse_fail"], p, queue.qsize(),
+                    )
+            stats_task = asyncio.create_task(log_stats())
+            await producer
+            # Keep refilling from pending until empty
+            # #region agent log
+            _debug_log = Path(__file__).resolve().parent / "debug-6415ac.log"
+            try:
+                with open(_debug_log, "a", encoding="utf-8") as _f:
+                    _f.write(json.dumps({"location": "encar_scraper.py:post_producer_start", "message": "post_producer_refill_entered", "data": {"pending": checkpoint.pending_count()}, "timestamp": time.time(), "hypothesisId": "H1", "runId": "post-fix"}) + "\n")
+            except Exception:
+                pass
+            # #endregion
+            try:
+                for refill_round in range(1000):
+                    batch = checkpoint.pop_pending_batch(limit=100)
+                    # #region agent log
+                    try:
+                        with open(_debug_log, "a", encoding="utf-8") as _f:
+                            _f.write(json.dumps({"location": "encar_scraper.py:refill_loop", "message": "refill_batch", "data": {"round": refill_round, "batch_len": len(batch), "pending": checkpoint.pending_count()}, "timestamp": time.time(), "hypothesisId": "H3", "runId": "post-fix"}) + "\n")
+                    except Exception:
+                        pass
+                    # #endregion
+                    for it in batch:
+                        await queue.put(it)
+                    if not batch and checkpoint.pending_count() == 0:
+                        break
+                    await asyncio.sleep(0.3)
+                await asyncio.gather(*workers)
+            except asyncio.CancelledError:
+                refill_done = True
+                stats_task.cancel()
+                try:
+                    await stats_task
+                except asyncio.CancelledError:
+                    pass
+                refill_task.cancel()
+                try:
+                    await refill_task
+                except asyncio.CancelledError:
+                    pass
+                for _ in workers:
+                    try:
+                        queue.put_nowait(None)
+                    except asyncio.QueueFull:
+                        break
+                await asyncio.gather(*workers, return_exceptions=True)
+                raise
+            refill_done = True
+            stats_task.cancel()
+            try:
+                await stats_task
+            except asyncio.CancelledError:
+                pass
+            refill_task.cancel()
+            try:
+                await refill_task
+            except asyncio.CancelledError:
+                pass
 
-    checkpoint.close()
-    storage.close()
+    finally:
+        # #region agent log
+        try:
+            with open(Path(__file__).resolve().parent / "debug-6415ac.log", "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"location": "encar_scraper.py:cleanup", "message": "before_checkpoint_close", "data": {}, "timestamp": time.time(), "hypothesisId": "H1", "runId": "post-fix"}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+        checkpoint.close()
+        storage.close()
+
     elapsed = time.time() - start_time
     log.info(
         "Scraper finished. list_pages=%s ids_discovered=%s ids_queued=%s processed=%s saved=%s detail_fail=%s parse_fail=%s elapsed=%.1fs",
@@ -787,7 +839,17 @@ async def run_scraper(config_path: str = "scraper_config.yaml") -> None:
 
 
 def main() -> None:
-    asyncio.run(run_scraper())
+    import argparse
+    p = argparse.ArgumentParser(description="Encar async scraper: list pages + detail workers")
+    p.add_argument("--config", default="scraper_config.yaml", help="Config YAML path")
+    p.add_argument("--max-cars", type=int, default=None, metavar="N", help="Stop after N cars saved (overrides config)")
+    p.add_argument("--only-pending", action="store_true", help="Only process pending IDs from checkpoint (no list producer)")
+    args = p.parse_args()
+    asyncio.run(run_scraper(
+        config_path=args.config,
+        max_cars_override=args.max_cars,
+        only_pending=args.only_pending,
+    ))
 
 
 if __name__ == "__main__":

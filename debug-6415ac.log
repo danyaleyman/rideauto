@@ -1,0 +1,4 @@
+{"location": "encar_scraper.py:post_producer_start", "message": "post_producer_refill_entered", "data": {"pending": 521}, "timestamp": 1773047231.2880251, "hypothesisId": "H1", "runId": "post-fix"}
+{"location": "encar_scraper.py:refill_loop", "message": "refill_batch", "data": {"round": 0, "batch_len": 100, "pending": 421}, "timestamp": 1773047231.294084, "hypothesisId": "H3", "runId": "post-fix"}
+{"location": "encar_scraper.py:refill_loop", "message": "refill_batch", "data": {"round": 1, "batch_len": 100, "pending": 321}, "timestamp": 1773047263.8608243, "hypothesisId": "H3", "runId": "post-fix"}
+{"location": "encar_scraper.py:refill_loop", "message": "refill_batch", "data": {"round": 2, "batch_len": 100, "pending": 221}, "timestamp": 1773047285.247382, "hypothesisId": "H3", "runId": "post-fix"}
