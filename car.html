@@ -4,30 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ENCAR · Детальная карточка авто</title>
+    <link rel="stylesheet" href="css/common.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
-        /* Переменные как у конкурента */
+        /* Переменные страницы (общие в css/common.css) */
         :root {
-            --app-bg: #f3f4f6;
+            --app-bg: var(--wra-gray-100);
             --app-details-width: 776px;
             --header-height: 87px;
-            --color-neutral-100: #fff;
-            --color-neutral-200: #e5e7eb;
-            --color-neutral-300: #d1d5db;
-            --color-neutral-600: #6b7280;
-            --color-neutral-800: #374151;
-            --color-neutral-900: #111827;
-            --color-primary: #3b82f6;
+            --color-neutral-100: var(--wra-white);
+            --color-neutral-200: var(--wra-gray-200);
+            --color-neutral-300: var(--wra-gray-300);
+            --color-neutral-600: var(--wra-gray-600);
+            --color-neutral-800: var(--wra-gray-700);
+            --color-neutral-900: var(--wra-gray-900);
+            --color-primary: var(--wra-primary);
         }
-        body {
-            margin: 0;
-            padding: 0;
-            background: var(--app-bg);
-        }
-
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { margin: 0; padding: 0; background: var(--app-bg); font-family: var(--font-sans); }
+        * { box-sizing: border-box; }
         
         /* Контент-шапка: назад + хлебные крошки (как у конкурента) */
         .content-header {
@@ -1509,74 +1505,7 @@
             }
         }
         
-        /* Футер как в index: скруглённый сверху, верхняя полоса + юридический текст */
-        .footer-wrap {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 35px 20px 32px;
-        }
-        .footer {
-            background: #f8f8f8;
-            border-radius: 12px 12px 0 0;
-            overflow: hidden;
-        }
-        .footer-top {
-            background: #efefef;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 28px;
-            gap: 16px;
-        }
-        .footer-logo {
-            display: inline-block;
-            line-height: 0;
-        }
-        .footer-logo img {
-            height: 36px;
-            width: auto;
-            display: block;
-        }
-        .footer-nav {
-            display: flex;
-            gap: 24px;
-            align-items: center;
-        }
-        .footer-nav a {
-            color: #333;
-            text-decoration: none;
-            font-size: 0.95rem;
-            transition: opacity 0.2s;
-        }
-        .footer-nav a:hover { opacity: 0.7; }
-        .footer-copy {
-            text-align: right;
-            font-size: 0.9rem;
-            color: #333;
-        }
-        .footer-copy .copy-line { display: block; }
-        .footer-copy .copy-made { font-size: 0.8rem; color: #666; }
-        .footer-legal {
-            padding: 24px 28px 28px;
-            font-size: 12px;
-            line-height: 1.55;
-            color: #666;
-        }
-        .footer-legal p {
-            margin: 0 0 14px 0;
-        }
-        .footer-legal p:last-child { margin-bottom: 0; }
-        @media (max-width: 768px) {
-            .footer-wrap { padding: 16px; }
-            .footer-top {
-                flex-direction: column;
-                align-items: flex-start;
-                padding: 16px 20px;
-            }
-            .footer-copy { text-align: left; }
-            .footer-legal { padding: 20px; font-size: 11px; }
-        }
+        /* Футер — в css/common.css */
 
         /* Стили шапки сайта */
         /* Обёртка для шапки */
@@ -1591,7 +1520,7 @@
             padding: 0;  /* убедиться, что нет внутренних отступов */
         }
 
-        /* Новые стили шапки */
+        /* Шапка карточки: только шрифт из общего стиля */
         .header-area {
             width: 1280px;
             margin: 0 auto;
@@ -1599,11 +1528,11 @@
             position: relative;
             display: flex;
             align-items: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--font-sans);
             font-size: 14px;
             line-height: 1.5;
-            letter-spacing: -0.5px;
-            color: #181818;
+            letter-spacing: -0.01em;
+            color: var(--wra-gray-900);
             box-sizing: border-box;
             z-index: 100;
         }
@@ -1627,7 +1556,7 @@
             line-height: 1;
         }
         .logo .logo-text {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--font-sans);
         }
         .logo .logo-accent {
             color: #3b82f6;
@@ -1677,7 +1606,7 @@
             border-bottom: 2px solid #3b82f6;
         }
         .gnb li a b {
-            font-weight: 700;
+            font-weight: 500;
         }
 
         /* Правая группа (util) */

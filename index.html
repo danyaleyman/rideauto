@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World Ride Auto - Авто из Азии</title>
+    <link rel="stylesheet" href="css/common.css">
     <script src="https://kit.fontawesome.com/767a85f1ee.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
@@ -148,15 +149,8 @@
     .btn-secondary:hover {
       background: #e5e5e5;
     }
-    * {
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-    body {
-      background: #FFFFFF;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: var(--font-sans); background: var(--wra-gray-100); }
     .main-layout {
       display: flex;
       gap: 24px;
@@ -166,10 +160,10 @@
       padding: 20px;
     }
 
-    /* Панель фильтров (стиль как на скриншотах: светлая панель, скругления) */
+    /* Панель фильтров — как в car.html: белая плашка на сером фоне */
     .filters-panel {
       width: 320px;
-      background: #f8f9fa;
+      background: #fff;
       border-radius: 16px;
       padding: 0;
       position: sticky;
@@ -183,7 +177,7 @@
     }
     .filters-panel-header {
       padding: 24px 24px 16px;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
       flex-shrink: 0;
     }
     .filters-panel-header h3 {
@@ -204,11 +198,11 @@
       flex-shrink: 0;
       padding: 16px 24px 24px;
       border-top: 1px solid #e5e7eb;
-      background: #f8f9fa;
+      background: #fff;
     }
     .filter-group {
       margin-bottom: 28px;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
       padding-bottom: 20px;
     }
     .filter-group:last-child {
@@ -531,7 +525,7 @@
       display: flex;
       flex-direction: row;
       width: 100%;
-      border: 1px solid #edeef2;
+      border: 1px solid #e5e7eb;
     }
     .car-card:hover {
       transform: translateY(-4px);
@@ -542,9 +536,10 @@
       position: relative;
       flex: 0 0 320px;
       width: 320px;
-      height: 200px;
+      min-height: 200px;
+      align-self: stretch;
       overflow: hidden;
-      background: #edeef2;
+      background: #e5e7eb;
       border-radius: 20px 0 0 20px;
     }
     .card-badge {
@@ -582,7 +577,7 @@
       height: 100%;
       object-fit: cover;
       position: absolute;
-      top: 0; left: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       opacity: 0;
       transition: opacity 0.3s ease;
     }
@@ -820,74 +815,7 @@
       .filters-panel { width: 100%; position: static; max-height: none; }
     }
 
-    /* Футер как у PAN AUTO: скруглённый сверху, верхняя полоса + юридический текст */
-    .footer-wrap {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 35px 20px 32px;
-    }
-    .footer {
-      background: #f8f8f8;
-      border-radius: 12px 12px 0 0;
-      overflow: hidden;
-    }
-    .footer-top {
-      background: #efefef;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px 28px;
-      gap: 16px;
-    }
-    .footer-logo {
-      display: inline-block;
-      line-height: 0;
-    }
-    .footer-logo img {
-      height: 36px;
-      width: auto;
-      display: block;
-    }
-    .footer-nav {
-      display: flex;
-      gap: 24px;
-      align-items: center;
-    }
-    .footer-nav a {
-      color: #333;
-      text-decoration: none;
-      font-size: 0.95rem;
-      transition: opacity 0.2s;
-    }
-    .footer-nav a:hover { opacity: 0.7; }
-    .footer-copy {
-      text-align: right;
-      font-size: 0.9rem;
-      color: #333;
-    }
-    .footer-copy .copy-line { display: block; }
-    .footer-copy .copy-made { font-size: 0.8rem; color: #666; }
-    .footer-legal {
-      padding: 24px 28px 28px;
-      font-size: 12px;
-      line-height: 1.55;
-      color: #666;
-    }
-    .footer-legal p {
-      margin: 0 0 14px 0;
-    }
-    .footer-legal p:last-child { margin-bottom: 0; }
-    @media (max-width: 768px) {
-      .footer-wrap { padding: 16px; }
-      .footer-top {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 16px 20px;
-      }
-      .footer-copy { text-align: left; }
-      .footer-legal { padding: 20px; font-size: 11px; }
-    }
+    /* Футер — в css/common.css */
 
     /* Баннер: бренд слева + 2 статичных карточки и 1 активный слайдер, отступ как у контента */
     .hero-banner-wrap {
@@ -897,7 +825,7 @@
       box-sizing: border-box;
     }
     .hero-banner {
-      background: #f3f4f6;
+      background: #fff;
       border-radius: 16px;
       padding: 24px 28px;
       display: flex;
