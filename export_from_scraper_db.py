@@ -17,8 +17,15 @@ def main():
     p.add_argument("--no-prices", action="store_true", help="Do not calculate prices (no API calls)")
     args = p.parse_args()
     conn = sqlite3.connect(args.db)
-    rows = conn.execute("SELECT data_json FROM cars ORDER BY id").fetchall()
-    cars = [json.loads(r[0]) for r in rows]
+    rows = conn.execute("SELECT car_id, data_json FROM cars ORDER BY id").fetchall()
+    cars = []
+    for car_id, data_json in rows:
+        car = json.loads(data_json)
+        # Единый стабильный id для ссылок каталог → карточка (Encar car_id)
+        car["id"] = car_id
+        if isinstance(car.get("data"), dict):
+            car["data"]["id"] = str(car_id)
+        cars.append(car)
     conn.close()
 
     if not args.no_prices and cars:

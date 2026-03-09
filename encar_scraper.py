@@ -535,7 +535,7 @@ def parse_one_car(
     inspection: Optional[dict],
     sellingpoint: Optional[dict],
     user_info: Optional[dict],
-    seq: int,
+    _seq: int,
 ) -> Optional[dict]:
     try:
         inspection_structured = parser.parse_inspection(inspection, diagnosis) if (inspection or diagnosis) else {}
@@ -547,8 +547,9 @@ def parse_one_car(
             inspection, sellingpoint, record, user_info,
             inspection_structured=inspection_structured,
         )
-        normalized["id"] = seq
-        normalized["data"]["id"] = str(seq)
+        # Используем стабильный Encar car_id для ссылок каталог → карточка (избегаем дубликатов id из-за гонки seq)
+        normalized["id"] = car_id
+        normalized["data"]["id"] = str(car_id)
         return normalized
     except Exception:
         return None
@@ -641,10 +642,9 @@ async def detail_worker(
             inspection = (detail.get("condition") or {}).get("inspection")
         sellingpoint = results.get("sellingpoint")
         user_info = results.get("user")
-        seq = stats["saved"] + 1
         car = parse_one_car(
             parser, car_id, item_from_list or {"Id": car_id}, detail, diagnosis, record,
-            inspection, sellingpoint, user_info, seq,
+            inspection, sellingpoint, user_info, stats["saved"] + 1,
         )
         if car:
             storage.save_car(car, car_id)
