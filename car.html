@@ -446,8 +446,6 @@
             top: 20px;
             right: 20px;
             z-index: 10;
-            color: #fff;
-            font-size: 28px;
             width: 44px;
             height: 44px;
             border-radius: 50%;
@@ -460,6 +458,7 @@
             transition: background 0.2s, transform 0.2s;
             border: none;
         }
+        .modal-close img { display: block; pointer-events: none; }
         .modal-close:hover {
             background: rgba(255,255,255,0.25);
             transform: scale(1.05);
@@ -474,14 +473,13 @@
             border-radius: 50%;
             background: rgba(255,255,255,0.15);
             border: 1px solid rgba(255,255,255,0.25);
-            color: #fff;
-            font-size: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: background 0.2s, transform 0.2s;
         }
+        .modal-nav img { display: block; pointer-events: none; }
         .modal-nav:hover {
             background: rgba(255,255,255,0.3);
             transform: translateY(-50%) scale(1.08);
@@ -1635,10 +1633,10 @@
 <!-- Модальное окно галереи -->
 <div id="galleryModal" class="modal">
     <div class="modal-content">
-        <button type="button" class="modal-close" id="modalClose" aria-label="Закрыть галерею"><span aria-hidden="true">×</span></button>
+        <button type="button" class="modal-close" id="modalClose" aria-label="Закрыть галерею"><img src="image/Close_LG.svg" alt="" width="24" height="24"></button>
         <div class="modal-main" id="modalMain">
-            <button type="button" class="modal-nav left" id="modalPrev" aria-label="Предыдущее фото"><span aria-hidden="true">‹</span></button>
-            <button type="button" class="modal-nav right" id="modalNext" aria-label="Следующее фото"><span aria-hidden="true">›</span></button>
+            <button type="button" class="modal-nav left" id="modalPrev" aria-label="Предыдущее фото"><img src="image/Chevron_Left.svg" alt="" width="24" height="24"></button>
+            <button type="button" class="modal-nav right" id="modalNext" aria-label="Следующее фото"><img src="image/Chevron_Right.svg" alt="" width="24" height="24"></button>
         </div>
         <div class="modal-thumbs-row" id="modalThumbs"></div>
         <div class="modal-counter" id="modalCounter"></div>
