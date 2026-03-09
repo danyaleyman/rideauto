@@ -656,32 +656,47 @@
       font-weight: 500;
     }
     .delivery-line {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
-      color: #64748b;
-      margin-top: 2px;
+      gap: 4px;
+      font-size: 0.8rem;
+      color: #6b7280;
+      white-space: nowrap;
     }
     .delivery-line .info-icon-wrap {
-      width: 16px;
-      height: 16px;
-      font-size: 10px;
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
     }
+    .delivery-line .info-icon-wrap .info-icon-img { width: 12px; height: 12px; }
     .price-row {
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: space-between;
       margin-top: 8px;
-      border-top: 1px solid #edf2f7;
+      border-top: 1px solid #e5e7eb;
       padding-top: 10px;
-      gap: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
     }
-    .price-rub.price-rub-fallback { font-size: 0.9rem; font-weight: 600; white-space: normal; line-height: 1.25; }
+    .price-block-inline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .price-rub {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #1d4ed8;
+      line-height: 1.3;
+    }
+    .price-rub.price-rub-fallback { font-size: 0.95rem; font-weight: 600; color: #4b5563; white-space: normal; line-height: 1.25; }
     .price {
-      font-weight: 750;
-      font-size: 1.4rem;
-      color: #111827;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #1d4ed8;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -1822,11 +1837,11 @@
               </div>
             </div>
             <div class="price-row">
-              <div class="price-block" style="display: flex; flex-direction: column; gap: 2px;">
-                <span class="price-rub ${(d.my_price == null || d.my_price === '' || d.price_calc_failed) ? 'price-rub-fallback' : ''}" style="font-weight: 750; font-size: 1.4rem; color: #2563eb;">
+              <div class="price-block-inline">
+                <span class="price-rub ${(d.my_price == null || d.my_price === '' || d.price_calc_failed) ? 'price-rub-fallback' : ''}">
                   ${(d.my_price != null && d.my_price !== '' && !d.price_calc_failed) ? Math.round(Number(d.my_price)).toLocaleString() + ' ₽' : ((d.price_calc_failed || (d.price_won != null && (d.my_price == null || d.my_price === ''))) ? 'Обратитесь к менеджеру для просчёта' : '—')}
                 </span>
-                <span class="delivery-line">до Владивостока <span class="info-icon-wrap" title="Доставка до Владивостока"><img src="image/Info.svg" alt="i" width="16" height="16" class="info-icon-img"></span></span>
+                <span class="delivery-line">до Владивостока <span class="info-icon-wrap" title="Доставка до Владивостока"><img src="image/Info.svg" alt="i" width="12" height="12" class="info-icon-img"></span></span>
               </div>
               <a href="${carUrl}" target="_blank" class="tax-btn ${tax.cls}">${tax.text}</a>
             </div>
