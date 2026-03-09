@@ -499,7 +499,10 @@ class EncarFullParser:
         price_won = int(item.get('Price', 0))
         price = str(price_won // 10000) if price_won else ''
         km_age = str(item.get('Mileage', ''))
-        displacement = str(item.get('Displacement', ''))
+        displacement = str(item.get('Displacement', '') or '')
+        if not displacement.strip() and detail:
+            spec = detail.get('spec', {}) or {}
+            displacement = str(spec.get('engineDisplacement') or spec.get('displacement') or spec.get('Displacement') or item.get('displacement') or '')
         description = item.get('Description', '')
 
         # --- Из detail (детальная информация) ---

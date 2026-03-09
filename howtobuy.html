@@ -6,19 +6,18 @@
     <title>Как купить авто из Кореи — World Ride Auto</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* Общие стили и цветовая схема проекта (как в index.html) */
         :root {
             --bg-body: #f3f4f6;
             --bg-card: #ffffff;
-            --bg-primary: #071224;
-            --bg-secondary: #0f1f38;
-            --bg-accent: #de191f;
-            --bg-accent-2: #ff4448;
+            --color-primary: #3b82f6;
+            --color-primary-hover: #2563eb;
             --text-main: #111827;
             --text-muted: #6b7280;
-            --text-light: #ffffff;
+            --text-nav: #374151;
             --border: #e5e7eb;
-            --shadow: 0 15px 35px -10px rgba(7, 18, 36, 0.08);
-            --shadow-hover: 0 25px 40px -12px rgba(7, 18, 36, 0.15);
+            --bg-dark: #111827;
+            --shadow: 0 2px 10px rgba(0,0,0,0.05);
             --radius-lg: 1.25rem;
             --radius-md: 1rem;
             --radius-sm: 0.75rem;
@@ -57,13 +56,13 @@
 
         /* Шапка как на главной */
         .navbar {
-            background: white;
+            background: var(--bg-card);
             border-bottom: 1px solid var(--border);
             padding: 16px 20px;
             position: sticky;
             top: 0;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
         }
         .nav-container {
             max-width: 1280px;
@@ -90,21 +89,21 @@
             justify-content: center;
         }
         .nav-link {
-            color: #374151;
+            color: var(--text-nav);
             text-decoration: none;
             font-weight: 500;
             font-size: 0.95rem;
             transition: color 0.2s ease;
         }
-        .nav-link:hover { color: var(--bg-accent); }
-        .nav-link.active { color: var(--bg-accent); font-weight: 600; }
+        .nav-link:hover { color: var(--color-primary); }
+        .nav-link.active { color: var(--color-primary); font-weight: 600; }
         .nav-actions {
             display: flex;
             align-items: center;
             gap: 0.75rem;
         }
         .btn-calculate {
-            background: var(--bg-accent);
+            background: var(--color-primary);
             color: white;
             border: none;
             padding: 0.6rem 1.25rem;
@@ -119,14 +118,14 @@
             text-decoration: none;
         }
         .btn-calculate:hover {
-            background: var(--bg-accent-2);
+            background: var(--color-primary-hover);
             transform: translateY(-2px);
         }
         .nav-contact { display: none; }
         .btn-secondary {
             background: transparent;
-            color: var(--bg-accent);
-            border: 2px solid var(--bg-accent);
+            color: var(--color-primary);
+            border: 2px solid var(--color-primary);
             padding: 0.6rem 1.25rem;
             border-radius: 50px;
             font-weight: 600;
@@ -134,7 +133,7 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        .btn-secondary:hover { background: var(--bg-accent); color: white; }
+        .btn-secondary:hover { background: var(--color-primary); color: white; }
         .nav-link.active { cursor: default; }
         .hero-block { opacity: 0; }
         .hero-block.visible { animation: fadeInUp 0.7s ease-out forwards; }
@@ -148,14 +147,14 @@
         .contact-messengers-title { font-size: 1.4rem; font-weight: 500; }
         .contact-messengers-btns { display: flex; gap: 1rem; }
         .btn-messenger {
-            background: var(--bg-primary);
+            background: var(--text-main);
             color: white;
             padding: 0.7rem 2rem;
             border-radius: 40px;
             text-decoration: none;
             transition: background 0.2s ease;
         }
-        .btn-messenger:hover { background: var(--bg-accent); }
+        .btn-messenger:hover { background: var(--color-primary); }
         
         /* Заголовок */
         .hero {
@@ -167,9 +166,7 @@
             font-size: 2.8rem;
             font-weight: 800;
             letter-spacing: -0.02em;
-            background: linear-gradient(145deg, var(--bg-primary), var(--bg-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-main);
             margin-bottom: 0.5rem;
             display: flex;
             align-items: center;
@@ -177,13 +174,13 @@
             gap: 1rem;
         }
         .hero h1 i {
-            color: var(--bg-accent);
+            color: var(--color-primary);
             font-size: 2.5rem;
         }
         .hero .subhead {
             font-size: 1.2rem;
-            color: #2c3e50;
-            border-left: 5px solid var(--bg-accent);
+            color: var(--text-muted);
+            border-left: 5px solid var(--color-primary);
             padding-left: 1.5rem;
             margin: 1.5rem auto 0 auto;
             font-weight: 400;
@@ -252,7 +249,7 @@
         }
 
         .step-title i {
-            color: var(--bg-accent);
+            color: var(--color-primary);
             font-size: 1.8rem;
             background: #fef2f2;
             width: 48px;
@@ -275,7 +272,7 @@
             border-radius: var(--radius-md);
             padding: 1.2rem 1.5rem;
             margin: 0.8rem 0;
-            border-left: 6px solid var(--bg-accent);
+            border-left: 6px solid var(--color-primary);
         }
 
         .highlight p {
@@ -284,7 +281,7 @@
 
         .badge {
             display: inline-block;
-            background: var(--bg-secondary);
+            background: var(--bg-dark);
             color: white;
             padding: 0.25rem 1rem;
             border-radius: 30px;
@@ -319,7 +316,7 @@
         }
 
         .list-docs li i {
-            color: var(--bg-accent);
+            color: var(--color-primary);
             margin-right: 4px;
         }
 
@@ -339,7 +336,7 @@
         }
 
         .info-box strong {
-            color: var(--bg-primary);
+            color: var(--bg-dark);
             font-size: 1.1rem;
             display: block;
             margin-bottom: 0.5rem;
@@ -348,7 +345,7 @@
         .price-tag {
             font-size: 1.4rem;
             font-weight: 700;
-            color: var(--bg-primary);
+            color: var(--bg-dark);
             background: #fef2f2;
             display: inline-block;
             padding: 0.3rem 1.2rem;
@@ -380,7 +377,7 @@
 
         .divider {
             height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(222, 25, 31, 0.3), transparent);
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.25), transparent);
             margin: 2.5rem 0;
         }
 
@@ -411,7 +408,7 @@
         }
         
         .calc-header h2 i {
-            color: var(--bg-accent);
+            color: var(--color-primary);
             font-size: 2rem;
         }
         
@@ -460,12 +457,47 @@
         
         .calc-form input:focus {
             outline: none;
-            border-color: var(--bg-accent);
-            box-shadow: 0 0 0 4px rgba(222, 25, 31, 0.15);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
-        
+        .calc-rates-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            padding: 0.75rem 1rem;
+            background: rgba(59, 130, 246, 0.06);
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            font-size: 0.85rem;
+        }
+        .calc-rates-label { color: var(--text-muted); }
+        .calc-rates-values { color: var(--text-main); font-weight: 500; }
+        .btn-calc-refresh {
+            margin-left: auto;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 50px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .btn-calc-refresh:hover { color: var(--color-primary); border-color: var(--color-primary); }
+        .result-note {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.65);
+            margin-top: 0.75rem;
+            line-height: 1.4;
+        }
+        .cost-item.subtotal-item {
+            border-top: 1px dashed rgba(255,255,255,0.25);
+            margin-top: 0.25rem;
+            padding-top: 0.75rem;
+        }
         .calc-result {
-            background: var(--bg-primary);
+            background: var(--bg-dark);
             color: white;
             padding: 2rem;
             border-radius: var(--radius-md);
@@ -489,7 +521,7 @@
         .result-price {
             font-size: 2.5rem;
             font-weight: 800;
-            color: var(--bg-accent-2);
+            color: var(--color-primary-hover);
             letter-spacing: -0.02em;
         }
         
@@ -533,152 +565,256 @@
         }
         
         .highlight-total span:last-child {
-            color: var(--bg-accent-2);
+            color: var(--color-primary-hover);
         }
 
-        /* Контактный блок */
+        /* Блок «Ответим на все вопросы» */
         .contact-row {
             display: grid;
-            grid-template-columns: 1fr 1.5fr;
+            grid-template-columns: 1fr 1.25fr;
             gap: 2rem;
-            background: var(--bg-primary);
-            color: var(--text-light);
+            background: var(--bg-card);
             border-radius: var(--radius-lg);
-            padding: 2.5rem;
-            box-shadow: 0 30px 40px -20px rgba(11, 30, 51, 0.4);
+            padding: 0;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+            overflow: hidden;
         }
-
+        .contact-info {
+            background: var(--bg-dark);
+            color: #fff;
+            padding: 2rem 2.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
         .contact-info h3 {
-            font-size: 1.8rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0.6rem;
+            color: #fff;
         }
-
+        .contact-info h3 i {
+            color: var(--color-primary);
+            font-size: 1.35rem;
+        }
+        .contact-info > p {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
         .time-badge {
-            background: rgba(255,255,255,0.08);
-            padding: 1rem 1.8rem;
-            border-radius: 60px;
-            display: inline-flex;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .time-zone {
             display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .time-zone {
+            display: inline-flex;
             align-items: center;
-            gap: 0.8rem;
-        }
-
-        .time-zone span.live-time,
-        .time-zone span {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: var(--bg-accent-2);
-        }
-
-        .form-side {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(12px);
-            border-radius: var(--radius-lg);
-            padding: 2rem;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .form-group {
-            margin-bottom: 1.2rem;
-        }
-
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 1rem 1.5rem;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.1);
+            padding: 0.6rem 1rem;
             border-radius: 50px;
-            border: none;
-            background: white;
-            font-size: 1rem;
-            border: 1px solid transparent;
-            transition: border-color 0.2s;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255,255,255,0.12);
         }
-
-        .form-group textarea {
-            border-radius: 30px;
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: var(--bg-accent);
-            box-shadow: 0 0 0 4px rgba(42, 125, 225, 0.15);
-        }
-
-        .btn-submit {
-            background: var(--bg-accent-2);
-            border: none;
-            color: var(--bg-primary);
-            font-weight: 700;
-            padding: 1rem 2.5rem;
-            border-radius: 50px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            box-shadow: 0 12px 20px -15px rgba(255, 187, 46, 0.4);
-            width: 100%;
-        }
-
-        .btn-submit:hover {
-            background: #ffa50a;
-            transform: translateY(-3px);
-            box-shadow: 0 16px 24px -15px rgba(255, 187, 46, 0.5);
-        }
-
-        .policy-note {
+        .time-zone i {
+            color: rgba(255,255,255,0.7);
             font-size: 0.85rem;
-            margin-top: 1rem;
-            opacity: 0.8;
         }
-
+        .time-zone .live-time {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #93c5fd;
+            min-width: 4.5em;
+        }
+        .contact-info .contact-extra {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.75);
+            margin-top: 0.5rem;
+        }
+        .contact-info .contact-extra i {
+            color: #86efac;
+            margin-right: 0.35rem;
+        }
         .messengers {
             display: flex;
-            gap: 1.2rem;
-            margin-top: 1.5rem;
+            gap: 0.75rem;
             flex-wrap: wrap;
+            margin-top: 1rem;
         }
-
         .messenger-icon {
-            background: rgba(255,255,255,0.1);
-            padding: 0.8rem 1.8rem;
-            border-radius: 40px;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 12px;
-            font-size: 1.1rem;
-            font-weight: 500;
-            color: white;
-            text-decoration: none;
-            transition: all 0.25s ease;
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-
-        .messenger-icon i {
-            font-size: 1.6rem;
-        }
-
-        .messenger-icon:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: var(--bg-accent-2);
-            transform: translateY(-2px);
-        }
-
-        /* Футер */
-        footer {
-            text-align: center;
-            margin-top: 3rem;
-            color: var(--text-muted);
+            gap: 0.5rem;
+            padding: 0.65rem 1.25rem;
+            border-radius: 50px;
             font-size: 0.95rem;
+            font-weight: 600;
+            color: #fff;
+            text-decoration: none;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+        .messenger-icon:hover {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .messenger-icon i { font-size: 1.2rem; }
+
+        .form-side {
+            padding: 2rem 2.25rem;
+            background: #fff;
+        }
+        .form-side h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0 0 1.25rem 0;
+        }
+        .form-side .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-side .form-group input,
+        .form-side .form-group select,
+        .form-side .form-group textarea {
+            width: 100%;
+            padding: 0.75rem 1.15rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 1rem;
+            background: var(--bg-card);
+            color: var(--text-main);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-side .form-group select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+        .form-side .form-group input::placeholder,
+        .form-side .form-group textarea::placeholder {
+            color: var(--text-muted);
+        }
+        .form-side .form-group textarea {
+            border-radius: 10px;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .form-side .form-group input:focus,
+        .form-side .form-group select:focus,
+        .form-side .form-group textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+        .form-side .btn-submit {
+            width: 100%;
+            padding: 0.85rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            background: var(--color-primary);
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .form-side .btn-submit:hover {
+            background: var(--color-primary-hover);
+            transform: translateY(-1px);
+        }
+        .form-side .policy-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 1rem;
+            line-height: 1.45;
+        }
+        @media (max-width: 900px) {
+            .contact-row {
+                grid-template-columns: 1fr;
+            }
+            .contact-info { padding: 1.75rem; }
+            .form-side { padding: 1.75rem; }
+        }
+
+        /* Футер как в index.html */
+        .footer-wrap {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 35px 20px 32px;
+        }
+        .footer {
+            background: #f8f8f8;
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+        }
+        .footer-top {
+            background: #efefef;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 28px;
+            gap: 16px;
+        }
+        .footer-logo {
+            display: inline-block;
+            line-height: 0;
+        }
+        .footer-logo img {
+            height: 36px;
+            width: auto;
+            display: block;
+        }
+        .footer-nav {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        .footer-nav a {
+            color: #333;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: opacity 0.2s;
+        }
+        .footer-nav a:hover { opacity: 0.7; }
+        .footer-copy {
+            text-align: right;
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .footer-copy .copy-line { display: block; }
+        .footer-copy .copy-made { font-size: 0.8rem; color: #666; }
+        .footer-legal {
+            padding: 24px 28px 28px;
+            font-size: 12px;
+            line-height: 1.55;
+            color: #666;
+        }
+        .footer-legal p {
+            margin: 0 0 14px 0;
+        }
+        .footer-legal p:last-child { margin-bottom: 0; }
+        @media (max-width: 768px) {
+            .footer-wrap { padding: 16px; }
+            .footer-top {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 16px 20px;
+            }
+            .footer-copy { text-align: left; }
+            .footer-legal { padding: 20px; font-size: 11px; }
         }
 
         /* Адаптив */
@@ -707,61 +843,6 @@
             }
             .step-card {
                 padding: 1.5rem;
-            }
-        }
-        /* Юридический футер */
-        .footer {
-            background-color: #1a202c;
-            color: #ffffff;
-            padding: 2rem 0;
-            margin-top: 3rem;
-            border-top: 1px solid #2d3748;
-        }
-        
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-        
-        .footer-section {
-            margin-bottom: 2rem;
-        }
-        
-        .footer-section h3 {
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-            color: #e2e8f0;
-        }
-        
-        .footer-text {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-        
-        .footer-column {
-            font-size: 0.9rem;
-            line-height: 1.6;
-            color: #cbd5e0;
-        }
-        
-        .footer-column p {
-            margin-bottom: 1rem;
-        }
-        
-        .footer-bottom {
-            text-align: center;
-            padding-top: 1rem;
-            border-top: 1px solid #2d3748;
-            color: #a0aec0;
-            font-size: 0.85rem;
-        }
-
-        /* Адаптив для мобильных */
-        @media (max-width: 768px) {
-            .footer-text {
-                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -938,83 +1019,76 @@
                 <div class="calc-form">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Цена в вонах (млн ₩)</label>
-                            <input type="number" id="calc-price" placeholder="30" min="1" step="0.1">
+                            <label>Цена авто в Корее (млн ₩)</label>
+                            <input type="number" id="calc-price" placeholder="30" min="1" max="500" step="0.1" title="Например 30 = 30 000 000 ₩">
                         </div>
                         <div class="form-group">
-                            <label>Объем двигателя (см³)</label>
-                            <input type="number" id="calc-engine" placeholder="2000" min="500" max="5000">
+                            <label>Год выпуска</label>
+                            <input type="number" id="calc-year" placeholder="2019" min="2010" max="2026">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Возраст автомобиля (лет)</label>
-                            <input type="number" id="calc-age" placeholder="5" min="0" max="20">
+                            <label>Объём двигателя (см³)</label>
+                            <input type="number" id="calc-engine" placeholder="2000" min="500" max="6000">
                         </div>
                         <div class="form-group">
-                            <label>Курс обмена (₽ за ₩)</label>
-                            <input type="number" id="calc-rate" placeholder="0.05" min="0.01" step="0.001" value="0.05">
+                            <label>Мощность (л.с.) — необязательно</label>
+                            <input type="number" id="calc-power" placeholder="150" min="50" max="800" title="Для утильсбора: ≤160 л.с. даёт льготу">
                         </div>
                     </div>
-                    <button class="btn-calculate" onclick="calculateCost()">
+                    <div class="calc-rates-row">
+                        <span class="calc-rates-label">Курсы загружаются автоматически</span>
+                        <span class="calc-rates-values" id="calc-rates-display">USDT/RUB: — · EUR/RUB: —</span>
+                        <button type="button" class="btn-calc-refresh" id="calc-refresh-rates" title="Обновить курсы"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                    <button class="btn-calculate" type="button" id="calc-submit-btn" onclick="calculateCost()">
                         <i class="fas fa-calculator"></i> Рассчитать стоимость
                     </button>
                 </div>
                 
                 <div class="calc-result">
                     <div class="result-header">
-                        <h3>Итоговая стоимость</h3>
-                        <div class="result-price" id="total-price">0 ₽</div>
+                        <h3>Итоговая стоимость «под ключ»</h3>
+                        <div class="result-price" id="total-price">— ₽</div>
+                        <p class="result-note">Авто + документы 440k ₩, фрахт 1000 $, растаможка по правилам 2026, брокер 86 000 ₽, комиссия 10%</p>
                     </div>
-                    
                     <div class="cost-breakdown">
                         <div class="cost-item">
-                            <span>Цена автомобиля</span>
-                            <span id="car-price">0 ₽</span>
+                            <span>Стоимость авто (в рублях)</span>
+                            <span id="car-price">— ₽</span>
+                        </div>
+                        <div class="cost-item">
+                            <span>Фрахт (1000 $)</span>
+                            <span id="freight">— ₽</span>
                         </div>
                         <div class="cost-item">
                             <span>Таможенный сбор</span>
-                            <span id="customs-fee">0 ₽</span>
+                            <span id="customs-fee">— ₽</span>
                         </div>
                         <div class="cost-item">
-                            <span>Единый платеж</span>
-                            <span id="duty">0 ₽</span>
+                            <span>Пошлина</span>
+                            <span id="duty">— ₽</span>
                         </div>
                         <div class="cost-item">
                             <span>Утилизационный сбор</span>
-                            <span id="utilization">0 ₽</span>
+                            <span id="utilization">— ₽</span>
+                        </div>
+                        <div class="cost-item subtotal-item">
+                            <span>Растаможка итого</span>
+                            <span id="customs-total">— ₽</span>
                         </div>
                         <div class="cost-item">
-                            <span>Экспортные документы</span>
-                            <span id="export">0 ₽</span>
+                            <span>Брокер (оформление в РФ)</span>
+                            <span id="broker">— ₽</span>
                         </div>
                         <div class="cost-item">
-                            <span>Фрахт</span>
-                            <span id="freight">0 ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Брокерские услуги</span>
-                            <span id="broker">0 ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Автовоз</span>
-                            <span id="avtovoz">0 ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Страховка</span>
-                            <span id="insurance">0 ₽</span>
+                            <span>Комиссия 10%</span>
+                            <span id="commission">— ₽</span>
                         </div>
                         <div class="cost-item highlight-total">
-                            <span>Всего без комиссии</span>
-                            <span id="total-no-commission">0 ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Резерв (5%)</span>
-                            <span id="reserve">0 ₽</span>
-                        </div>
-                        <div class="cost-item highlight-total">
-                            <span>Комиссия (10%)</span>
-                            <span id="commission">0 ₽</span>
+                            <span>Итого к оплате</span>
+                            <span id="total-price-final">— ₽</span>
                         </div>
                     </div>
                 </div>
@@ -1023,11 +1097,11 @@
 
         <div class="divider"></div>
 
-        <!-- Контактный блок -->
+        <!-- Контактный блок «Ответим на все вопросы» -->
         <div class="contact-row">
             <div class="contact-info">
                 <h3><i class="fas fa-comments"></i> Ответим на все вопросы</h3>
-                <p style="font-size: 1.1rem; opacity: 0.9;">Текущее время по городам — на связи в рабочее время.</p>
+                <p>Текущее время по городам — на связи в рабочее время.</p>
                 <div class="time-badge" id="time-by-cities">
                     <div class="time-zone" data-tz="Europe/Moscow">
                         <i class="fas fa-map-marker-alt"></i> Москва <span class="live-time">--:--</span>
@@ -1039,23 +1113,20 @@
                         <i class="fas fa-map-marker-alt"></i> Владивосток <span class="live-time">--:--</span>
                     </div>
                 </div>
-                <div style="margin-top: 1.5rem;">
-                    <p><i class="fas fa-check-circle" style="color:#7ed957;"></i> Принимаем и обрабатываем заявки 24/7</p>
-                </div>
-                <div class="messengers" style="margin-top: 1rem;">
+                <p class="contact-extra"><i class="fas fa-check-circle"></i> Принимаем и обрабатываем заявки 24/7</p>
+                <div class="messengers">
                     <a href="https://t.me/nikits15" class="messenger-icon" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a>
                     <a href="#" class="messenger-icon"><i class="fab fa-whatsapp"></i> WhatsApp</a>
                 </div>
             </div>
-
             <div class="form-side">
-                <h3 style="margin-top: 0; color: white;">Отправьте данные — мы свяжемся</h3>
+                <h3>Отправьте данные — мы свяжемся</h3>
                 <form id="contact-form" action="#" method="get">
                     <div class="form-group">
                         <input type="text" name="name" id="cf-name" placeholder="ФИО / Организация" required>
                     </div>
                     <div class="form-group">
-                        <select name="contact_method" id="cf-method" style="appearance: none;">
+                        <select name="contact_method" id="cf-method">
                             <option value="">Способ связи</option>
                             <option value="WhatsApp">WhatsApp</option>
                             <option value="Telegram">Telegram</option>
@@ -1090,101 +1161,129 @@
         // Функция для прокрутки к калькулятору
         function scrollToCalculator() {
             const calculator = document.querySelector('.calculator-section');
-            if (calculator) {
-                calculator.scrollIntoView({ behavior: 'smooth' });
-            }
+            if (calculator) calculator.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Функция расчета стоимости
+        // Курсы (как в price.py): KRW/USDT, USDT/RUB, EUR/RUB ЦБ
+        var calcRates = { krw_per_usdt: 1400, usdt_rub: 95, eur_rub: 105 };
+
+        function formatCurrency(amount) {
+            if (amount == null || isNaN(amount)) return '— ₽';
+            return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(Math.round(amount));
+        }
+
+        function updateRatesDisplay() {
+            var el = document.getElementById('calc-rates-display');
+            if (el) el.textContent = 'USDT/RUB: ' + (calcRates.usdt_rub ? calcRates.usdt_rub.toFixed(2) : '—') + ' · EUR/RUB: ' + (calcRates.eur_rub ? calcRates.eur_rub.toFixed(2) : '—');
+        }
+
+        function fetchCalcRates(callback) {
+            var done = 0;
+            function check() { if (++done >= 3) { updateRatesDisplay(); if (callback) callback(); } }
+            fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTKRW', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) { calcRates.krw_per_usdt = parseFloat(d.price) || calcRates.krw_per_usdt; }).catch(function() {}).finally(check);
+            fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTRUB', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) { calcRates.usdt_rub = parseFloat(d.price) || calcRates.usdt_rub; }).catch(function() {}).finally(check);
+            fetch('https://www.cbr-xml-daily.ru/daily_json.js', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) {
+                var eur = d.Valute && d.Valute.EUR;
+                if (eur) calcRates.eur_rub = eur.Nominal && eur.Value ? eur.Value / eur.Nominal : (eur.Value || 105);
+            }).catch(function() {}).finally(check);
+        }
+
+        // Растаможка по правилам 2026 (логика из price.py)
+        var CUSTOMS_FEE_TIERS_RUB = [
+            [200000, 1231], [450000, 2462], [1200000, 4924], [2700000, 13541], [4200000, 18465], [5500000, 21344], [10000000, 49240], [Infinity, 73860]
+        ];
+        var DUTY_EUR_PER_CC_3_5 = [1.5, 1.7, 2.5, 2.7, 3.0, 3.6];
+        var DUTY_EUR_PER_CC_5_PLUS = [3.0, 3.2, 3.5, 4.8, 5.0, 5.7];
+        var UTIL_BASE = 20000;
+        var UTIL_COEF = { '0,0': 0.17, '0,1': 0.26, '1,0': 0.17, '1,1': 0.26, '2,0': 0.17, '2,1': 0.26, '3,0': 129.2, '3,1': 197.81, '4,0': 164.53, '4,1': 219.48 };
+        var DOCUMENTS_KRW = 440000, FREIGHT_USD = 1000, BROKER_RUB = 86000, COMMISSION_RATE = 0.10;
+
+        function engineBracketIndex(cc) {
+            if (cc <= 1000) return 0; if (cc <= 1500) return 1; if (cc <= 1800) return 2; if (cc <= 2300) return 3; if (cc <= 3000) return 4; return 5;
+        }
+        function customsFeeTiered(carValueRub) {
+            for (var i = 0; i < CUSTOMS_FEE_TIERS_RUB.length; i++)
+                if (carValueRub <= CUSTOMS_FEE_TIERS_RUB[i][0]) return CUSTOMS_FEE_TIERS_RUB[i][1];
+            return 73860;
+        }
+        function dutyEurPerCc(engineCc, ageYears) {
+            var idx = engineBracketIndex(engineCc);
+            if (ageYears < 3) return 0;
+            if (ageYears <= 5) return DUTY_EUR_PER_CC_3_5[idx];
+            return DUTY_EUR_PER_CC_5_PLUS[idx];
+        }
+        function dutyUnder3(carValueEur, engineCc) {
+            var byPercent = carValueEur * 0.54;
+            var byCc = engineCc * 2.5;
+            return Math.max(byPercent, byCc);
+        }
+        function utilization2026(engineCc, ageYears, powerHp) {
+            if (engineCc <= 3000 && (powerHp == null || powerHp <= 160)) {
+                var k = ageYears < 3 ? 0.17 : 0.26;
+                return UTIL_BASE * k;
+            }
+            var idx = Math.min(engineBracketIndex(engineCc), 4);
+            var ageBucket = ageYears < 3 ? 0 : 1;
+            var k = UTIL_COEF[idx + ',' + ageBucket];
+            if (k == null) k = ageBucket === 0 ? 112.52 : 170.36;
+            return UTIL_BASE * k;
+        }
+
         function calculateCost() {
-            const price = parseFloat(document.getElementById('calc-price').value) || 0;
-            const engine = parseInt(document.getElementById('calc-engine').value) || 0;
-            const age = parseInt(document.getElementById('calc-age').value) || 0;
-            const rate = parseFloat(document.getElementById('calc-rate').value) || 0.05;
+            var priceMln = parseFloat(document.getElementById('calc-price').value) || 0;
+            var year = parseInt(document.getElementById('calc-year').value, 10) || new Date().getFullYear() - 5;
+            var engineCc = parseInt(document.getElementById('calc-engine').value, 10) || 2000;
+            var powerHpEl = document.getElementById('calc-power');
+            var powerHp = powerHpEl && powerHpEl.value ? parseFloat(powerHpEl.value) : null;
+            var ageYears = Math.max(0, new Date().getFullYear() - year);
 
-            // Конфигурация расчетов (аналогично price.py)
-            const config = {
-                customs: { base_fee: 50000, rate_per_cc: 0.05, min_fee: 50000, max_fee: 500000 },
-                duty: { rate: 0.15, min_age_years: 3, max_age_years: 10 },
-                utilization: { rate_per_cc: 0.02, min_fee: 20000, max_fee: 200000 },
-                export: { base_fee: 30000, documents_fee: 20000 },
-                freight: { base_fee: 100000, per_cc: 0.01, insurance_rate: 0.01 },
-                broker: { base_fee: 50000, rate: 0.02 },
-                reserve: { rate: 0.05 },
-                avtovoz: { base_fee: 80000, per_km: 100 },
-                insurance: { base_fee: 30000, rate: 0.01 },
-                commission: { rate: 0.10 }
-            };
+            var krwPerUsdt = calcRates.krw_per_usdt || 1400;
+            var usdtRub = calcRates.usdt_rub || 95;
+            var eurRub = calcRates.eur_rub || 105;
+            var krwToRub = usdtRub / krwPerUsdt;
 
-            // Конвертация цены в рубли
-            const price_won = price * 10000; // конвертация из 10k вон
-            const price_rub = price_won * rate;
+            var priceWon = priceMln * 1000000;
+            var carAndDocsRub = (priceWon + DOCUMENTS_KRW) * krwToRub;
+            var freightRub = FREIGHT_USD * usdtRub;
 
-            // Расчет всех платежей
-            const customs_fee = Math.max(config.customs.min_fee, Math.min(
-                config.customs.base_fee + (engine * config.customs.rate_per_cc),
-                config.customs.max_fee
-            ));
+            var customsFee = customsFeeTiered(carAndDocsRub);
+            var duty;
+            if (ageYears < 3) {
+                var carValueEur = carAndDocsRub / eurRub;
+                duty = dutyUnder3(carValueEur, engineCc) * eurRub;
+            } else {
+                var eurPerCc = dutyEurPerCc(engineCc, ageYears);
+                duty = engineCc * eurPerCc * eurRub;
+            }
+            var utilization = utilization2026(engineCc, ageYears, powerHp);
+            var customsTotal = customsFee + duty + utilization;
 
-            const duty = (age >= config.duty.min_age_years && age <= config.duty.max_age_years) 
-                ? price_won * config.duty.rate 
-                : 0;
+            var vehicleSum = carAndDocsRub + freightRub + customsTotal;
+            var commission = vehicleSum * COMMISSION_RATE;
+            var total = vehicleSum + BROKER_RUB + commission;
 
-            const utilization = Math.max(config.utilization.min_fee, Math.min(
-                engine * config.utilization.rate_per_cc,
-                config.utilization.max_fee
-            ));
-
-            const export_costs = config.export.base_fee + config.export.documents_fee;
-            const freight = config.freight.base_fee + (1000 * config.freight.per_cc) + (price_won * config.freight.insurance_rate);
-            const broker = config.broker.base_fee + (price_won * config.broker.rate);
-            const avtovoz = config.avtovoz.base_fee + (1000 * config.avtovoz.per_km);
-            const insurance = config.insurance.base_fee + (price_won * config.insurance.rate);
-
-            // Сумма без комиссии
-            const total_no_commission = price_rub + customs_fee + duty + utilization + export_costs + freight + broker + avtovoz + insurance;
-
-            // Резерв
-            const reserve = total_no_commission * config.reserve.rate;
-            const total_with_reserve = total_no_commission + reserve;
-
-            // Комиссия
-            const commission = total_with_reserve * config.commission.rate;
-            const total_with_commission = total_with_reserve + commission;
-
-            // Вывод результатов
-            document.getElementById('car-price').textContent = formatCurrency(price_rub);
-            document.getElementById('customs-fee').textContent = formatCurrency(customs_fee);
+            document.getElementById('car-price').textContent = formatCurrency(carAndDocsRub);
+            document.getElementById('freight').textContent = formatCurrency(freightRub);
+            document.getElementById('customs-fee').textContent = formatCurrency(customsFee);
             document.getElementById('duty').textContent = formatCurrency(duty);
             document.getElementById('utilization').textContent = formatCurrency(utilization);
-            document.getElementById('export').textContent = formatCurrency(export_costs);
-            document.getElementById('freight').textContent = formatCurrency(freight);
-            document.getElementById('broker').textContent = formatCurrency(broker);
-            document.getElementById('avtovoz').textContent = formatCurrency(avtovoz);
-            document.getElementById('insurance').textContent = formatCurrency(insurance);
-            document.getElementById('total-no-commission').textContent = formatCurrency(total_no_commission);
-            document.getElementById('reserve').textContent = formatCurrency(reserve);
+            document.getElementById('customs-total').textContent = formatCurrency(customsTotal);
+            document.getElementById('broker').textContent = formatCurrency(BROKER_RUB);
             document.getElementById('commission').textContent = formatCurrency(commission);
-            document.getElementById('total-price').textContent = formatCurrency(total_with_commission);
+            document.getElementById('total-price').textContent = formatCurrency(total);
+            document.getElementById('total-price-final').textContent = formatCurrency(total);
         }
 
-        // Форматирование чисел в валюту
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('ru-RU', {
-                style: 'currency',
-                currency: 'RUB',
-                minimumFractionDigits: 0
-            }).format(amount);
-        }
-
-        // Автоматический расчет при вводе данных
-        document.getElementById('calc-price').addEventListener('input', calculateCost);
-        document.getElementById('calc-engine').addEventListener('input', calculateCost);
-        document.getElementById('calc-age').addEventListener('input', calculateCost);
-        document.getElementById('calc-rate').addEventListener('input', calculateCost);
-
-        // Инициализация расчета при загрузке страницы
-        window.addEventListener('load', calculateCost);
+        (function initCalculator() {
+            updateRatesDisplay();
+            fetchCalcRates(function() { calculateCost(); });
+            var refreshBtn = document.getElementById('calc-refresh-rates');
+            if (refreshBtn) refreshBtn.addEventListener('click', function() { refreshBtn.disabled = true; fetchCalcRates(function() { refreshBtn.disabled = false; calculateCost(); }); });
+            ['calc-price', 'calc-year', 'calc-engine', 'calc-power'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.addEventListener('input', calculateCost);
+            });
+        })();
 
         // Фактическое время по городам (обновление раз в секунду)
         (function() {
@@ -1252,22 +1351,28 @@
         })();
     </script>
 
-<!-- Футер -->
-<footer class="footer">
-  <div class="footer-content">
-    <div class="footer-section">
-      <h3>Юридическая информация</h3>
-      <div class="footer-text">
-        <div class="footer-column">
-          <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление покупателей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
-        </div>
+<!-- Футер как в index.html -->
+<div class="footer-wrap">
+  <footer class="footer">
+    <div class="footer-top">
+      <a href="index.html" class="footer-logo">
+        <img src="image/logo.svg" alt="World Ride Auto">
+      </a>
+      <nav class="footer-nav">
+        <a href="#">Политика конфиденциальности</a>
+        <a href="#">Пользовательское соглашение</a>
+      </nav>
+      <div class="footer-copy">
+        <span class="copy-line">&copy; World Ride Auto 2026</span>
+        <span class="copy-made">сделано в World Ride Auto</span>
       </div>
     </div>
-    <div class="footer-bottom">
-      <p>&copy; World Ride Auto 2026</p>
+    <div class="footer-legal">
+      <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление пользователей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
+      <p>본 카탈로그에 게시된 정보는 러시아 연방 민법 제437조 및 대한민국 민법 제1435조에 따른 공개적인 청약으로 간주되지 않습니다. 차량에 대한 모든 정보, 포함하여 예시 계산 및 가격은 오직 정보 제공을 목적으로 하며, 대한민국 내에서 접근 가능한 공개 출처를 기반으로 작성되었습니다. 본 정보 제공의 목적은 사용자에게 한국 시장에서 제공되는 차량의 품목 구성과 가격 수준에 대한 이해를 돕기 위한 것입니다. 본 서비스의 운영은 러시아 연방 및 대한민국의 관련 법령을 철저히 준수하여 이루어집니다.</p>
     </div>
-  </div>
-</footer>
+  </footer>
+</div>
 
 </body>
 </html>

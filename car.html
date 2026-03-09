@@ -566,12 +566,11 @@
         }
         .modal-thumb:not(.active) { opacity: 0.75; }
 
-        /* Правая колонка: карточка заказа как у конкурента */
+        /* Правая колонка: по макету Group 11.svg (418×490 rx=22 + нижний блок 418×64 rx=14) */
         .order-card {
-            background: var(--color-neutral-100);
-            border-radius: 20px;
-            padding: 20px 24px;
-            border: 1px solid var(--color-neutral-200);
+            background: #fff;
+            border-radius: 22px;
+            padding: 24px 28px 28px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.06);
             position: relative;
         }
@@ -707,14 +706,14 @@
         .order-card .order-footer-text a:hover { text-decoration: underline; }
         .order-card .calc-full { display: none; }
 
-        /* Блок цен как у конкурента: шапка, валюта, полоса долей */
         .order-card-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             font-size: 13px;
-            color: var(--color-neutral-500);
+            font-weight: 600;
+            color: #929292;
         }
         .order-card-actions { display: flex; align-items: center; gap: 8px; }
         .order-card-actions .order-icon-btn {
@@ -734,8 +733,14 @@
         .order-card-actions .order-icon-favourite:hover .img-active { display: block; }
         .order-badge-high {
             display: inline-flex; align-items: center; gap: 6px;
-            background: #dc2626; color: #fff; padding: 6px 12px; border-radius: 999px;
-            font-size: 13px; font-weight: 600; margin-bottom: 12px;
+            background: #dc2626; color: #fff; padding: 6px 14px; height: 25px; border-radius: 12.5px;
+            font-size: 13px; font-weight: 600; margin-bottom: 12px; box-sizing: border-box;
+        }
+        .order-badge-high .info-icon { width: 14px; height: 14px; flex-shrink: 0; vertical-align: middle; }
+        .order-badge-ok { /* как «Проходной» в макете */
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #67B841; color: #fff; padding: 6px 14px; height: 25px; border-radius: 12.5px;
+            font-size: 13px; font-weight: 600; margin-bottom: 12px; box-sizing: border-box;
         }
         .order-payment-row { margin-bottom: 12px; }
         .order-payment-row label { font-size: 14px; color: var(--color-neutral-600); margin-right: 8px; }
@@ -744,60 +749,62 @@
             font-size: 14px; background: #fff; min-width: 160px;
         }
         .order-price-line {
-            display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 8px;
-            font-size: 1.25rem; font-weight: 700; color: var(--color-neutral-900);
-            margin-bottom: 16px; line-height: 1.3;
+            display: flex; align-items: baseline; width: 100%;
+            gap: 0 8px; margin-bottom: 18px; line-height: 1.35;
         }
-        .order-price-line .order-price-main { font-size: inherit; font-weight: inherit; }
-        .order-price-line .order-price-sub {
-            font-size: inherit; font-weight: 500; color: var(--color-neutral-600);
+        .order-price-line .order-price-main { font-size: clamp(1rem, 4vw, 1.35rem); font-weight: 700; color: var(--color-neutral-900); flex-shrink: 0; }
+        .order-price-line .order-price-dots { flex: 1; min-width: 12px; border-bottom: 2px dotted var(--color-neutral-300); align-self: center; }
+        .order-price-line .order-price-sub { font-size: clamp(0.85rem, 2.5vw, 1rem); font-weight: 500; color: var(--color-neutral-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .order-price-line .info-icon { width: 14px; height: 14px; flex-shrink: 0; vertical-align: middle; cursor: help; }
+        /* Пилюли: на всю ширину по процентам, текст % белый */
+        .order-breakdown-pills {
+            display: flex; width: 100%; gap: 2px; margin-bottom: 14px;
         }
-        .order-price-line .info-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--color-neutral-400); color: #fff; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; cursor: help; vertical-align: middle; }
-        .order-breakdown-bar {
-            display: flex; height: 12px; gap: 4px; margin-bottom: 12px;
-            align-items: stretch;
+        .order-breakdown-pills .pill {
+            min-height: 24px; padding: 4px 6px; border-radius: 5px; font-size: 12px; font-weight: 600;
+            color: #fff; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
         }
-        .order-breakdown-bar .segment {
-            border-radius: 4px; min-width: 4px; transition: flex 0.3s ease;
-        }
-        .order-breakdown-bar .segment-1 { background: #6b7280; }
-        .order-breakdown-bar .segment-2 { background: #2563eb; }
-        .order-breakdown-bar .segment-3 { background: #06b6d4; }
-        .order-breakdown-bar .segment-4 { background: #7c3aed; }
+        .order-breakdown-pills .pill.p1 { background: #B9B9B9; }
+        .order-breakdown-pills .pill.p2 { background: #8CACFD; }
+        .order-breakdown-pills .pill.p3 { background: #8EE58A; }
+        .order-breakdown-pills .pill.p4 { background: #DE8AD3; }
         .order-breakdown-legend {
-            display: flex; flex-wrap: wrap; gap: 12px 20px;
-            font-size: 12px; color: var(--color-neutral-600); margin-bottom: 20px;
+            display: flex; flex-wrap: wrap; gap: 10px 18px;
+            font-size: 12px; color: var(--color-neutral-600); margin-bottom: 24px;
         }
         .order-breakdown-legend .item { display: flex; align-items: center; gap: 6px; }
-        .order-breakdown-legend .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .order-breakdown-legend .dot.d1 { background: #6b7280; }
-        .order-breakdown-legend .dot.d2 { background: #2563eb; }
-        .order-breakdown-legend .dot.d3 { background: #06b6d4; }
-        .order-breakdown-legend .dot.d4 { background: #7c3aed; }
+        .order-breakdown-legend .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .order-breakdown-legend .dot.d1 { background: #B9B9B9; }
+        .order-breakdown-legend .dot.d2 { background: #8CACFD; }
+        .order-breakdown-legend .dot.d3 { background: #8EE58A; }
+        .order-breakdown-legend .dot.d4 { background: #DE8AD3; }
+        /* Кнопки по SVG: синяя 353×50 rx=10, контурная 351×48 rx=9 stroke #3B82F6 */
         .order-btn-manager {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 15px;
-            background: var(--color-primary); color: #fff; border: none; cursor: pointer; text-decoration: none;
-            margin-bottom: 10px; font-family: inherit; transition: background 0.2s;
+            width: 100%; height: 50px; padding: 0 24px; border-radius: 10px; font-weight: 600; font-size: 15px;
+            background: #3B82F6; color: #fff; border: none; cursor: pointer; text-decoration: none;
+            margin-bottom: 18px; font-family: inherit; transition: background 0.2s; box-sizing: border-box;
         }
         .order-btn-manager:hover { background: #2563eb; color: #fff; }
         .order-btn-calc {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 15px;
-            background: #fff; color: var(--color-neutral-800); border: 2px solid var(--color-primary);
-            cursor: pointer; font-family: inherit; margin-bottom: 12px; transition: background 0.2s, color 0.2s;
+            width: 100%; height: 48px; padding: 0 24px; border-radius: 9px; font-weight: 600; font-size: 15px;
+            background: #fff; color: var(--color-neutral-800); border: 2px solid #3B82F6;
+            cursor: pointer; font-family: inherit; margin-bottom: 16px; transition: background 0.2s, color 0.2s; box-sizing: border-box;
         }
-        .order-btn-calc:hover { background: var(--color-neutral-100); color: var(--color-primary); }
-        .order-btn-howto {
-            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%; padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 14px;
-            background: transparent; color: var(--color-primary); border: 2px solid var(--color-primary);
-            cursor: pointer; font-family: inherit; margin-top: 12px; text-decoration: none;
-            transition: background 0.2s, color 0.2s;
+        .order-btn-calc:hover { background: rgba(59, 130, 246, 0.08); color: #3B82F6; }
+        /* Нижний блок по SVG: отдельный белый rect 418×64 rx=14, под карточкой */
+        .order-howto-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; min-height: 64px; padding: 0 24px; margin-top: 16px; border-radius: 14px;
+            background: #fff; color: var(--color-neutral-900);
+            font-weight: 600; font-size: 14px; text-decoration: none;
+            transition: background 0.2s; border: 1px solid var(--color-neutral-200);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04); box-sizing: border-box;
         }
-        .order-btn-howto:hover { background: var(--color-primary); color: #fff; }
-        .order-btn-howto .chevron { transition: transform 0.2s; }
-        .order-btn-howto:hover .chevron { transform: translate(3px, 0); }
+        .order-howto-bar:hover { background: var(--color-neutral-100); }
+        .order-howto-bar .chevron-img { width: 20px; height: 20px; flex-shrink: 0; transition: transform 0.2s; }
+        .order-howto-bar:hover .chevron-img { transform: translate(3px, 0); }
 
         /* Модальное окно: Расчёт цены (как у конкурента) */
         .calc-modal-overlay {
@@ -1502,60 +1509,73 @@
             }
         }
         
-        /* Юридический футер */
-        .footer {
-            background-color: #1a202c;
-            color: #ffffff;
-            padding: 2rem 0;
-            margin-top: 3rem;
-            border-top: 1px solid #2d3748;
-        }
-        
-        .footer-content {
-            max-width: 1200px;
+        /* Футер как в index: скруглённый сверху, верхняя полоса + юридический текст */
+        .footer-wrap {
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 35px 20px 32px;
         }
-        
-        .footer-section {
-            margin-bottom: 2rem;
+        .footer {
+            background: #f8f8f8;
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
         }
-        
-        .footer-section h3 {
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-            color: #e2e8f0;
+        .footer-top {
+            background: #efefef;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 28px;
+            gap: 16px;
         }
-        
-        .footer-text {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+        .footer-logo {
+            display: inline-block;
+            line-height: 0;
         }
-        
-        .footer-column {
+        .footer-logo img {
+            height: 36px;
+            width: auto;
+            display: block;
+        }
+        .footer-nav {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        .footer-nav a {
+            color: #333;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: opacity 0.2s;
+        }
+        .footer-nav a:hover { opacity: 0.7; }
+        .footer-copy {
+            text-align: right;
             font-size: 0.9rem;
-            line-height: 1.6;
-            color: #cbd5e0;
+            color: #333;
         }
-        
-        .footer-column p {
-            margin-bottom: 1rem;
+        .footer-copy .copy-line { display: block; }
+        .footer-copy .copy-made { font-size: 0.8rem; color: #666; }
+        .footer-legal {
+            padding: 24px 28px 28px;
+            font-size: 12px;
+            line-height: 1.55;
+            color: #666;
         }
-        
-        .footer-bottom {
-            text-align: center;
-            padding-top: 1rem;
-            border-top: 1px solid #2d3748;
-            color: #a0aec0;
-            font-size: 0.85rem;
+        .footer-legal p {
+            margin: 0 0 14px 0;
         }
-
-        /* Адаптив для мобильных */
+        .footer-legal p:last-child { margin-bottom: 0; }
         @media (max-width: 768px) {
-            .footer-text {
-                grid-template-columns: 1fr;
+            .footer-wrap { padding: 16px; }
+            .footer-top {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 16px 20px;
             }
+            .footer-copy { text-align: left; }
+            .footer-legal { padding: 20px; font-size: 11px; }
         }
 
         /* Стили шапки сайта */
@@ -2194,7 +2214,7 @@
             const orderedCategories = ['Экстерьер и салон', 'Безопасность', 'Комфорт и мультимедиа', 'Сиденья', 'Другое'];
             var optionsTooltip = 'В комплектацию входят стандартные опции, которые указал продавец.<br><br>Для получения точного списка опций, необходима выгрузка по VIN-номеру';
             let html = '<div class="card rounded-3xl p-6">';
-            html += '<h2 class="text-lg font-semibold mb-4 flex items-center has-tooltip"><i class="fa-regular fa-screwdriver-wrench text-blue-500 mr-2"></i>Опции и оборудование<span class="tooltip-popup">' + optionsTooltip + '</span></h2>';
+            html += '<h2 class="text-lg font-semibold mb-4 flex items-center has-tooltip">Опции и оборудование<span class="tooltip-popup">' + optionsTooltip + '</span></h2>';
             orderedCategories.forEach(cat => {
                 if (groups[cat] && groups[cat].length > 0) {
                     html += `<div class="option-group mb-4">`;
@@ -2230,7 +2250,7 @@
 
         function renderBodyPanels(panels) {
             if (!panels?.length) return '';
-            let html = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-car text-blue-500 mr-2"></i>Диагностика кузова</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-3">';
+            let html = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center">Диагностика кузова</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-3">';
             panels.forEach(p => {
                 const cls = p.status === 'оригинал' ? 'text-green-600' : 'text-amber-600';
                 html += `<div class="flex justify-between py-2 border-b border-gray-100"><span class="font-medium">${p.part}</span><span class="${cls}">${p.status}</span></div>`;
@@ -2241,17 +2261,18 @@
         // Зоны схемы кузова (left%, top%, width%, height% — вид сверху: центр капот/багажник, слева и справа боковые панели)
         /* Внешняя схема (вид сверху): координаты в % от изображения details-condition-top */
         var conditionDiagramZones = [
-            { part: 'Капот', left: 22, top: 2, width: 56, height: 24 },
-            { part: 'Крышка багажника', left: 22, top: 54, width: 56, height: 44 },
-            { part: 'Левое переднее крыло', left: 0, top: 2, width: 22, height: 20 },
-            { part: 'Левая передняя дверь', left: 0, top: 22, width: 22, height: 26 },
-            { part: 'Левая задняя дверь', left: 0, top: 48, width: 22, height: 26 },
-            { part: 'Левое заднее крыло', left: 0, top: 74, width: 22, height: 24 },
-            { part: 'Правое переднее крыло', left: 78, top: 2, width: 22, height: 20 },
-            { part: 'Правая передняя дверь', left: 78, top: 22, width: 22, height: 26 },
-            { part: 'Правая задняя дверь', left: 78, top: 48, width: 22, height: 26 },
-            { part: 'Правое заднее крыло', left: 78, top: 74, width: 22, height: 24 },
+            { part: 'Капот', left: 20, top: 0, width: 60, height: 24 },
+            { part: 'Крышка багажника', left: 20, top: 52, width: 60, height: 46 },
+            { part: 'Левое переднее крыло', left: 0, top: 0, width: 20, height: 22 },
+            { part: 'Левая передняя дверь', left: 0, top: 22, width: 20, height: 26 },
+            { part: 'Левая задняя дверь', left: 0, top: 48, width: 20, height: 26 },
+            { part: 'Левое заднее крыло', left: 0, top: 74, width: 20, height: 24 },
+            { part: 'Правое переднее крыло', left: 80, top: 0, width: 20, height: 22 },
+            { part: 'Правая передняя дверь', left: 80, top: 22, width: 20, height: 26 },
+            { part: 'Правая задняя дверь', left: 80, top: 48, width: 20, height: 26 },
+            { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 24 },
         ];
+        var exteriorPanelMap = { 'FRONT_DOOR_LEFT': 'Левая передняя дверь', 'FRONT_DOOR_RIGHT': 'Правая передняя дверь', 'BACK_DOOR_LEFT': 'Левая задняя дверь', 'BACK_DOOR_RIGHT': 'Правая задняя дверь', 'HOOD': 'Капот', 'TRUNK_LID': 'Крышка багажника', 'FRONT_FENDER_LEFT': 'Левое переднее крыло', 'FRONT_FENDER_RIGHT': 'Правое переднее крыло', 'REAR_FENDER_LEFT': 'Левое заднее крыло', 'REAR_FENDER_RIGHT': 'Правое заднее крыло', 'BACK_FENDER_LEFT': 'Левое заднее крыло', 'BACK_FENDER_RIGHT': 'Правое заднее крыло' };
         // Корейские названия деталей (outers) -> русские (для схемы кузова)
         var outerPartKoToRu = {
             '프론트 휀더(좌)': 'Левое переднее крыло',
@@ -2329,7 +2350,7 @@
             function setStatus(part, statusKey, label) {
                 var key = norm(String(part));
                 if (!key) return;
-                if (!status[key] || statusKey === 'replaced') status[key] = { key: statusKey, label: label };
+                status[key] = { key: statusKey, label: label };
             }
             inners.forEach(function(item) {
                 var children = item.children || [];
@@ -2356,6 +2377,18 @@
                     else setStatus(partRu, 'good', 'Без замечаний');
                 });
             }
+            bodyPanels.forEach(function(p) {
+                if (!p.part || interiorPartNames.indexOf(norm(p.part)) === -1) return;
+                var s = (p.status || '').toLowerCase();
+                if (s === 'замена' || s.indexOf('замен') >= 0) setStatus(p.part, 'replaced', 'Замена');
+                else if (s === 'покрашено' || s.indexOf('покраск') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
+                else if (s.indexOf('ремонт') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
+                else if (s.indexOf('царапин') >= 0) setStatus(p.part, 'scratch', 'Царапины');
+                else if (s.indexOf('неровност') >= 0) setStatus(p.part, 'unevenness', 'Неровности');
+                else if (s.indexOf('поврежд') >= 0) setStatus(p.part, 'damage', 'Повреждение');
+                else if (s.indexOf('коррози') >= 0) setStatus(p.part, 'corrosion', 'Коррозия');
+            });
+            // «Заменённые/покрашенные детали» — приоритет для схемы (обрабатываем последними)
             Object.keys(bodyChanged).forEach(function(part) {
                 var partRu = mapToInteriorPart(part);
                 if (!partRu || interiorPartNames.indexOf(partRu) === -1) return;
@@ -2368,17 +2401,6 @@
                 else if (statusStr.indexOf('поврежд') >= 0) setStatus(partRu, 'damage', 'Повреждение');
                 else if (statusStr.indexOf('коррози') >= 0) setStatus(partRu, 'corrosion', 'Коррозия');
                 else setStatus(partRu, 'replaced', 'Замена');
-            });
-            bodyPanels.forEach(function(p) {
-                if (!p.part || interiorPartNames.indexOf(norm(p.part)) === -1) return;
-                var s = (p.status || '').toLowerCase();
-                if (s === 'замена' || s.indexOf('замен') >= 0) setStatus(p.part, 'replaced', 'Замена');
-                else if (s === 'покрашено' || s.indexOf('покраск') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
-                else if (s.indexOf('ремонт') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
-                else if (s.indexOf('царапин') >= 0) setStatus(p.part, 'scratch', 'Царапины');
-                else if (s.indexOf('неровност') >= 0) setStatus(p.part, 'unevenness', 'Неровности');
-                else if (s.indexOf('поврежд') >= 0) setStatus(p.part, 'damage', 'Повреждение');
-                else if (s.indexOf('коррози') >= 0) setStatus(p.part, 'corrosion', 'Коррозия');
             });
             return status;
         }
@@ -2395,7 +2417,10 @@
             function setStatus(part, statusKey, label) {
                 var key = norm(String(part));
                 if (!key) return;
-                if (!zoneStatus[key] || statusKey === 'replaced') zoneStatus[key] = { key: statusKey, label: label };
+                zoneStatus[key] = { key: statusKey, label: label };
+            }
+            function exteriorPartToZone(part) {
+                return (typeof partNamesRu !== 'undefined' && partNamesRu[part]) || outerPartKoToRu[part] || (typeof exteriorPanelMap !== 'undefined' && exteriorPanelMap[part]) || part;
             }
             outers.forEach(function(item) {
                 var typeTitle = (item.type && item.type.title) ? String(item.type.title).trim() : '';
@@ -2408,28 +2433,31 @@
                 var statusInfo = outerStatusToKey[code] || outerStatusToKey[title] || { key: 'replaced', label: 'Замена' };
                 setStatus(partRu, statusInfo.key, statusInfo.label);
             });
-            Object.keys(bodyChanged).forEach(function(part) {
-                var status = (bodyChanged[part] || '').toLowerCase();
-                if (status.indexOf('замен') >= 0) setStatus(part, 'replaced', 'Замена');
-                else if (status.indexOf('покраск') >= 0 || status === 'покрашено') setStatus(part, 'painted', 'Окрашивание');
-                else if (status.indexOf('ремонт') >= 0) setStatus(part, 'painted', 'Окрашивание');
-                else if (status.indexOf('царапин') >= 0) setStatus(part, 'scratch', 'Царапины');
-                else if (status.indexOf('неровност') >= 0) setStatus(part, 'unevenness', 'Неровности');
-                else if (status.indexOf('поврежд') >= 0) setStatus(part, 'damage', 'Повреждение');
-                else if (status.indexOf('коррози') >= 0) setStatus(part, 'corrosion', 'Коррозия');
-                else setStatus(part, 'replaced', 'Замена');
-            });
             bodyPanels.forEach(function(p) {
                 if (p.part) {
+                    var partRu = exteriorPartToZone(p.part);
                     var s = (p.status || '').toLowerCase();
-                    if (s === 'замена') setStatus(p.part, 'replaced', 'Замена');
-                    else if (s === 'покрашено') setStatus(p.part, 'painted', 'Окрашивание');
-                    else if (s.indexOf('ремонт') >= 0) setStatus(p.part, 'painted', 'Окрашивание');
-                    else if (s.indexOf('царапин') >= 0) setStatus(p.part, 'scratch', 'Царапины');
-                    else if (s.indexOf('неровност') >= 0) setStatus(p.part, 'unevenness', 'Неровности');
-                    else if (s.indexOf('поврежд') >= 0) setStatus(p.part, 'damage', 'Повреждение');
-                    else if (s.indexOf('коррози') >= 0) setStatus(p.part, 'corrosion', 'Коррозия');
+                    if (s === 'замена') setStatus(partRu, 'replaced', 'Замена');
+                    else if (s === 'покрашено') setStatus(partRu, 'painted', 'Окрашивание');
+                    else if (s.indexOf('ремонт') >= 0) setStatus(partRu, 'painted', 'Окрашивание');
+                    else if (s.indexOf('царапин') >= 0) setStatus(partRu, 'scratch', 'Царапины');
+                    else if (s.indexOf('неровност') >= 0) setStatus(partRu, 'unevenness', 'Неровности');
+                    else if (s.indexOf('поврежд') >= 0) setStatus(partRu, 'damage', 'Повреждение');
+                    else if (s.indexOf('коррози') >= 0) setStatus(partRu, 'corrosion', 'Коррозия');
                 }
+            });
+            // «Заменённые/покрашенные детали» имеют приоритет — обрабатываем последними, перезаписывая схему
+            Object.keys(bodyChanged).forEach(function(part) {
+                var partRu = exteriorPartToZone(part);
+                var status = (bodyChanged[part] || '').toLowerCase();
+                if (status.indexOf('замен') >= 0) setStatus(partRu, 'replaced', 'Замена');
+                else if (status.indexOf('покраск') >= 0 || status === 'покрашено') setStatus(partRu, 'painted', 'Окрашивание');
+                else if (status.indexOf('ремонт') >= 0) setStatus(partRu, 'painted', 'Окрашивание');
+                else if (status.indexOf('царапин') >= 0) setStatus(partRu, 'scratch', 'Царапины');
+                else if (status.indexOf('неровност') >= 0) setStatus(partRu, 'unevenness', 'Неровности');
+                else if (status.indexOf('поврежд') >= 0) setStatus(partRu, 'damage', 'Повреждение');
+                else if (status.indexOf('коррози') >= 0) setStatus(partRu, 'corrosion', 'Коррозия');
+                else setStatus(partRu, 'replaced', 'Замена');
             });
             return zoneStatus;
         }
@@ -2475,7 +2503,7 @@
             var diagPhotos = (diagnosisPhotos || []).filter(function(url) { return typeof url === 'string' && url.trim() !== ''; }).slice(0, 5);
             var photoBlock = '';
             if (diagPhotos.length) {
-                photoBlock = '<div id="diagnostics" class="mt-6"><h3 class="text-base font-semibold mb-3 flex items-center"><i class="fa-regular fa-camera text-blue-500 mr-2"></i>Фото диагностики</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
+                photoBlock = '<div id="diagnostics" class="mt-6"><h3 class="text-base font-semibold mb-3 flex items-center">Фото диагностики</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
                 diagPhotos.forEach(function(url) {
                     photoBlock += '<div class="diag-photo rounded-xl overflow-hidden border border-gray-200"><img src="' + url + '" class="w-full h-full object-cover" loading="lazy" onclick="window.open(\'' + url.replace(/'/g, "\\'") + '\')" style="cursor:pointer"></div>';
                 });
@@ -2483,7 +2511,7 @@
             }
             var diagramTitle = 'Схема состояния кузова';
             var diagramTooltip = 'На схеме отмечены данные, полученные из страховой истории автомобиля и указанные продавцом.<br><br>Для получения точной информации о состоянии автомобиля, необходим его осмотр специалистом Ride Auto';
-            return '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center condition-diagram-title has-tooltip"><i class="fa-regular fa-car-side text-blue-500 condition-diagram-header-icon"></i><span class="ml-2">' + diagramTitle + '</span><span class="tooltip-popup">' + diagramTooltip + '</span></h2>' +
+            return '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center condition-diagram-title has-tooltip"><span class="ml-0">' + diagramTitle + '</span><span class="tooltip-popup">' + diagramTooltip + '</span></h2>' +
                 '<div class="condition-diagrams-row">' +
                 '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внешние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" loading="lazy" /><div class="condition-overlay">' + exteriorZonesHtml + '</div></div></div>' +
                 '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внутренние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" loading="lazy" /><div class="condition-overlay">' + interiorZonesHtml + '</div></div></div>' +
@@ -2491,7 +2519,7 @@
                 legend + photoBlock + '</div>';
         }
 
-        function renderComments(c) { return c ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-comment text-blue-500 mr-2"></i>Комментарии инспектора</h2><div class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">${c}</div></div>` : ''; }
+        function renderComments(c) { return c ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center">Комментарии инспектора</h2><div class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">${c}</div></div>` : ''; }
 
         function renderInspectionCombined(insp) {
             if (!insp) return '';
@@ -2500,7 +2528,7 @@
             const hasChassis = insp.chassis && Object.keys(insp.chassis).length > 0;
             const hasElectrical = insp.electrical && Object.keys(insp.electrical).length > 0;
             if (!hasBasic && !hasEngine && !hasChassis && !hasElectrical) return '';
-            let html = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-clipboard text-blue-500 mr-2"></i>Инспекционная диагностика</h2>';
+            let html = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center">Инспекционная диагностика</h2>';
             if (hasBasic) html += '<div class="inspection-subtitle">Общие данные</div>' + renderObjectTable(insp.basicInfo, false);
             if (hasEngine) html += '<div class="inspection-subtitle">Двигатель и трансмиссия</div>' + renderObjectTable(insp.engineTransmission, true);
             if (hasChassis) html += '<div class="inspection-subtitle">Ходовая часть</div>' + renderObjectTable(insp.chassis, true);
@@ -2671,13 +2699,15 @@
             const fmt = function(v) { return (v != null && v !== '') ? Math.round(Number(v)).toLocaleString() + ' ₽' : '—'; };
             const totalForBar = (myPrice && Number(myPrice) > 0) ? Number(myPrice) : 0;
             const carCost = Number(priceRub) || 0;
-            const koreaRub = (Number(documentsKrwRub) || 0) + (Number(freightRub) || 0);
+            const freightOnly = Number(freightRub) || 0;
             const vladRub = Number(brokerRub) || 0;
             const customsRub = Number(customsTotal) || 0;
-            const p1 = totalForBar ? Math.round((carCost / totalForBar) * 100) : 25;
-            const p2 = totalForBar ? Math.round((koreaRub / totalForBar) * 100) : 25;
-            const p3 = totalForBar ? Math.round((vladRub / totalForBar) * 100) : 25;
-            const p4 = totalForBar ? Math.max(0, 100 - p1 - p2 - p3) : 25;
+            const commissionNum = Number(commissionRub) || 0;
+            const russiaPart = vladRub + commissionNum;
+            const pCar = totalForBar ? Math.round((carCost / totalForBar) * 100) : 25;
+            const pKorea = totalForBar ? Math.round((freightOnly / totalForBar) * 100) : 25;
+            const pCustoms = totalForBar ? Math.round((customsRub / totalForBar) * 100) : 25;
+            const pRussia = totalForBar ? Math.max(0, 100 - pCar - pKorea - pCustoms) : 25;
             const updatedAt = d.offer_created || d.created_at || carData.created_at || '';
             let updatedStr = '—';
             if (updatedAt) {
@@ -2764,7 +2794,7 @@
             return `
                 <div class="order-card" id="orderCard">
                     <div class="order-card-top">
-                        <span>Обновлено ${updatedStr}</span>
+                        <span>Дата обновления ${updatedStr}</span>
                         <div class="order-card-actions">
                             <button type="button" class="order-icon-btn order-icon-copy" aria-label="Копировать" title="Копировать">
                                 <img src="image/copy static.svg" alt="" class="img-static">
@@ -2780,27 +2810,27 @@
                             </button>
                         </div>
                     </div>
-                    ${showHighBadge ? '<div class="order-badge-high"><span>Высокая ставка</span><span class="info-dot" title="Высокая доля таможенных расходов">i</span></div>' : ''}
+                    ${showHighBadge ? '<div class="order-badge-high"><span>Высокая ставка</span><img src="image/Info.svg" alt="" class="info-icon" title="Высокая доля таможенных расходов"></div>' : ''}
                     <div class="order-title-row">
                         <h3 class="order-title">${fullName}</h3>
                     </div>
-                    <div class="order-meta">${metaHtml}</div>
                     <div class="order-price-line">
                         <span class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽')}</span>
-                        <span class="order-price-sub"> под ключ до Владивостока <span class="info-dot" title="Цена под ключ до Владивостока с учётом всех платежей">i</span></span>
+                        <span class="order-price-dots" aria-hidden="true"></span>
+                        <span class="order-price-sub">под ключ до Владивостока <img src="image/Info.svg" alt="" class="info-icon" title="Цена под ключ до Владивостока с учётом всех платежей"></span>
                     </div>
                     ${!priceUnavailable && totalForBar ? `
-                    <div class="order-breakdown-bar" role="img" aria-label="Доли в стоимости">
-                        <span class="segment segment-1" style="flex:0 0 ${p1}%"></span>
-                        <span class="segment segment-2" style="flex:0 0 ${p2}%"></span>
-                        <span class="segment segment-3" style="flex:0 0 ${p3}%"></span>
-                        <span class="segment segment-4" style="flex:0 0 ${p4}%"></span>
+                    <div class="order-breakdown-pills" role="img" aria-label="Доли в стоимости">
+                        <span class="pill p1" style="flex:${pCar} 1 0;min-width:0">${pCar}%</span>
+                        <span class="pill p2" style="flex:${pCustoms} 1 0;min-width:0">${pCustoms}%</span>
+                        <span class="pill p3" style="flex:${pKorea} 1 0;min-width:0">${pKorea}%</span>
+                        <span class="pill p4" style="flex:${pRussia} 1 0;min-width:0">${pRussia}%</span>
                     </div>
                     <div class="order-breakdown-legend">
-                        <span class="item"><span class="dot d1"></span> Стоимость авто (${p1}%)</span>
-                        <span class="item"><span class="dot d2"></span> Расходы в Корее (${p2}%)</span>
-                        <span class="item"><span class="dot d3"></span> Услуги во Владивостоке (${p3}%)</span>
-                        <span class="item"><span class="dot d4"></span> Таможенные расходы (${p4}%)</span>
+                        <span class="item"><span class="dot d1"></span> Стоимость авто</span>
+                        <span class="item"><span class="dot d2"></span> Таможенные расходы</span>
+                        <span class="item"><span class="dot d3"></span> Расходы в Корее</span>
+                        <span class="item"><span class="dot d4"></span> Расходы в РФ</span>
                     </div>
                     ` : ''}
                     <a href="${TELEGRAM_MANAGER_URL}" target="_blank" rel="noopener" class="order-btn-manager">
@@ -2810,11 +2840,11 @@
                     <div class="order-footer-text">
                         Нет аккаунта в Telegram? <a href="${TELEGRAM_REG_URL}" target="_blank" rel="noopener">Зарегистрироваться</a>
                     </div>
-                    <a href="howtobuy.html" class="order-btn-howto">Как оформить заказ? <svg class="chevron" viewBox="0 0 10 16" fill="currentColor" style="width:10px;height:16px;"><path d="M1 0L9 8 1 16V0z"/></svg></a>
                     <div class="calc-full" id="orderCardCalcFull" data-total="${myPriceFormatted}" data-korea-usd="${priceWon ? koreaTotalUsd.toFixed(0) : ''}" data-russia-rub="${(vladRub + customsRub + (Number(commissionRub) || 0)) || ''}">
                         <div class="calc-modal-content-tpl">${modalCoursesHtml}${modalKoreaHtml}${modalRussiaHtml}</div>
                     </div>
                 </div>
+                <a href="howtobuy.html" class="order-howto-bar">Как купить автомобиль? <img src="image/Chevron_Right.svg" alt="" class="chevron-img"></a>
             `;
         }
 
@@ -3071,10 +3101,10 @@
                 { label: 'Привод', value: toDisplayRu(d.prep_drive_type) || '—' },
                 { label: 'VIN', value: d.vin },
                 { label: 'Кол-во мест', value: d.seatCount },
-                { label: 'Продавец', value: d.seller },
-                { label: 'Салон ID', value: d.salon_id },
+                { label: 'Объём двигателя', value: (function() { var v = d.displacement || d.engine_volume || d.engineDisplacement || ''; if (v == null || v === '') return '—'; var s = String(v).trim().replace(/\s/g, ''); var num = parseInt(s.replace(/[^\d]/g, ''), 10); return (!isNaN(num) && num > 0) ? (num.toLocaleString('ru-RU') + ' см³') : (s ? s + ' см³' : '—'); })() },
+                { label: 'Мощность', value: (d.power || d.outputHorsepower || d.power_hp) ? (String(d.power || d.outputHorsepower || d.power_hp).replace(/\s/g, '') + ' л.с.') : '—' },
             ];
-            var specHtml = '<div class="detail-section"><h2><i class="fa-regular fa-clipboard-list mr-2" style="color:var(--color-primary)"></i>Основные характеристики</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">';
+            var specHtml = '<div class="detail-section"><h2>Основные характеристики</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">';
             specs.forEach(function(s) {
                 if (s.value) specHtml += '<div class="dotted-pair"><span class="key">' + s.label + '</span><span class="value">' + s.value + '</span></div>';
             });
@@ -3084,9 +3114,9 @@
             const bodyPanelsHtml = renderBodyPanels(insp.bodyPanels);
             const commentsHtml = renderComments(insp.bodyComments);
             const additionalHtml = (insp.additional && Object.keys(insp.additional).length)
-                ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-circle-info text-blue-500 mr-2"></i>Дополнительная информация</h2><table class="w-full text-sm data-table">${Object.entries(insp.additional).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table></div>` : '';
+                ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center">Дополнительная информация</h2><table class="w-full text-sm data-table">${Object.entries(insp.additional).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table></div>` : '';
             const bodyChangedHtml = (insp.bodyChanged && Object.keys(insp.bodyChanged).length)
-                ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-paintbrush text-blue-500 mr-2"></i>Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${partNamesRu[k] || k}</td><td>${statusRu[v] || v}</td></tr>`).join('')}</table></div>` : '';
+                ? `<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center">Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${partNamesRu[k] || k}</td><td>${statusRu[v] || v}</td></tr>`).join('')}</table></div>` : '';
 
             const conditionDiagramHtml = renderConditionDiagram(rawData, extra.diagnosis_photos || []);
             const inspectionCombinedHtml = renderInspectionCombined(insp);
@@ -3094,7 +3124,7 @@
             let recordHtml = '';
             if (extra.record_open) {
                 const r = extra.record_open;
-                recordHtml = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center"><i class="fa-regular fa-file-lines text-blue-500 mr-2"></i>История автомобиля</h2><table class="w-full text-sm data-table">';
+                recordHtml = '<div class="card rounded-3xl p-6"><h2 class="text-lg font-semibold mb-4 flex items-center">История автомобиля</h2><table class="w-full text-sm data-table">';
                 recordHtml += `<tr><td>Гос. номер</td><td>${r.carNo || '—'}</td></tr>`;
                 recordHtml += `<tr><td>Первая регистрация</td><td>${r.firstDate || '—'}</td></tr>`;
                 recordHtml += `<tr><td>Топливо</td><td>${toDisplayRu(r.fuel) || '—'}</td></tr>`;
@@ -3460,22 +3490,28 @@
     })();
 </script>
 
-<!-- Футер -->
-<footer class="footer">
-  <div class="footer-content">
-    <div class="footer-section">
-      <h3>Юридическая информация</h3>
-      <div class="footer-text">
-        <div class="footer-column">
-          <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление покупателей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
-        </div>
+<!-- Футер как в index.html -->
+<div class="footer-wrap">
+  <footer class="footer">
+    <div class="footer-top">
+      <a href="index.html" class="footer-logo">
+        <img src="image/logo.svg" alt="World Ride Auto">
+      </a>
+      <nav class="footer-nav">
+        <a href="#">Политика конфиденциальности</a>
+        <a href="#">Пользовательское соглашение</a>
+      </nav>
+      <div class="footer-copy">
+        <span class="copy-line">&copy; World Ride Auto 2026</span>
+        <span class="copy-made">сделано в World Ride Auto</span>
       </div>
     </div>
-    <div class="footer-bottom">
-      <p>&copy; World Ride Auto 2026</p>
+    <div class="footer-legal">
+      <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление пользователей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
+      <p>본 카탈로그에 게시된 정보는 러시아 연방 민법 제437조 및 대한민국 민법 제1435조에 따른 공개적인 청약으로 간주되지 않습니다. 차량에 대한 모든 정보, 포함하여 예시 계산 및 가격은 오직 정보 제공을 목적으로 하며, 대한민국 내에서 접근 가능한 공개 출처를 기반으로 작성되었습니다. 본 정보 제공의 목적은 사용자에게 한국 시장에서 제공되는 차량의 품목 구성과 가격 수준에 대한 이해를 돕기 위한 것입니다. 본 서비스의 운영은 러시아 연방 및 대한민국의 관련 법령을 철저히 준수하여 이루어집니다.</p>
     </div>
-  </div>
-</footer>
+  </footer>
+</div>
 
 </body>
 </html>
