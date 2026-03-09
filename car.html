@@ -707,7 +707,99 @@
         .order-card .order-footer-text a:hover { text-decoration: underline; }
         .order-card .calc-full { display: none; }
 
-        /* Модальное окно: Подробный расчёт (как у конкурента) */
+        /* Блок цен как у конкурента: шапка, валюта, полоса долей */
+        .order-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: var(--color-neutral-500);
+        }
+        .order-card-actions { display: flex; align-items: center; gap: 8px; }
+        .order-card-actions .order-icon-btn {
+            width: 32px; height: 32px; border: none; background: transparent;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; padding: 0; position: relative;
+        }
+        .order-card-actions .order-icon-btn img { width: 22px; height: 22px; display: block; }
+        .order-card-actions .order-icon-copy .img-active,
+        .order-card-actions .order-icon-original .img-active,
+        .order-card-actions .order-icon-favourite .img-active { display: none; }
+        .order-card-actions .order-icon-copy:hover .img-static,
+        .order-card-actions .order-icon-original:hover .img-static,
+        .order-card-actions .order-icon-favourite:hover .img-static { display: none; }
+        .order-card-actions .order-icon-copy:hover .img-active,
+        .order-card-actions .order-icon-original:hover .img-active,
+        .order-card-actions .order-icon-favourite:hover .img-active { display: block; }
+        .order-badge-high {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #dc2626; color: #fff; padding: 6px 12px; border-radius: 999px;
+            font-size: 13px; font-weight: 600; margin-bottom: 12px;
+        }
+        .order-payment-row { margin-bottom: 12px; }
+        .order-payment-row label { font-size: 14px; color: var(--color-neutral-600); margin-right: 8px; }
+        .order-payment-row select {
+            padding: 8px 12px; border-radius: 10px; border: 1px solid var(--color-neutral-300);
+            font-size: 14px; background: #fff; min-width: 160px;
+        }
+        .order-price-line {
+            display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 8px;
+            font-size: 1.25rem; font-weight: 700; color: var(--color-neutral-900);
+            margin-bottom: 16px; line-height: 1.3;
+        }
+        .order-price-line .order-price-main { font-size: inherit; font-weight: inherit; }
+        .order-price-line .order-price-sub {
+            font-size: inherit; font-weight: 500; color: var(--color-neutral-600);
+        }
+        .order-price-line .info-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--color-neutral-400); color: #fff; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; cursor: help; vertical-align: middle; }
+        .order-breakdown-bar {
+            display: flex; height: 12px; gap: 4px; margin-bottom: 12px;
+            align-items: stretch;
+        }
+        .order-breakdown-bar .segment {
+            border-radius: 4px; min-width: 4px; transition: flex 0.3s ease;
+        }
+        .order-breakdown-bar .segment-1 { background: #6b7280; }
+        .order-breakdown-bar .segment-2 { background: #2563eb; }
+        .order-breakdown-bar .segment-3 { background: #06b6d4; }
+        .order-breakdown-bar .segment-4 { background: #7c3aed; }
+        .order-breakdown-legend {
+            display: flex; flex-wrap: wrap; gap: 12px 20px;
+            font-size: 12px; color: var(--color-neutral-600); margin-bottom: 20px;
+        }
+        .order-breakdown-legend .item { display: flex; align-items: center; gap: 6px; }
+        .order-breakdown-legend .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .order-breakdown-legend .dot.d1 { background: #6b7280; }
+        .order-breakdown-legend .dot.d2 { background: #2563eb; }
+        .order-breakdown-legend .dot.d3 { background: #06b6d4; }
+        .order-breakdown-legend .dot.d4 { background: #7c3aed; }
+        .order-btn-manager {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 15px;
+            background: var(--color-primary); color: #fff; border: none; cursor: pointer; text-decoration: none;
+            margin-bottom: 10px; font-family: inherit; transition: background 0.2s;
+        }
+        .order-btn-manager:hover { background: #2563eb; color: #fff; }
+        .order-btn-calc {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 15px;
+            background: #fff; color: var(--color-neutral-800); border: 2px solid var(--color-primary);
+            cursor: pointer; font-family: inherit; margin-bottom: 12px; transition: background 0.2s, color 0.2s;
+        }
+        .order-btn-calc:hover { background: var(--color-neutral-100); color: var(--color-primary); }
+        .order-btn-howto {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 14px;
+            background: transparent; color: var(--color-primary); border: 2px solid var(--color-primary);
+            cursor: pointer; font-family: inherit; margin-top: 12px; text-decoration: none;
+            transition: background 0.2s, color 0.2s;
+        }
+        .order-btn-howto:hover { background: var(--color-primary); color: #fff; }
+        .order-btn-howto .chevron { transition: transform 0.2s; }
+        .order-btn-howto:hover .chevron { transform: translate(3px, 0); }
+
+        /* Модальное окно: Расчёт цены (как у конкурента) */
         .calc-modal-overlay {
             display: none;
             position: fixed;
@@ -723,8 +815,8 @@
             background: var(--app-bg);
             border-radius: 20px;
             width: 100%;
-            max-width: 480px;
-            max-height: 86vh;
+            max-width: 520px;
+            max-height: 90vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -735,7 +827,7 @@
             background: var(--app-bg);
             border-bottom: 1px solid var(--color-neutral-200);
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             color: var(--color-neutral-900);
             display: flex;
             align-items: center;
@@ -757,11 +849,48 @@
         }
         .calc-modal-header .calc-modal-close:hover { background: var(--color-neutral-300); }
         .calc-modal-body {
-            padding: 16px 24px;
+            padding: 20px 24px;
             overflow-y: auto;
             flex: 1;
             min-height: 0;
         }
+        .calc-modal-courses {
+            margin-bottom: 20px;
+        }
+        .calc-modal-courses h4 { font-size: 14px; color: var(--color-neutral-600); margin: 0 0 10px 0; font-weight: 600; }
+        .calc-modal-courses-pills {
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        }
+        .calc-modal-courses-pills span {
+            background: var(--color-neutral-200); color: var(--color-neutral-800);
+            padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: 500;
+        }
+        .calc-modal-why-course { margin-top: 12px; font-size: 13px; color: var(--color-neutral-600); }
+        .calc-modal-why-course summary { cursor: pointer; color: var(--color-primary); font-weight: 500; }
+        .calc-modal-why-course p { margin: 8px 0 0 0; line-height: 1.5; }
+        .calc-modal-section {
+            background: #fff;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+        }
+        .calc-modal-section h4 {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 15px; font-weight: 700; color: var(--color-neutral-900);
+            margin: 0 0 14px 0;
+        }
+        .calc-modal-section-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; font-size: 14px;
+        }
+        .calc-modal-section-row .key { color: var(--color-neutral-700); }
+        .calc-modal-section-row .key .info-dot { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: var(--color-neutral-400); color: #fff; font-size: 10px; margin-left: 4px; cursor: help; vertical-align: middle; }
+        .calc-modal-section-row .price { font-weight: 600; white-space: nowrap; }
+        .calc-modal-section-total { border-top: 1px solid var(--color-neutral-200); margin-top: 8px; padding-top: 10px; font-weight: 700; }
+        .calc-modal-section-desc { font-size: 12px; color: var(--color-neutral-500); margin-top: 4px; line-height: 1.4; }
+        .calc-modal-section-sublist { padding-left: 12px; margin-top: 4px; }
+        .calc-modal-section-sublist .calc-modal-section-row { padding: 4px 0; font-size: 13px; }
         .calc-modal-body .calc-list { list-style: none; margin: 0; padding: 0; }
         .calc-modal-body .calc-list li {
             display: flex;
@@ -776,11 +905,13 @@
         .calc-modal-body .calc-list .price { font-weight: 600; white-space: nowrap; }
         .calc-modal-body .calc-list li.price-fallback-note .price { font-weight: 500; font-size: 0.9rem; color: var(--color-primary); white-space: normal; }
         .calc-modal-footer {
-            padding: 16px 24px 24px;
+            padding: 20px 24px 24px;
             background: var(--color-neutral-900);
             color: #fff;
             border-radius: 0 0 20px 20px;
         }
+        .calc-modal-footer .total-main { font-size: 1.1rem; margin-bottom: 6px; }
+        .calc-modal-footer .total-formula { font-size: 13px; opacity: 0.9; margin-bottom: 16px; }
         .calc-modal-footer .total-row {
             display: flex;
             justify-content: space-between;
@@ -1665,20 +1796,18 @@
     </div>
 </div>
 
-<!-- Модальное окно: Подробный расчёт -->
+<!-- Модальное окно: Расчёт цены -->
 <div class="calc-modal-overlay" id="calcModalOverlay" aria-hidden="true">
     <div class="calc-modal-panel" role="dialog" aria-labelledby="calcModalTitle" onclick="event.stopPropagation()">
         <div class="calc-modal-header">
-            <span id="calcModalTitle">Расчёт стоимости</span>
+            <span id="calcModalTitle">Расчёт цены</span>
             <button type="button" class="calc-modal-close" id="calcModalClose" aria-label="Закрыть">×</button>
         </div>
         <div class="calc-modal-body" id="calcModalBody"></div>
         <div class="calc-modal-footer">
-            <div class="total-row">
-                <span>Итого</span>
-                <span id="calcModalTotal">—</span>
-            </div>
-            <a href="#" id="calcModalTelegram" class="telegram-btn" target="_blank" rel="noopener"><img src="image/telegram logo.svg" alt="" class="telegram-logo" style="width:20px;height:20px;"> Написать в Telegram</a>
+            <div class="total-main">Под ключ до Владивостока: <strong id="calcModalTotal">—</strong> <span class="info-dot" style="vertical-align:middle;cursor:help" title="Итоговая сумма с учётом всех расходов">i</span></div>
+            <div class="total-formula" id="calcModalFormula">—</div>
+            <a href="https://t.me/nikits15" id="calcModalTelegram" class="order-btn-manager" style="margin-bottom:0" target="_blank" rel="noopener"><i class="fa-regular fa-paper-plane"></i> Написать менеджеру</a>
         </div>
     </div>
 </div>
@@ -1717,10 +1846,17 @@
             function openCalcModal() {
                 var full = document.getElementById('orderCardCalcFull');
                 if (full) {
-                    var list = full.querySelector('.calc-list');
-                    calcBody.innerHTML = list ? list.outerHTML : '';
+                    var tpl = full.querySelector('.calc-modal-content-tpl');
+                    calcBody.innerHTML = tpl ? tpl.innerHTML : '';
                     calcTotal.textContent = full.getAttribute('data-total') || '—';
-                    calcTelegram.href = typeof TELEGRAM_MANAGER_URL !== 'undefined' ? TELEGRAM_MANAGER_URL : 'https://t.me/nikits15';
+                    var formulaEl = document.getElementById('calcModalFormula');
+                    if (formulaEl) {
+                        var koreaUsd = full.getAttribute('data-korea-usd');
+                        var russiaRub = full.getAttribute('data-russia-rub');
+                        if (koreaUsd && russiaRub) formulaEl.textContent = 'Расчёт: ' + koreaUsd + ' $ + ' + Number(russiaRub).toLocaleString('ru-RU') + ' ₽';
+                        else formulaEl.textContent = '';
+                    }
+                    if (calcTelegram) calcTelegram.href = typeof TELEGRAM_MANAGER_URL !== 'undefined' ? TELEGRAM_MANAGER_URL : 'https://t.me/nikits15';
                 }
                 calcOverlay.classList.add('is-open');
                 calcOverlay.setAttribute('aria-hidden', 'false');
@@ -1741,7 +1877,6 @@
 
             document.addEventListener('click', function(e) {
                 if (e.target.closest('#openCalcModal')) { openCalcModal(); return; }
-                if (e.target.closest('#openHowToModal')) { openHowToModal(e); return; }
                 if (e.target.id === 'calcModalClose' || e.target.closest('#calcModalClose')) closeCalcModal();
                 if (e.target.id === 'howtoModalClose' || e.target.closest('#howtoModalClose')) closeHowToModal();
                 if (e.target === calcOverlay) closeCalcModal();
@@ -2514,7 +2649,6 @@
             const km = formatKm(d.km_age);
             const address = d.address || '—';
             const sellerType = d.seller_type || '';
-            const isDealer = d.is_dealer ? 'Дилер' : '';
 
             const priceWon = d.price_won;
             const priceWonFormatted = priceWon ? (priceWon * 10000).toLocaleString() + ' вон' : '—';
@@ -2535,38 +2669,107 @@
             const vehicleSum = d.vehicle_sum_rub;
 
             const fmt = function(v) { return (v != null && v !== '') ? Math.round(Number(v)).toLocaleString() + ' ₽' : '—'; };
-            const calcItems = [
-                { key: 'Стоимость авто в Корее', val: priceWonFormatted },
-                { key: 'Цена в рублях (авто + документы 440k KRW)', val: fmt(priceRub) },
-                { key: 'Фрахт 1000 $', val: fmt(freightRub) },
-                { key: 'Таможенный сбор (оформление)', val: fmt(customsFee) },
-                { key: 'Таможенная пошлина', val: fmt(duty) },
-                { key: 'Утилизационный сбор', val: fmt(util) },
-                { key: 'Растаможка итого', val: fmt(customsTotal), bold: true },
-                { key: 'Брокер по РФ', val: fmt(brokerRub) },
-                { key: 'Комиссия 10%', val: fmt(commissionRub) },
-                { key: 'Наша цена', val: myPriceFormatted, bold: true }
-            ];
-            if (priceUnavailable) {
-                calcItems.push({ key: '', val: PRICE_FALLBACK, fallback: true });
+            const totalForBar = (myPrice && Number(myPrice) > 0) ? Number(myPrice) : 0;
+            const carCost = Number(priceRub) || 0;
+            const koreaRub = (Number(documentsKrwRub) || 0) + (Number(freightRub) || 0);
+            const vladRub = Number(brokerRub) || 0;
+            const customsRub = Number(customsTotal) || 0;
+            const p1 = totalForBar ? Math.round((carCost / totalForBar) * 100) : 25;
+            const p2 = totalForBar ? Math.round((koreaRub / totalForBar) * 100) : 25;
+            const p3 = totalForBar ? Math.round((vladRub / totalForBar) * 100) : 25;
+            const p4 = totalForBar ? Math.max(0, 100 - p1 - p2 - p3) : 25;
+            const updatedAt = d.offer_created || d.created_at || carData.created_at || '';
+            let updatedStr = '—';
+            if (updatedAt) {
+                const dt = new Date(updatedAt);
+                const day = dt.getDate().toString().padStart(2, '0');
+                const month = dt.toLocaleString('ru-RU', { month: 'long' });
+                const yearNum = dt.getFullYear();
+                const h = dt.getHours().toString().padStart(2, '0');
+                const m = dt.getMinutes().toString().padStart(2, '0');
+                updatedStr = day + ' ' + month + ' ' + yearNum + ' г. в ' + h + ':' + m;
             }
+            const showHighBadge = !priceUnavailable && totalForBar > 0 && (Number(customsRub) / totalForBar) > 0.35;
+
+            const krwPerUsdt = d.krw_per_usdt || 1400;
+            const usdtRub = d.usdt_rub || 95;
+            const rubPerWon = usdtRub / krwPerUsdt;
+            const carUsd = priceWon ? ((priceWon * 10000) + 440000) / krwPerUsdt : 0;
+            const koreaExpenseUsd = 1000 + (440000 / krwPerUsdt);
+            const koreaTotalUsd = carUsd + 1000;
+            const modalCoursesHtml = `
+                <div class="calc-modal-courses">
+                    <h4>Расчётные курсы:</h4>
+                    <div class="calc-modal-courses-pills">
+                        <span>1₽ = ${(1 / rubPerWon).toFixed(2)} W</span>
+                        <span>1$ = ${Math.round(krwPerUsdt).toLocaleString()} W</span>
+                        <span>1$ = ${Math.round(usdtRub)} ₽</span>
+                    </div>
+                    <details class="calc-modal-why-course">
+                        <summary>Почему такой курс?</summary>
+                        <p>У любой криптовалюты есть курс покупки и курс продажи. Разница между ними — это комиссия обменников, спред и риски ликвидности. При расчёте мы используем реальный курс (KRW→USDT→RUB) с учётом комиссий обменников.</p>
+                    </details>
+                </div>
+            `;
+            const modalKoreaHtml = `
+                <div class="calc-modal-section">
+                    <h4>🇰🇷 Расходы в Корее</h4>
+                    <div class="calc-modal-section-row">
+                        <span class="key">Стоимость авто на Encar</span>
+                        <span class="price">${priceWon ? (carUsd.toFixed(0) + ' $') : '—'}</span>
+                    </div>
+                    <div class="calc-modal-section-row">
+                        <span class="key">Расходы в Южной Корее <span class="info-dot" title="Документы 440k KRW + фрахт 1000$">i</span></span>
+                        <span class="price">${(koreaExpenseUsd.toFixed(0))} $</span>
+                    </div>
+                    <div class="calc-modal-section-row calc-modal-section-total">
+                        <span class="key">Итого</span>
+                        <span class="price">${priceWon ? (koreaTotalUsd.toFixed(0) + ' $') : '—'}</span>
+                    </div>
+                </div>
+            `;
+            const modalRussiaHtml = `
+                <div class="calc-modal-section">
+                    <h4>🇷🇺 Расходы в РФ</h4>
+                    <div class="calc-modal-section-row">
+                        <span class="key">Услуги во Владивостоке</span>
+                        <span class="price">${fmt(brokerRub)}</span>
+                    </div>
+                    <p class="calc-modal-section-desc">СБКТС, ЭПТС, лаборатория, перегон, погрузочно-разгрузочные работы, услуги порта, услуги брокера.</p>
+                    <div class="calc-modal-section-row">
+                        <span class="key">Таможенные расходы <span class="info-dot" title="Сбор, пошлина, утильсбор">i</span></span>
+                        <span class="price">${fmt(customsTotal)}</span>
+                    </div>
+                    <div class="calc-modal-section-sublist">
+                        <div class="calc-modal-section-row"><span class="key">Таможенное оформление</span><span class="price">${fmt(customsFee)}</span></div>
+                        <div class="calc-modal-section-row"><span class="key">Единая таможенная ставка (ЕТС)</span><span class="price">${fmt(duty)}</span></div>
+                        <div class="calc-modal-section-row"><span class="key">Утилизационный сбор</span><span class="price">${fmt(util)}</span></div>
+                    </div>
+                    <div class="calc-modal-section-row">
+                        <span class="key">Комиссия нашей компании (10%) <span class="info-dot" title="10% от суммы авто и растаможки">i</span></span>
+                        <span class="price">${fmt(commissionRub)}</span>
+                    </div>
+                    <div class="calc-modal-section-row calc-modal-section-total">
+                        <span class="key">Итого</span>
+                        <span class="price">${fmt(vladRub + customsRub + (Number(commissionRub) || 0))}</span>
+                    </div>
+                </div>
+            `;
 
             const metaParts = [year + ' г.', km, address].filter(Boolean);
             if (sellerType) metaParts.push(sellerType);
-            if (isDealer) metaParts.push(isDealer);
             const metaHtml = metaParts.length ? metaParts.join(' · ') : '—';
-
             const originalUrl = (d.url || '').trim() || '#';
-            const calcListHtml = calcItems.map(function(item) {
-                var cls = (item.bold ? 'font-bold' : '') + (item.fallback ? ' price-fallback-note' : '');
-                return '<li class="' + cls + '"><span class="key">' + item.key + '</span><span class="price">' + item.val + '</span></li>';
-            }).join('');
 
             return `
                 <div class="order-card" id="orderCard">
-                    <div class="order-title-row">
-                        <h3 class="order-title">${fullName}</h3>
-                        <div class="order-title-actions">
+                    <div class="order-card-top">
+                        <span>Обновлено ${updatedStr}</span>
+                        <div class="order-card-actions">
+                            <button type="button" class="order-icon-btn order-icon-copy" aria-label="Копировать" title="Копировать">
+                                <img src="image/copy static.svg" alt="" class="img-static">
+                                <img src="image/copy active.svg" alt="" class="img-active">
+                            </button>
                             <a href="${originalUrl}" target="_blank" rel="noopener" class="order-icon-btn order-icon-original" title="Оригинал" aria-label="Оригинал">
                                 <img src="image/link static.svg" alt="" class="img-static">
                                 <img src="image/link active.svg" alt="" class="img-active">
@@ -2577,35 +2780,40 @@
                             </button>
                         </div>
                     </div>
+                    ${showHighBadge ? '<div class="order-badge-high"><span>Высокая ставка</span><span class="info-dot" title="Высокая доля таможенных расходов">i</span></div>' : ''}
+                    <div class="order-title-row">
+                        <h3 class="order-title">${fullName}</h3>
+                    </div>
                     <div class="order-meta">${metaHtml}</div>
-                    <div class="order-price-total${priceUnavailable ? ' order-price-fallback' : ''}">${myPriceFormatted}</div>
-                    <a href="${TELEGRAM_MANAGER_URL}" target="_blank" rel="noopener" class="telegram-btn" style="margin-bottom: 12px;">
-                        <img src="image/telegram logo.svg" alt="" class="telegram-logo"> Написать в Telegram
+                    <div class="order-price-line">
+                        <span class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽')}</span>
+                        <span class="order-price-sub"> под ключ до Владивостока <span class="info-dot" title="Цена под ключ до Владивостока с учётом всех платежей">i</span></span>
+                    </div>
+                    ${!priceUnavailable && totalForBar ? `
+                    <div class="order-breakdown-bar" role="img" aria-label="Доли в стоимости">
+                        <span class="segment segment-1" style="flex:0 0 ${p1}%"></span>
+                        <span class="segment segment-2" style="flex:0 0 ${p2}%"></span>
+                        <span class="segment segment-3" style="flex:0 0 ${p3}%"></span>
+                        <span class="segment segment-4" style="flex:0 0 ${p4}%"></span>
+                    </div>
+                    <div class="order-breakdown-legend">
+                        <span class="item"><span class="dot d1"></span> Стоимость авто (${p1}%)</span>
+                        <span class="item"><span class="dot d2"></span> Расходы в Корее (${p2}%)</span>
+                        <span class="item"><span class="dot d3"></span> Услуги во Владивостоке (${p3}%)</span>
+                        <span class="item"><span class="dot d4"></span> Таможенные расходы (${p4}%)</span>
+                    </div>
+                    ` : ''}
+                    <a href="${TELEGRAM_MANAGER_URL}" target="_blank" rel="noopener" class="order-btn-manager">
+                        <i class="fa-regular fa-paper-plane"></i> Написать менеджеру
                     </a>
-                    <button type="button" class="order-calc-btn" id="openCalcModal" aria-label="Подробный расчёт">
-                        Подробный расчёт
-                    </button>
-                    <a href="#" class="order-howto" id="openHowToModal">
-                        Как оформить заказ?
-                        <svg class="chevron" viewBox="0 0 10 16" fill="currentColor"><path d="M1 0L9 8 1 16V0z"/></svg>
-                    </a>
+                    <button type="button" class="order-btn-calc" id="openCalcModal" aria-label="Показать расчёт цены">Показать расчёт цены</button>
                     <div class="order-footer-text">
-                        Нет аккаунта? <a href="${TELEGRAM_REG_URL}" target="_blank" rel="noopener">Зарегистрироваться</a>
+                        Нет аккаунта в Telegram? <a href="${TELEGRAM_REG_URL}" target="_blank" rel="noopener">Зарегистрироваться</a>
                     </div>
-                    <div class="calc-full" id="orderCardCalcFull" data-total="${myPriceFormatted}">
-                        <ul class="calc-list">${calcListHtml}</ul>
+                    <a href="howtobuy.html" class="order-btn-howto">Как оформить заказ? <svg class="chevron" viewBox="0 0 10 16" fill="currentColor" style="width:10px;height:16px;"><path d="M1 0L9 8 1 16V0z"/></svg></a>
+                    <div class="calc-full" id="orderCardCalcFull" data-total="${myPriceFormatted}" data-korea-usd="${priceWon ? koreaTotalUsd.toFixed(0) : ''}" data-russia-rub="${(vladRub + customsRub + (Number(commissionRub) || 0)) || ''}">
+                        <div class="calc-modal-content-tpl">${modalCoursesHtml}${modalKoreaHtml}${modalRussiaHtml}</div>
                     </div>
-                    <details class="mt-4 text-xs" style="color: var(--color-neutral-600);">
-                        <summary class="cursor-pointer" style="color: var(--color-primary);">Почему такой курс?</summary>
-                        <div class="mt-2 p-3 rounded-lg" style="background: var(--color-neutral-200);">
-                            <p>У любой криптовалюты есть курс покупки и курс продажи. Разница между ними — это комиссия обменников, спред и риски ликвидности.</p>
-                            <p class="mt-1">Например, курс USDT к южнокорейской воне (KRW) может быть:<br>
-                            — Покупка USDT за KRW: 1 USDT = 1 480 ₽<br>
-                            — Продажа USDT за KRW: 1 USDT = 1 420 ₽</p>
-                            <p class="mt-1">В России при переводе из RUB в USDT через P2P-обменники вы получите ~1 USDT = 75–85 ₽ (в зависимости от реального курса USD). А при обратном обмене (USDT → RUB) — уже ~1 USDT = 75–70 ₽.</p>
-                            <p class="mt-1">При расчёте стоимости автомобиля мы используем реальный курс покупки USDT (т.е. сколько вам придётся потратить в рублях или вонах, чтобы получить нужное количество USDT для оплаты). Это не «официальный» курс биржи — это то, что вы реально заплатите в обменнике сейчас, с учётом спроса, лимитов и комиссий.</p>
-                        </div>
-                    </details>
                 </div>
             `;
         }
