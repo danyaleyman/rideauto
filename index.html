@@ -682,6 +682,7 @@
       padding-top: 10px;
       gap: 16px;
     }
+    .price-rub.price-rub-fallback { font-size: 0.9rem; font-weight: 600; white-space: normal; line-height: 1.25; }
     .price {
       font-weight: 750;
       font-size: 1.4rem;
@@ -1847,7 +1848,7 @@
 
       gridEl.innerHTML = '';
       slice.forEach(car => {
-        const d = car.data;
+        const d = car.data || car;
         const images = getPreviewImages(d);
 
         const card = document.createElement('div');
@@ -1894,8 +1895,8 @@
             </div>
             <div class="price-row">
               <div class="price-block" style="display: flex; flex-direction: column; gap: 2px;">
-                <span class="price-rub" style="font-weight: 750; font-size: 1.4rem; color: #2563eb;">
-                  ${d.my_price ? Math.round(d.my_price).toLocaleString() + ' ₽' : '—'}
+                <span class="price-rub ${(d.my_price == null || d.my_price === '' || d.price_calc_failed) ? 'price-rub-fallback' : ''}" style="font-weight: 750; font-size: 1.4rem; color: #2563eb;">
+                  ${(d.my_price != null && d.my_price !== '' && !d.price_calc_failed) ? Math.round(Number(d.my_price)).toLocaleString() + ' ₽' : ((d.price_calc_failed || (d.price_won != null && (d.my_price == null || d.my_price === ''))) ? 'Обратитесь к менеджеру для просчёта' : '—')}
                 </span>
                 <span class="delivery-line">до Владивостока <span class="info-icon-wrap" title="Доставка до Владивостока"><img src="image/Info.svg" alt="i" width="16" height="16" class="info-icon-img"></span></span>
               </div>
