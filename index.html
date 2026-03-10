@@ -490,11 +490,15 @@
       box-shadow: var(--shadow-focus);
     }
     .info-icon-wrap.count-info {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      min-height: 20px;
+      padding: 0;
       font-size: 11px;
-      margin-left: 8px;
+      margin-left: 6px;
     }
+    .info-icon-wrap.count-info .info-icon-img { width: 14px; height: 14px; }
 
     /* Список автомобилей — горизонтальные карточки, одна под другой */
     .car-grid {
@@ -601,10 +605,11 @@
       flex-shrink: 0;
     }
     .car-actions .icon-btn {
-      width: 32px;
-      height: 32px;
-      min-width: 44px;
-      min-height: 44px;
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      min-height: 28px;
+      padding: 0;
       border: none;
       background: var(--wra-gray-100);
       border-radius: var(--radius-sm);
@@ -614,7 +619,7 @@
       justify-content: center;
       transition: background var(--transition), opacity var(--transition);
     }
-    .car-actions .icon-btn img { display: block; }
+    .car-actions .icon-btn img { display: block; width: 16px; height: 16px; }
     .car-actions .icon-btn:hover {
       background: var(--wra-gray-200);
     }
@@ -658,8 +663,11 @@
       white-space: nowrap;
     }
     .delivery-line .info-icon-wrap {
-      width: 14px;
-      height: 14px;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      min-height: 18px;
+      padding: 0;
       flex-shrink: 0;
     }
     .delivery-line .info-icon-wrap .info-icon-img { width: 12px; height: 12px; }
@@ -705,10 +713,10 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 44px;
-      min-height: 44px;
-      padding: 12px;
-      border-radius: var(--radius-pill);
+      min-width: 20px;
+      min-height: 20px;
+      padding: 2px;
+      border-radius: var(--radius-sm);
       background: var(--wra-gray-200);
       cursor: pointer;
       transition: background var(--transition);
@@ -756,7 +764,7 @@
       width: 240px;
       max-width: 320px;
       word-wrap: break-word;
-      z-index: 2000;
+      z-index: 10000;
       box-shadow: var(--shadow-md);
       pointer-events: none;
     }
@@ -770,6 +778,23 @@
       border-style: solid;
       border-color: var(--wra-gray-800) transparent transparent transparent;
     }
+    .toast-link-copied {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--wra-gray-800);
+      color: var(--wra-white);
+      padding: 10px 20px;
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      z-index: 10001;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    .toast-link-copied.show { opacity: 1; }
 
     .pagination {
       display: flex;
@@ -1624,6 +1649,20 @@
     }
     const countInfoIcon = document.getElementById('countInfoIcon');
 
+    function positionTooltip(tooltipEl, anchorRect) {
+      tooltipEl.style.display = 'block';
+      var w = tooltipEl.offsetWidth;
+      var h = tooltipEl.offsetHeight;
+      var pad = 8;
+      var left = anchorRect.left + anchorRect.width / 2 - w / 2;
+      var top = anchorRect.top - h - 10;
+      left = Math.max(pad, Math.min(left, window.innerWidth - w - pad));
+      if (top < pad) top = anchorRect.bottom + 10;
+      else top = Math.min(top, window.innerHeight - h - pad);
+      tooltipEl.style.left = left + 'px';
+      tooltipEl.style.top = top + 'px';
+    }
+
     let currentSort = 'date_new';
 
     // Форматирование
@@ -1945,31 +1984,36 @@
         btnTooltip.className = 'tooltip';
         btnTooltip.innerHTML = tax.tooltip;
         document.body.appendChild(btnTooltip);
-        btn.addEventListener('mouseenter', (e) => {
-          const rect = btn.getBoundingClientRect();
-          btnTooltip.style.display = 'block';
-          btnTooltip.style.left = rect.left + rect.width / 2 - 120 + 'px';
-          btnTooltip.style.top = rect.top - btnTooltip.offsetHeight - 10 + 'px';
-        });
+        btn.addEventListener('mouseenter', () => { positionTooltip(btnTooltip, btn.getBoundingClientRect()); });
         btn.addEventListener('mouseleave', () => { btnTooltip.style.display = 'none'; });
 
-        // Тултип для info-icon
-        const info = card.querySelector('.info-icon-wrap');
+        // Тултип для info-icon (иконка «i» у «до Владивостока»)
+        const info = card.querySelector('.delivery-line .info-icon-wrap');
         const infoTooltip = document.createElement('div');
         infoTooltip.className = 'tooltip';
         infoTooltip.innerHTML = 'Доставка до Владивостока. Срок и стоимость уточняйте у менеджера.';
         document.body.appendChild(infoTooltip);
-        info.addEventListener('mouseenter', (e) => {
-          const rect = info.getBoundingClientRect();
-          infoTooltip.style.display = 'block';
-          infoTooltip.style.left = rect.left + rect.width / 2 - 120 + 'px';
-          infoTooltip.style.top = rect.top - infoTooltip.offsetHeight - 10 + 'px';
-        });
+        info.addEventListener('mouseenter', () => { positionTooltip(infoTooltip, info.getBoundingClientRect()); });
         info.addEventListener('mouseleave', () => { infoTooltip.style.display = 'none'; });
 
-        // Поделиться — открыть ссылку в новой вкладке
+        // Поделиться — копировать ссылку и показать «Ссылка скопирована»
         const shareBtn = card.querySelector('.car-actions .icon-btn:first-child');
-        if (shareBtn) shareBtn.addEventListener('click', (e) => { e.stopPropagation(); window.open(carUrl, '_blank'); });
+        if (shareBtn) shareBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(carUrl).then(() => {
+            var toast = document.getElementById('toastLinkCopied');
+            if (!toast) {
+              toast = document.createElement('div');
+              toast.id = 'toastLinkCopied';
+              toast.className = 'toast-link-copied';
+              toast.textContent = 'Ссылка скопирована';
+              document.body.appendChild(toast);
+            }
+            toast.classList.add('show');
+            clearTimeout(shareBtn._toastTimer);
+            shareBtn._toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2000);
+          }).catch(() => { window.open(carUrl, '_blank'); });
+        });
         // Избранное — переключение состояния
         const favBtn = card.querySelector('.car-actions .icon-btn:last-child');
         if (favBtn) favBtn.addEventListener('click', (e) => {
@@ -2530,15 +2574,8 @@
         'количество авто меньше, чем на источнике данных.';
       document.body.appendChild(tooltip);
 
-      countInfoIcon.addEventListener('mouseenter', () => {
-        const rect = countInfoIcon.getBoundingClientRect();
-        tooltip.style.display = 'block';
-        tooltip.style.left = rect.left + rect.width / 2 - 120 + 'px';
-        tooltip.style.top = rect.top - tooltip.offsetHeight - 10 + 'px';
-      });
-      countInfoIcon.addEventListener('mouseleave', () => {
-        tooltip.style.display = 'none';
-       });
+      countInfoIcon.addEventListener('mouseenter', () => { positionTooltip(tooltip, countInfoIcon.getBoundingClientRect()); });
+      countInfoIcon.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
     }
 
     // Инициализация Swiper баннера (карточки)
