@@ -5,9 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World Ride Auto - Авто из Азии</title>
     <link rel="stylesheet" href="css/common.css">
+    <script src="js/copy-protection.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/767a85f1ee.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/splitting/dist/splitting.css">
+    <script src="https://unpkg.com/splitting/dist/splitting.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
   <style>
     /* Шапка сайта */
     .header {
@@ -838,17 +845,19 @@
       margin: 24px auto 24px;
       padding: 0 20px;
       box-sizing: border-box;
+      overflow-x: hidden;
     }
     .hero-banner {
       background: var(--wra-surface);
       border-radius: var(--radius-lg);
       padding: var(--space-6) 28px;
       display: flex;
-      align-items: stretch;
+      align-items: center;
       gap: var(--space-5);
-      min-height: 140px;
+      min-height: 165px;
       border: 1px solid var(--wra-border);
       box-shadow: var(--shadow);
+      min-width: 0;
     }
     .hero-banner-brand {
       flex-shrink: 0;
@@ -858,21 +867,26 @@
       min-width: 200px;
     }
     .hero-banner-brand .brand-name {
+      font-family: 'Plus Jakarta Sans', var(--font-sans);
       font-size: var(--text-2xl);
       font-weight: var(--font-bold);
       color: var(--wra-gray-900);
       letter-spacing: -0.02em;
-      margin: 0 0 4px 0;
+      margin: 0 0 4px 80px;
       display: flex;
       align-items: center;
       gap: var(--space-2);
+      overflow: hidden;
     }
     .hero-banner-brand .brand-name .flag { font-size: 1.35rem; line-height: 1; }
+    .hero-banner-brand .brand-name.splitting { gap: 0.15em; }
+    .hero-banner-brand .brand-name.splitting .line { overflow: hidden; display: block; }
+    .hero-banner-brand .brand-name.splitting .word { display: inline-block; }
     .hero-banner-brand .tagline {
       font-size: var(--text-sm);
       font-style: italic;
       color: var(--wra-primary);
-      margin: 0;
+      margin: 0 0 0 60px;
     }
     .hero-banner-cards {
       flex: 1;
@@ -883,33 +897,52 @@
       justify-content: flex-end;
     }
     .hero-banner-card-static {
-      flex: 0 0 200px;
+      flex: 1 1 200px;
       min-width: 0;
+      max-width: 200px;
+    }
+    .hero-banner-card-static .hero-banner-card {
+      height: 120px;
+      min-height: 120px;
     }
     .hero-banner-slider-wrap {
-      flex: 0 0 300px;
-      min-width: 300px;
-      position: relative;
-      padding-bottom: 0;
+      flex: 1 1 340px;
+      min-width: 0;
+      max-width: 340px;
       display: flex;
       flex-direction: column;
       align-items: stretch;
     }
     .hero-banner-slider-wrap .hero-banner-slider {
       width: 100%;
-      flex: 1;
-      min-height: 0;
+      flex: 0 0 120px;
+      height: 120px;
+      overflow: hidden;
     }
     .hero-banner-slider .swiper-wrapper {
       align-items: stretch;
-      justify-content: flex-end;
     }
     .hero-banner-slider .swiper-slide {
-      height: auto;
+      height: 100%;
       width: 100%;
+      flex-shrink: 0;
     }
     .hero-banner-slider .swiper-slide .hero-banner-card {
       min-height: 100%;
+      height: 100%;
+    }
+    .hero-banner-pagination-wrap {
+      padding: 16px 0 0;
+      text-align: center;
+      min-height: 24px;
+      display: block;
+    }
+    .hero-banner-pagination-wrap .swiper-pagination {
+      position: relative !important;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
     }
     .hero-banner-card {
       background: var(--wra-surface);
@@ -972,6 +1005,31 @@
     .hero-banner-card.app-card .card-btn:hover { background: var(--wra-gray-700); }
     .hero-banner-card .card-sections { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
     .hero-banner-card .card-section { flex: 0 0 auto; }
+    .hero-banner-slide-card {
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      height: 100%;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 12px;
+    }
+    .hero-banner-slide-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      background: var(--wra-primary);
+      color: var(--wra-white);
+      border-radius: var(--radius-md);
+      font-weight: var(--font-semibold);
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .hero-banner-slide-btn:hover { background: var(--wra-primary-hover); }
     .hero-banner-card .card-join-wrap { margin-top: auto; padding-top: 12px; text-align: left; }
     .hero-banner-card .card-join {
       display: inline-flex;
@@ -987,35 +1045,61 @@
       transition: background var(--transition);
     }
     .hero-banner-card .card-join:hover { background: var(--wra-primary-hover); }
-    .hero-banner-pagination-wrap {
-      padding-top: 6px;
-      text-align: center;
-      min-height: 24px;
-    }
     .hero-banner-pagination-wrap .swiper-pagination-bullet {
-      background: var(--wra-gray-400);
-      opacity: 0.25;
-      width: 5px;
-      height: 5px;
-      margin: 0 2px;
+      background: #64748b;
+      opacity: 0.5;
+      width: 6px;
+      height: 6px;
+      margin: 0 !important;
       border-radius: 50%;
-      transition: opacity var(--transition);
+      transition: opacity var(--transition), background var(--transition);
     }
     .hero-banner-pagination-wrap .swiper-pagination-bullet-active {
-      opacity: 0.6;
-      background: var(--wra-gray-500);
+      opacity: 1;
+      background: var(--wra-primary, #2563eb);
+    }
+    @media (max-width: 1000px) {
+      .hero-banner-brand { min-width: 0; overflow: hidden; }
+      .hero-banner-brand .brand-name { margin-right: 0.5rem; }
+      .hero-banner-brand .tagline { margin-left: 0.5rem; }
     }
     @media (max-width: 900px) {
       .hero-banner {
         flex-direction: column;
         padding: 20px;
         gap: 20px;
+        max-width: 100%;
       }
-      .hero-banner-brand { min-width: 0; align-items: center; text-align: center; }
-      .hero-banner-brand .brand-name { justify-content: center; }
-      .hero-banner-cards { flex-direction: column; }
-      .hero-banner-card-static { flex: 1 1 auto; }
-      .hero-banner-slider-wrap { max-width: none; }
+      .hero-banner-brand {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        align-items: center;
+        text-align: center;
+        overflow: hidden;
+      }
+      .hero-banner-brand .brand-name {
+        justify-content: center;
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
+      }
+      .hero-banner-brand .tagline { margin-left: 0; margin-right: 0; max-width: 100%; }
+      .hero-banner-cards { flex-direction: column; max-width: 100%; min-width: 0; }
+      .hero-banner-card-static { flex: 1 1 auto; max-width: none; }
+      .hero-banner-slider-wrap {
+        max-width: 100%;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        flex-basis: auto;
+      }
+      .hero-banner-slider-wrap .hero-banner-slider {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden;
+      }
+      .hero-banner-slider .swiper-slide { width: 100% !important; max-width: 100% !important; }
     }
     .hero-content {
       max-width: 1200px;
@@ -1217,27 +1301,18 @@
           <div class="swiper hero-banner-slider">
             <div class="swiper-wrapper">
               <div class="swiper-slide">
-                <div class="hero-banner-card">
-                  <div class="card-sections">
-                    <div class="card-section"><p class="card-title">Привезли за 5 лет</p></div>
-                    <div class="card-section"><p class="card-value">4,517+</p></div>
-                    <div class="card-section"><p class="card-sub">автомобилей</p></div>
-                    <div class="card-join-wrap">
-                      <a href="https://t.me/nikits15" class="card-join" target="_blank" rel="noopener">Присоединиться</a>
-                    </div>
-                  </div>
+                <div class="hero-banner-card hero-banner-slide-card" style="background-image: url('image/Telegram background.svg');">
+                  <a href="https://t.me/worldrideauto" class="card-join hero-banner-slide-btn" target="_blank" rel="noopener">Присоединиться</a>
                 </div>
               </div>
               <div class="swiper-slide">
-                <div class="hero-banner-card app-card">
-                  <div class="card-sections">
-                    <div class="card-section"><p class="card-title">Связь с менеджером — это удобно!</p></div>
-                    <div class="card-section"><p class="card-desc">Ответим на вопросы и поможем с подбором авто</p></div>
-                    <div class="card-section"><p class="card-sub">Напишите в Telegram — ответим быстро</p></div>
-                    <div class="card-join-wrap">
-                      <a href="https://t.me/nikits15" class="card-join" target="_blank" rel="noopener">Присоединиться</a>
-                    </div>
-                  </div>
+                <div class="hero-banner-card hero-banner-slide-card" style="background-image: url('image/VK background.svg');">
+                  <a href="https://vk.com/ride_auto" class="card-join hero-banner-slide-btn" target="_blank" rel="noopener">Присоединиться</a>
+                </div>
+              </div>
+              <div class="swiper-slide">
+                <div class="hero-banner-card hero-banner-slide-card" style="background-image: url('image/Avito background.svg');">
+                  <a href="https://www.avito.ru/brands/8a805bbde7bfbfcc9b9e810b88bb4382?src=sharing" class="card-join hero-banner-slide-btn" target="_blank" rel="noopener">Присоединиться</a>
                 </div>
               </div>
             </div>
@@ -2470,13 +2545,84 @@
     const heroSwiper = new Swiper('.hero-banner-slider', {
       speed: 400,
       loop: true,
+      slidesPerView: 1,
       autoplay: { delay: 6000, disableOnInteraction: false },
       pagination: {
         el: '.hero-banner-pagination',
         clickable: true,
       },
       spaceBetween: 0,
+      observer: true,
+      observeParents: true,
     });
+
+    // Анимация .brand-name по строкам (Splitting.js + Anime.js)
+    const brandEl = document.querySelector('.hero-banner-brand .brand-name');
+    if (brandEl && typeof Splitting !== 'undefined' && typeof anime !== 'undefined') {
+      document.fonts.ready.then(function() {
+        const result = Splitting({ target: brandEl, by: 'lines' })[0];
+        if (!result || !result.lines) return;
+        const flagEl = brandEl.querySelector('.flag');
+        const lines = result.lines;
+        const allWords = lines.flat();
+        allWords.forEach(function(el) {
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(0.6em)';
+        });
+        if (flagEl) {
+          flagEl.style.opacity = '0';
+          flagEl.style.transform = 'scale(0.85)';
+        }
+        anime({
+          targets: allWords,
+          opacity: 1,
+          translateY: 0,
+          duration: 650,
+          easing: 'easeOutCubic',
+          delay: anime.stagger(60, { start: 100 }),
+        });
+        if (flagEl) {
+          anime({
+            targets: flagEl,
+            opacity: 1,
+            scale: 1,
+            duration: 500,
+            easing: 'easeOutCubic',
+            delay: 400,
+          });
+        }
+        // #region agent log
+        fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:brand-init',message:'Brand splitting applied',data:{brandChildCount:brandEl.children.length,hasSplitting:brandEl.classList.contains('splitting')},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
+        // #endregion
+      });
+    }
+
+    // #region agent log
+    var _resizeTick = null;
+    function _logResize() {
+      var w = window.innerWidth;
+      var media900 = window.matchMedia('(max-width: 900px)').matches;
+      var sliderWrap = document.querySelector('.hero-banner-slider-wrap');
+      var swiperEl = document.querySelector('.hero-banner-slider');
+      var firstSlide = swiperEl ? swiperEl.querySelector('.swiper-slide') : null;
+      var sliderWrapW = sliderWrap ? sliderWrap.getBoundingClientRect().width : 0;
+      var swiperElW = swiperEl ? swiperEl.getBoundingClientRect().width : 0;
+      var slideW = firstSlide ? firstSlide.getBoundingClientRect().width : 0;
+      var swiperWidth = heroSwiper && heroSwiper.width != null ? heroSwiper.width : null;
+      fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:resize',message:'Resize before update',data:{innerWidth:w,media900:media900,sliderWrapWidth:sliderWrapW,swiperElWidth:swiperElW,slideWidth:slideW,swiperCachedWidth:swiperWidth},timestamp:Date.now(),hypothesisId:'H1,H2,H3,H4,H5'})}).catch(function(){});
+      if (heroSwiper && typeof heroSwiper.update === 'function') {
+        heroSwiper.update();
+        var slideWAfter = firstSlide ? firstSlide.getBoundingClientRect().width : 0;
+        var swiperWidthAfter = heroSwiper.width != null ? heroSwiper.width : null;
+        fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:resize',message:'Resize after swiper.update()',data:{slideWidthAfter:slideWAfter,swiperCachedWidthAfter:swiperWidthAfter},timestamp:Date.now(),hypothesisId:'H1,H5'})}).catch(function(){});
+      }
+    }
+    window.addEventListener('resize', function() {
+      if (_resizeTick) clearTimeout(_resizeTick);
+      _resizeTick = setTimeout(_logResize, 200);
+    });
+    setTimeout(_logResize, 600);
+    // #endregion
   })();
 </script>
 
