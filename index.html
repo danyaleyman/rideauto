@@ -189,8 +189,27 @@
     .filters-panel-scroll {
       flex: 1;
       overflow-y: auto;
-      padding: 0 var(--space-6);
+      padding: var(--space-5) var(--space-6) 0;
       min-height: 0;
+    }
+    .year-range-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .year-range-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 1fr;
+      align-items: center;
+      gap: 8px;
+    }
+    .year-range-label {
+      font-size: var(--text-xs);
+      color: var(--wra-gray-600);
+    }
+    .year-range-row select {
+      width: 100%;
+      min-width: 0;
     }
     .filters-panel-footer {
       flex-shrink: 0;
@@ -1353,21 +1372,15 @@
 <div class="main-layout">
   <!-- Левая панель фильтров (как на Encar) -->
   <aside class="filters-panel" id="filtersPanel">
-    <div class="filters-panel-header">
-      <h3>
-        Фильтры
-        <span class="count-badge" id="filterCount">0</span>
-      </h3>
-    </div>
     <div class="filters-panel-scroll">
-      <!-- 1. Марка (англ.) -->
+      <!-- 1. Марка -->
       <div class="filter-group">
         <h4>Марка</h4>
         <select id="markSelect">
           <option value="">Все марки</option>
         </select>
       </div>
-      <!-- 2. Модель (англ.) -->
+      <!-- 2. Модель -->
       <div class="filter-group">
         <h4>Модель</h4>
         <select id="modelSelect" disabled>
@@ -1381,17 +1394,17 @@
           <option value="">Сначала выберите модель</option>
         </select>
       </div>
-      <!-- 4. Тип кузова (как на Encar) -->
-      <div class="filter-group">
-        <h4>Тип кузова</h4>
-        <div class="checkbox-list" id="bodyList"></div>
-      </div>
-      <!-- 5. Комплектация -->
+      <!-- 4. Комплектация -->
       <div class="filter-group">
         <h4>Комплектация</h4>
         <select id="trimSelect" disabled>
           <option value="">Сначала выберите поколение</option>
         </select>
+      </div>
+      <!-- 5. Тип кузова -->
+      <div class="filter-group">
+        <h4>Тип кузова</h4>
+        <div class="checkbox-list" id="bodyList"></div>
       </div>
       <!-- 6. Мощность от/до (л.с.) -->
       <div class="filter-group">
@@ -1418,38 +1431,36 @@
         <h4>Коробка передач</h4>
         <div class="checkbox-list" id="transmissionList"></div>
       </div>
-      <!-- 9. Цена от/до -->
+      <!-- 9. Цена -->
       <div class="filter-group">
-        <h4>Цена от / до (вон)</h4>
+        <h4>Цена (вон)</h4>
         <div class="range-inputs">
           <input type="number" id="priceFrom" placeholder="От" min="0" step="100000">
           <input type="number" id="priceTo" placeholder="До" min="0" step="100000">
         </div>
       </div>
-      <!-- 10. Пробег от/до -->
+      <!-- 10. Пробег -->
       <div class="filter-group">
-        <h4>Пробег от / до (км)</h4>
+        <h4>Пробег (км)</h4>
         <div class="range-inputs">
           <input type="number" id="mileageFrom" placeholder="От" min="0" step="1000">
           <input type="number" id="mileageTo" placeholder="До" min="0" step="1000">
         </div>
       </div>
-      <!-- 11. Год производства от/до (4 поля: год+месяц) -->
-      <div class="filter-group">
-        <h4>Год производства от / до</h4>
-        <div class="range-inputs" style="flex-wrap: wrap;">
-          <select id="yearFrom" style="flex: 1; min-width: 80px;">
-            <option value="">Год от</option>
-          </select>
-          <select id="monthFrom" style="flex: 1; min-width: 70px;">
-            <option value="">Месяц от</option>
-          </select>
-          <select id="yearTo" style="flex: 1; min-width: 80px;">
-            <option value="">Год до</option>
-          </select>
-          <select id="monthTo" style="flex: 1; min-width: 70px;">
-            <option value="">Месяц до</option>
-          </select>
+      <!-- 11. Год производства -->
+      <div class="filter-group filter-group-year">
+        <h4>Год производства</h4>
+        <div class="year-range-wrap">
+          <div class="year-range-row">
+            <span class="year-range-label">От</span>
+            <select id="yearFrom"><option value="">Год</option></select>
+            <select id="monthFrom"><option value="">Месяц</option></select>
+          </div>
+          <div class="year-range-row">
+            <span class="year-range-label">До</span>
+            <select id="yearTo"><option value="">Год</option></select>
+            <select id="monthTo"><option value="">Месяц</option></select>
+          </div>
         </div>
       </div>
       <!-- 12. Тип привода: только полный -->
