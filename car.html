@@ -136,7 +136,7 @@
         .details-left { width: 100%; min-width: 0; }
         .details-right {
             position: sticky;
-            top: calc(var(--header-height) + 20px);
+            top: var(--header-height);
             align-self: start;
         }
         /* Основные характеристики — карточка в общем стиле страницы */
@@ -1509,6 +1509,15 @@
             to { opacity: 1; }
         }
         .history-group-body .history-table { margin: 0; }
+        .history-data-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-2) var(--space-8);
+        }
+        .history-data-grid .dotted-pair .value { font-weight: 400; }
+        @media (min-width: 768px) {
+            .history-data-grid { grid-template-columns: repeat(2, 1fr); }
+        }
         /* Подраздел ДТП: карточки аварий */
         .history-group-body .accident-card {
             margin-top: var(--space-3);
@@ -2045,9 +2054,9 @@
             font-size: 0.85rem;
         }
         .similar-car-price {
-            font-weight: 750;
-            font-size: 1.2rem;
-            color: #111827;
+            font-weight: var(--font-semibold);
+            font-size: var(--text-sm);
+            color: var(--wra-gray-900);
         }
         .similar-car-link {
             display: block;
@@ -2075,6 +2084,16 @@
                 align-items: flex-start;
                 gap: 12px;
             }
+        }
+        /* Плейсхолдер для ленивой загрузки блока "Похожие по цене" */
+        .similar-cars-placeholder {
+            min-height: 180px;
+            margin-top: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--wra-gray-400);
+            font-size: var(--text-sm);
         }
         
         /* Футер — в css/common.css */
@@ -2759,6 +2778,15 @@
         function formatKm(km) { return km ? Number(km).toLocaleString() + ' км' : '—'; }
         function formatDate(iso) { return iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
         function formatNumber(num) { return num?.toLocaleString() ?? '—'; }
+        /** Сумма в вонах → строка в рублях по курсу ЦБ (rubPerWon = руб за 1 вон). */
+        function formatWonToRub(won, rubPerWon) {
+            if (rubPerWon <= 0) return '—';
+            var n = Number(won);
+            if (isNaN(n) || n === 0) return '—';
+            return Math.round(n * rubPerWon).toLocaleString('ru-RU') + ' ₽';
+        }
+        /** Пояснение для типа ДТП 1/2/3 (классификация по степени повреждений). */
+        var accidentTypeLabels = { '1': 'Лёгкое (мелкие повреждения)', '2': 'Умеренное (средний ремонт)', '3': 'Серьёзное (крупный ремонт)' };
 
         function renderObjectTable(obj, translate = false) {
             if (!obj || !Object.keys(obj).length) return '';
@@ -3443,8 +3471,8 @@
             `;
         }
 
-        // ---------- Функция для рендера блока "Похожие по цене" ----------
-        async function renderSimilarCars(currentCar) {
+        // ---------- Функция для рендера блока "Похожие по цене" (options.lazy = true — только вернуть HTML, не вставлять) ----------
+        async function renderSimilarCars(currentCar, options) {
             const d = currentCar.data || {};
             const currentPrice = d.price_won; // цена в единицах по 10 000 вон
             const currentMark = d.mark || '';
@@ -3525,12 +3553,12 @@
                     </div>
                 `;
 
-                // Вставляем HTML в контейнер
-                const container = document.getElementById('car-content');
-                if (container) {
-                    container.insertAdjacentHTML('beforeend', html);
+                if (!options || !options.lazy) {
+                    const container = document.getElementById('car-content');
+                    if (container) {
+                        container.insertAdjacentHTML('beforeend', html);
+                    }
                 }
-
                 return html;
             } catch (err) {
                 console.error('Ошибка загрузки похожих автомобилей:', err);
@@ -3538,7 +3566,7 @@
             }
         }
 
-        // ---------- Функция для получения главного фото ----------
+        // ---------- Функция для получения превью фото (та же логика, что в каталоге index.html) ----------
         function getPreviewImages(d) {
             let images = [];
             try { images = JSON.parse(d.images || '[]'); } catch { images = []; }
@@ -3547,44 +3575,35 @@
             try { hImages = JSON.parse(d.h_images || '[]'); } catch { hImages = []; }
 
             if (Array.isArray(images) && images.length && Array.isArray(hImages) && hImages.length) {
-                const outerCodes = hImages
-                    .filter(h => h && h.type === 'OUTER' && h.code)
-                    .map(h => String(h.code));
-
-                const outerUrls = [];
-                outerCodes.forEach(code => {
+                const outerItems = hImages.filter(h => h && h.type === 'OUTER' && h.code);
+                const pairs = [];
+                outerItems.forEach(h => {
+                    const code = String(h.code);
                     const suffix = `_${code}.`;
                     const found = images.find(url => typeof url === 'string' && url.includes(suffix));
-                    if (found && !outerUrls.includes(found)) {
-                        outerUrls.push(found);
+                    if (found && !pairs.some(p => p.url === found)) {
+                        pairs.push({ url: found, code: code });
                     }
                 });
 
-                if (outerUrls.length) {
-                    // Сортировка по типу: перед, зад, бок, салон
-                    const typeOrder = {
-                        'FRONT': 1,
-                        'REAR': 2,
-                        'SIDE': 3,
-                        'INTERIOR': 4
-                    };
-                    const sorted = outerUrls.slice().sort((a, b) => {
-                        const aType = typeOrder[guessImageType(a)] || 99;
-                        const bType = typeOrder[guessImageType(b)] || 99;
-                        return aType - bType;
+                if (pairs.length) {
+                    pairs.sort((a, b) => {
+                        const orderA = getPhotoViewOrder(a.url, a.code);
+                        const orderB = getPhotoViewOrder(b.url, b.code);
+                        if (orderA !== orderB) return orderA - orderB;
+                        return String(a.url).localeCompare(b.url);
                     });
-                    return sorted.slice(0, 4);
+                    return pairs.map(p => p.url).slice(0, 4);
                 }
             }
 
-            // Фолбэк: первые 4 фото, если не получилось выделить OUTER
+            // Фолбэк: первые 4 фото, сортировка по тому же порядку видов, что в каталоге
             if (Array.isArray(images) && images.length) {
-                // Сортируем и выбираем лучшие фото для превью
                 const sorted = images.slice().sort((a, b) => {
-                    const aType = guessImageType(a);
-                    const bType = guessImageType(b);
-                    const order = { 'FRONT': 1, 'REAR': 2, 'SIDE': 3, 'INTERIOR': 4 };
-                    return (order[aType] || 99) - (order[bType] || 99);
+                    const orderA = getPhotoViewOrder(a, null);
+                    const orderB = getPhotoViewOrder(b, null);
+                    if (orderA !== orderB) return orderA - orderB;
+                    return String(a).localeCompare(b);
                 });
                 return sorted.slice(0, 4);
             }
@@ -3682,6 +3701,8 @@
 
             const galleryHtml = renderGallery(sortedPhotos, fullNameForGallery);
 
+            var driveVal = toDisplayRu(d.drive_type || d.prep_drive_type) || '';
+            var powerVal = (function() { var v = d.power || d.hp || d.outputHorsepower || d.power_hp; if (!v) return ''; var n = parseInt(String(v).replace(/\D/g, ''), 10); if (Number.isNaN(n) || n < 20 || n > 2000) return ''; return n + ' л.с.'; })();
             const specs = [
                 { label: 'Марка', value: filterOptionLabel(d.mark, 'mark') },
                 { label: 'Модель', value: filterOptionLabel(d.model, 'model') },
@@ -3693,12 +3714,11 @@
                 { label: 'Тип двигателя', value: toDisplayRu(d.engine_type) },
                 { label: 'Коробка', value: toDisplayRu(d.transmission_type) },
                 { label: 'Кузов', value: toDisplayRu(d.body_type) },
-                { label: 'Привод', value: toDisplayRu(d.drive_type || d.prep_drive_type) || '—' },
+            ].concat(driveVal ? [{ label: 'Привод', value: driveVal }] : []).concat(
                 { label: 'VIN', value: d.vin },
                 { label: 'Кол-во мест', value: d.seatCount },
                 { label: 'Объём двигателя', value: (function() { var v = d.displacement || d.engine_volume || d.engineDisplacement || ''; if (v == null || v === '') return '—'; var s = String(v).trim().replace(/\s/g, ''); var num = parseInt(s.replace(/[^\d]/g, ''), 10); return (!isNaN(num) && num > 0) ? (num.toLocaleString('ru-RU') + ' см³') : (s ? s + ' см³' : '—'); })() },
-                { label: 'Мощность', value: (function() { var v = d.power || d.hp || d.outputHorsepower || d.power_hp; if (!v) return '—'; var n = parseInt(String(v).replace(/\D/g, ''), 10); if (Number.isNaN(n) || n < 20 || n > 2000) return '—'; return n + ' л.с.'; })() },
-            ];
+            ).concat(powerVal ? [{ label: 'Мощность', value: powerVal }] : []);
             var specHtml = '<div class="detail-section"><h2>Основные характеристики</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">';
             specs.forEach(function(s) {
                 if (s.value) specHtml += '<div class="dotted-pair"><span class="key">' + s.label + '</span><span class="value">' + s.value + '</span></div>';
@@ -3719,24 +3739,42 @@
             let recordHtml = '';
             if (extra.record_open) {
                 const r = extra.record_open;
-                const tableRows = `<tr><td>Гос. номер</td><td>${r.carNo || '—'}</td></tr><tr><td>Первая регистрация</td><td>${r.firstDate || '—'}</td></tr><tr><td>Топливо</td><td>${toDisplayRu(r.fuel) || '—'}</td></tr><tr><td>Кузов</td><td>${toDisplayRu(r.carShape) || '—'}</td></tr><tr><td>Количество владельцев</td><td>${r.ownerChangeCnt ?? '0'}</td></tr><tr><td>Мои аварии (кол-во)</td><td>${r.myAccidentCnt ?? '0'}</td></tr><tr><td>Аварии с другими</td><td>${r.otherAccidentCnt ?? '0'}</td></tr><tr><td>Угон/тотал/потоп</td><td>угон:${r.robberCnt}, тотал:${r.totalLossCnt}, потоп:${r.floodTotalLossCnt}</td></tr><tr><td>Залог / гос.средства</td><td>loan:${r.loan}, government:${r.government}</td></tr>`;
+                var historyPairs = [
+                    { label: 'Гос. номер', value: r.carNo || '—' },
+                    { label: 'Первая регистрация', value: r.firstDate || '—' },
+                    { label: 'Топливо', value: toDisplayRu(r.fuel) || '—' },
+                    { label: 'Кузов', value: toDisplayRu(r.carShape) || '—' },
+                    { label: 'Количество владельцев', value: r.ownerChangeCnt ?? '0' },
+                    { label: 'Мои аварии (кол-во)', value: r.myAccidentCnt ?? '0' },
+                    { label: 'Аварии с другими', value: r.otherAccidentCnt ?? '0' },
+                    { label: 'Угон', value: r.robberCnt ?? '0' },
+                    { label: 'Тотал', value: r.totalLossCnt ?? '0' },
+                    { label: 'Потоп', value: r.floodTotalLossCnt ?? '0' },
+                    { label: 'Залог', value: r.loan ?? '0' },
+                    { label: 'Гос.средства', value: r.government ?? '0' }
+                ];
+                var historyDataHtml = historyPairs.map(function(p) { return '<div class="dotted-pair"><span class="key">' + p.label + '</span><span class="value">' + p.value + '</span></div>'; }).join('');
                 const hasAccidents = r.accidents && r.accidents.length > 0;
                 recordHtml = '<div class="history-wrap"><h2 class="history-main-title">История автомобиля</h2>';
                 recordHtml += '<div class="history-headers-grid">';
                 recordHtml += '<button type="button" class="history-group-header is-active" data-history-index="0" aria-expanded="true" aria-controls="history-body-0" id="history-header-0">Основные данные</button>';
                 if (hasAccidents) recordHtml += '<button type="button" class="history-group-header" data-history-index="1" aria-expanded="false" aria-controls="history-body-1" id="history-header-1">Детали ДТП <span class="history-tab-badge">' + r.accidents.length + '</span></button>';
                 recordHtml += '</div><div class="history-panel">';
-                recordHtml += '<div class="history-group-body is-visible" id="history-body-0" role="region" aria-labelledby="history-header-0"><table class="w-full text-sm data-table history-table">' + tableRows + '</table></div>';
+                recordHtml += '<div class="history-group-body is-visible" id="history-body-0" role="region" aria-labelledby="history-header-0"><div class="history-data-grid">' + historyDataHtml + '</div></div>';
                 if (hasAccidents) {
+                    var krwPerUsdt = d.krw_per_usdt || 1400;
+                    var usdtRub = d.usdt_rub || 95;
+                    var rubPerWon = usdtRub / krwPerUsdt;
                     recordHtml += '<div class="history-group-body" id="history-body-1" role="region" aria-labelledby="history-header-1">';
                     r.accidents.forEach(acc => {
+                        var typeText = accidentTypeLabels[String(acc.type)] || acc.type || '—';
                         recordHtml += '<div class="accident-card"><div class="history-accident-grid">';
                         recordHtml += '<div><span class="history-accident-label">Дата</span>' + (acc.date || '—') + '</div>';
-                        recordHtml += '<div><span class="history-accident-label">Тип</span>' + (acc.type || '—') + '</div>';
-                        recordHtml += '<div><span class="history-accident-label">Страховая выплата</span>' + formatNumber(acc.insuranceBenefit) + ' вон</div>';
-                        recordHtml += '<div><span class="history-accident-label">Запчасти</span>' + formatNumber(acc.partCost) + ' вон</div>';
-                        recordHtml += '<div><span class="history-accident-label">Работы</span>' + formatNumber(acc.laborCost) + ' вон</div>';
-                        recordHtml += '<div><span class="history-accident-label">Покраска</span>' + formatNumber(acc.paintingCost) + ' вон</div>';
+                        recordHtml += '<div><span class="history-accident-label">Тип</span>' + typeText + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Страховая выплата</span>' + formatWonToRub(acc.insuranceBenefit, rubPerWon) + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Запчасти</span>' + formatWonToRub(acc.partCost, rubPerWon) + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Работы</span>' + formatWonToRub(acc.laborCost, rubPerWon) + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Покраска</span>' + formatWonToRub(acc.paintingCost, rubPerWon) + '</div>';
                         recordHtml += '</div></div>';
                     });
                     recordHtml += '</div>';
@@ -3807,10 +3845,39 @@
             // Динамическое обновление шапки навигации
             updateHeaderNavigation();
 
-            // Добавляем блок "Похожие по цене" один раз (renderSimilarCars сам вставляет HTML внутрь container)
-            renderSimilarCars(rawData).then(function() {
-                setupSectionNavigation();
-            });
+            // Блок "Похожие по цене" — ленивая загрузка при скролле до него
+            var similarPlaceholder = document.createElement('div');
+            similarPlaceholder.id = 'similar-cars-placeholder';
+            similarPlaceholder.className = 'similar-cars-placeholder';
+            similarPlaceholder.setAttribute('aria-hidden', 'true');
+            container.appendChild(similarPlaceholder);
+
+            var similarObserver = new IntersectionObserver(function(entries) {
+                var entry = entries[0];
+                if (!entry || !entry.isIntersecting) return;
+                similarObserver.disconnect();
+                similarPlaceholder.textContent = 'Загрузка...';
+                renderSimilarCars(rawData, { lazy: true }).then(function(html) {
+                    if (!similarPlaceholder.parentNode) return;
+                    if (html) {
+                        var wrap = document.createElement('div');
+                        wrap.innerHTML = html;
+                        var section = wrap.firstElementChild;
+                        if (section) {
+                            similarPlaceholder.parentNode.replaceChild(section, similarPlaceholder);
+                        }
+                    } else {
+                        similarPlaceholder.remove();
+                    }
+                    setupSectionNavigation();
+                }).catch(function() {
+                    if (similarPlaceholder.parentNode) {
+                        similarPlaceholder.textContent = '';
+                        similarPlaceholder.remove();
+                    }
+                });
+            }, { rootMargin: '120px', threshold: 0 });
+            similarObserver.observe(similarPlaceholder);
 
             const datePlaceholder = document.getElementById('data-date-placeholder');
             if (datePlaceholder) {
