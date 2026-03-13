@@ -99,3 +99,165 @@
 2026-03-13 19:40:02,391 [INFO] encar_scraper: Worker 3 saved car_id=41251029 total=200
 2026-03-13 19:40:22,987 [INFO] encar_scraper: Worker 7 saved car_id=41571350 total=300
 2026-03-13 19:40:37,889 [INFO] encar_scraper: Scraper finished. list_pages=6 ids_discovered=600 ids_queued=587 processed=367 saved=354 detail_fail=0 parse_fail=13 elapsed=99.9s
+2026-03-13 19:56:40,650 [INFO] encar_scraper: New cars car_type=for offset=0 added=100 total_added=100
+2026-03-13 19:56:46,247 [INFO] encar_scraper: New cars car_type=for offset=100 added=100 total_added=200
+2026-03-13 19:57:00,119 [INFO] encar_scraper: New cars car_type=for offset=200 added=100 total_added=300
+2026-03-13 19:57:04,330 [INFO] encar_scraper: New cars car_type=for offset=300 added=100 total_added=400
+2026-03-13 19:57:17,161 [INFO] encar_scraper: New cars car_type=for offset=400 added=100 total_added=500
+2026-03-13 19:57:19,687 [INFO] encar_scraper: New cars car_type=for offset=500 added=98 total_added=598
+2026-03-13 19:57:21,812 [INFO] encar_scraper: New cars car_type=for offset=600 added=100 total_added=698
+2026-03-13 19:57:23,926 [INFO] encar_scraper: New cars car_type=for offset=700 added=100 total_added=798
+2026-03-13 19:57:25,988 [INFO] encar_scraper: New cars car_type=for offset=800 added=97 total_added=895
+2026-03-13 19:57:28,167 [INFO] encar_scraper: New cars car_type=for offset=900 added=99 total_added=994
+2026-03-13 19:57:30,596 [INFO] encar_scraper: New cars car_type=for offset=1000 added=100 total_added=1094
+2026-03-13 19:57:32,906 [INFO] encar_scraper: New cars car_type=for offset=1100 added=100 total_added=1194
+2026-03-13 19:57:35,640 [INFO] encar_scraper: New cars car_type=for offset=1200 added=100 total_added=1294
+2026-03-13 19:57:37,233 [INFO] encar_scraper: New cars car_type=for offset=1300 added=100 total_added=1394
+2026-03-13 19:57:39,950 [INFO] encar_scraper: New cars car_type=for offset=1400 added=100 total_added=1494
+2026-03-13 19:57:43,489 [INFO] encar_scraper: New cars car_type=for offset=1500 added=100 total_added=1594
+2026-03-13 19:57:45,430 [INFO] encar_scraper: New cars car_type=for offset=1600 added=100 total_added=1694
+2026-03-13 19:57:49,027 [INFO] encar_scraper: New cars car_type=for offset=1700 added=100 total_added=1794
+2026-03-13 19:58:00,022 [INFO] encar_scraper: New cars car_type=for offset=1800 added=100 total_added=1894
+2026-03-13 19:58:03,653 [INFO] encar_scraper: New cars car_type=for offset=1900 added=94 total_added=1988
+2026-03-13 19:58:05,208 [INFO] encar_scraper: New cars car_type=for offset=2000 added=100 total_added=2088
+2026-03-13 19:58:07,350 [INFO] encar_scraper: New cars car_type=for offset=2100 added=100 total_added=2188
+2026-03-13 19:58:09,946 [INFO] encar_scraper: New cars car_type=for offset=2200 added=100 total_added=2288
+2026-03-13 19:58:12,710 [INFO] encar_scraper: New cars car_type=for offset=2300 added=100 total_added=2388
+2026-03-13 19:58:15,689 [INFO] encar_scraper: New cars car_type=for offset=2400 added=100 total_added=2488
+2026-03-13 19:58:18,031 [INFO] encar_scraper: New cars car_type=for offset=2500 added=97 total_added=2585
+2026-03-13 19:58:20,315 [INFO] encar_scraper: New cars car_type=for offset=2600 added=100 total_added=2685
+2026-03-13 19:58:27,079 [INFO] encar_scraper: New cars car_type=for offset=2700 added=100 total_added=2785
+2026-03-13 19:58:29,608 [INFO] encar_scraper: New cars car_type=for offset=2800 added=100 total_added=2885
+2026-03-13 19:58:32,404 [INFO] encar_scraper: New cars car_type=for offset=2900 added=98 total_added=2983
+2026-03-13 19:58:35,479 [INFO] encar_scraper: New cars car_type=kor offset=0 added=100 total_added=3083
+2026-03-13 19:58:37,456 [INFO] encar_scraper: New cars car_type=kor offset=100 added=100 total_added=3183
+2026-03-13 19:58:40,847 [INFO] encar_scraper: New cars car_type=kor offset=200 added=100 total_added=3283
+2026-03-13 19:58:42,933 [INFO] encar_scraper: New cars car_type=kor offset=300 added=100 total_added=3383
+2026-03-13 19:58:44,931 [INFO] encar_scraper: New cars car_type=kor offset=400 added=100 total_added=3483
+2026-03-13 19:58:46,804 [INFO] encar_scraper: New cars car_type=kor offset=500 added=100 total_added=3583
+2026-03-13 19:58:48,869 [INFO] encar_scraper: New cars car_type=kor offset=600 added=100 total_added=3683
+2026-03-13 19:58:51,073 [INFO] encar_scraper: New cars car_type=kor offset=700 added=100 total_added=3783
+2026-03-13 19:58:53,322 [INFO] encar_scraper: New cars car_type=kor offset=800 added=100 total_added=3883
+2026-03-13 19:58:55,803 [INFO] encar_scraper: New cars car_type=kor offset=900 added=100 total_added=3983
+2026-03-13 19:58:59,939 [INFO] encar_scraper: New cars car_type=kor offset=1000 added=100 total_added=4083
+2026-03-13 19:59:02,148 [INFO] encar_scraper: New cars car_type=kor offset=1100 added=100 total_added=4183
+2026-03-13 19:59:05,089 [INFO] encar_scraper: New cars car_type=kor offset=1200 added=100 total_added=4283
+2026-03-13 19:59:07,454 [INFO] encar_scraper: New cars car_type=kor offset=1300 added=100 total_added=4383
+2026-03-13 19:59:09,942 [INFO] encar_scraper: New cars car_type=kor offset=1400 added=100 total_added=4483
+2026-03-13 19:59:13,808 [INFO] encar_scraper: New cars car_type=kor offset=1500 added=100 total_added=4583
+2026-03-13 19:59:16,076 [INFO] encar_scraper: New cars car_type=kor offset=1600 added=100 total_added=4683
+2026-03-13 19:59:19,229 [INFO] encar_scraper: New cars car_type=kor offset=1700 added=100 total_added=4783
+2026-03-13 19:59:27,407 [INFO] encar_scraper: New cars car_type=kor offset=1800 added=100 total_added=4883
+2026-03-13 19:59:31,205 [INFO] encar_scraper: New cars car_type=kor offset=1900 added=100 total_added=4983
+2026-03-13 19:59:33,899 [INFO] encar_scraper: New cars car_type=kor offset=2000 added=100 total_added=5083
+2026-03-13 19:59:35,813 [INFO] encar_scraper: New cars car_type=kor offset=2100 added=100 total_added=5183
+2026-03-13 19:59:40,392 [INFO] encar_scraper: New cars car_type=kor offset=2200 added=100 total_added=5283
+2026-03-13 19:59:43,136 [INFO] encar_scraper: New cars car_type=kor offset=2300 added=100 total_added=5383
+2026-03-13 19:59:45,194 [INFO] encar_scraper: New cars car_type=kor offset=2400 added=100 total_added=5483
+2026-03-13 19:59:47,656 [INFO] encar_scraper: New cars car_type=kor offset=2500 added=100 total_added=5583
+2026-03-13 19:59:49,791 [INFO] encar_scraper: New cars car_type=kor offset=2600 added=100 total_added=5683
+2026-03-13 19:59:52,208 [INFO] encar_scraper: New cars car_type=kor offset=2700 added=100 total_added=5783
+2026-03-13 19:59:53,948 [INFO] encar_scraper: New cars car_type=kor offset=2800 added=100 total_added=5883
+2026-03-13 19:59:57,674 [INFO] encar_scraper: New cars car_type=kor offset=2900 added=100 total_added=5983
+2026-03-13 19:59:58,936 [INFO] encar_scraper: Discover new: added 5983 to pending
+2026-03-13 20:00:04,298 [INFO] encar_scraper: Removed sold car_id=40543125 status=404
+2026-03-13 20:00:06,128 [INFO] encar_scraper: Removed sold car_id=40607568 status=404
+2026-03-13 20:00:07,701 [INFO] encar_scraper: Removed sold car_id=40582842 status=404
+2026-03-13 20:00:11,358 [INFO] encar_scraper: Removed sold car_id=40441844 status=404
+2026-03-13 20:00:12,547 [INFO] encar_scraper: Removed sold car_id=40268410 status=404
+2026-03-13 20:00:18,356 [INFO] encar_scraper: Removed sold car_id=41586096 status=404
+2026-03-13 20:00:25,057 [INFO] encar_scraper: Removed sold car_id=41518456 status=404
+2026-03-13 20:00:30,577 [INFO] encar_scraper: Removed sold car_id=41583538 status=404
+2026-03-13 20:00:41,986 [INFO] encar_scraper: Removed sold car_id=41164675 status=404
+2026-03-13 20:00:54,800 [INFO] encar_scraper: Removed sold car_id=41473859 status=404
+2026-03-13 20:00:59,103 [INFO] encar_scraper: Removed sold car_id=41515509 status=404
+2026-03-13 20:01:56,247 [INFO] encar_scraper: Removed sold car_id=41551940 status=404
+2026-03-13 20:02:11,608 [INFO] encar_scraper: Removed sold car_id=41207896 status=404
+2026-03-13 20:02:36,942 [INFO] encar_scraper: Removed sold car_id=40897220 status=404
+2026-03-13 20:02:38,795 [INFO] encar_scraper: Removed sold car_id=41525493 status=404
+2026-03-13 20:02:45,458 [INFO] encar_scraper: Removed sold car_id=41284332 status=404
+2026-03-13 20:03:04,223 [INFO] encar_scraper: Removed sold car_id=41274593 status=404
+2026-03-13 20:03:07,610 [INFO] encar_scraper: Removed sold car_id=41284098 status=404
+2026-03-13 20:03:15,608 [INFO] encar_scraper: Removed sold car_id=41319835 status=404
+2026-03-13 20:03:27,114 [INFO] encar_scraper: Removed sold car_id=41525486 status=404
+2026-03-13 20:03:37,047 [INFO] encar_scraper: Removed sold car_id=40694028 status=404
+2026-03-13 20:03:48,350 [INFO] encar_scraper: Removed sold car_id=41531233 status=404
+2026-03-13 20:03:59,620 [INFO] encar_scraper: Removed sold car_id=41530212 status=404
+2026-03-13 20:04:08,349 [INFO] encar_scraper: Removed sold car_id=41568869 status=404
+2026-03-13 20:04:11,343 [INFO] encar_scraper: Removed sold car_id=41512672 status=404
+2026-03-13 20:04:28,466 [INFO] encar_scraper: Removed sold car_id=41498001 status=404
+2026-03-13 20:04:40,334 [INFO] encar_scraper: Removed sold car_id=41553733 status=404
+2026-03-13 20:04:54,628 [INFO] encar_scraper: Removed sold car_id=40677675 status=404
+2026-03-13 20:05:20,052 [INFO] encar_scraper: Removed sold car_id=41490054 status=404
+2026-03-13 20:06:24,097 [INFO] encar_scraper: Removed sold car_id=41136107 status=404
+2026-03-13 20:06:31,238 [INFO] encar_scraper: Removed sold car_id=41590600 status=404
+2026-03-13 20:06:33,266 [INFO] encar_scraper: Removed sold car_id=40938566 status=404
+2026-03-13 20:06:40,807 [INFO] encar_scraper: Removed sold car_id=41136031 status=404
+2026-03-13 20:06:44,450 [INFO] encar_scraper: Removed sold car_id=40920094 status=404
+2026-03-13 20:06:47,153 [INFO] encar_scraper: Removed sold car_id=41586759 status=404
+2026-03-13 20:07:03,623 [INFO] encar_scraper: Removed sold car_id=41442651 status=404
+2026-03-13 20:07:15,392 [INFO] encar_scraper: Removed sold car_id=41488059 status=404
+2026-03-13 20:07:21,556 [INFO] encar_scraper: Removed sold car_id=41456529 status=404
+2026-03-13 20:07:28,754 [INFO] encar_scraper: Removed sold car_id=41485956 status=404
+2026-03-13 20:07:31,160 [INFO] encar_scraper: Removed sold car_id=41519720 status=404
+2026-03-13 20:07:35,680 [INFO] encar_scraper: Removed sold car_id=41577961 status=404
+2026-03-13 20:07:37,544 [INFO] encar_scraper: Removed sold car_id=41576531 status=404
+2026-03-13 20:08:08,673 [INFO] encar_scraper: Removed sold car_id=41492735 status=404
+2026-03-13 20:08:25,787 [INFO] encar_scraper: Removed sold car_id=40515374 status=404
+2026-03-13 20:09:32,066 [INFO] encar_scraper: Removed sold car_id=41589775 status=404
+2026-03-13 20:09:38,731 [INFO] encar_scraper: Removed sold car_id=41579954 status=404
+2026-03-13 20:09:57,826 [INFO] encar_scraper: Removed sold car_id=41589060 status=404
+2026-03-13 20:10:04,842 [INFO] encar_scraper: Removed sold car_id=41575329 status=404
+2026-03-13 20:10:08,139 [INFO] encar_scraper: Removed sold car_id=41461864 status=404
+2026-03-13 20:11:04,080 [INFO] encar_scraper: Removed sold car_id=41583669 status=404
+2026-03-13 20:11:09,677 [INFO] encar_scraper: Removed sold car_id=41548404 status=404
+2026-03-13 20:11:21,476 [INFO] encar_scraper: Starting Encar scraper
+2026-03-13 20:11:21,494 [INFO] encar_scraper: Run limited to max_cars=1000
+2026-03-13 20:11:23,525 [INFO] encar_scraper: List car_type=for offset=4300 items=100 queued=100
+2026-03-13 20:11:26,129 [INFO] encar_scraper: Removed sold car_id=41544590 status=404
+2026-03-13 20:11:26,402 [INFO] encar_scraper: List car_type=for offset=4400 items=100 queued=100
+2026-03-13 20:11:30,026 [INFO] encar_scraper: List car_type=for offset=4500 items=100 queued=100
+2026-03-13 20:11:32,624 [INFO] encar_scraper: List car_type=for offset=4600 items=100 queued=100
+2026-03-13 20:11:33,303 [INFO] encar_scraper: Removed sold car_id=41497408 status=404
+2026-03-13 20:11:34,337 [INFO] encar_scraper: List car_type=for offset=4700 items=100 queued=100
+2026-03-13 20:11:38,160 [INFO] encar_scraper: List car_type=for offset=4800 items=100 queued=100
+2026-03-13 20:11:39,438 [INFO] encar_scraper: List car_type=for offset=4900 items=100 queued=100
+2026-03-13 20:11:39,970 [INFO] encar_scraper: Removed sold car_id=40849903 status=404
+2026-03-13 20:11:41,020 [INFO] encar_scraper: List car_type=for offset=5000 items=100 queued=100
+2026-03-13 20:11:42,558 [INFO] encar_scraper: List car_type=for offset=5100 items=100 queued=100
+2026-03-13 20:11:43,249 [INFO] encar_scraper: Removed sold car_id=41327780 status=404
+2026-03-13 20:11:43,957 [INFO] encar_scraper: List car_type=for offset=5200 items=100 queued=100
+2026-03-13 20:11:46,082 [WARNING] encar_scraper: List page failed car_type=for offset=5300 status=407 err=
+2026-03-13 20:11:46,935 [WARNING] encar_scraper: List page failed car_type=kor offset=0 status=407 err=
+2026-03-13 20:11:46,936 [INFO] encar_scraper: List producer finished for car_types=['for', 'kor']
+2026-03-13 20:12:00,245 [INFO] encar_scraper: Worker 3 saved car_id=41622850 total=100
+2026-03-13 20:12:20,394 [INFO] encar_scraper: Removed sold car_id=41323599 status=404
+2026-03-13 20:12:21,504 [INFO] encar_scraper: Stats: processed=198 saved=193 detail_fail=0 parse_fail=5 pending=559 queue_size=32
+2026-03-13 20:12:24,443 [INFO] encar_scraper: Worker 0 saved car_id=41628171 total=200
+2026-03-13 20:12:46,768 [INFO] encar_scraper: Worker 6 saved car_id=41260891 total=300
+2026-03-13 20:13:08,329 [INFO] encar_scraper: Worker 7 saved car_id=41602910 total=400
+2026-03-13 20:13:21,510 [INFO] encar_scraper: Stats: processed=481 saved=459 detail_fail=0 parse_fail=22 pending=259 queue_size=32
+2026-03-13 20:13:29,908 [INFO] encar_scraper: Worker 6 saved car_id=41556597 total=500
+2026-03-13 20:13:50,130 [INFO] encar_scraper: Worker 2 saved car_id=41398921 total=600
+2026-03-13 20:14:10,835 [INFO] encar_scraper: Worker 6 saved car_id=40957400 total=700
+2026-03-13 20:14:13,743 [INFO] encar_scraper: Removed sold car_id=40904752 status=404
+2026-03-13 20:14:21,512 [INFO] encar_scraper: Stats: processed=775 saved=745 detail_fail=0 parse_fail=30 pending=0 queue_size=32
+2026-03-13 20:14:24,951 [INFO] encar_scraper: Removed sold car_id=41579681 status=404
+2026-03-13 20:14:31,924 [INFO] encar_scraper: Worker 4 saved car_id=41632294 total=800
+2026-03-13 20:14:40,417 [INFO] encar_scraper: Scraper finished. list_pages=10 ids_discovered=1000 ids_queued=1000 processed=859 saved=829 detail_fail=0 parse_fail=30 elapsed=198.9s
+2026-03-13 20:14:46,216 [INFO] encar_scraper: Removed sold car_id=41575489 status=404
+2026-03-13 20:15:06,315 [INFO] encar_scraper: Removed sold car_id=41589838 status=404
+2026-03-13 20:15:46,866 [INFO] encar_scraper: Removed sold car_id=40993829 status=404
+2026-03-13 20:15:56,060 [INFO] encar_scraper: Removed sold car_id=41475630 status=404
+2026-03-13 20:16:23,023 [INFO] encar_scraper: Removed sold car_id=41447665 status=404
+2026-03-13 20:16:38,336 [INFO] encar_scraper: Removed sold car_id=41362329 status=404
+2026-03-13 20:16:50,603 [INFO] encar_scraper: Removed sold car_id=41560873 status=404
+2026-03-13 20:16:52,200 [INFO] encar_scraper: Removed sold car_id=41556023 status=404
+2026-03-13 20:16:59,613 [INFO] encar_scraper: Removed sold car_id=41590920 status=404
+2026-03-13 20:17:05,551 [INFO] encar_scraper: Removed sold car_id=41448296 status=404
+2026-03-13 20:17:08,715 [INFO] encar_scraper: Removed sold car_id=41572051 status=404
+2026-03-13 20:17:13,423 [INFO] encar_scraper: Remove sold: removed 69 cars
+2026-03-13 20:17:13,515 [INFO] encar_scraper: Running: C:\Users\Daniil\AppData\Local\Programs\Python\Python314\python.exe C:\Users\Daniil\OneDrive\Рабочий стол\Prod Encar\encar_scraper.py --config scraper_config.yaml --only-pending
+2026-03-13 20:17:13,996 [INFO] encar_scraper: Starting Encar scraper (only-pending)
+2026-03-13 20:17:14,002 [INFO] encar_scraper: Run limited to max_cars=2000
+2026-03-13 20:17:29,011 [INFO] encar_scraper: Scraper finished. list_pages=0 ids_discovered=0 ids_queued=0 processed=0 saved=0 detail_fail=0 parse_fail=0 elapsed=15.0s

@@ -63,21 +63,35 @@ class EncarFullParser:
         self.user_url = f'{self.base_api}/user/{{}}'
         # Добавляем эндпоинт для полной инспекции
         self.inspection_url = f'{self.base_api}/inspection/vehicle/{{}}'
-        self._power_lookup: Optional[Dict[str, int]] = None
+        self._power_lookup: Optional[Dict[str, Any]] = None
+        self.lookup_path = Path(__file__).resolve().parent.parent / "data" / "car_power_lookup.json"
+        self._power_stats = {"with_power": 0, "without_power": 0}
 
-    def _get_power_lookup(self) -> Dict[str, int]:
+    def _get_power_lookup(self) -> Dict[str, Any]:
+        """Загружает lookup-файл с данными о мощности (ключи: производитель|модель|бейдж и др.)."""
         if self._power_lookup is not None:
             return self._power_lookup
-        path = Path(__file__).resolve().parent.parent / "data" / "car_power_lookup.json"
-        if path.exists():
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    self._power_lookup = json.load(f)
-            except Exception:
-                self._power_lookup = {}
-        else:
+        if not self.lookup_path.exists():
+            self._power_lookup = {}
+            return self._power_lookup
+        try:
+            with open(self.lookup_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._power_lookup = data if isinstance(data, dict) else {}
+        except Exception as e:
+            logger.warning("Ошибка чтения lookup-файла %s: %s", self.lookup_path, e)
             self._power_lookup = {}
         return self._power_lookup
+
+    def _save_lookup(self, lookup_data: Dict[str, Any]) -> None:
+        """Сохраняет lookup-файл с данными о мощности."""
+        try:
+            self.lookup_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.lookup_path, "w", encoding="utf-8") as f:
+                json.dump(lookup_data, f, ensure_ascii=False, indent=2)
+            self._power_lookup = lookup_data
+        except Exception as e:
+            logger.warning("Ошибка сохранения lookup-файла %s: %s", self.lookup_path, e)
 
     # ---------- Построение URL фото ----------
     def build_carphoto_url(self, photo: dict, now: str) -> str:
@@ -198,6 +212,10 @@ class EncarFullParser:
         if 20 <= n <= 2000:
             return str(int(round(n)))
         return ''
+
+    def get_power_stats(self) -> Dict[str, int]:
+        """Статистика по мощности после парсинга: с мощностью / без."""
+        return dict(self._power_stats)
 
     # ---------- Основные методы загрузки ----------
     def fetch_list_page(self, offset: int = 0, limit: int = 100, car_type: str = "for") -> Optional[Dict]:
@@ -619,46 +637,53 @@ class EncarFullParser:
         body_type = spec.get('bodyName', '')
         seat_count = spec.get('seatCount', '')
 
-        # Мощность (л.с.): 1) из списка (hp/power), 2) inspection hcout, 3) detail.spec (л.с. или кВт), 4) badge/gradeName, 5) lookup
-        # Все числовые значения прогоняем через _normalize_power_to_hp (кВт → л.с., отсекаем ошибочные 1 л.с.)
+        # Мощность (л.с.): 1) encar (item.hp), 2) lookup car_power_lookup.json, 3) парсим из badge/gradeName. Корейские ключи: 현대|그랜저|Exclusive
         power = ''
+        lookup = self._get_power_lookup()
+
+        # 1. Из ответа encar (редко, но бывает)
         hp_item = item.get('hp') or item.get('power')
         if hp_item is not None and str(hp_item).strip():
             power = self._normalize_power_to_hp(hp_item)
-        if not power and inspection and 'master' in inspection:
-            master = inspection.get('master', {})
-            detail_insp = master.get('detail', {})
-            hcout = detail_insp.get('hcout')
-            if hcout is not None and str(hcout).strip():
-                power = self._normalize_power_to_hp(hcout)
-        if not power and detail:
-            hp_detail = detail.get('hp') or detail.get('power') or detail.get('outputHorsepower')
-            if hp_detail is not None and str(hp_detail).strip():
-                power = self._normalize_power_to_hp(hp_detail)
-        if not power and spec:
-            for key in (
-                'outputHorsepower', 'powerHp', 'horsepower', 'power', 'maxPower', 'hp',
-                'ckw', 'bkw', 'outputPower', 'powerKw', 'maxPowerKw', 'enginePower',
-            ):
-                val = spec.get(key)
-                if val is not None and str(val).strip():
+            if power:
+                key = f"{manufacturer}|{model}|{badge}".strip()
+                if key and "|" in key:
+                    try:
+                        lookup[key] = int(power) if power.isdigit() else power
+                        self._save_lookup(lookup)
+                        logger.info("Мощность из encar сохранена в lookup: %s -> %s л.с.", key, power)
+                    except Exception as e:
+                        logger.debug("Не удалось сохранить в lookup: %s", e)
+
+        # 2. Поиск в lookup-файле (от самой точной комбинации к общей)
+        if not power:
+            key_variants = [
+                f"{manufacturer}|{model}|{badge}".strip(),
+                f"{manufacturer}|{model}|{grade_name}".strip(),
+                f"{manufacturer}|{model}".strip(),
+                f"{manufacturer}|{badge}".strip(),
+            ]
+            for key in key_variants:
+                if not key or "|" not in key:
+                    continue
+                if key in lookup:
+                    val = lookup[key]
                     power = self._normalize_power_to_hp(val)
-                    if power:
+                    if power and 20 <= int(power) <= 2000:
+                        logger.info("Мощность из lookup: %s -> %s л.с.", key, power)
                         break
+
+        # 3. Парсим из строк (бейдж/комплектация)
         if not power:
             power = self._extract_power_from_string(badge) or self._extract_power_from_string(grade_name) or ''
             if power and not (20 <= int(power) <= 2000):
                 power = ''
-        if not power:
-            lookup = self._get_power_lookup()
-            for key_part in (badge, grade_name, model):
-                if not key_part:
-                    continue
-                k = f"{manufacturer}|{model}|{key_part}"
-                if k in lookup:
-                    power = self._normalize_power_to_hp(lookup[k])
-                    if power:
-                        break
+
+        # 4. Если не найдено — пустая строка (на фронте прочерк)
+        if power:
+            self._power_stats["with_power"] += 1
+        else:
+            self._power_stats["without_power"] += 1
 
         # Адрес продавца
         address = contact.get('address', '')

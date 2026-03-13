@@ -206,6 +206,12 @@ class Checkpoint:
         self.conn.execute("INSERT OR IGNORE INTO collected_ids (car_id) VALUES (?)", (car_id,))
         self.conn.commit()
 
+    def remove_collected(self, car_id: str) -> None:
+        if not self.conn:
+            return
+        self.conn.execute("DELETE FROM collected_ids WHERE car_id = ?", (car_id,))
+        self.conn.commit()
+
     def close(self) -> None:
         if self.conn:
             self.conn.close()
@@ -255,6 +261,21 @@ class SQLiteStorage(StorageBase):
             "INSERT OR REPLACE INTO cars (car_id, data_json, raw_json, created_at) VALUES (?, ?, ?, ?)",
             (car_id, data_json, raw_json, created),
         )
+        self.conn.commit()
+
+    def get_car_ids_sample(self, limit: int = 500) -> List[str]:
+        """Return up to `limit` car_id values (for sold check / refresh)."""
+        if not self.conn:
+            return []
+        rows = self.conn.execute(
+            "SELECT car_id FROM cars ORDER BY id LIMIT ?", (limit,)
+        ).fetchall()
+        return [r[0] for r in rows]
+
+    def delete_car(self, car_id: str) -> None:
+        if not self.conn:
+            return
+        self.conn.execute("DELETE FROM cars WHERE car_id = ?", (car_id,))
         self.conn.commit()
 
     def close(self) -> None:
@@ -836,6 +857,14 @@ async def run_scraper(
         stats["list_pages"], stats["ids_discovered"], stats["ids_queued"],
         stats["processed"], stats["saved"], stats["detail_fail"], stats["parse_fail"], elapsed,
     )
+    try:
+        power_stats = parser.get_power_stats()
+        log.info(
+            "Мощность: с мощностью=%s без мощности=%s",
+            power_stats.get("with_power", 0), power_stats.get("without_power", 0),
+        )
+    except Exception:
+        pass
 
 
 def main() -> None:

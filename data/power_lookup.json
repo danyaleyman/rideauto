@@ -1,0 +1,9 @@
+[
+  {"make": "BMW", "model": "X6", "year": "2020", "displacement": "2998", "power": 340},
+  {"make": "BMW", "model": "X6", "year": "2019", "displacement": "2998", "power": 340},
+  {"make": "BMW", "model": "X6", "displacement": "2998", "power": 306},
+  {"make": "BMW", "model": "3", "displacement": "1998", "power": 184},
+  {"make": "BMW", "model": "3", "displacement": "1995", "power": 190},
+  {"make": "Mercedes-Benz", "model": "C", "displacement": "1991", "power": 204},
+  {"make": "벤츠", "model": "C", "displacement": "1991", "power": 204}
+]

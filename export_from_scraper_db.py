@@ -1,7 +1,8 @@
 """
 Export cars from scraper SQLite DB to cars.json (same format as parser_full save_to_file).
 Рассчитанные цены (растаможка 2026, KRW→USDT→RUB, брокер, 10%) добавляются в каждую карточку.
-Usage: python export_from_scraper_db.py [--db encar_cars.db] [--out cars.json] [--no-prices]
+Мощность (л.с.) при экспорте подставляется из data/power_lookup.json при отсутствии в данных.
+Usage: python export_from_scraper_db.py [--db encar_cars.db] [--out cars.json] [--no-prices] [--no-power-lookup]
 """
 import argparse
 import json
@@ -10,11 +11,28 @@ import sys
 from pathlib import Path
 
 
+def _fill_power_from_external(data: dict) -> None:
+    """Подставить мощность из data/power_lookup.json (марка/модель/год/объём), если в данных пусто."""
+    if not isinstance(data, dict):
+        return
+    if data.get("power") and str(data.get("power", "")).strip():
+        return
+    try:
+        from power_from_external import get_power_for_car
+
+        hp = get_power_for_car(data)
+        if hp is not None:
+            data["power"] = str(hp)
+    except ImportError:
+        pass
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default="encar_cars.db", help="Scraper SQLite DB path")
     p.add_argument("--out", default="cars.json", help="Output JSON path")
     p.add_argument("--no-prices", action="store_true", help="Do not calculate prices (no API calls)")
+    p.add_argument("--no-power-lookup", action="store_true", help="Do not fill power from power_lookup.json")
     args = p.parse_args()
     conn = sqlite3.connect(args.db)
     rows = conn.execute("SELECT car_id, data_json FROM cars ORDER BY id").fetchall()
@@ -25,6 +43,8 @@ def main():
         car["id"] = car_id
         if isinstance(car.get("data"), dict):
             car["data"]["id"] = str(car_id)
+            if not args.no_power_lookup:
+                _fill_power_from_external(car["data"])
         cars.append(car)
     conn.close()
 
