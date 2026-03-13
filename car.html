@@ -2350,7 +2350,7 @@
         };
         // Перевод данных с корейского на русский (марка, модель, комплектация — на английском)
         const displayRu = {
-            'AWD': 'Полный привод', 'FWD': 'Передний привод', 'RWD': 'Задний привод',
+            'AWD': 'Полный привод', '2WD': '2WD', 'FWD': 'Передний привод', 'RWD': 'Задний привод',
             '가솔린': 'Бензин', '디젤': 'Дизель', 'LPG': 'Газ', 'LPG/가솔린': 'Газ/бензин', '하이브리드': 'Гибрид', '전기': 'Электро',
             '세단': 'Седан', 'SUV': 'Внедорожник', '해치백': 'Хэтчбек', '왜건': 'Универсал', '쿠페': 'Купе', '픽업': 'Пикап', '밴': 'Фургон',
             '자동': 'Автомат', '수동': 'Механика', '세미자동': 'Робот', 'CVT': 'Вариатор', '듀얼 클러치': 'Робот',
@@ -2643,15 +2643,15 @@
         // Зоны схемы кузова (left%, top%, width%, height% — вид сверху: центр капот/багажник, слева и справа боковые панели)
         /* Внешняя схема (вид сверху): координаты в % от изображения details-condition-top */
         var conditionDiagramZones = [
-            { part: 'Капот', left: 20, top: 0, width: 60, height: 24 },
+            { part: 'Капот', left: 20, top: 0, width: 60, height: 26 },
             { part: 'Крышка багажника', left: 20, top: 52, width: 60, height: 46 },
-            { part: 'Левое переднее крыло', left: 0, top: 0, width: 20, height: 22 },
-            { part: 'Левая передняя дверь', left: 0, top: 22, width: 20, height: 26 },
-            { part: 'Левая задняя дверь', left: 0, top: 48, width: 20, height: 26 },
-            { part: 'Левое заднее крыло', left: 0, top: 74, width: 20, height: 24 },
-            { part: 'Правое переднее крыло', left: 80, top: 0, width: 20, height: 22 },
-            { part: 'Правая передняя дверь', left: 80, top: 22, width: 20, height: 26 },
-            { part: 'Правая задняя дверь', left: 80, top: 48, width: 20, height: 26 },
+            { part: 'Левое переднее крыло', left: 0, top: 0, width: 32, height: 38 },
+            { part: 'Левая передняя дверь', left: 0, top: 22, width: 28, height: 38 },
+            { part: 'Левая задняя дверь', left: 0, top: 48, width: 28, height: 28 },
+            { part: 'Левое заднее крыло', left: 0, top: 74, width: 28, height: 36 },
+            { part: 'Правое переднее крыло', left: 80, top: 0, width: 12, height: 22 },
+            { part: 'Правая передняя дверь', left: 80, top: 22, width: 08, height: 26 },
+            { part: 'Правая задняя дверь', left: 80, top: 48, width: 08, height: 26 },
             { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 24 },
         ];
         var exteriorPanelMap = { 'FRONT_DOOR_LEFT': 'Левая передняя дверь', 'FRONT_DOOR_RIGHT': 'Правая передняя дверь', 'BACK_DOOR_LEFT': 'Левая задняя дверь', 'BACK_DOOR_RIGHT': 'Правая задняя дверь', 'HOOD': 'Капот', 'TRUNK_LID': 'Крышка багажника', 'FRONT_FENDER_LEFT': 'Левое переднее крыло', 'FRONT_FENDER_RIGHT': 'Правое переднее крыло', 'REAR_FENDER_LEFT': 'Левое заднее крыло', 'REAR_FENDER_RIGHT': 'Правое заднее крыло', 'BACK_FENDER_LEFT': 'Левое заднее крыло', 'BACK_FENDER_RIGHT': 'Правое заднее крыло' };
@@ -2668,15 +2668,26 @@
             '리어 휀더(좌)': 'Левое заднее крыло',
             '리어 휀더(우)': 'Правое заднее крыло'
         };
-        // Код/название статуса из inspection.outers -> key и label (ремонт объединён с окрашиванием)
+        // Код/название статуса из inspection.outers -> key и label (как в боте: замена, окрас/сварка, царапина, вмятина, повреждение, коррозия)
         var outerStatusToKey = {
             'X': { key: 'replaced', label: 'Замена' },
             '교환(교체)': { key: 'replaced', label: 'Замена' },
             '교환': { key: 'replaced', label: 'Замена' },
+            '교체': { key: 'replaced', label: 'Замена' },
+            '부품교체': { key: 'replaced', label: 'Замена' },
+            'CHANGE': { key: 'replaced', label: 'Замена' },
             'P': { key: 'painted', label: 'Окрашивание' },
             '도장': { key: 'painted', label: 'Окрашивание' },
+            '도색': { key: 'painted', label: 'Окрашивание' },
             'R': { key: 'painted', label: 'Окрашивание' },
-            '수리': { key: 'painted', label: 'Окрашивание' }
+            '수리': { key: 'painted', label: 'Окрашивание' },
+            '판금': { key: 'painted', label: 'Окрашивание' },
+            '리폼': { key: 'painted', label: 'Окрашивание' },
+            'METAL': { key: 'painted', label: 'Окрашивание' },
+            'DENT': { key: 'unevenness', label: 'Неровности' },
+            'SCRATCH': { key: 'scratch', label: 'Царапины' },
+            'DAMAGE': { key: 'damage', label: 'Повреждение' },
+            'CORROSION': { key: 'corrosion', label: 'Коррозия' }
         };
 
         /* Внутренняя схема (салон, вид сверху): координаты под изображение details-condition-bottom */
@@ -2706,7 +2717,11 @@
         var innerStatusToKey = {
             '1': { key: 'good', label: 'Без замечаний' }, '양호': { key: 'good', label: 'Без замечаний' },
             '10': { key: 'damage', label: 'Повреждение' }, '불량': { key: 'damage', label: 'Повреждение' },
-            'X': { key: 'replaced', label: 'Замена' }, '교환': { key: 'replaced', label: 'Замена' }
+            'X': { key: 'replaced', label: 'Замена' }, '교환': { key: 'replaced', label: 'Замена' }, '교체': { key: 'replaced', label: 'Замена' }, 'CHANGE': { key: 'replaced', label: 'Замена' },
+            'P': { key: 'painted', label: 'Окрашивание' }, '도장': { key: 'painted', label: 'Окрашивание' }, '도색': { key: 'painted', label: 'Окрашивание' }, 'METAL': { key: 'painted', label: 'Окрашивание' },
+            '수리': { key: 'painted', label: 'Окрашивание' }, '판금': { key: 'painted', label: 'Окрашивание' }, '리폼': { key: 'painted', label: 'Окрашивание' },
+            'SCRATCH': { key: 'scratch', label: 'Царапины' }, 'DENT': { key: 'unevenness', label: 'Неровности' },
+            'DAMAGE': { key: 'damage', label: 'Повреждение' }, 'CORROSION': { key: 'corrosion', label: 'Коррозия' }
         };
 
         function getIconForStatus(statusKey) {
@@ -2809,11 +2824,23 @@
                 var partRu = outerPartKoToRu[typeTitle] || typeTitle;
                 if (!partRu) return;
                 var statusTypes = item.statusTypes || [];
-                var firstStatus = statusTypes[0];
-                var code = firstStatus && firstStatus.code ? String(firstStatus.code).trim() : '';
-                var title = firstStatus && firstStatus.title ? String(firstStatus.title).trim() : '';
-                var statusInfo = outerStatusToKey[code] || outerStatusToKey[title] || { key: 'replaced', label: 'Замена' };
-                setStatus(partRu, statusInfo.key, statusInfo.label);
+                for (var i = 0; i < statusTypes.length; i++) {
+                    var st = statusTypes[i];
+                    var code = (st && st.code != null) ? String(st.code).trim() : '';
+                    var title = (st && st.title) ? String(st.title).trim() : '';
+                    var statusInfo = outerStatusToKey[code] || outerStatusToKey[title] || null;
+                    if (statusInfo && statusInfo.key !== 'good') {
+                        setStatus(partRu, statusInfo.key, statusInfo.label);
+                        break;
+                    }
+                }
+                if (!zoneStatus[norm(partRu)] && statusTypes.length) {
+                    var first = statusTypes[0];
+                    var code0 = first && first.code != null ? String(first.code).trim() : '';
+                    var title0 = first && first.title ? String(first.title).trim() : '';
+                    var fallback = outerStatusToKey[code0] || outerStatusToKey[title0] || { key: 'replaced', label: 'Замена' };
+                    setStatus(partRu, fallback.key, fallback.label);
+                }
             });
             bodyPanels.forEach(function(p) {
                 if (p.part) {
@@ -2928,6 +2955,28 @@
         }
 
         // ---------- Функции для галереи ----------
+        // Порядок видов как у конкурентов: перед, зад, левый/правый бок, салон; затем по номеру _001, _002
+        function getPhotoViewOrder(path, code) {
+            const c = String(code || '').toUpperCase();
+            if (c === 'FRONT' || c === 'FRONTVIEW' || c === 'PHOTOFRONT') return 1;
+            if (c === 'REAR' || c === 'BACK' || c === 'REARVIEW' || c === 'PHOTOBACK' || c === 'PHOTOREAR') return 2;
+            if (c === 'LEFT' || c === 'PHOTOLEFT' || c === 'LEFTVIEW') return 3;
+            if (c === 'RIGHT' || c === 'PHOTORIGHT' || c === 'RIGHTVIEW') return 4;
+            if (c === 'SIDE' || c === 'SIDEVIEW') return 5;
+            if (c === 'INTERIOR' || c === 'INNER' || c === 'INSPECTION') return 6;
+            const numCode = /^\d+$/.test(c) ? parseInt(c, 10) : null;
+            if (numCode !== null) return 100 + numCode;
+            const p = String(path || '').toLowerCase();
+            if (p.includes('photofront') || p.includes('photo_front') || p.includes('front.jpg') || p.includes('frontview') || p.includes('_front_') || p.includes('/front')) return 1;
+            if (p.includes('photorear') || p.includes('photo_rear') || p.includes('photoback') || p.includes('photo_back') || p.includes('back.jpg') || p.includes('rearview') || p.includes('_rear_') || p.includes('/rear') || p.includes('/back')) return 2;
+            if (p.includes('photoleft') || p.includes('photo_left') || p.includes('left.jpg') || p.includes('leftview') || p.includes('_left_') || p.includes('(좌)')) return 3;
+            if (p.includes('photoright') || p.includes('photo_right') || p.includes('right.jpg') || p.includes('rightview') || p.includes('_right_') || p.includes('(우)')) return 4;
+            if (p.includes('side') || p.includes('бок') || p.includes('profile')) return 5;
+            if (p.includes('interior') || p.includes('inner') || p.includes('salon') || p.includes('inside') || p.includes('cabin') || p.includes('inspection')) return 6;
+            const numMatch = p.match(/_(\d{2,})\./);
+            if (numMatch) return 100 + parseInt(numMatch[1], 10);
+            return 50;
+        }
         function preparePhotos(hImages) {
             const typePriority = { OUTER:1, INNER:2, OPTION:3, THUMBNAIL:4 };
             const map = new Map();
@@ -2936,7 +2985,15 @@
                 const prio = typePriority[item.type] || 5;
                 if (!map.has(path) || prio < map.get(path).priority) map.set(path, { ...item, priority: prio });
             });
-            return Array.from(map.values()).sort((a,b) => a.priority - b.priority);
+            const list = Array.from(map.values());
+            list.sort(function(a, b) {
+                if (a.priority !== b.priority) return a.priority - b.priority;
+                const orderA = getPhotoViewOrder(a.path, a.code);
+                const orderB = getPhotoViewOrder(b.path, b.code);
+                if (orderA !== orderB) return orderA - orderB;
+                return String(a.path).localeCompare(b.path);
+            });
+            return list;
         }
 
         // Глобальные переменные для модалки
@@ -3491,11 +3548,11 @@
                 { label: 'Тип двигателя', value: toDisplayRu(d.engine_type) },
                 { label: 'Коробка', value: toDisplayRu(d.transmission_type) },
                 { label: 'Кузов', value: toDisplayRu(d.body_type) },
-                { label: 'Привод', value: toDisplayRu(d.prep_drive_type) || '—' },
+                { label: 'Привод', value: toDisplayRu(d.drive_type || d.prep_drive_type) || '—' },
                 { label: 'VIN', value: d.vin },
                 { label: 'Кол-во мест', value: d.seatCount },
                 { label: 'Объём двигателя', value: (function() { var v = d.displacement || d.engine_volume || d.engineDisplacement || ''; if (v == null || v === '') return '—'; var s = String(v).trim().replace(/\s/g, ''); var num = parseInt(s.replace(/[^\d]/g, ''), 10); return (!isNaN(num) && num > 0) ? (num.toLocaleString('ru-RU') + ' см³') : (s ? s + ' см³' : '—'); })() },
-                { label: 'Мощность', value: (d.power || d.outputHorsepower || d.power_hp) ? (String(d.power || d.outputHorsepower || d.power_hp).replace(/\s/g, '') + ' л.с.') : '—' },
+                { label: 'Мощность', value: (function() { var v = d.power || d.hp || d.outputHorsepower || d.power_hp; if (!v) return '—'; var n = parseInt(String(v).replace(/\D/g, ''), 10); if (Number.isNaN(n) || n < 20 || n > 2000) return '—'; return n + ' л.с.'; })() },
             ];
             var specHtml = '<div class="detail-section"><h2>Основные характеристики</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">';
             specs.forEach(function(s) {

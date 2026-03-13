@@ -83,3 +83,19 @@
 2026-03-09 16:10:14,725 [INFO] encar_scraper: Stats: processed=489 saved=92 detail_fail=0 parse_fail=397 pending=88 queue_size=32
 2026-03-09 16:10:25,597 [INFO] encar_scraper: Worker 5 saved car_id=41547022 total=100
 2026-03-09 16:10:56,271 [INFO] encar_scraper: Scraper finished. list_pages=10 ids_discovered=1000 ids_queued=873 processed=688 saved=168 detail_fail=0 parse_fail=520 elapsed=161.6s
+2026-03-13 19:38:57,990 [INFO] encar_scraper: Starting Encar scraper
+2026-03-13 19:38:58,010 [INFO] encar_scraper: Run limited to max_cars=1000
+2026-03-13 19:39:00,504 [INFO] encar_scraper: List car_type=for offset=3700 items=100 queued=98
+2026-03-13 19:39:07,985 [INFO] encar_scraper: List car_type=for offset=3800 items=100 queued=98
+2026-03-13 19:39:14,123 [INFO] encar_scraper: List car_type=for offset=3900 items=100 queued=100
+2026-03-13 19:39:16,197 [INFO] encar_scraper: List car_type=for offset=4000 items=100 queued=98
+2026-03-13 19:39:19,271 [INFO] encar_scraper: List car_type=for offset=4100 items=100 queued=94
+2026-03-13 19:39:21,638 [INFO] encar_scraper: List car_type=for offset=4200 items=100 queued=99
+2026-03-13 19:39:23,400 [WARNING] encar_scraper: List page failed car_type=for offset=4300 status=407 err=
+2026-03-13 19:39:24,696 [WARNING] encar_scraper: List page failed car_type=kor offset=0 status=407 err=
+2026-03-13 19:39:24,696 [INFO] encar_scraper: List producer finished for car_types=['for', 'kor']
+2026-03-13 19:39:40,340 [INFO] encar_scraper: Worker 7 saved car_id=40833775 total=100
+2026-03-13 19:39:58,024 [INFO] encar_scraper: Stats: processed=192 saved=180 detail_fail=0 parse_fail=12 pending=45 queue_size=32
+2026-03-13 19:40:02,391 [INFO] encar_scraper: Worker 3 saved car_id=41251029 total=200
+2026-03-13 19:40:22,987 [INFO] encar_scraper: Worker 7 saved car_id=41571350 total=300
+2026-03-13 19:40:37,889 [INFO] encar_scraper: Scraper finished. list_pages=6 ids_discovered=600 ids_queued=587 processed=367 saved=354 detail_fail=0 parse_fail=13 elapsed=99.9s

@@ -1,16 +1,48 @@
+import logging
+import os
+import re
 import requests
 import json
 import time
 import urllib.parse
-import re
 from urllib.parse import urlencode
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+def _get_proxy_for_parser() -> Optional[Dict[str, str]]:
+    """Прокси для доступа к Encar (Корея). ENCAR_PROXY_URL или ENCAR_PROXY_SERVER + USER + PASSWORD."""
+    url = os.environ.get("ENCAR_PROXY_URL", "").strip()
+    if url:
+        if not url.startswith("http"):
+            url = "http://" + url
+        return {"http": url, "https": url}
+    server = os.environ.get("ENCAR_PROXY_SERVER", "").strip()
+    if not server:
+        return None
+    if not server.startswith("http"):
+        server = "http://" + server
+    user = os.environ.get("ENCAR_PROXY_USER", "")
+    password = os.environ.get("ENCAR_PROXY_PASSWORD", "")
+    if user and password:
+        from urllib.parse import quote_plus
+        auth = f"{quote_plus(user)}:{quote_plus(password)}"
+        base = server.split("://", 1)[1] if "://" in server else server
+        url = f"{server.split('://')[0]}://{auth}@{base}"
+        return {"http": url, "https": url}
+    return {"http": server, "https": server}
+
 
 class EncarFullParser:
     def __init__(self):
         self.session = requests.Session()
+        proxy = _get_proxy_for_parser()
+        if proxy:
+            self.session.proxies.update(proxy)
+            logger.info("Using proxy for Encar API: %s", list(proxy.keys()))
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -76,19 +108,51 @@ class EncarFullParser:
         return f"https://ci.encar.com/{new_path}?{urlencode(params)}"
 
     # ---------- Определение привода ----------
+    def _normalize_drive_type_from_api(self, raw: Any) -> str:
+        """Приводит значение DriveType/driveType из API к одному из: AWD, 2WD, FWD, RWD."""
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            return ''
+        s = str(raw).strip().upper()
+        if not s:
+            return ''
+        if s in ('AWD', '4WD', '4X4', '4×4', 'FOURWHEEL', 'FOUR-WHEEL'):
+            return 'AWD'
+        if s in ('2WD', '2X2', 'TWOWHEEL', 'TWO-WHEEL'):
+            return '2WD'
+        if s in ('FWD', 'FF', 'FRONT'):
+            return 'FWD'
+        if s in ('RWD', 'FR', 'REAR'):
+            return 'RWD'
+        if 'AWD' in s or '4WD' in s or '4X4' in s or 'XDRIVE' in s or '4MATIC' in s or 'QUATTRO' in s or 'ALL4' in s:
+            return 'AWD'
+        if '2WD' in s:
+            return '2WD'
+        if 'FWD' in s or 'FRONT' in s:
+            return 'FWD'
+        if 'RWD' in s or 'REAR' in s:
+            return 'RWD'
+        return ''
+
     def _extract_drive_type(self, badge: str) -> str:
-        if not badge:
+        """Извлекает тип привода из badge (название комплектации). Приоритет: AWD/4WD → 2WD → FWD → RWD."""
+        if not badge or not isinstance(badge, str):
             return ''
         badge_upper = badge.upper()
-        awd_keywords = ['AWD', '4WD', '4X4', '4×4', 'XDRIVE', '4MATIC', 'ALL4', 'QUATTRO']
+        # 1) Точные маркеры полного привода
+        awd_keywords = ['AWD', '4WD', '4X4', '4×4', 'XDRIVE', '4MATIC', 'ALL4', 'QUATTRO', 'Q4', '4MOTION', '4MATIC']
         for kw in awd_keywords:
             if kw in badge_upper:
                 return 'AWD'
-        rwd_keywords = ['RWD', 'REAR']
+        # 2) Явный 2WD (перед или зад — по умолчанию 2WD)
+        if '2WD' in badge_upper:
+            return '2WD'
+        # 3) Задний привод
+        rwd_keywords = ['RWD', 'REAR', 'FR ', 'FR.', 'FRONT-ENGINE REAR']
         for kw in rwd_keywords:
             if kw in badge_upper:
                 return 'RWD'
-        fwd_keywords = ['FWD', 'FRONT']
+        # 4) Передний привод
+        fwd_keywords = ['FWD', 'FRONT', 'FF ', 'FF.', 'FRONT-WHEEL']
         for kw in fwd_keywords:
             if kw in badge_upper:
                 return 'FWD'
@@ -106,6 +170,34 @@ class EncarFullParser:
         if m:
             return m.group(1)
         return None
+
+    @staticmethod
+    def _normalize_power_to_hp(raw: Any) -> str:
+        """
+        Приводит значение мощности к л.с. (строка).
+        API может отдавать: л.с. (20–2000), кВт (10–600), или строку типа "116.91".
+        КВт обычно с дробной частью (116.91), л.с. — целые. Значения 1–19 отбрасываем.
+        """
+        if raw is None or raw == '':
+            return ''
+        try:
+            s = str(raw).strip().replace(',', '.')
+            n = float(re.sub(r'[^\d.]', '', s) or '0')
+        except (ValueError, TypeError):
+            return ''
+        if n <= 0:
+            return ''
+        # По дробной части решаем: кВт (116.91) → переводим в л.с.; целое 159 → считаем л.с.
+        is_likely_kw = isinstance(raw, float) and raw != int(raw)
+        if not is_likely_kw and isinstance(raw, str):
+            is_likely_kw = '.' in s and re.sub(r'[^\d.]', '', s) != ''
+        if is_likely_kw and 10 <= n <= 600:
+            hp = round(n * 1.35962)
+            if 20 <= hp <= 2000:
+                return str(hp)
+        if 20 <= n <= 2000:
+            return str(int(round(n)))
+        return ''
 
     # ---------- Основные методы загрузки ----------
     def fetch_list_page(self, offset: int = 0, limit: int = 100, car_type: str = "for") -> Optional[Dict]:
@@ -499,10 +591,15 @@ class EncarFullParser:
         price_won = int(item.get('Price', 0))
         price = str(price_won // 10000) if price_won else ''
         km_age = str(item.get('Mileage', ''))
-        displacement = str(item.get('Displacement', '') or '')
-        if not displacement.strip() and detail:
+        # Объём двигателя (см³): из списка (displacement/Displacement) или из detail.spec
+        displacement_raw = item.get('displacement') or item.get('Displacement')
+        if displacement_raw is not None and displacement_raw != '':
+            displacement = str(int(displacement_raw)) if isinstance(displacement_raw, (int, float)) else str(displacement_raw).strip()
+        else:
+            displacement = ''
+        if not displacement and detail:
             spec = detail.get('spec', {}) or {}
-            displacement = str(spec.get('engineDisplacement') or spec.get('displacement') or spec.get('Displacement') or item.get('displacement') or '')
+            displacement = str(spec.get('engineDisplacement') or spec.get('displacement') or spec.get('Displacement') or '')
         description = item.get('Description', '')
 
         # --- Из detail (детальная информация) ---
@@ -510,6 +607,7 @@ class EncarFullParser:
         vehicleNo = detail.get('vehicleNo', '') if detail else ''
         spec = detail.get('spec', {}) if detail else {}
         category = detail.get('category', {}) if detail else {}
+        grade_name = category.get('gradeName', '') if category else ''
         contact = detail.get('contact', {}) if detail else {}
         manage = detail.get('manage', {}) if detail else {}
         advertisement = detail.get('advertisement', {}) if detail else {}
@@ -521,22 +619,36 @@ class EncarFullParser:
         body_type = spec.get('bodyName', '')
         seat_count = spec.get('seatCount', '')
 
-        # Мощность: 1) inspection hcout, 2) detail.spec (если есть), 3) из badge/gradeName (150마력, 180hp)
+        # Мощность (л.с.): 1) из списка (hp/power), 2) inspection hcout, 3) detail.spec (л.с. или кВт), 4) badge/gradeName, 5) lookup
+        # Все числовые значения прогоняем через _normalize_power_to_hp (кВт → л.с., отсекаем ошибочные 1 л.с.)
         power = ''
-        if inspection and 'master' in inspection:
+        hp_item = item.get('hp') or item.get('power')
+        if hp_item is not None and str(hp_item).strip():
+            power = self._normalize_power_to_hp(hp_item)
+        if not power and inspection and 'master' in inspection:
             master = inspection.get('master', {})
             detail_insp = master.get('detail', {})
             hcout = detail_insp.get('hcout')
             if hcout is not None and str(hcout).strip():
-                power = str(hcout).strip()
+                power = self._normalize_power_to_hp(hcout)
+        if not power and detail:
+            hp_detail = detail.get('hp') or detail.get('power') or detail.get('outputHorsepower')
+            if hp_detail is not None and str(hp_detail).strip():
+                power = self._normalize_power_to_hp(hp_detail)
         if not power and spec:
-            for key in ('outputHorsepower', 'powerHp', 'horsepower', 'power', 'maxPower'):
+            for key in (
+                'outputHorsepower', 'powerHp', 'horsepower', 'power', 'maxPower', 'hp',
+                'ckw', 'bkw', 'outputPower', 'powerKw', 'maxPowerKw', 'enginePower',
+            ):
                 val = spec.get(key)
                 if val is not None and str(val).strip():
-                    power = str(val).strip()
-                    break
+                    power = self._normalize_power_to_hp(val)
+                    if power:
+                        break
         if not power:
             power = self._extract_power_from_string(badge) or self._extract_power_from_string(grade_name) or ''
+            if power and not (20 <= int(power) <= 2000):
+                power = ''
         if not power:
             lookup = self._get_power_lookup()
             for key_part in (badge, grade_name, model):
@@ -544,8 +656,9 @@ class EncarFullParser:
                     continue
                 k = f"{manufacturer}|{model}|{key_part}"
                 if k in lookup:
-                    power = str(lookup[k])
-                    break
+                    power = self._normalize_power_to_hp(lookup[k])
+                    if power:
+                        break
 
         # Адрес продавца
         address = contact.get('address', '')
@@ -567,15 +680,28 @@ class EncarFullParser:
         # Корейские названия
         manufacturer_name = category.get('manufacturerName', '')
         model_name = category.get('modelName', '')
-        grade_name = category.get('gradeName', '')
+        grade_name = grade_name or category.get('gradeName', '')
         model_group_name = category.get('modelGroupName', '')
 
         # Опции – просто список кодов
         options = detail.get('options', {}) if detail else {}
         standard_options = options.get('standard', [])
 
-        # Тип привода из badge
-        prep_drive_type = self._extract_drive_type(badge)
+        # Тип привода: 1) прямое поле из списка API (DriveType/driveType), 2) spec.driveType из деталей, 3) разбор badge
+        drive_from_item = item.get('DriveType') or item.get('driveType')
+        drive_from_spec = (spec.get('driveType') or spec.get('DriveType')) if spec else None
+        drive_type = (
+            self._normalize_drive_type_from_api(drive_from_item)
+            or self._normalize_drive_type_from_api(drive_from_spec)
+            or self._extract_drive_type(badge)
+        )
+        if not drive_type and (drive_from_item or drive_from_spec):
+            logger.debug(
+                "drive_type не определён: car_id=%s item.DriveType=%s spec.driveType=%s badge=%s",
+                car_id, drive_from_item, drive_from_spec, (badge or '')[:80]
+            )
+        is_awd = (drive_type == 'AWD')
+        prep_drive_type = drive_type  # обратная совместимость с фильтром и карточками
 
         # --- Диагностика и фото ---
         diag_photos = []
@@ -674,6 +800,8 @@ class EncarFullParser:
             'options': {'standard': standard_options},
             'is_duplicate': False,
             'prep_drive_type': prep_drive_type,
+            'drive_type': drive_type,
+            'is_awd': is_awd,
             'vin': vin,
             'seatColor': '',
             'seatCount': str(seat_count) if seat_count else ''

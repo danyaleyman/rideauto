@@ -1393,8 +1393,8 @@
         </div>
         <div class="hero-banner-card-static">
           <div class="hero-banner-card">
-            <p class="card-title">Привезли за 5 лет</p>
-            <p class="card-value">4,517+</p>
+            <p class="card-title">Привезли за 6 месяцев</p>
+            <p class="card-value">45+</p>
             <p class="card-sub">автомобилей</p>
           </div>
         </div>
@@ -1688,13 +1688,13 @@
     }
     function getPowerNum(car) {
       const d = car.data;
-      let p = d?.power;
+      let p = d?.power ?? d?.hp ?? d?.outputHorsepower ?? d?.power_hp;
       if (p !== undefined && p !== null && p !== '') {
         const n = parseInt(String(p).replace(/\D/g, ''), 10);
-        if (!Number.isNaN(n)) return n;
+        if (!Number.isNaN(n) && n >= 20 && n <= 2000) return n;
       }
       p = extractPowerFromString(d?.generation || '') || extractPowerFromString(d?.configuration || '') || extractPowerFromString(d?.gradeName || '');
-      return p;
+      return (p != null && p >= 20 && p <= 2000) ? p : null;
     }
     function getEngineVolumeNum(car) {
       const d = car.data?.displacement;
@@ -1815,7 +1815,7 @@
     }
     // Перевод для UI: корейский → русский (подписи в фильтрах и карточках)
     const displayRu = {
-      'AWD': 'Полный', 'FWD': 'Передний', 'RWD': 'Задний',
+      'AWD': 'Полный', '2WD': '2WD', 'FWD': 'Передний', 'RWD': 'Задний',
       '가솔린': 'Бензин', '디젤': 'Дизель', 'LPG': 'Газ', 'LPG/가솔린': 'Газ/бензин', '하이브리드': 'Гибрид', '전기': 'Электро', '가솔린+전기': 'Гибрид',
       '세단': 'Седан', 'SUV': 'Внедорожник', '해치백': 'Хэтчбек', '왜건': 'Универсал', '쿠페': 'Купе', '픽업': 'Пикап', '밴': 'Фургон', '중형차': 'Седан средний', '대형차': 'Седан большой', '소형차': 'Компакт',
       '자동': 'Автомат', '수동': 'Механика', '오토': 'Автомат', '세미자동': 'Робот', 'CVT': 'Вариатор', '듀얼 클러치': 'Робот',
@@ -1898,7 +1898,30 @@
       });
     }
 
-        // Выбор картинок только с кузовом (OUTER) с запасным вариантом
+        // Порядок видов как на car.html и у конкурентов: перед, зад, левый/правый бок, салон; затем по номеру _001, _002
+    function getPhotoViewOrder(path, code) {
+        const c = String(code || '').toUpperCase();
+        if (c === 'FRONT' || c === 'FRONTVIEW' || c === 'PHOTOFRONT') return 1;
+        if (c === 'REAR' || c === 'BACK' || c === 'REARVIEW' || c === 'PHOTOBACK' || c === 'PHOTOREAR') return 2;
+        if (c === 'LEFT' || c === 'PHOTOLEFT' || c === 'LEFTVIEW') return 3;
+        if (c === 'RIGHT' || c === 'PHOTORIGHT' || c === 'RIGHTVIEW') return 4;
+        if (c === 'SIDE' || c === 'SIDEVIEW') return 5;
+        if (c === 'INTERIOR' || c === 'INNER' || c === 'INSPECTION') return 6;
+        const numCode = /^\d+$/.test(c) ? parseInt(c, 10) : null;
+        if (numCode !== null) return 100 + numCode;
+        const p = String(path || '').toLowerCase();
+        if (p.includes('photofront') || p.includes('photo_front') || p.includes('front.jpg') || p.includes('frontview') || p.includes('_front_') || p.includes('/front')) return 1;
+        if (p.includes('photorear') || p.includes('photo_rear') || p.includes('photoback') || p.includes('photo_back') || p.includes('back.jpg') || p.includes('rearview') || p.includes('_rear_') || p.includes('/rear') || p.includes('/back')) return 2;
+        if (p.includes('photoleft') || p.includes('photo_left') || p.includes('left.jpg') || p.includes('leftview') || p.includes('_left_') || p.includes('(좌)')) return 3;
+        if (p.includes('photoright') || p.includes('photo_right') || p.includes('right.jpg') || p.includes('rightview') || p.includes('_right_') || p.includes('(우)')) return 4;
+        if (p.includes('side') || p.includes('бок') || p.includes('profile')) return 5;
+        if (p.includes('interior') || p.includes('inner') || p.includes('salon') || p.includes('inside') || p.includes('cabin') || p.includes('inspection')) return 6;
+        const numMatch = p.match(/_(\d{2,})\./);
+        if (numMatch) return 100 + parseInt(numMatch[1], 10);
+        return 50;
+    }
+
+    // Выбор картинок только с кузовом (OUTER) с запасным вариантом; порядок как в галерее car.html
     function getPreviewImages(d) {
         let images = [];
         try { images = JSON.parse(d.images || '[]'); } catch { images = []; }
@@ -1907,44 +1930,35 @@
         try { hImages = JSON.parse(d.h_images || '[]'); } catch { hImages = []; }
 
         if (Array.isArray(images) && images.length && Array.isArray(hImages) && hImages.length) {
-            const outerCodes = hImages
-                .filter(h => h && h.type === 'OUTER' && h.code)
-                .map(h => String(h.code));
-
-            const outerUrls = [];
-            outerCodes.forEach(code => {
+            const outerItems = hImages.filter(h => h && h.type === 'OUTER' && h.code);
+            const pairs = [];
+            outerItems.forEach(h => {
+                const code = String(h.code);
                 const suffix = `_${code}.`;
                 const found = images.find(url => typeof url === 'string' && url.includes(suffix));
-                if (found && !outerUrls.includes(found)) {
-                    outerUrls.push(found);
+                if (found && !pairs.some(p => p.url === found)) {
+                    pairs.push({ url: found, code: code });
                 }
             });
 
-            if (outerUrls.length) {
-                // Сортировка по типу: перед, зад, бок, салон
-                const typeOrder = {
-                    'FRONT': 1,
-                    'REAR': 2,
-                    'SIDE': 3,
-                    'INTERIOR': 4
-                };
-                const sorted = outerUrls.slice().sort((a, b) => {
-                    const aType = typeOrder[guessImageType(a)] || 99;
-                    const bType = typeOrder[guessImageType(b)] || 99;
-                    return aType - bType;
+            if (pairs.length) {
+                pairs.sort((a, b) => {
+                    const orderA = getPhotoViewOrder(a.url, a.code);
+                    const orderB = getPhotoViewOrder(b.url, b.code);
+                    if (orderA !== orderB) return orderA - orderB;
+                    return String(a.url).localeCompare(b.url);
                 });
-                return sorted.slice(0, 4);
+                return pairs.map(p => p.url).slice(0, 4);
             }
         }
 
-        // Фолбэк: первые 4 фото, если не получилось выделить OUTER
+        // Фолбэк: первые 4 фото, сортировка по тому же порядку видов
         if (Array.isArray(images) && images.length) {
-            // Сортируем и выбираем лучшие фото для превью
             const sorted = images.slice().sort((a, b) => {
-                const aType = guessImageType(a);
-                const bType = guessImageType(b);
-                const order = { 'FRONT': 1, 'REAR': 2, 'SIDE': 3, 'INTERIOR': 4 };
-                return (order[aType] || 99) - (order[bType] || 99);
+                const orderA = getPhotoViewOrder(a, null);
+                const orderB = getPhotoViewOrder(b, null);
+                if (orderA !== orderB) return orderA - orderB;
+                return String(a).localeCompare(b);
             });
             return sorted.slice(0, 4);
         }
@@ -1994,7 +2008,7 @@
         const powerPart = powerNum ? `${powerNum} л.с.` : '';
         const fuelPart = toDisplayRu(d.engine_type) || '';
         const volumePart = d.displacement ? `${Number(d.displacement).toLocaleString('ru-RU')} см³` : '';
-        const drivePart = toDisplayRu(d.prep_drive_type) || '';
+        const drivePart = toDisplayRu(d.drive_type || d.prep_drive_type) || '';
         const bodyRu = toDisplayRu(d.body_type) || '';
         const carUrl = (d.url || '#');
         const detailUrl = car.id != null ? 'car.html?id=' + encodeURIComponent(car.id) : (car.inner_id != null ? 'car.html?id=' + encodeURIComponent(car.inner_id) : (d.inner_id != null ? 'car.html?id=' + encodeURIComponent(d.inner_id) : '#'));
@@ -2462,7 +2476,8 @@
         if (fromYm !== null && (carYm === null || carYm < fromYm)) return false;
         if (toYm !== null && (carYm === null || carYm > toYm)) return false;
 
-        if (driveAwdOnly && d.prep_drive_type !== 'AWD') return false;
+        const driveVal = d.drive_type || d.prep_drive_type;
+        if (driveAwdOnly && driveVal !== 'AWD') return false;
 
         const insCnt = getInsuranceCasesCount(car);
         if (noInsuranceCases && insCnt > 0) return false;

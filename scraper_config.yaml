@@ -29,10 +29,11 @@ retry:
   retry_statuses: [429, 500, 502, 503, 504]
 
 proxy:
-  enabled: false
-  # List of URLs: http://user:pass@host:port or http://host:port
-  urls: []
-  # Rotate every N requests (0 = every request)
+  enabled: true
+  # Korea proxies (geo.floppydata.com:10080) — ротация по запросу
+  urls:
+    - "http://UciwZyfTPlvUn4OS:FDsAIHONGvLKdUlN@geo.floppydata.com:10080"
+    - "http://J0ujsUxFURqYjxvq:uAY7gu3lhqz7M4TI@geo.floppydata.com:10080"
   rotate_every: 1
 
 user_agents:

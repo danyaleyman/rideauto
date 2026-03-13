@@ -89,6 +89,8 @@ class ExportSystem:
                     'seatColor': car.get('seatColor'),
                     'seatCount': car.get('seatCount'),
                     'prep_drive_type': car.get('prep_drive_type'),
+                    'drive_type': car.get('drive_type'),
+                    'is_awd': car.get('is_awd'),
                     'is_duplicate': car.get('is_duplicate')
                 })
             
@@ -137,7 +139,7 @@ class ExportSystem:
                 'is_dealer', 'section', 'seller', 'salon_id', 'description', 'displacement',
                 'offer_created', 'manufacturerName', 'modelName', 'gradeName', 'modelGroupName',
                 'yearMonth', 'advertisementType', 'salesStatus', 'created_at', 'power',
-                'vin', 'seatColor', 'seatCount', 'prep_drive_type', 'is_duplicate'
+                'vin', 'seatColor', 'seatCount', 'prep_drive_type', 'drive_type', 'is_awd', 'is_duplicate'
             ]
             
             with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -290,6 +292,8 @@ class ExportSystem:
                     'seatColor': car.get('seatColor'),
                     'seatCount': car.get('seatCount'),
                     'prep_drive_type': car.get('prep_drive_type'),
+                    'drive_type': car.get('drive_type'),
+                    'is_awd': car.get('is_awd'),
                     'is_duplicate': car.get('is_duplicate')
                 })
             
@@ -322,7 +326,7 @@ class ExportSystem:
                 'is_dealer', 'section', 'seller', 'salon_id', 'description', 'displacement',
                 'offer_created', 'manufacturerName', 'modelName', 'gradeName', 'modelGroupName',
                 'yearMonth', 'advertisementType', 'salesStatus', 'created_at', 'power',
-                'vin', 'seatColor', 'seatCount', 'prep_drive_type', 'is_duplicate'
+                'vin', 'seatColor', 'seatCount', 'prep_drive_type', 'drive_type', 'is_awd', 'is_duplicate'
             ]
             
             with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
