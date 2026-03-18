@@ -386,7 +386,7 @@ def show_help():
 
 def main():
     """Основная функция быстрого старта"""
-print("🚀 Быстрый старт системы Encar с PostgreSQL")
+    print("🚀 Быстрый старт системы Encar с PostgreSQL")
     print("=" * 60)
     
     # Шаг 1: Проверка требований

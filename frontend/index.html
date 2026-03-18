@@ -363,6 +363,66 @@
       font-size: 0.9375rem;
       line-height: 1.35;
     }
+    .checkbox-item label .opt-count {
+      float: right;
+      margin-left: 10px;
+      color: var(--wra-gray-500);
+      font-weight: 400;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    /* Dropdown multiselect (внешне как select, внутри — чекбоксы) */
+    .filter-dropdown {
+      position: relative;
+    }
+    .filter-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px 36px 10px 14px;
+      border: 1px solid var(--wra-gray-300);
+      border-radius: var(--radius-md);
+      background: var(--wra-surface);
+      color: var(--wra-text);
+      font-size: var(--text-sm);
+      text-align: left;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    .filter-dropdown-trigger:hover { border-color: var(--wra-gray-400); }
+    .filter-dropdown-trigger:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    .filter-dropdown-trigger[aria-expanded="true"] {
+      border-color: var(--wra-primary);
+      box-shadow: 0 0 0 2px rgba(var(--wra-primary-rgb, 59, 130, 246), 0.2);
+    }
+    .filter-dropdown-panel {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      max-height: 260px;
+      overflow-y: auto;
+      background: var(--wra-surface);
+      border: 1px solid var(--wra-gray-300);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      z-index: 100;
+    }
+    .filter-dropdown-panel.is-open { display: block; }
+    .filter-dropdown-list {
+      padding: 8px;
+    }
+    .filter-dropdown-list .checkbox-item { margin-bottom: 4px; }
     .range-inputs {
       display: flex;
       gap: 10px;
@@ -1433,33 +1493,45 @@
   <!-- Левая панель фильтров (как на Encar) -->
   <aside class="filters-panel" id="filtersPanel">
     <div class="filters-panel-scroll">
-      <!-- 1. Марка -->
+      <!-- 1. Марка (dropdown с мультивыбором) -->
       <div class="filter-group">
         <h4>Марка</h4>
-        <select id="markSelect">
-          <option value="">Все марки</option>
-        </select>
+        <div class="filter-dropdown" id="markDropdown">
+          <button type="button" class="filter-dropdown-trigger" id="markTrigger" aria-expanded="false">Все марки</button>
+          <div class="filter-dropdown-panel" id="markPanel">
+            <div class="checkbox-list filter-dropdown-list" id="markList"></div>
+          </div>
+        </div>
       </div>
       <!-- 2. Модель -->
       <div class="filter-group">
         <h4>Модель</h4>
-        <select id="modelSelect" disabled>
-          <option value="">Сначала выберите марку</option>
-        </select>
+        <div class="filter-dropdown" id="modelDropdown">
+          <button type="button" class="filter-dropdown-trigger" id="modelTrigger" aria-expanded="false" disabled>Сначала выберите марку</button>
+          <div class="filter-dropdown-panel" id="modelPanel">
+            <div class="checkbox-list filter-dropdown-list" id="modelList"></div>
+          </div>
+        </div>
       </div>
       <!-- 3. Поколение -->
       <div class="filter-group">
         <h4>Поколение</h4>
-        <select id="generationSelect" disabled>
-          <option value="">Сначала выберите модель</option>
-        </select>
+        <div class="filter-dropdown" id="generationDropdown">
+          <button type="button" class="filter-dropdown-trigger" id="generationTrigger" aria-expanded="false" disabled>Сначала выберите модель</button>
+          <div class="filter-dropdown-panel" id="generationPanel">
+            <div class="checkbox-list filter-dropdown-list" id="generationList"></div>
+          </div>
+        </div>
       </div>
       <!-- 4. Комплектация -->
       <div class="filter-group">
         <h4>Комплектация</h4>
-        <select id="trimSelect" disabled>
-          <option value="">Сначала выберите поколение</option>
-        </select>
+        <div class="filter-dropdown" id="trimDropdown">
+          <button type="button" class="filter-dropdown-trigger" id="trimTrigger" aria-expanded="false" disabled>Сначала выберите поколение</button>
+          <div class="filter-dropdown-panel" id="trimPanel">
+            <div class="checkbox-list filter-dropdown-list" id="trimList"></div>
+          </div>
+        </div>
       </div>
       <!-- 5. Тип кузова -->
       <div class="filter-group">
@@ -1658,11 +1730,45 @@
     const paginationEl = document.getElementById('pagination');
     const foundCounter = document.getElementById('foundCounter');
     const filterCountEl = document.getElementById('filterCount');
-    const markSelect = document.getElementById('markSelect');
-    const modelSelect = document.getElementById('modelSelect');
-    const generationSelect = document.getElementById('generationSelect');
-    const trimSelect = document.getElementById('trimSelect');
+    const markListEl = document.getElementById('markList');
+    const modelListEl = document.getElementById('modelList');
+    const generationListEl = document.getElementById('generationList');
+    const trimListEl = document.getElementById('trimList');
+    const markTrigger = document.getElementById('markTrigger');
+    const markPanel = document.getElementById('markPanel');
+    const modelTrigger = document.getElementById('modelTrigger');
+    const modelPanel = document.getElementById('modelPanel');
+    const generationTrigger = document.getElementById('generationTrigger');
+    const generationPanel = document.getElementById('generationPanel');
+    const trimTrigger = document.getElementById('trimTrigger');
+    const trimPanel = document.getElementById('trimPanel');
     const sortSelect = document.getElementById('sortSelect');
+
+    function closeAllDropdowns() {
+      [markPanel, modelPanel, generationPanel, trimPanel].forEach(function(p) {
+        if (p) { p.classList.remove('is-open'); }
+      });
+      [markTrigger, modelTrigger, generationTrigger, trimTrigger].forEach(function(b) {
+        if (b) { b.setAttribute('aria-expanded', 'false'); }
+      });
+    }
+    function setDropdownTriggerText(trigger, listEl, filterKey, allLabel) {
+      if (!trigger || !listEl) return;
+      const sel = getSelectedValues(listEl, filterKey);
+      if (sel.size === 0) {
+        trigger.textContent = allLabel;
+        return;
+      }
+      const labels = [];
+      listEl.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
+        if (!cb.checked) return;
+        const label = cb.closest('.checkbox-item');
+        const t = label ? label.querySelector('label') : null;
+        const text = t ? t.textContent.replace(/\s*\(\d[\d\s]*\)\s*$/, '').trim() : cb.value;
+        labels.push(text);
+      });
+      trigger.textContent = labels.length > 3 ? labels.slice(0, 2).join(', ') + ' +' + (labels.length - 2) : labels.join(', ');
+    }
 
     // Вспомогательные функции для фильтрации по данным из cars.json / record / inspection
     function getInsuranceCasesCount(car) {
@@ -2211,15 +2317,16 @@
     const MONTH_LABELS = ['', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
     function buildFiltersFromData() {
-      // 1. Марки (маппинг KO→EN)
-      const marks = [...new Set(allCars.map(c => c.data?.mark).filter(Boolean))].sort();
-      markSelect.innerHTML = '<option value="">Все марки</option>';
-      marks.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = filterOptionLabel(m, 'mark');
-        markSelect.appendChild(opt);
+      // 1. Марки: по алфавиту по отображаемому названию
+      const marksSet = new Set(allCars.map(c => c.data?.mark).filter(Boolean));
+      const marks = [...marksSet].sort(function(a, b) {
+        return (filterOptionLabel(a, 'mark') || '').localeCompare(filterOptionLabel(b, 'mark') || '', 'ru');
       });
+      if (markListEl) {
+        renderCheckboxesWithCounts(markListEl, marks, function(v) { return filterOptionLabel(v, 'mark'); }, function(v) {
+          return allCars.filter(c => (c.data && c.data.mark) === v).length;
+        }, 'mark');
+      }
 
       // Год от/до: 1980..2030
       const yearFromEl = document.getElementById('yearFrom');
@@ -2280,12 +2387,6 @@
       });
       showMoreColorsBtn.style.display = restColors.length > 0 ? 'block' : 'none';
 
-      function escapeHtml(s) {
-        const div = document.createElement('div');
-        div.textContent = s;
-        return div.innerHTML;
-      }
-
       // Синхронизация чекбоксов цвета: модалка и видимые 4
       function syncColorCheckboxes() {
         const byValue = {};
@@ -2300,8 +2401,8 @@
       colorListVisible.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', syncColorCheckboxes));
       colorModalList.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', syncColorCheckboxes));
 
-      // Обработчики: все чекбоксы и диапазоны
-      document.querySelectorAll('.checkbox-list input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(cb => {
+      // Обработчики: все чекбоксы и диапазоны (кроме марка/модель/поколение/комплектация — у них свои)
+      document.querySelectorAll('#bodyList input[type=checkbox], #fuelList input[type=checkbox], #transmissionList input[type=checkbox], #colorListVisible input[type=checkbox], #colorModalList input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(cb => {
         cb.addEventListener('change', applyFilters);
       });
       var filterDriveAwd = document.getElementById('filterDriveAwd');
@@ -2313,10 +2414,61 @@
       if (filterNoInsurancePayouts) filterNoInsurancePayouts.addEventListener('change', applyFilters);
       if (filterNoDamaged) filterNoDamaged.addEventListener('change', applyFilters);
 
-      if (markSelect) markSelect.addEventListener('change', onMarkChange);
-      if (modelSelect) modelSelect.addEventListener('change', onModelChange);
-      if (generationSelect) generationSelect.addEventListener('change', onGenerationChange);
-      if (trimSelect) trimSelect.addEventListener('change', applyFilters);
+      // Dropdown: клик по триггеру — открыть/закрыть панель
+      [[markTrigger, markPanel], [modelTrigger, modelPanel], [generationTrigger, generationPanel], [trimTrigger, trimPanel]].forEach(function(pair) {
+        var btn = pair[0], panel = pair[1];
+        if (!btn || !panel) return;
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          if (btn.disabled) return;
+          var isOpen = panel.classList.contains('is-open');
+          closeAllDropdowns();
+          if (!isOpen) {
+            panel.classList.add('is-open');
+            btn.setAttribute('aria-expanded', 'true');
+          }
+        });
+      });
+      document.addEventListener('click', function(e) {
+        if (e.target.closest('.filter-dropdown')) return;
+        closeAllDropdowns();
+      });
+
+      // Марка/модель/поколение/комплектация: при смене — обновить триггер и каскад
+      if (markListEl) {
+        markListEl.addEventListener('change', function(e) {
+          if (!e.target || e.target.getAttribute('data-filter') !== 'mark') return;
+          setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
+          rebuildModelList();
+          rebuildGenerationList();
+          rebuildTrimList();
+          applyFilters();
+        });
+      }
+      if (modelListEl) {
+        modelListEl.addEventListener('change', function(e) {
+          if (!e.target || e.target.getAttribute('data-filter') !== 'model') return;
+          setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
+          rebuildGenerationList();
+          rebuildTrimList();
+          applyFilters();
+        });
+      }
+      if (generationListEl) {
+        generationListEl.addEventListener('change', function(e) {
+          if (!e.target || e.target.getAttribute('data-filter') !== 'generation') return;
+          setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
+          rebuildTrimList();
+          applyFilters();
+        });
+      }
+      if (trimListEl) {
+        trimListEl.addEventListener('change', function(e) {
+          if (!e.target || e.target.getAttribute('data-filter') !== 'trim') return;
+          setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+          applyFilters();
+        });
+      }
 
       ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo',
        'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'].forEach(function(id) {
@@ -2325,7 +2477,163 @@
       });
       [yearFromEl, yearToEl, monthFromEl, monthToEl].filter(Boolean).forEach(function(el) { el.addEventListener('change', applyFilters); });
 
-      onMarkChange();
+      if (markListEl) {
+        rebuildModelList();
+        rebuildGenerationList();
+        rebuildTrimList();
+        applyFilters();
+      }
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = String(s == null ? '' : s);
+      return div.innerHTML;
+    }
+
+    function getSelectedValues(container, filterKey) {
+      const out = new Set();
+      if (!container) return out;
+      container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]:checked').forEach(function(cb) {
+        out.add(cb.value);
+      });
+      return out;
+    }
+
+    function renderCheckboxesWithCounts(container, values, labelFn, countFn, filterKey) {
+      if (!container) return;
+      container.innerHTML = '';
+      (values || []).forEach(function(val) {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        const safe = String(val).replace(/\s/g, '_').replace(/[^\w\-]/g, '_');
+        const id = 'filter-' + filterKey + '-' + safe;
+        const label = labelFn ? labelFn(val) : val;
+        const cnt = countFn ? countFn(val) : null;
+        const suffix = (cnt != null) ? (' <span class="opt-count">(' + Number(cnt).toLocaleString('ru-RU') + ')</span>') : '';
+        div.innerHTML =
+          '<input type="checkbox" id="' + id + '" data-filter="' + filterKey + '" value="' + escapeHtml(val) + '">' +
+          '<label for="' + id + '">' + escapeHtml(label) + suffix + '</label>';
+        container.appendChild(div);
+      });
+    }
+
+    function rebuildModelList() {
+      if (!modelListEl) return;
+      const selectedMarks = getSelectedValues(markListEl, 'mark');
+      const base = selectedMarks.size
+        ? allCars.filter(c => c && c.data && selectedMarks.has(c.data.mark))
+        : allCars.slice();
+
+      const modelValues = [...new Set(base.map(c => c.data?.model).filter(Boolean))].sort(function(a, b) {
+        return (filterOptionLabel(a, 'model') || '').localeCompare(filterOptionLabel(b, 'model') || '', 'ru');
+      });
+      // Группируем по отображаемому имени (KO→EN), чтобы понять, где будут «дубли» (E-Class x3)
+      const displayGroups = {};
+      modelValues.forEach(function(m) {
+        const disp = String(filterOptionLabel(m, 'model') || m);
+        (displayGroups[disp] = displayGroups[disp] || []).push(m);
+      });
+
+      function topGenerationForModel(modelRaw) {
+        const genCounts = {};
+        base.forEach(function(c) {
+          const d = c.data || {};
+          if (d.model !== modelRaw) return;
+          const g = d.generation || d.configuration || '';
+          if (!g) return;
+          genCounts[g] = (genCounts[g] || 0) + 1;
+        });
+        let best = '';
+        let bestN = 0;
+        Object.keys(genCounts).forEach(function(k) {
+          const n = genCounts[k];
+          if (n > bestN) { bestN = n; best = k; }
+        });
+        return best;
+      }
+
+      renderCheckboxesWithCounts(
+        modelListEl,
+        modelValues,
+        function(m) {
+          const disp = String(filterOptionLabel(m, 'model') || m);
+          if (displayGroups[disp] && displayGroups[disp].length > 1) {
+            const g = topGenerationForModel(m);
+            const gLabel = g ? filterOptionLabel(g, 'generation') : '';
+            return gLabel ? (disp + ' · ' + gLabel) : (disp + ' · ' + m);
+          }
+          return disp;
+        },
+        function(m) {
+          return base.filter(c => (c.data && c.data.model) === m).length;
+        },
+        'model'
+      );
+      if (modelTrigger) {
+        modelTrigger.disabled = selectedMarks.size === 0;
+        if (selectedMarks.size === 0) modelTrigger.textContent = 'Сначала выберите марку';
+        else setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
+      }
+    }
+
+    function rebuildGenerationList() {
+      if (!generationListEl) return;
+      const selectedMarks = getSelectedValues(markListEl, 'mark');
+      const selectedModels = getSelectedValues(modelListEl, 'model');
+      const base = allCars.filter(function(c) {
+        const d = c && c.data;
+        if (!d) return false;
+        if (selectedMarks.size && !selectedMarks.has(d.mark)) return false;
+        if (selectedModels.size && !selectedModels.has(d.model)) return false;
+        return true;
+      });
+      const gens = [...new Set(base.map(c => c.data?.generation || c.data?.configuration).filter(Boolean))].sort(function(a, b) {
+        return (filterOptionLabel(a, 'generation') || '').localeCompare(filterOptionLabel(b, 'generation') || '', 'ru');
+      });
+      renderCheckboxesWithCounts(
+        generationListEl,
+        gens,
+        function(g) { return filterOptionLabel(g, 'generation'); },
+        function(g) { return base.filter(c => (c.data && ((c.data.generation || c.data.configuration) === g))).length; },
+        'generation'
+      );
+      if (generationTrigger) {
+        generationTrigger.disabled = selectedModels.size === 0;
+        if (selectedModels.size === 0) generationTrigger.textContent = 'Сначала выберите модель';
+        else setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
+      }
+    }
+
+    function rebuildTrimList() {
+      if (!trimListEl) return;
+      const selectedMarks = getSelectedValues(markListEl, 'mark');
+      const selectedModels = getSelectedValues(modelListEl, 'model');
+      const selectedGenerations = getSelectedValues(generationListEl, 'generation');
+      const base = allCars.filter(function(c) {
+        const d = c && c.data;
+        if (!d) return false;
+        if (selectedMarks.size && !selectedMarks.has(d.mark)) return false;
+        if (selectedModels.size && !selectedModels.has(d.model)) return false;
+        const gen = d.generation || d.configuration;
+        if (selectedGenerations.size && !selectedGenerations.has(gen)) return false;
+        return true;
+      });
+      const trims = [...new Set(base.map(c => c.data?.gradeName || c.data?.configuration || c.data?.generation).filter(Boolean))].sort(function(a, b) {
+        return (filterOptionLabel(a, 'trim') || '').localeCompare(filterOptionLabel(b, 'trim') || '', 'ru');
+      });
+      renderCheckboxesWithCounts(
+        trimListEl,
+        trims,
+        function(t) { return filterOptionLabel(t, 'trim'); },
+        function(t) { return base.filter(c => (c.data && ((c.data.gradeName || c.data.configuration || c.data.generation) === t))).length; },
+        'trim'
+      );
+      if (trimTrigger) {
+        trimTrigger.disabled = selectedGenerations.size === 0;
+        if (selectedGenerations.size === 0) trimTrigger.textContent = 'Сначала выберите поколение';
+        else setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+      }
     }
 
     function renderCheckboxes(containerId, values, filterKey, labelCategory) {
@@ -2344,84 +2652,12 @@
       });
     }
 
-    function onMarkChange() {
-      const selectedMark = markSelect.value;
-      modelSelect.disabled = true;
-      modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
-      generationSelect.disabled = true;
-      generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
-      trimSelect.disabled = true;
-      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
-      if (!selectedMark) {
-        applyFilters();
-        return;
-      }
-      const models = [...new Set(allCars.filter(c => c.data?.mark === selectedMark).map(c => c.data?.model).filter(Boolean))].sort();
-      modelSelect.disabled = false;
-      modelSelect.innerHTML = '<option value="">Все модели</option>';
-      models.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = filterOptionLabel(m, 'model');
-        modelSelect.appendChild(opt);
-      });
-      onModelChange();
-    }
-
-    function onModelChange() {
-      const mark = markSelect.value;
-      const model = modelSelect.value;
-      generationSelect.disabled = true;
-      generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>';
-      trimSelect.disabled = true;
-      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
-      if (!mark || !model) {
-        applyFilters();
-        return;
-      }
-      const generations = [...new Set(allCars.filter(c => c.data?.mark === mark && c.data?.model === model).map(c => c.data?.generation || c.data?.configuration).filter(Boolean))].sort();
-      generationSelect.disabled = false;
-      generationSelect.innerHTML = '<option value="">Все поколения</option>';
-      generations.forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g;
-        opt.textContent = filterOptionLabel(g, 'generation');
-        generationSelect.appendChild(opt);
-      });
-      onGenerationChange();
-    }
-
-    function onGenerationChange() {
-      const mark = markSelect.value;
-      const model = modelSelect.value;
-      const generation = generationSelect.value;
-      trimSelect.disabled = true;
-      trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>';
-      if (!mark || !model || !generation) {
-        applyFilters();
-        return;
-      }
-      const trims = [...new Set(allCars.filter(c =>
-        c.data?.mark === mark && c.data?.model === model &&
-        (c.data?.generation === generation || c.data?.configuration === generation)
-      ).map(c => c.data?.gradeName || c.data?.configuration || c.data?.generation).filter(Boolean))].sort();
-      trimSelect.disabled = false;
-      trimSelect.innerHTML = '<option value="">Все комплектации</option>';
-      trims.forEach(t => {
-        const opt = document.createElement('option');
-        opt.value = t;
-        opt.textContent = filterOptionLabel(t, 'trim');
-        trimSelect.appendChild(opt);
-      });
-      applyFilters();
-    }
-
     // Основная фильтрация
     function applyFilters() {
-      const selectedMark = markSelect.value;
-      const selectedModel = modelSelect.value;
-      const selectedGeneration = generationSelect.value;
-      const selectedTrim = trimSelect.value;
+      const selectedMarks = getSelectedValues(markListEl, 'mark');
+      const selectedModels = getSelectedValues(modelListEl, 'model');
+      const selectedGenerations = getSelectedValues(generationListEl, 'generation');
+      const selectedTrims = getSelectedValues(trimListEl, 'trim');
 
       const selectedBody = new Set();
       const selectedFuel = new Set();
@@ -2463,12 +2699,12 @@
         const d = car.data;
         if (!d) return false;
 
-        if (selectedMark && d.mark !== selectedMark) return false;
-        if (selectedModel && d.model !== selectedModel) return false;
+        if (selectedMarks.size > 0 && !selectedMarks.has(d.mark)) return false;
+        if (selectedModels.size > 0 && !selectedModels.has(d.model)) return false;
         const gen = d.generation || d.configuration;
-        if (selectedGeneration && gen !== selectedGeneration) return false;
+        if (selectedGenerations.size > 0 && !selectedGenerations.has(gen)) return false;
         const trim = d.gradeName || d.configuration || d.generation;
-        if (selectedTrim && trim !== selectedTrim) return false;
+        if (selectedTrims.size > 0 && !selectedTrims.has(trim)) return false;
 
         if (selectedBody.size > 0 && !selectedBody.has(d.body_type)) return false;
         if (selectedFuel.size > 0 && !selectedFuel.has(d.engine_type)) return false;
@@ -2523,10 +2759,10 @@
 
       page = 1;
       let activeCount = 0;
-      if (selectedMark) activeCount++;
-      if (selectedModel) activeCount++;
-      if (selectedGeneration) activeCount++;
-      if (selectedTrim) activeCount++;
+      if (selectedMarks.size > 0) activeCount++;
+      if (selectedModels.size > 0) activeCount++;
+      if (selectedGenerations.size > 0) activeCount++;
+      if (selectedTrims.size > 0) activeCount++;
       activeCount += selectedBody.size + selectedFuel.size + selectedTrans.size + selectedColor.size;
       if (powerFrom !== null) activeCount++;
       if (powerTo !== null) activeCount++;
@@ -2558,11 +2794,15 @@
 
     // Сброс всех фильтров
     function resetFilters() {
-      if (markSelect) { markSelect.value = ''; }
-      if (modelSelect) { modelSelect.disabled = true; modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>'; }
-      if (generationSelect) { generationSelect.disabled = true; generationSelect.innerHTML = '<option value="">Сначала выберите модель</option>'; }
-      if (trimSelect) { trimSelect.disabled = true; trimSelect.innerHTML = '<option value="">Сначала выберите поколение</option>'; }
-      document.querySelectorAll('.checkbox-list input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+      closeAllDropdowns();
+      [markListEl, modelListEl, generationListEl, trimListEl].forEach(function(container) {
+        if (container) container.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+      });
+      if (markTrigger) markTrigger.textContent = 'Все марки';
+      if (modelTrigger) { modelTrigger.disabled = true; modelTrigger.textContent = 'Сначала выберите марку'; }
+      if (generationTrigger) { generationTrigger.disabled = true; generationTrigger.textContent = 'Сначала выберите модель'; }
+      if (trimTrigger) { trimTrigger.disabled = true; trimTrigger.textContent = 'Сначала выберите поколение'; }
+      document.querySelectorAll('#bodyList input[type=checkbox], #fuelList input[type=checkbox], #transmissionList input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
       document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) { cb.checked = false; });
       var ids = ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'yearFrom', 'monthFrom', 'yearTo', 'monthTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo', 'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'];
       ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
@@ -2571,6 +2811,9 @@
       chk = document.getElementById('filterNoInsuranceCases'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoInsurancePayouts'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoDamaged'); if (chk) chk.checked = false;
+      rebuildModelList();
+      rebuildGenerationList();
+      rebuildTrimList();
       applyFilters();
     }
 

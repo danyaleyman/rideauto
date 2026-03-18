@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+.cursor/
+
+# Local databases / checkpoints
+*.db
+*.sqlite
+
+# Python venv
+.venv/
+venv/
+ENV/

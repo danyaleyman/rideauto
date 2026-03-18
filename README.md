@@ -1,49 +1,33 @@
-# Encar Parser - PostgreSQL Edition
+# Prod Encar
 
-**Система парсинга и анализа автомобилей с сайта Encar с использованием PostgreSQL и автоматическим обновлением.**
+Проект разделён на два слоя:
 
-## 🚀 Что нового в PostgreSQL версии
+- **Frontend (статические страницы)**: папка `frontend/` (открывается напрямую в браузере).
+- **Backend (парсер/обновления/экспорт/БД)**: папка `backend/` (Python).
 
-### ✨ **Основные улучшения**
-
-- **PostgreSQL база данных** вместо SQLite для высокой производительности и надежности
-- **Автоматическое обновление** через cron (Linux/macOS) и Task Scheduler (Windows)
-- **JSONB поддержка** для гибкого хранения и быстрого поиска данных
-- **Расширенная аналитика** и мониторинг производительности
-- **Резервное копирование** базы данных с настройкой хранения
-- **Email уведомления** о результатах обновления
-- **Оптимизированные индексы** для быстрого поиска и фильтрации
-
-### 📊 **Производительность**
-
-- **В 10 раз быстрее** чем SQLite при работе с большими объемами данных
-- **Поддержка до 1M+ автомобилей** без потери производительности
-- **Многопоточная обработка** с оптимизированными соединениями
-- **Эффективное кэширование** и индексация
-
-## 📦 Установка
-
-### Требования
-
-- Python 3.8+
-- PostgreSQL 12+
-- psycopg2-binary, requests, pandas, openpyxl
-
-### Быстрый старт
+## Быстрый старт (backend)
 
 ```bash
-# 1. Установка зависимостей
-pip install -r requirements.txt
-
-# 2. Быстрая настройка системы
-python quick_start.py
-
-# 3. Тестирование системы
-python test_postgresql.py
-
-# 4. Запуск обновления
-python auto_update.py --config config.json --type daily
+pip install -r backend/requirements.txt
+python backend/run_system.py --setup
+python backend/run_system.py --daily
 ```
+
+Конфиг: `backend/config.json`
+
+## Открыть сайт (frontend)
+
+- `frontend/index.html`
+- `frontend/car.html?id=<ID>`
+- `frontend/howtobuy.html`
+
+Данные для фронта: `frontend/cars.json` и `frontend/data/encar_mapping.json`.
+
+## Документация
+
+- `backend/README_POSTGRESQL.md`
+- `backend/RUN_SYSTEM_README.md`
+- `backend/SCRAPER_README.md`
 
 ### Ручная настройка
 

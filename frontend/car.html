@@ -3491,19 +3491,25 @@
                 }
                 var allCars = data.result || [];
                 
-                // Фильтруем по марке и цене (±20% от текущей цены)
+                // Фильтруем по марке и цене (±20%), исключаем текущий авто, убираем дубликаты по id и по «марка+модель+год+пробег+цена»
                 const priceMin = currentPrice * 0.8;
                 const priceMax = currentPrice * 1.2;
+                const currentId = currentCar.id != null ? String(currentCar.id) : (currentCar.inner_id != null ? String(currentCar.inner_id) : '');
+                const seenIds = new Set();
+                const seenKeys = new Set();
                 const similarCars = allCars
                     .filter(car => {
+                        const id = car.id != null ? String(car.id) : (car.inner_id != null ? String(car.inner_id) : (car.data && car.data.inner_id != null ? String(car.data.inner_id) : null));
+                        if (id == null || id === currentId || seenIds.has(id)) return false;
                         const cd = car.data || {};
-                        return cd.mark === currentMark && 
-                               cd.price_won && 
-                               cd.price_won >= priceMin && 
-                               cd.price_won <= priceMax &&
-                               car.id != currentCar.id; // исключаем текущий автомобиль
+                        if (cd.mark !== currentMark || !cd.price_won || cd.price_won < priceMin || cd.price_won > priceMax) return false;
+                        const dedupeKey = [cd.mark, cd.model, cd.year, cd.km_age, cd.price_won].join('|');
+                        if (seenKeys.has(dedupeKey)) return false;
+                        seenIds.add(id);
+                        seenKeys.add(dedupeKey);
+                        return true;
                     })
-                    .sort((a, b) => Math.abs(a.data.price_won - currentPrice) - Math.abs(b.data.price_won - currentPrice))
+                    .sort((a, b) => Math.abs((a.data || {}).price_won - currentPrice) - Math.abs((b.data || {}).price_won - currentPrice))
                     .slice(0, 8); // берем максимум 8 похожих
 
                 if (similarCars.length === 0) return '';

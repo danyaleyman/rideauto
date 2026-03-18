@@ -17,9 +17,9 @@ import time
 import urllib.parse
 import requests
 
-# Результаты в data/ в корне проекта
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = PROJECT_ROOT / "data"
+# Результаты в frontend/data/ (для статического фронта)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+OUTPUT_DIR = REPO_ROOT / "frontend" / "data"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 BASE = "https://api.encar.com/search/car/list/general"

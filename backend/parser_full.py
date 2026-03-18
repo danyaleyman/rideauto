@@ -64,7 +64,7 @@ class EncarFullParser:
         # Добавляем эндпоинт для полной инспекции
         self.inspection_url = f'{self.base_api}/inspection/vehicle/{{}}'
         self._power_lookup: Optional[Dict[str, Any]] = None
-        self.lookup_path = Path(__file__).resolve().parent.parent / "data" / "car_power_lookup.json"
+        self.lookup_path = Path(__file__).resolve().parent.parent / "frontend" / "data" / "car_power_lookup.json"
         self._power_stats = {"with_power": 0, "without_power": 0}
 
     def _get_power_lookup(self) -> Dict[str, Any]:
@@ -973,4 +973,4 @@ if __name__ == '__main__':
     # Собираем как импортные, так и отечественные автомобили.
     # max_cars_per_type=40 означает до 40 машин для каждого типа.
     cars = parser.collect_cars(max_cars_per_type=40, delay=0.3, car_types=("for", "kor"))
-    parser.save_to_file(cars, 'cars.json')
+    parser.save_to_file(cars, str((Path(__file__).resolve().parent.parent / "frontend" / "cars.json")))

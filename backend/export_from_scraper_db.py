@@ -30,7 +30,7 @@ def _fill_power_from_external(data: dict) -> None:
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default="encar_cars.db", help="Scraper SQLite DB path")
-    p.add_argument("--out", default="cars.json", help="Output JSON path")
+    p.add_argument("--out", default=str(Path(__file__).resolve().parent.parent / "frontend" / "cars.json"), help="Output JSON path")
     p.add_argument("--no-prices", action="store_true", help="Do not calculate prices (no API calls)")
     p.add_argument("--no-power-lookup", action="store_true", help="Do not fill power from power_lookup.json")
     args = p.parse_args()

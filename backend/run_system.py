@@ -15,12 +15,16 @@ from pathlib import Path
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Пути проекта (repo root = parent of backend/)
+BACKEND_DIR = Path(__file__).resolve().parent
+REPO_DIR = BACKEND_DIR.parent
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('run_system.log', encoding='utf-8'),
+        logging.FileHandler(str(BACKEND_DIR / 'run_system.log'), encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -31,7 +35,7 @@ class EncarSystemRunner:
     """Класс для управления запуском системы Encar"""
     
     def __init__(self):
-        self.project_dir = Path(__file__).parent
+        self.project_dir = BACKEND_DIR
         self.config_file = self.project_dir / 'config.json'
         
     def check_dependencies(self):
@@ -65,7 +69,7 @@ class EncarSystemRunner:
         """Установка зависимостей"""
         logger.info("📦 Установка зависимостей...")
         try:
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', str(self.project_dir / 'requirements.txt')])
             logger.info("✅ Зависимости установлены")
             return True
         except subprocess.CalledProcessError as e:
@@ -85,7 +89,7 @@ class EncarSystemRunner:
         """Запуск настройки системы"""
         logger.info("⚙️ Запуск настройки системы...")
         try:
-            result = subprocess.run([sys.executable, 'quick_start.py'], 
+            result = subprocess.run([sys.executable, str(self.project_dir / 'quick_start.py')], 
                                   check=True, capture_output=True, text=True)
             logger.info("✅ Настройка системы завершена")
             return True
@@ -99,7 +103,7 @@ class EncarSystemRunner:
         """Запуск тестирования системы"""
         logger.info("🧪 Запуск тестирования системы...")
         try:
-            result = subprocess.run([sys.executable, 'test_postgresql.py'], 
+            result = subprocess.run([sys.executable, str(self.project_dir / 'test_postgresql.py')], 
                                   check=True, capture_output=True, text=True)
             logger.info("✅ Тестирование системы завершено")
             return True
@@ -113,7 +117,7 @@ class EncarSystemRunner:
         """Запуск обновления системы"""
         logger.info(f"🔄 Запуск {update_type} обновления ({workers} потоков)...")
         try:
-            cmd = [sys.executable, 'auto_update.py', '--config', str(self.config_file), 
+            cmd = [sys.executable, str(self.project_dir / 'auto_update.py'), '--config', str(self.config_file), 
                    '--type', update_type, '--workers', str(workers)]
             
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -183,7 +187,7 @@ class EncarSystemRunner:
         """Запуск первоначальной загрузки данных"""
         logger.info("📥 Запуск первоначальной загрузки данных...")
         try:
-            result = subprocess.run([sys.executable, 'parser_full.py'], 
+            result = subprocess.run([sys.executable, str(self.project_dir / 'parser_full.py')], 
                                   check=True, capture_output=True, text=True)
             logger.info("✅ Первоначальная загрузка данных завершена")
             return True
@@ -316,12 +320,13 @@ class EncarSystemRunner:
         try:
             if system in ['Linux', 'Darwin']:
                 # Linux/macOS
-                result = subprocess.run(['chmod', '+x', 'setup_cron.sh'], check=True)
-                result = subprocess.run(['./setup_cron.sh'], check=True, capture_output=True, text=True)
+                cron_path = self.project_dir / 'setup_cron.sh'
+                result = subprocess.run(['chmod', '+x', str(cron_path)], check=True)
+                result = subprocess.run([str(cron_path)], check=True, capture_output=True, text=True)
                 logger.info("✅ Автоматическое обновление настроено для Linux/macOS")
             elif system == 'Windows':
                 # Windows
-                result = subprocess.run(['setup_task_scheduler.bat'], check=True, capture_output=True, text=True)
+                result = subprocess.run([str(REPO_DIR / 'setup_task_scheduler.bat')], check=True, capture_output=True, text=True)
                 logger.info("✅ Автоматическое обновление настроено для Windows")
             else:
                 logger.warning(f"⚠️  Автоматическая настройка не поддерживается для {system}")

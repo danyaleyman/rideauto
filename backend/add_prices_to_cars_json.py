@@ -12,7 +12,8 @@ from pathlib import Path
 
 
 def main():
-    path = Path(sys.argv[1] if len(sys.argv) > 1 else "cars.json")
+    default_path = (Path(__file__).resolve().parent.parent / "frontend" / "cars.json")
+    path = Path(sys.argv[1] if len(sys.argv) > 1 else default_path)
     if not path.exists():
         print(f"Файл не найден: {path}", file=sys.stderr)
         sys.exit(1)

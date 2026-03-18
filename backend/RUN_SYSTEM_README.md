@@ -17,7 +17,7 @@
 
 ### Стандартный запуск (рекомендуется)
 ```bash
-python run_system.py
+python backend/run_system.py
 ```
 Запускает полную проверку системы и ежедневное обновление.
 
@@ -25,31 +25,31 @@ python run_system.py
 
 #### Настройка системы
 ```bash
-python run_system.py --setup
+python backend/run_system.py --setup
 ```
 Полная настройка системы: проверка зависимостей, создание конфигурации, тестирование.
 
 #### Тестирование системы
 ```bash
-python run_system.py --test
+python backend/run_system.py --test
 ```
 Только тестирование системы без запуска обновления.
 
 #### Ежедневное обновление
 ```bash
-python run_system.py --daily
+python backend/run_system.py --daily
 ```
 Запуск ежедневного обновления (только новые/измененные автомобили).
 
 #### Полный прогон
 ```bash
-python run_system.py --full
+python backend/run_system.py --full
 ```
 Запуск полного сканирования всех автомобилей.
 
 #### Умное обновление (рекомендуется)
 ```bash
-python run_system.py --smart
+python backend/run_system.py --smart
 ```
 Автоматическое определение режима обновления на основе состояния базы данных.
 
@@ -62,13 +62,13 @@ python run_system.py --smart
 
 #### Настройка автоматического обновления
 ```bash
-python run_system.py --auto
+python backend/run_system.py --auto
 ```
 Настройка cron (Linux/macOS) или Task Scheduler (Windows).
 
 #### Быстрый запуск
 ```bash
-python run_system.py --quick
+python backend/run_system.py --quick
 ```
 Только обновление без предварительной проверки (если система уже настроена).
 
@@ -76,8 +76,8 @@ python run_system.py --quick
 
 #### Количество потоков
 ```bash
-python run_system.py --daily --workers 10
-python run_system.py --full --workers 5
+python backend/run_system.py --daily --workers 10
+python backend/run_system.py --full --workers 5
 ```
 Настройка количества потоков для парсинга.
 
@@ -85,43 +85,43 @@ python run_system.py --full --workers 5
 
 ### Для первого запуска
 ```bash
-python run_system.py --setup
-python run_system.py --test
-python run_system.py --full
+python backend/run_system.py --setup
+python backend/run_system.py --test
+python backend/run_system.py --full
 ```
 
 ### Для повседневного использования
 ```bash
 # Стандартный режим (рекомендуется)
-python run_system.py
+python backend/run_system.py
 
 # Или быстрый запуск (если система уже настроена)
-python run_system.py --quick
+python backend/run_system.py --quick
 ```
 
 ### Для отладки
 ```bash
 # Проверка системы
-python run_system.py --test
+python backend/run_system.py --test
 
 # Ежедневное обновление с 2 потоками
-python run_system.py --daily --workers 2
+python backend/run_system.py --daily --workers 2
 ```
 
 ### Для автоматизации
 ```bash
 # Настройка автоматического обновления
-python run_system.py --auto
+python backend/run_system.py --auto
 
 # Или добавление в cron вручную
-echo "0 3 * * * cd /path/to/project && python3 run_system.py --daily --workers 5 >> run_system_cron.log 2>&1" | crontab -
+echo "0 3 * * * cd /path/to/project && python3 backend/run_system.py --daily --workers 5 >> run_system_cron.log 2>&1" | crontab -
 ```
 
 ## 📊 Примеры использования
 
 ### Полная настройка системы
 ```bash
-$ python run_system.py --setup
+$ python backend/run_system.py --setup
 🚀 Encar Parser System Runner
 ==================================================
 Время запуска: 2026-02-28 22:40:00
@@ -142,7 +142,7 @@ $ python run_system.py --setup
 
 ### Стандартный запуск
 ```bash
-$ python run_system.py
+$ python backend/run_system.py
 🚀 Encar Parser System Runner
 ==================================================
 Время запуска: 2026-02-28 22:41:00
@@ -164,7 +164,7 @@ $ python run_system.py
 
 ### Тестирование системы
 ```bash
-$ python run_system.py --test
+$ python backend/run_system.py --test
 🚀 Encar Parser System Runner
 ==================================================
 Время запуска: 2026-02-28 22:42:00
@@ -199,34 +199,34 @@ $ python run_system.py --test
 ### Сценарий 1: Новая установка
 ```bash
 # 1. Полная настройка
-python run_system.py --setup
+python backend/run_system.py --setup
 
 # 2. Тестирование
-python run_system.py --test
+python backend/run_system.py --test
 
 # 3. Первый запуск
-python run_system.py --full
+python backend/run_system.py --full
 
 # 4. Настройка автоматического обновления
-python run_system.py --auto
+python backend/run_system.py --auto
 ```
 
 ### Сценарий 2: Повседневное использование
 ```bash
 # Ежедневный запуск (рекомендуется)
-python run_system.py
+python backend/run_system.py
 
 # Или быстрый запуск (если система стабильна)
-python run_system.py --quick
+python backend/run_system.py --quick
 ```
 
 ### Сценарий 3: Отладка проблем
 ```bash
 # Проверка системы
-python run_system.py --test
+python backend/run_system.py --test
 
 # Запуск с минимальным количеством потоков
-python run_system.py --daily --workers 2
+python backend/run_system.py --daily --workers 2
 
 # Просмотр логов
 tail -f run_system.log
@@ -235,17 +235,17 @@ tail -f run_system.log
 ### Сценарий 4: Автоматизация
 ```bash
 # Настройка cron
-python run_system.py --auto
+python backend/run_system.py --auto
 
 # Или ручная настройка
 crontab -e
-# Добавить: 0 3 * * * cd /path/to/project && python3 run_system.py --daily --workers 5 >> run_system_cron.log 2>&1
+# Добавить: 0 3 * * * cd /path/to/project && python3 backend/run_system.py --daily --workers 5 >> run_system_cron.log 2>&1
 ```
 
 ## 💡 Советы
 
 1. **Для первого запуска** всегда используйте `--setup` для полной настройки
-2. **Для повседневного использования** используйте стандартный режим `python run_system.py`
+2. **Для повседневного использования** используйте стандартный режим `python backend/run_system.py`
 3. **Для отладки** используйте `--test` и `--workers 2` для более медленной и детальной работы
 4. **Для автоматизации** используйте `--auto` или настройте cron вручную
 5. **При проблемах** всегда проверяйте логи: `run_system.log` и `auto_update.log`
