@@ -441,6 +441,7 @@
         .thumbnail img { width: 100%; height: 100%; object-fit: cover; transition: filter 0.2s ease; }
         .thumbnail:hover img { filter: brightness(0.75); }
         .thumbnail.more { position: relative; }
+        .thumbnail.more:hover img { filter: none; } /* у "+N фото" уже есть затемнение */
         .thumbnail.more span {
             position: absolute;
             inset: 0;
@@ -3259,22 +3260,6 @@
 
             const mainImgUrl = 'https://ci.encar.com' + photos[0].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
 
-            // Строим миниатюры (первые 3, последняя как "+ N фото")
-            let thumbnailsHtml = '';
-            const thumbCount = Math.min(photos.length, 3);
-            for (let i = 0; i < thumbCount; i++) {
-                const thumbUrl = 'https://ci.encar.com' + photos[i].path + '?impolicy=heightRate&rh=384&cw=640&ch=384&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
-                thumbnailsHtml += `<button type="button" class="thumbnail ${i === 0 ? 'active' : ''}" data-index="${i}" aria-label="Миниатюра ${i+1}"><img src="${thumbUrl}" alt="Миниатюра ${i+1}"></button>`;
-            }
-            if (photos.length > 3) {
-                const moreThumb = photos[3];
-                const moreThumbUrl = 'https://ci.encar.com' + moreThumb.path + '?impolicy=heightRate&rh=384&cw=640&ch=384&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
-                thumbnailsHtml += `<button type="button" class="thumbnail more" data-index="more" aria-label="Открыть все фотографии">
-                        <img src="${moreThumbUrl}" alt="Дополнительные фото">
-                        <span>+${photos.length-3} фото</span>
-                    </button>`;
-            }
-
             return `
                 <div class="gallery-section">
                     <div class="gallery-card">
@@ -3294,7 +3279,7 @@
                                 </div>
                             </div>
                             <div class="gallery-thumbs-col" id="thumbnailsRow">
-                                ${thumbnailsHtml}
+                                <!-- миниатюры строятся динамически при перелистывании -->
                             </div>
                         </div>
                     </div>
@@ -3968,6 +3953,34 @@
 
             let currentIdx = 0;
 
+            function buildThumbUrl(p) {
+                return 'https://ci.encar.com' + p.path + '?impolicy=heightRate&rh=384&cw=640&ch=384&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+            }
+
+            function renderThumbnailsWindow(centerIndex) {
+                if (!thumbnailsRow || !photosArray.length) return;
+                const len = photosArray.length;
+                // В миниатюрах не показываем текущее главное фото (чтобы не было дубля)
+                const shown = Math.min(3, Math.max(0, len - 1));
+                let html = '';
+                for (let k = 0; k < shown; k++) {
+                    const idx = (centerIndex + 1 + k) % len;
+                    const p = photosArray[idx];
+                    html += `<button type="button" class="thumbnail" data-index="${idx}" aria-label="Миниатюра ${idx+1}"><img src="${buildThumbUrl(p)}" alt="Миниатюра ${idx+1}"></button>`;
+                }
+                // "+N фото" показываем только если после текущего + показанных ещё что-то остаётся
+                const remaining = len - 1 - shown;
+                if (remaining > 0) {
+                    const moreIdx = (centerIndex + 1 + shown) % len;
+                    const moreP = photosArray[moreIdx];
+                    html += `<button type="button" class="thumbnail more" data-index="more" aria-label="Открыть все фотографии">
+                        <img src="${buildThumbUrl(moreP)}" alt="Дополнительные фото">
+                        <span>+${remaining} фото</span>
+                    </button>`;
+                }
+                thumbnailsRow.innerHTML = html;
+            }
+
             function updateMainPhoto(index) {
                 if (index < 0) index = photosArray.length - 1;
                 if (index >= photosArray.length) index = 0;
@@ -3975,10 +3988,7 @@
                 const imgUrl = 'https://ci.encar.com' + photosArray[index].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
                 mainPhoto.src = imgUrl;
                 galleryCounter.textContent = (index+1) + '/' + photosArray.length;
-
-                document.querySelectorAll('.thumbnail').forEach(function(thumb) {
-                    thumb.classList.toggle('active', thumb.dataset.index === String(index));
-                });
+                renderThumbnailsWindow(index);
             }
 
             let dragStartX = null;
@@ -4033,6 +4043,9 @@
             var galleryMainNext = document.getElementById('galleryMainNext');
             if (galleryMainPrev) galleryMainPrev.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); updateMainPhoto(currentIdx - 1); });
             if (galleryMainNext) galleryMainNext.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); updateMainPhoto(currentIdx + 1); });
+
+            // Первичная отрисовка миниатюр
+            renderThumbnailsWindow(currentIdx);
         }
 
         // ---------- Функция для динамического обновления шапки ----------
