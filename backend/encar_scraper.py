@@ -9,6 +9,8 @@ import asyncio
 import json
 import logging
 import os
+import subprocess
+import sys
 import random
 import sqlite3
 import time
@@ -866,11 +868,42 @@ async def run_scraper(
     except Exception:
         pass
 
+    if backend == "sqlite" and isinstance(storage, SQLiteStorage):
+        _run_export_to_frontend(storage.path, log)
+
+
+def _run_export_to_frontend(db_path: str, log) -> None:
+    """После парсинга экспортировать БД в frontend/cars.json."""
+    path = Path(db_path).resolve()
+    if not path.exists():
+        log.warning("БД не найдена для экспорта: %s", path)
+        return
+    backend_dir = Path(__file__).resolve().parent
+    repo_dir = backend_dir.parent
+    out_path = repo_dir / "frontend" / "cars.json"
+    export_script = backend_dir / "export_from_scraper_db.py"
+    if not export_script.exists():
+        log.warning("Скрипт экспорта не найден: %s", export_script)
+        return
+    try:
+        r = subprocess.run(
+            [os.environ.get("PYTHON", sys.executable), str(export_script), "--db", str(path), "--out", str(out_path)],
+            cwd=str(backend_dir),
+        )
+        if r.returncode == 0:
+            log.info("Экспорт в frontend/cars.json выполнен")
+        else:
+            log.warning("Экспорт завершился с кодом %s", r.returncode)
+    except Exception as e:
+        log.warning("Ошибка экспорта на фронт: %s", e)
+
 
 def main() -> None:
     import argparse
+    _repo_root = Path(__file__).resolve().parent.parent
+    _default_config = _repo_root / "scraper_config.yaml"
     p = argparse.ArgumentParser(description="Encar async scraper: list pages + detail workers")
-    p.add_argument("--config", default="scraper_config.yaml", help="Config YAML path")
+    p.add_argument("--config", default=str(_default_config), help="Config YAML path (default: repo root)")
     p.add_argument("--max-cars", type=int, default=None, metavar="N", help="Stop after N cars saved (overrides config)")
     p.add_argument("--only-pending", action="store_true", help="Only process pending IDs from checkpoint (no list producer)")
     args = p.parse_args()

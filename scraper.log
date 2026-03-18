@@ -261,3 +261,21 @@
 2026-03-13 20:17:13,996 [INFO] encar_scraper: Starting Encar scraper (only-pending)
 2026-03-13 20:17:14,002 [INFO] encar_scraper: Run limited to max_cars=2000
 2026-03-13 20:17:29,011 [INFO] encar_scraper: Scraper finished. list_pages=0 ids_discovered=0 ids_queued=0 processed=0 saved=0 detail_fail=0 parse_fail=0 elapsed=15.0s
+2026-03-18 20:50:49,534 [INFO] encar_scraper: Starting Encar scraper
+2026-03-18 20:50:49,559 [INFO] encar_scraper: Run limited to max_cars=2000
+2026-03-18 20:50:51,907 [INFO] encar_scraper: List car_type=for offset=5300 items=100 queued=18
+2026-03-18 20:50:56,184 [INFO] encar_scraper: List car_type=for offset=5400 items=100 queued=53
+2026-03-18 20:50:58,142 [INFO] encar_scraper: List car_type=for offset=5500 items=100 queued=28
+2026-03-18 20:51:01,692 [INFO] encar_scraper: List car_type=for offset=5600 items=100 queued=35
+2026-03-18 20:51:05,620 [INFO] encar_scraper: List car_type=for offset=5700 items=100 queued=66
+2026-03-18 20:51:07,196 [INFO] encar_scraper: List car_type=for offset=5800 items=100 queued=35
+2026-03-18 20:51:09,289 [INFO] encar_scraper: List car_type=for offset=5900 items=100 queued=48
+2026-03-18 20:51:10,897 [WARNING] encar_scraper: List page failed car_type=for offset=6000 status=407 err=
+2026-03-18 20:51:11,554 [WARNING] encar_scraper: List page failed car_type=kor offset=0 status=407 err=
+2026-03-18 20:51:11,555 [INFO] encar_scraper: List producer finished for car_types=['for', 'kor']
+2026-03-18 20:51:30,633 [INFO] encar_scraper: Worker 4 saved car_id=40147736 total=100
+2026-03-18 20:51:49,571 [INFO] encar_scraper: Stats: processed=153 saved=148 detail_fail=0 parse_fail=5 pending=19 queue_size=32
+2026-03-18 20:52:30,133 [INFO] encar_scraper: Worker 3 saved car_id=40868992 total=200
+2026-03-18 20:52:31,785 [INFO] encar_scraper: Scraper finished. list_pages=7 ids_discovered=700 ids_queued=283 processed=213 saved=202 detail_fail=0 parse_fail=11 elapsed=102.2s
+2026-03-18 20:52:31,786 [INFO] encar_scraper: Мощность: с мощностью=0 без мощности=202
+2026-03-18 20:52:36,622 [INFO] encar_scraper: Экспорт в frontend/cars.json выполнен

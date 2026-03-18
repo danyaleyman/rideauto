@@ -256,7 +256,7 @@
             position: relative;
             width: 100%;
             height: 100%;
-            background: transparent;
+            background: var(--wra-gray-200);
             border-radius: 16px;
             overflow: hidden;
             cursor: pointer;
@@ -266,9 +266,13 @@
             height: 100%;
             object-fit: cover;
             object-position: center center;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.15s ease;
+            opacity: 0;
         }
-        .gallery-main:hover img {
+        .gallery-main img.main-photo-loaded {
+            opacity: 1;
+        }
+        .gallery-main:hover img.main-photo-loaded {
             transform: scale(1.02);
         }
         .gallery-thumbs-col {
@@ -311,14 +315,18 @@
             object-position: center;
             border-radius: 12px;
             display: block;
+            opacity: 0;
+            transition: opacity 0.15s ease;
         }
+        .gallery-thumbs-col .thumbnail img.thumb-loaded { opacity: 1; }
+        .gallery-thumbs-col .thumbnail { background: var(--wra-gray-200); }
         .gallery-thumbs-col .thumbnail.more span {
             position: absolute;
             inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.45);
             color: var(--wra-gray-50);
             font-weight: var(--font-bold);
             font-size: var(--text-sm);
@@ -378,7 +386,8 @@
             transition: opacity 0.2s, background 0.2s;
             opacity: 0;
         }
-        .gallery-main-prev img, .gallery-main-next img { display: block; pointer-events: none; }
+        .gallery-main-prev img, .gallery-main-next img,
+        .gallery-main-prev svg, .gallery-main-next svg { display: block; pointer-events: none; }
         .gallery-main-prev:hover, .gallery-main-next:hover { background: rgba(0,0,0,0.7); }
         .gallery-main-prev { left: 16px; }
         .gallery-main-next { right: 16px; }
@@ -435,13 +444,14 @@
             cursor: pointer;
             border: 2px solid transparent;
             transition: all 0.2s;
-            background: var(--wra-gray-100);
+            background: var(--wra-gray-200);
         }
         .thumbnail.active { border-color: var(--color-primary, #3b82f6); }
-        .thumbnail img { width: 100%; height: 100%; object-fit: cover; transition: filter 0.2s ease; }
+        .thumbnail img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.15s ease, filter 0.2s ease; }
+        .thumbnail img.thumb-loaded { opacity: 1; }
         .thumbnail:hover img { filter: brightness(0.75); }
         .thumbnail.more { position: relative; }
-        .thumbnail.more:hover img { filter: none; } /* у "+N фото" уже есть затемнение */
+        .thumbnail.more:hover img { filter: none; }
         .thumbnail.more span {
             position: absolute;
             inset: 0;
@@ -1743,6 +1753,17 @@
             text-overflow: ellipsis;
             max-width: 160px;
         }
+        /* Фото диагностики: скелетон до загрузки */
+        .diag-photo {
+            position: relative;
+        }
+        .diag-photo .diag-photo-img {
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .diag-photo .diag-photo-img.diag-loaded {
+            opacity: 1;
+        }
         .zone-tooltip .tooltip-part {
             word-break: break-word;
         }
@@ -2318,10 +2339,15 @@
     </div>
 
     <!-- динамический контент (две колонки) -->
-    <div id="car-content" class="space-y-8">
-        <div class="text-center py-12 text-gray-400">Загрузка данных...</div>
+    <div id="car-content" class="space-y-8" aria-busy="true">
+        <div class="car-loading-skeleton">
+            <div class="car-skeleton-block" style="height:400px; border-radius:16px; background:linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size:200% 100%; animation:car-skeleton-pulse 1.2s ease-in-out infinite;"></div>
+            <div class="car-skeleton-block" style="height:120px; margin-top:24px; border-radius:12px; background:linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size:200% 100%; animation:car-skeleton-pulse 1.2s ease-in-out infinite;"></div>
+            <div class="car-skeleton-block" style="height:200px; margin-top:24px; border-radius:12px; background:linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size:200% 100%; animation:car-skeleton-pulse 1.2s ease-in-out infinite;"></div>
+        </div>
     </div>
 </div>
+<style>@keyframes car-skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
 
 <!-- Модальное окно галереи -->
 <div id="galleryModal" class="modal">
@@ -2822,10 +2848,10 @@
             { part: 'Левая передняя дверь', left: 0, top: 22, width: 28, height: 38 },
             { part: 'Левая задняя дверь', left: 0, top: 48, width: 28, height: 28 },
             { part: 'Левое заднее крыло', left: 0, top: 74, width: 28, height: 36 },
-            { part: 'Правое переднее крыло', left: 80, top: 0, width: 12, height: 22 },
+            { part: 'Правое переднее крыло', left: 80, top: 0, width: 0, height: 38 },
             { part: 'Правая передняя дверь', left: 80, top: 22, width: 08, height: 26 },
             { part: 'Правая задняя дверь', left: 80, top: 48, width: 08, height: 26 },
-            { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 24 },
+            { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 36 },
         ];
         var exteriorPanelMap = { 'FRONT_DOOR_LEFT': 'Левая передняя дверь', 'FRONT_DOOR_RIGHT': 'Правая передняя дверь', 'BACK_DOOR_LEFT': 'Левая задняя дверь', 'BACK_DOOR_RIGHT': 'Правая задняя дверь', 'HOOD': 'Капот', 'TRUNK_LID': 'Крышка багажника', 'FRONT_FENDER_LEFT': 'Левое переднее крыло', 'FRONT_FENDER_RIGHT': 'Правое переднее крыло', 'REAR_FENDER_LEFT': 'Левое заднее крыло', 'REAR_FENDER_RIGHT': 'Правое заднее крыло', 'BACK_FENDER_LEFT': 'Левое заднее крыло', 'BACK_FENDER_RIGHT': 'Правое заднее крыло' };
         // Корейские названия деталей (outers) -> русские (для схемы кузова)
@@ -3085,9 +3111,10 @@
             var diagPhotos = (diagnosisPhotos || []).filter(function(url) { return typeof url === 'string' && url.trim() !== ''; }).slice(0, 5);
             var photoBlock = '';
             if (diagPhotos.length) {
-                photoBlock = '<div id="diagnostics" class="mt-6"><h3 class="text-base font-semibold mb-3 flex items-center">Фото диагностики</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
-                diagPhotos.forEach(function(url) {
-                    photoBlock += '<div class="diag-photo rounded-xl overflow-hidden border border-gray-200"><img src="' + url + '" class="w-full h-full object-cover" loading="lazy" onclick="window.open(\'' + url.replace(/'/g, "\\'") + '\')" style="cursor:pointer"></div>';
+                photoBlock = '<div id="diagnostics" class="mt-6"><h3 class="text-base font-semibold mb-3 flex items-center">Фото диагностики</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-3 diag-photos-grid">';
+                diagPhotos.forEach(function(url, i) {
+                    var safeUrl = url.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    photoBlock += '<div class="diag-photo diag-photo-skeleton rounded-xl overflow-hidden border border-gray-200" data-diag-index="' + i + '" role="button" tabindex="0" style="cursor:pointer;background:var(--wra-gray-200);aspect-ratio:4/3;"><img src="' + safeUrl + '" class="diag-photo-img w-full h-full object-cover" loading="lazy" alt="Фото диагностики ' + (i+1) + '"></div>';
                 });
                 photoBlock += '</div></div>';
             }
@@ -3192,57 +3219,66 @@
         // Глобальные переменные для модалки
         let currentPhotoIndex = 0;
         let photosArray = [];
+        var modalPhotosArray = [];
 
-        function openModal(index) {
+        function getModalThumbUrl(p) {
+            var path = p.path || '';
+            return path.indexOf('http') === 0 ? path : ('https://ci.encar.com' + path + '?impolicy=heightRate&rh=120&cw=200&ch=120&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700');
+        }
+        function getModalMainUrl(p) {
+            var path = p.path || '';
+            return path.indexOf('http') === 0 ? path : ('https://ci.encar.com' + path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700');
+        }
+
+        function openModal(index, sourcePhotos) {
+            modalPhotosArray = (sourcePhotos && sourcePhotos.length) ? sourcePhotos : photosArray;
             const modal = document.getElementById('galleryModal');
             const modalMain = document.getElementById('modalMain');
             const modalCounter = document.getElementById('modalCounter');
-            if (!modal || !photosArray.length) return;
+            if (!modal || !modalPhotosArray.length) return;
             var carContent = document.getElementById('car-content');
             if (carContent) carContent.querySelectorAll('.condition-zone.tooltip-visible').forEach(function(z) { z.classList.remove('tooltip-visible'); });
-            currentPhotoIndex = (index + photosArray.length) % photosArray.length;
+            currentPhotoIndex = (index + modalPhotosArray.length) % modalPhotosArray.length;
 
             const modalThumbs = document.getElementById('modalThumbs');
-            if (modalThumbs && !modalThumbs.dataset.inited) {
-                let thumbsHtml = '';
-                photosArray.forEach((p, idx) => {
-                    const tUrl = 'https://ci.encar.com' + p.path + '?impolicy=heightRate&rh=120&cw=200&ch=120&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
-                    thumbsHtml += `<button type="button" class="modal-thumb${idx === currentPhotoIndex ? ' active' : ''}" data-index="${idx}" aria-label="Миниатюра ${idx+1} в модалке"><img src="${tUrl}" alt="Миниатюра ${idx+1}"></button>`;
-                });
-                modalThumbs.innerHTML = thumbsHtml;
-                modalThumbs.dataset.inited = 'true';
+            modalThumbs.dataset.inited = '';
+            var thumbsHtml = '';
+            modalPhotosArray.forEach(function(p, idx) {
+                var tUrl = getModalThumbUrl(p);
+                thumbsHtml += '<button type="button" class="modal-thumb' + (idx === currentPhotoIndex ? ' active' : '') + '" data-index="' + idx + '" aria-label="Миниатюра ' + (idx+1) + ' в модалке"><img src="' + tUrl + '" alt="Миниатюра ' + (idx+1) + '"></button>';
+            });
+            modalThumbs.innerHTML = thumbsHtml;
+            modalThumbs.dataset.inited = 'true';
 
-                modalThumbs.addEventListener('click', (e) => {
-                    const btn = e.target.closest('.modal-thumb');
-                    if (!btn) return;
-                    const idx = parseInt(btn.dataset.index, 10);
-                    if (Number.isNaN(idx)) return;
-                    currentPhotoIndex = idx;
-                    updateModal();
-                });
-            }
+            modalThumbs.onclick = function(e) {
+                var btn = e.target.closest('.modal-thumb');
+                if (!btn) return;
+                var idx = parseInt(btn.dataset.index, 10);
+                if (Number.isNaN(idx)) return;
+                currentPhotoIndex = idx;
+                updateModal();
+            };
 
             updateModal();
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
-            if (modalThumbs) {
-                modalThumbs.classList.remove('thumb-row-animate');
-                requestAnimationFrame(function() { modalThumbs.classList.add('thumb-row-animate'); });
-            }
+            modalThumbs.classList.remove('thumb-row-animate');
+            requestAnimationFrame(function() { modalThumbs.classList.add('thumb-row-animate'); });
         }
 
         function updateModal() {
             const modalMain = document.getElementById('modalMain');
             const modalCounter = document.getElementById('modalCounter');
-            if (!modalMain || !photosArray.length) return;
-            currentPhotoIndex = (currentPhotoIndex + photosArray.length) % photosArray.length;
-            const imgUrl = 'https://ci.encar.com' + photosArray[currentPhotoIndex].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+            if (!modalMain || !modalPhotosArray.length) return;
+            currentPhotoIndex = (currentPhotoIndex + modalPhotosArray.length) % modalPhotosArray.length;
+            var p = modalPhotosArray[currentPhotoIndex];
+            var imgUrl = getModalMainUrl(p);
             const wrap = document.getElementById('modalMainImgWrap');
-            if (wrap) wrap.innerHTML = `<img src="${imgUrl}" alt="Фото автомобиля">`;
-            modalCounter.textContent = `${currentPhotoIndex+1} / ${photosArray.length}`;
+            if (wrap) wrap.innerHTML = '<img src="' + imgUrl + '" alt="Фото автомобиля">';
+            modalCounter.textContent = (currentPhotoIndex + 1) + ' / ' + modalPhotosArray.length;
 
-            const thumbs = document.querySelectorAll('.modal-thumb');
-            thumbs.forEach((thumb, idx) => {
+            var thumbs = document.querySelectorAll('.modal-thumb');
+            thumbs.forEach(function(thumb, idx) {
                 thumb.classList.toggle('active', idx === currentPhotoIndex);
             });
         }
@@ -3267,8 +3303,8 @@
                             <div class="gallery-main-wrap">
                                 <div class="gallery-main" id="galleryMain">
                                     <img src="${mainImgUrl}" alt="${title || 'Фото автомобиля'}" id="mainPhoto">
-                                    <button type="button" class="gallery-main-prev" id="galleryMainPrev" aria-label="Предыдущее фото"><img src="image/Chevron_Left.svg" alt="" width="24" height="24"></button>
-                                    <button type="button" class="gallery-main-next" id="galleryMainNext" aria-label="Следующее фото"><img src="image/Chevron_Right.svg" alt="" width="24" height="24"></button>
+                                    <button type="button" class="gallery-main-prev" id="galleryMainPrev" aria-label="Предыдущее фото"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                                    <button type="button" class="gallery-main-next" id="galleryMainNext" aria-label="Следующее фото"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M9 5L16 12L9 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                                     <div class="gallery-counter-wrap">
                                         <span class="gallery-counter" id="galleryCounter">1/${photos.length}</span>
                                     </div>
@@ -3772,6 +3808,7 @@
                 ? `<div class="card"><h2 class="card-title">Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${partNamesRu[k] || k}</td><td>${statusRu[v] || v}</td></tr>`).join('')}</table></div>` : '';
 
             const conditionDiagramHtml = renderConditionDiagram(rawData, extra.diagnosis_photos || []);
+            window.diagnosisPhotosForModal = (extra.diagnosis_photos || []).filter(function(url) { return typeof url === 'string' && url.trim() !== ''; }).slice(0, 5).map(function(url) { return { path: url }; });
             const inspectionCombinedHtml = renderInspectionCombined(insp);
 
             let recordHtml = '';
@@ -3846,6 +3883,7 @@
 
             const leftColumnHtml = leftColumnContent.join('');
 
+            container.setAttribute('aria-busy', 'false');
             container.innerHTML = `
                 ${galleryHtml}
                 <div class="details-layout">
@@ -3882,6 +3920,19 @@
 
             // Динамическое обновление шапки навигации
             updateHeaderNavigation();
+
+            // Фото диагностики: скелетон до загрузки, открытие в модалке
+            document.querySelectorAll('.diag-photo').forEach(function(el) {
+                var i = parseInt(el.getAttribute('data-diag-index'), 10);
+                if (!isNaN(i) && window.diagnosisPhotosForModal && window.diagnosisPhotosForModal.length) {
+                    el.addEventListener('click', function() { openModal(i, window.diagnosisPhotosForModal); });
+                    el.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(i, window.diagnosisPhotosForModal); } });
+                }
+            });
+            document.querySelectorAll('.diag-photo-img').forEach(function(img) {
+                function show() { img.classList.add('diag-loaded'); }
+                if (img.complete) show(); else img.addEventListener('load', show);
+            });
 
             // Блок "Похожие по цене" — ленивая загрузка при скролле до него
             var similarPlaceholder = document.createElement('div');
@@ -3979,17 +4030,26 @@
                     </button>`;
                 }
                 thumbnailsRow.innerHTML = html;
+                // Показывать миниатюры только после загрузки — при быстром перелистывании не видно «бэка»
+                thumbnailsRow.querySelectorAll('.thumbnail img').forEach(function (img) {
+                    function show() { img.classList.add('thumb-loaded'); }
+                    if (img.complete) show(); else img.addEventListener('load', show);
+                });
             }
 
             function updateMainPhoto(index) {
                 if (index < 0) index = photosArray.length - 1;
                 if (index >= photosArray.length) index = 0;
                 currentIdx = index;
+                // Скелетон только при первой загрузке; при перелистывании не показываем — миниатюры уже прогружены
                 const imgUrl = 'https://ci.encar.com' + photosArray[index].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
                 mainPhoto.src = imgUrl;
                 galleryCounter.textContent = (index+1) + '/' + photosArray.length;
                 renderThumbnailsWindow(index);
             }
+
+            mainPhoto.addEventListener('load', function() { mainPhoto.classList.add('main-photo-loaded'); });
+            if (mainPhoto.complete) mainPhoto.classList.add('main-photo-loaded');
 
             let dragStartX = null;
             let dragging = false;
@@ -4202,7 +4262,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const carId = urlParams.get('id');
         if (!carId) {
-            document.getElementById('car-content').innerHTML = '<div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100 p-12 text-center text-red-500">❌ Не указан ID автомобиля</div>';
+            var el = document.getElementById('car-content');
+            if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не указан ID автомобиля.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }
             return;
         }
 
@@ -4222,14 +4283,16 @@
                     return String(item.id) === String(carId) || String(item.inner_id) === String(carId) || String((item.data && item.data.inner_id) || '') === String(carId);
                 });
                 if (!carData) {
-                    document.getElementById('car-content').innerHTML = '<div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100 p-12 text-center text-red-500">❌ Автомобиль с таким ID не найден</div>';
+                    var el = document.getElementById('car-content');
+                    if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Автомобиль с таким ID не найден.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }
                     return;
                 }
                 renderCar(carData);
             })
             .catch(function(err) {
                 console.error(err);
-                document.getElementById('car-content').innerHTML = '<div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100 p-12 text-center text-red-500">❌ Не удалось загрузить данные. Проверьте подключение к интернету.</div>';
+                var el = document.getElementById('car-content');
+                if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не удалось загрузить данные. Проверьте подключение к интернету.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }
             });
 
         // Обработчики модалки

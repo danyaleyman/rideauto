@@ -20,6 +20,7 @@ from encar_scraper import (
     Checkpoint,
     ChunkedJSONStorage,
     SQLiteStorage,
+    _run_export_to_frontend,
     load_config,
     setup_logging,
 )
@@ -174,6 +175,9 @@ async def run_one_cycle(config_path: str, config: dict, log) -> None:
         storage.close()
 
     run_only_pending(config_path, log)
+    if backend == "sqlite":
+        db_path = Path.cwd() / storage_cfg.get("sqlite", {}).get("path", "encar_cars.db")
+        _run_export_to_frontend(str(db_path), log)
 
 
 def main() -> None:

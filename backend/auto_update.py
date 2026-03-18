@@ -13,6 +13,7 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, List, Optional
+from pathlib import Path
 
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -36,7 +37,15 @@ class AutoUpdateManager:
     """Менеджер автоматического обновления"""
     
     def __init__(self, config: Dict = None):
-        self.config = config or self._get_default_config()
+        defaults = self._get_default_config()
+        self.config = defaults
+        if config and isinstance(config, dict):
+            # Мягкое слияние, чтобы можно было передавать только часть настроек
+            for k, v in config.items():
+                if isinstance(v, dict) and isinstance(self.config.get(k), dict):
+                    self.config[k].update(v)
+                else:
+                    self.config[k] = v
         self.system = None
         self.db = None
         
@@ -82,47 +91,50 @@ class AutoUpdateManager:
     def setup_database(self):
         """Настраивает PostgreSQL базу данных"""
         try:
-            self.db = PostgreSQLDatabase(**self.config['db_config'])
-            logger.info("✅ PostgreSQL база данных подключена")
+            db_cfg = self.config.get('db_config') or {}
+            self.db = PostgreSQLDatabase(**db_cfg)
+            logger.info("PostgreSQL база данных подключена")
+            return True
         except Exception as e:
-            logger.error(f"❌ Ошибка подключения к PostgreSQL: {e}")
-            raise
+            logger.error(f"Ошибка подключения к PostgreSQL: {e}")
+            # В окружениях без PostgreSQL продолжаем обновление без БД (экспорт в cars.json)
+            self.db = None
+            return False
     
     def setup_system(self):
         """Настраивает систему парсинга"""
         try:
-            # Создаем систему с PostgreSQL базой данных
             self.system = EncarSystem()
-            # Заменяем базу данных на PostgreSQL
-            self.system.db = self.db
-            # Заменяем экспорт на PostgreSQL версию
-            from export_system import ExportSystem
-            self.system.exporter = ExportSystem(self.db)
-            
-            logger.info("✅ Система парсинга настроена")
+            if self.db is not None:
+                # Заменяем базу данных на PostgreSQL
+                self.system.db = self.db
+                # Заменяем экспорт на PostgreSQL версию
+                from export_system import ExportSystem
+                self.system.exporter = ExportSystem(self.db)
+            logger.info("Система парсинга настроена")
         except Exception as e:
-            logger.error(f"❌ Ошибка настройки системы: {e}")
+            logger.error(f"Ошибка настройки системы: {e}")
             raise
     
     def run_daily_update(self) -> Dict:
         """Запускает ежедневное обновление"""
-        logger.info("🔄 Запуск ежедневного обновления...")
+        logger.info("Запуск ежедневного обновления...")
         
         try:
             result = self.system.daily_update(
                 max_workers=self.config['update_config']['max_workers']
             )
             
-            logger.info(f"✅ Ежедневное обновление завершено: {result}")
+            logger.info(f"Ежедневное обновление завершено: {result}")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Ошибка ежедневного обновления: {e}")
+            logger.error(f"Ошибка ежедневного обновления: {e}")
             raise
     
     def run_full_scan(self) -> Dict:
         """Запускает полный скан"""
-        logger.info("🔄 Запуск полного сканирования...")
+        logger.info("Запуск полного сканирования...")
         
         try:
             result = self.system.full_scan(
@@ -130,15 +142,17 @@ class AutoUpdateManager:
                 max_workers=self.config['update_config']['max_workers']
             )
             
-            logger.info(f"✅ Полное сканирование завершено: {result}")
+            logger.info(f"Полное сканирование завершено: {result}")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Ошибка полного сканирования: {e}")
+            logger.error(f"Ошибка полного сканирования: {e}")
             raise
     
     def create_backup(self) -> Optional[str]:
         """Создает резервную копию базы данных"""
+        if not self.db:
+            return None
         if not self.config['backup_config']['enabled']:
             return None
         
@@ -167,18 +181,20 @@ class AutoUpdateManager:
             result = subprocess.run(cmd, env=env, capture_output=True, text=True)
             
             if result.returncode == 0:
-                logger.info(f"✅ Резервная копия создана: {backup_file}")
+                logger.info(f"Резервная копия создана: {backup_file}")
                 return backup_file
             else:
-                logger.error(f"❌ Ошибка создания резервной копии: {result.stderr}")
+                logger.error(f"Ошибка создания резервной копии: {result.stderr}")
                 return None
                 
         except Exception as e:
-            logger.error(f"❌ Ошибка создания резервной копии: {e}")
+            logger.error(f"Ошибка создания резервной копии: {e}")
             return None
     
     def cleanup_old_backups(self):
         """Удаляет старые резервные копии"""
+        if not self.db:
+            return
         if not self.config['backup_config']['enabled']:
             return
         
@@ -201,10 +217,10 @@ class AutoUpdateManager:
                         removed_count += 1
             
             if removed_count > 0:
-                logger.info(f"🧹 Удалено {removed_count} старых резервных копий")
+                logger.info(f"Удалено {removed_count} старых резервных копий")
                 
         except Exception as e:
-            logger.error(f"❌ Ошибка очистки резервных копий: {e}")
+            logger.error(f"Ошибка очистки резервных копий: {e}")
     
     def send_notification(self, subject: str, body: str, is_error: bool = False):
         """Отправляет email уведомление"""
@@ -231,16 +247,16 @@ class AutoUpdateManager:
             server.send_message(msg)
             server.quit()
             
-            logger.info(f"📧 Уведомление отправлено: {subject}")
+            logger.info(f"Уведомление отправлено: {subject}")
             
         except Exception as e:
-            logger.error(f"❌ Ошибка отправки уведомления: {e}")
+            logger.error(f"Ошибка отправки уведомления: {e}")
     
     def get_system_health_check(self) -> Dict:
         """Проверяет состояние системы"""
         try:
             if not self.db:
-                return {'status': 'error', 'message': 'Database not connected'}
+                return {'status': 'warning', 'message': 'Database not connected'}
             
             stats = self.db.get_stats()
             perf_stats = self.db.get_performance_stats()
@@ -253,22 +269,62 @@ class AutoUpdateManager:
             }
             
         except Exception as e:
-            logger.error(f"❌ Ошибка проверки состояния системы: {e}")
+            logger.error(f"Ошибка проверки состояния системы: {e}")
             return {'status': 'error', 'message': str(e)}
     
     def run_update(self) -> Dict:
         """Запускает процесс обновления"""
         start_time = datetime.now()
         update_type = self.config['update_config']['update_type']
+        backup_file = None
         
         try:
             # Настройка системы
-            self.setup_database()
+            db_ok = self.setup_database()
+            # Если PostgreSQL недоступен — запускаем обновление через SQLite-based пайплайн
+            if not db_ok:
+                logger.warning("PostgreSQL недоступен. Запускаю обновление через encar_daily_update.py (SQLite checkpoint).")
+                backend_dir = Path(__file__).resolve().parent
+                repo_dir = backend_dir.parent
+                config_path = repo_dir / "scraper_config.yaml"
+                daily_update_path = backend_dir / "encar_daily_update.py"
+
+                cmd = [sys.executable, str(daily_update_path), "--once", "--config", str(config_path)]
+                proc = subprocess.run(cmd, cwd=str(repo_dir))
+                end_time = datetime.now()
+                duration = (end_time - start_time).total_seconds()
+                status = "success" if proc.returncode == 0 else "error"
+                # После успешного обновления подтягиваем данные на фронт (cars.json)
+                if proc.returncode == 0:
+                    db_path = repo_dir / "encar_cars.db"
+                    out_path = repo_dir / "frontend" / "cars.json"
+                    if db_path.exists():
+                        export_script = backend_dir / "export_from_scraper_db.py"
+                        export_cmd = [sys.executable, str(export_script), "--db", str(db_path), "--out", str(out_path)]
+                        exp = subprocess.run(export_cmd, cwd=str(backend_dir))
+                        if exp.returncode == 0:
+                            logger.info("Экспорт в frontend/cars.json выполнен")
+                        else:
+                            logger.warning("Экспорт в frontend/cars.json завершился с ошибкой")
+                    else:
+                        logger.warning("encar_cars.db не найден после обновления, экспорт на фронт пропущен")
+                report = {
+                    "status": status,
+                    "update_type": "daily_sqlite",
+                    "duration_seconds": duration,
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "backup_file": None,
+                    "result": {"returncode": proc.returncode},
+                    "health_check": {"status": "warning", "message": "PostgreSQL not connected; used SQLite pipeline"},
+                }
+                return report
+
             self.setup_system()
             
             # Проверка состояния системы
             health_check = self.get_system_health_check()
-            logger.info(f"🏥 Проверка состояния системы: {health_check['status']}")
+            logger.info(f"Проверка состояния системы: {health_check['status']}")
             
             # Создание резервной копии
             backup_file = self.create_backup()
@@ -323,7 +379,7 @@ class AutoUpdateManager:
                 
                 self.send_notification(subject, body, is_error=False)
             
-            logger.info("🎉 Автоматическое обновление завершено успешно!")
+            logger.info("Автоматическое обновление завершено успешно!")
             return report
             
         except Exception as e:
@@ -358,7 +414,7 @@ class AutoUpdateManager:
                 
                 self.send_notification(subject, body, is_error=True)
             
-            logger.error(f"❌ Автоматическое обновление завершилось с ошибкой: {e}")
+            logger.error(f"Автоматическое обновление завершилось с ошибкой: {e}")
             return error_report
 
 
