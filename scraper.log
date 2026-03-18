@@ -279,3 +279,31 @@
 2026-03-18 20:52:31,785 [INFO] encar_scraper: Scraper finished. list_pages=7 ids_discovered=700 ids_queued=283 processed=213 saved=202 detail_fail=0 parse_fail=11 elapsed=102.2s
 2026-03-18 20:52:31,786 [INFO] encar_scraper: Мощность: с мощностью=0 без мощности=202
 2026-03-18 20:52:36,622 [INFO] encar_scraper: Экспорт в frontend/cars.json выполнен
+2026-03-18 21:13:19,008 [INFO] encar_scraper: Starting Encar scraper
+2026-03-18 21:13:19,012 [INFO] encar_scraper: Run limited to max_cars=2000
+2026-03-18 21:13:20,967 [INFO] encar_scraper: List car_type=for offset=6000 items=100 queued=30
+2026-03-18 21:13:24,433 [INFO] encar_scraper: List car_type=for offset=6100 items=100 queued=12
+2026-03-18 21:13:26,030 [INFO] encar_scraper: List car_type=for offset=6200 items=100 queued=71
+2026-03-18 21:13:28,317 [INFO] encar_scraper: List car_type=for offset=6300 items=100 queued=96
+2026-03-18 21:13:30,019 [INFO] encar_scraper: List car_type=for offset=6400 items=100 queued=88
+2026-03-18 21:13:31,596 [INFO] encar_scraper: List car_type=for offset=6500 items=100 queued=100
+2026-03-18 21:13:33,621 [INFO] encar_scraper: List car_type=for offset=6600 items=100 queued=100
+2026-03-18 21:13:36,798 [INFO] encar_scraper: List car_type=for offset=6700 items=100 queued=99
+2026-03-18 21:13:38,644 [INFO] encar_scraper: List car_type=for offset=6800 items=100 queued=100
+2026-03-18 21:13:40,909 [INFO] encar_scraper: List car_type=for offset=6900 items=100 queued=100
+2026-03-18 21:13:42,759 [WARNING] encar_scraper: List page failed car_type=for offset=7000 status=407 err=
+2026-03-18 21:13:43,474 [WARNING] encar_scraper: List page failed car_type=kor offset=0 status=407 err=
+2026-03-18 21:13:43,474 [INFO] encar_scraper: List producer finished for car_types=['for', 'kor']
+2026-03-18 21:13:57,960 [INFO] encar_scraper: Worker 2 saved car_id=37326020 total=100
+2026-03-18 21:14:18,801 [INFO] encar_scraper: Worker 0 saved car_id=41667679 total=200
+2026-03-18 21:14:19,017 [INFO] encar_scraper: Stats: processed=211 saved=202 detail_fail=0 parse_fail=9 pending=461 queue_size=32
+2026-03-18 21:14:39,303 [INFO] encar_scraper: Worker 5 saved car_id=41586628 total=300
+2026-03-18 21:14:59,966 [INFO] encar_scraper: Worker 4 saved car_id=41469784 total=400
+2026-03-18 21:15:19,032 [INFO] encar_scraper: Stats: processed=499 saved=482 detail_fail=0 parse_fail=17 pending=161 queue_size=32
+2026-03-18 21:15:27,930 [INFO] encar_scraper: Worker 3 saved car_id=41685850 total=500
+2026-03-18 21:15:50,590 [INFO] encar_scraper: Worker 0 saved car_id=41213133 total=600
+2026-03-18 21:16:14,440 [INFO] encar_scraper: Worker 6 saved car_id=39251689 total=700
+2026-03-18 21:16:19,047 [INFO] encar_scraper: Stats: processed=746 saved=723 detail_fail=0 parse_fail=23 pending=0 queue_size=7
+2026-03-18 21:16:23,515 [INFO] encar_scraper: Scraper finished. list_pages=10 ids_discovered=1000 ids_queued=796 processed=761 saved=737 detail_fail=0 parse_fail=24 elapsed=184.5s
+2026-03-18 21:16:23,515 [INFO] encar_scraper: Мощность: с мощностью=0 без мощности=737
+2026-03-18 21:16:32,014 [INFO] encar_scraper: Экспорт в frontend/cars.json выполнен
