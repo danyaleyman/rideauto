@@ -1883,18 +1883,6 @@
     let allCars = [];
     let filteredCars = [];
     let page = 1;
-    let useServerApi = false;
-    let serverMeta = { total: 0, pages: 1, page: 1 };
-    const apiBase = (window.localStorage && window.localStorage.getItem('encar_api_base')) || '';
-    /** Публичный origin для ссылок на карточку/отчёт (кнопка «Поделиться»). Переопределение: localStorage encar_site_origin */
-    const siteReportOrigin = (window.localStorage && window.localStorage.getItem('encar_site_origin')) || 'https://www.wrideauto.ru';
-    function absoluteSiteReportUrl(relativePath) {
-      if (!relativePath || relativePath.charAt(0) === '#') return relativePath;
-      if (/^https?:\/\//i.test(relativePath)) return relativePath;
-      var base = siteReportOrigin.replace(/\/$/, '');
-      var path = relativePath.replace(/^\//, '');
-      return base + '/' + path;
-    }
 
     // DOM элементы
     const gridEl = document.getElementById('grid');
@@ -2044,126 +2032,6 @@
 
     let currentSort = 'date_new';
 
-    function buildApiUrl(path, paramsObj) {
-      const qs = new URLSearchParams();
-      Object.keys(paramsObj || {}).forEach(function(k) {
-        const v = paramsObj[k];
-        if (v === null || v === undefined || v === '') return;
-        qs.set(k, String(v));
-      });
-      const base = apiBase ? apiBase.replace(/\/$/, '') : '';
-      return `${base}${path}?${qs.toString()}`;
-    }
-
-    async function loadApiFacets() {
-      const selectedMarks = getSelectedValues(markListEl, 'mark');
-      const facetsUrl = buildApiUrl('/api/facets', { mark: selectedMarks.size ? Array.from(selectedMarks)[0] : '' });
-      const resp = await fetch(facetsUrl);
-      if (!resp.ok) throw new Error('API facets request failed: ' + resp.status);
-      const facets = await resp.json();
-
-      const markValues = (facets.marks || []).map(function(x) { return x.value; });
-      const markCounts = {};
-      (facets.marks || []).forEach(function(x) { markCounts[x.value] = x.count; });
-      renderCheckboxesWithCounts(markListEl, markValues, function(m) { return filterOptionLabel(m, 'mark'); }, function(m) { return markCounts[m] || 0; }, 'mark');
-      setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
-
-      const modelValues = (facets.models || []).map(function(x) { return x.value; });
-      const modelCounts = {};
-      (facets.models || []).forEach(function(x) { modelCounts[x.value] = x.count; });
-      renderCheckboxesWithCounts(modelListEl, modelValues, function(m) { return filterOptionLabel(m, 'model'); }, function(m) { return modelCounts[m] || 0; }, 'model');
-      if (modelTrigger) {
-        modelTrigger.disabled = false;
-        setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
-      }
-    }
-
-    async function fetchApiCars(resetPage) {
-      const selectedMarks = getSelectedValues(markListEl, 'mark');
-      const selectedModels = getSelectedValues(modelListEl, 'model');
-      const selectedGenerations = getSelectedValues(generationListEl, 'generation');
-      const selectedTrims = getSelectedValues(trimListEl, 'trim');
-      const selectedBody = new Set();
-      const selectedFuel = new Set();
-      const selectedTrans = new Set();
-      const selectedColor = new Set();
-      document.querySelectorAll('#bodyList input[type=checkbox]:checked').forEach(cb => selectedBody.add(cb.value));
-      document.querySelectorAll('#fuelList input[type=checkbox]:checked').forEach(cb => selectedFuel.add(cb.value));
-      document.querySelectorAll('#transmissionList input[type=checkbox]:checked').forEach(cb => selectedTrans.add(cb.value));
-      document.querySelectorAll('input[data-filter="color"]:checked').forEach(cb => selectedColor.add(cb.value));
-
-      const powerFrom = document.getElementById('powerFrom').value ? parseInt(document.getElementById('powerFrom').value, 10) : null;
-      const powerTo = document.getElementById('powerTo').value ? parseInt(document.getElementById('powerTo').value, 10) : null;
-      const engineFrom = document.getElementById('engineFrom').value ? parseInt(document.getElementById('engineFrom').value, 10) : null;
-      const engineTo = document.getElementById('engineTo').value ? parseInt(document.getElementById('engineTo').value, 10) : null;
-      const priceFrom = document.getElementById('priceFrom').value ? parseFloat(document.getElementById('priceFrom').value) : null;
-      const priceTo = document.getElementById('priceTo').value ? parseFloat(document.getElementById('priceTo').value) : null;
-      const mileageFrom = document.getElementById('mileageFrom').value ? parseInt(document.getElementById('mileageFrom').value, 10) : null;
-      const mileageTo = document.getElementById('mileageTo').value ? parseInt(document.getElementById('mileageTo').value, 10) : null;
-      const yearFrom = document.getElementById('yearFrom').value ? parseInt(document.getElementById('yearFrom').value, 10) : null;
-      const monthFrom = document.getElementById('monthFrom').value || null;
-      const yearTo = document.getElementById('yearTo').value ? parseInt(document.getElementById('yearTo').value, 10) : null;
-      const monthTo = document.getElementById('monthTo').value || null;
-      const fromYm = (yearFrom && yearFrom > 0) ? yearFrom * 12 + (monthFrom ? parseInt(monthFrom, 10) - 1 : 0) : null;
-      const toYm = (yearTo && yearTo > 0) ? yearTo * 12 + (monthTo ? parseInt(monthTo, 10) - 1 : 11) : null;
-      const driveAwdOnly = document.getElementById('filterDriveAwd').checked;
-      const insuranceCasesFrom = document.getElementById('insuranceCasesFrom').value ? parseInt(document.getElementById('insuranceCasesFrom').value, 10) : null;
-      const insuranceCasesTo = document.getElementById('insuranceCasesTo').value ? parseInt(document.getElementById('insuranceCasesTo').value, 10) : null;
-      const noInsuranceCases = document.getElementById('filterNoInsuranceCases').checked;
-      const insurancePayoutsFrom = document.getElementById('insurancePayoutsFrom').value ? parseFloat(document.getElementById('insurancePayoutsFrom').value) : null;
-      const insurancePayoutsTo = document.getElementById('insurancePayoutsTo').value ? parseFloat(document.getElementById('insurancePayoutsTo').value) : null;
-      const noInsurancePayouts = document.getElementById('filterNoInsurancePayouts').checked;
-      const damagedFrom = document.getElementById('damagedFrom').value ? parseInt(document.getElementById('damagedFrom').value, 10) : null;
-      const damagedTo = document.getElementById('damagedTo').value ? parseInt(document.getElementById('damagedTo').value, 10) : null;
-      const noDamaged = document.getElementById('filterNoDamaged').checked;
-      if (resetPage) page = 1;
-      const params = {
-        page: page,
-        per_page: PER_PAGE,
-        marks: selectedMarks.size ? Array.from(selectedMarks).join(',') : '',
-        models: selectedModels.size ? Array.from(selectedModels).join(',') : '',
-        generations: selectedGenerations.size ? Array.from(selectedGenerations).join(',') : '',
-        trims: selectedTrims.size ? Array.from(selectedTrims).join(',') : '',
-        body: selectedBody.size ? Array.from(selectedBody).join(',') : '',
-        fuel: selectedFuel.size ? Array.from(selectedFuel).join(',') : '',
-        trans: selectedTrans.size ? Array.from(selectedTrans).join(',') : '',
-        color: selectedColor.size ? Array.from(selectedColor).join(',') : '',
-        power_from: powerFrom || '',
-        power_to: powerTo || '',
-        engine_from: engineFrom || '',
-        engine_to: engineTo || '',
-        price_from: priceFrom || '',
-        price_to: priceTo || '',
-        mileage_from: mileageFrom || '',
-        mileage_to: mileageTo || '',
-        year_from: yearFrom || '',
-        year_to: yearTo || '',
-        ym_from: fromYm || '',
-        ym_to: toYm || '',
-        drive_awd: driveAwdOnly ? 1 : '',
-        ins_cases_from: insuranceCasesFrom || '',
-        ins_cases_to: insuranceCasesTo || '',
-        no_insurance_cases: noInsuranceCases ? 1 : '',
-        ins_payout_from: insurancePayoutsFrom || '',
-        ins_payout_to: insurancePayoutsTo || '',
-        no_insurance_payouts: noInsurancePayouts ? 1 : '',
-        damaged_from: damagedFrom || '',
-        damaged_to: damagedTo || '',
-        no_damaged: noDamaged ? 1 : '',
-        sort: currentSort || 'date_new'
-      };
-      const url = buildApiUrl('/api/cars', params);
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error('API cars request failed: ' + resp.status);
-      const data = await resp.json();
-      filteredCars = Array.isArray(data.result) ? data.result : [];
-      serverMeta.total = Number(data.meta && data.meta.total) || 0;
-      serverMeta.pages = Number(data.meta && data.meta.pages) || 1;
-      serverMeta.page = Number(data.meta && data.meta.page) || page;
-      page = serverMeta.page;
-      draw();
-    }
-
     // Форматирование
     function formatYear(raw) {
       if (!raw) return '—';
@@ -2299,86 +2167,6 @@
         text: 'Высокая ставка',
         tooltip: age < 3 ? 'Авто младше 3 лет — максимальная ставка' : 'Авто старше 5 лет — максимальная ставка'
       };
-    }
-
-    function parseNumeric(val, fallback) {
-      const n = Number(String(val == null ? '' : val).replace(',', '.'));
-      return Number.isFinite(n) ? n : fallback;
-    }
-
-    function calculatePriceFallbackRub(d) {
-      const priceWon10k = parseNumeric(d && d.price_won, 0);
-      if (!priceWon10k || priceWon10k <= 0) return null;
-      const krwPerUsdt = parseNumeric(d && d.krw_per_usdt, 1400);
-      const usdtRub = parseNumeric(d && d.usdt_rub, 95);
-      const eurRub = parseNumeric(d && d.eur_rub, 105);
-      const priceWon = priceWon10k * 10000;
-      const documentsKrw = 440000;
-      const freightUsd = 1000;
-      const brokerRub = 86000;
-      const commissionRate = 0.10;
-
-      const krwToRub = usdtRub / krwPerUsdt;
-      const carRub = (priceWon + documentsKrw) * krwToRub;
-      const freightRub = freightUsd * usdtRub;
-      const engineVolume = Math.max(0, Math.round(parseNumeric(d && (d.engine_volume || d.displacement), 2000)));
-      const year = Math.round(parseNumeric(d && d.year, (new Date()).getFullYear() - 5));
-      const ageYears = Math.max(0, (new Date()).getFullYear() - year);
-      const powerHp = parseNumeric(d && (d.power || d.power_hp || d.outputHorsepower), null);
-
-      const customsFeeTiers = [
-        [200000, 1231], [450000, 2462], [1200000, 4924], [2700000, 13541],
-        [4200000, 18465], [5500000, 21344], [10000000, 49240], [Infinity, 73860]
-      ];
-      let customsFee = 73860;
-      for (let i = 0; i < customsFeeTiers.length; i++) {
-        if (carRub <= customsFeeTiers[i][0]) {
-          customsFee = customsFeeTiers[i][1];
-          break;
-        }
-      }
-
-      const dutyRate35 = [1.5, 1.7, 2.5, 2.7, 3.0, 3.6];
-      const dutyRate5p = [3.0, 3.2, 3.5, 4.8, 5.0, 5.7];
-      let idx = 5;
-      if (engineVolume <= 1000) idx = 0;
-      else if (engineVolume <= 1500) idx = 1;
-      else if (engineVolume <= 1800) idx = 2;
-      else if (engineVolume <= 2300) idx = 3;
-      else if (engineVolume <= 3000) idx = 4;
-      let duty = 0;
-      if (ageYears < 3) {
-        const carValueEur = carRub / eurRub;
-        duty = Math.max(carValueEur * 0.54, engineVolume * 2.5) * eurRub;
-      } else {
-        const eurPerCc = ageYears <= 5 ? dutyRate35[idx] : dutyRate5p[idx];
-        duty = engineVolume * eurPerCc * eurRub;
-      }
-
-      let utilCoef = 0.26;
-      if (engineVolume <= 3000 && (powerHp == null || powerHp <= 160)) {
-        utilCoef = ageYears < 3 ? 0.17 : 0.26;
-      } else if (engineVolume <= 3000) {
-        utilCoef = ageYears < 3 ? 129.2 : 197.81;
-      } else {
-        utilCoef = ageYears < 3 ? 164.53 : 219.48;
-      }
-      const utilization = 20000 * utilCoef;
-      const customsTotal = customsFee + duty + utilization;
-      const vehicleSum = carRub + freightRub + customsTotal;
-      const commission = vehicleSum * commissionRate;
-      return vehicleSum + brokerRub + commission;
-    }
-
-    function resolveDisplayPrice(d) {
-      const hasExplicitPrice = d && d.my_price != null && d.my_price !== '' && !d.price_calc_failed;
-      if (hasExplicitPrice) {
-        const value = Math.round(Number(d.my_price));
-        return Number.isFinite(value) ? (value.toLocaleString() + ' ₽') : 'Цена по запросу';
-      }
-      if (d && d.price_calc_failed) return 'Цена по запросу';
-      const fallback = calculatePriceFallbackRub(d);
-      return (fallback && Number.isFinite(fallback)) ? (Math.round(fallback).toLocaleString() + ' ₽') : ((d && d.price_won != null) ? 'Цена по запросу' : '—');
     }
 
     // Сортировка списка
@@ -2552,7 +2340,7 @@
       }
 
       const start = (page - 1) * PER_PAGE;
-      const slice = useServerApi ? filteredCars : filteredCars.slice(start, start + PER_PAGE);
+      const slice = filteredCars.slice(start, start + PER_PAGE);
 
       gridEl.innerHTML = '';
         slice.forEach(car => {
@@ -2579,8 +2367,6 @@
         const bodyRu = toDisplayRu(d.body_type) || '';
         const carUrl = (d.url || '#');
         const detailUrl = car.id != null ? 'car.html?id=' + encodeURIComponent(car.id) : (car.inner_id != null ? 'car.html?id=' + encodeURIComponent(car.inner_id) : (d.inner_id != null ? 'car.html?id=' + encodeURIComponent(d.inner_id) : '#'));
-        const displayPrice = resolveDisplayPrice(d);
-        const isFallbackPrice = displayPrice.indexOf('₽') === -1;
 
         card.innerHTML = `
           <div class="preview">
@@ -2605,8 +2391,8 @@
             </div>
             <div class="price-row">
               <div class="price-block-inline">
-                <span class="price-rub ${isFallbackPrice ? 'price-rub-fallback' : ''}" ${isFallbackPrice && (d.price_calc_failed || d.price_won) ? ' title="Обратитесь к менеджеру для просчёта"' : ''}>
-                  ${displayPrice}
+                <span class="price-rub ${(d.my_price == null || d.my_price === '' || d.price_calc_failed) ? 'price-rub-fallback' : ''}" ${(d.my_price == null || d.my_price === '' || d.price_calc_failed) && (d.price_calc_failed || d.price_won) ? ' title="Обратитесь к менеджеру для просчёта"' : ''}>
+                  ${(d.my_price != null && d.my_price !== '' && !d.price_calc_failed) ? Math.round(Number(d.my_price)).toLocaleString() + ' ₽' : ((d.price_calc_failed || (d.price_won != null && (d.my_price == null || d.my_price === ''))) ? 'Цена по запросу' : '—')}
                 </span>
                 <span class="delivery-line">до Владивостока <span class="info-icon-wrap" title="Доставка до Владивостока"><img src="image/Info.svg" alt="i" width="12" height="12" class="info-icon-img"></span></span>
               </div>
@@ -2651,8 +2437,7 @@
         const shareBtn = card.querySelector('.car-actions .icon-btn:first-child');
         if (shareBtn) shareBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          var shareUrl = absoluteSiteReportUrl(detailUrl);
-          navigator.clipboard.writeText(shareUrl).then(() => {
+          navigator.clipboard.writeText(carUrl).then(() => {
             var toast = document.getElementById('toastLinkCopied');
             if (!toast) {
               toast = document.createElement('div');
@@ -2664,7 +2449,7 @@
             toast.classList.add('show');
             clearTimeout(shareBtn._toastTimer);
             shareBtn._toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2000);
-          }).catch(() => { window.open(shareUrl, '_blank'); });
+          }).catch(() => { window.open(carUrl, '_blank'); });
         });
         // Избранное — переключение состояния
         const favBtn = card.querySelector('.car-actions .icon-btn:last-child');
@@ -2701,20 +2486,18 @@
       });
 
       drawPagination();
-      const totalShown = useServerApi ? serverMeta.total : filteredCars.length;
-      if (foundCounter) foundCounter.innerText = `${totalShown.toLocaleString('ru-RU')} автомобилей`;
-      if (catalogAriaLive) catalogAriaLive.textContent = 'Показано ' + totalShown.toLocaleString('ru-RU') + ' автомобилей';
+      if (foundCounter) foundCounter.innerText = `${filteredCars.length.toLocaleString('ru-RU')} автомобилей`;
+      if (catalogAriaLive) catalogAriaLive.textContent = 'Показано ' + filteredCars.length.toLocaleString('ru-RU') + ' автомобилей';
     }
 
     function drawPagination() {
-      const total = useServerApi ? Math.max(1, serverMeta.pages || 1) : Math.ceil(filteredCars.length / PER_PAGE);
+      const total = Math.ceil(filteredCars.length / PER_PAGE);
       paginationEl.innerHTML = '';
       if (total <= 1) return;
 
       const go = (p) => {
         page = p;
-        if (useServerApi) fetchApiCars(false).catch(console.error);
-        else draw();
+        draw();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
@@ -2901,10 +2684,6 @@
         markListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'mark') return;
           setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
-          if (useServerApi) {
-            loadApiFacets().then(function() { applyFilters(); }).catch(function(err) { console.error('Ошибка API facets', err); });
-            return;
-          }
           rebuildModelList();
           rebuildGenerationList();
           rebuildTrimList();
@@ -2915,7 +2694,6 @@
         modelListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'model') return;
           setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
-          if (useServerApi) { applyFilters(); return; }
           rebuildGenerationList();
           rebuildTrimList();
           applyFilters();
@@ -3162,41 +2940,6 @@
       const damagedTo = document.getElementById('damagedTo').value ? parseInt(document.getElementById('damagedTo').value, 10) : null;
       const noDamaged = document.getElementById('filterNoDamaged').checked;
 
-      if (useServerApi) {
-        let activeCount = 0;
-        if (selectedMarks.size > 0) activeCount++;
-        if (selectedModels.size > 0) activeCount++;
-        if (selectedGenerations.size > 0) activeCount++;
-        if (selectedTrims.size > 0) activeCount++;
-        activeCount += selectedBody.size + selectedFuel.size + selectedTrans.size + selectedColor.size;
-        if (powerFrom !== null) activeCount++;
-        if (powerTo !== null) activeCount++;
-        if (engineFrom !== null) activeCount++;
-        if (engineTo !== null) activeCount++;
-        if (priceFrom !== null) activeCount++;
-        if (priceTo !== null) activeCount++;
-        if (mileageFrom !== null) activeCount++;
-        if (mileageTo !== null) activeCount++;
-        if (yearFrom !== null) activeCount++;
-        if (monthFrom) activeCount++;
-        if (yearTo !== null) activeCount++;
-        if (monthTo) activeCount++;
-        if (driveAwdOnly) activeCount++;
-        if (insuranceCasesFrom !== null) activeCount++;
-        if (insuranceCasesTo !== null) activeCount++;
-        if (noInsuranceCases) activeCount++;
-        if (insurancePayoutsFrom !== null) activeCount++;
-        if (insurancePayoutsTo !== null) activeCount++;
-        if (noInsurancePayouts) activeCount++;
-        if (damagedFrom !== null) activeCount++;
-        if (damagedTo !== null) activeCount++;
-        if (noDamaged) activeCount++;
-        if (filterCountEl) filterCountEl.innerText = activeCount;
-        if (filtersBadge) filtersBadge.textContent = String(activeCount);
-        fetchApiCars(true).catch(function(err) { console.error('Ошибка API фильтрации', err); });
-        return;
-      }
-
       filteredCars = allCars.filter(car => {
         const d = car.data;
         if (!d) return false;
@@ -3314,25 +3057,17 @@
       chk = document.getElementById('filterNoInsuranceCases'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoInsurancePayouts'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoDamaged'); if (chk) chk.checked = false;
-      if (useServerApi) {
-        if (generationListEl) generationListEl.innerHTML = '';
-        if (trimListEl) trimListEl.innerHTML = '';
-        loadApiFacets().then(function() { applyFilters(); }).catch(function(err) { console.error('Ошибка API facets', err); applyFilters(); });
-      } else {
-        rebuildModelList();
-        rebuildGenerationList();
-        rebuildTrimList();
-        applyFilters();
-      }
+      rebuildModelList();
+      rebuildGenerationList();
+      rebuildTrimList();
+      applyFilters();
     }
 
     showSkeleton();
 
     // Загрузка данных и маппинга KO→EN (data/encar_mapping.json от scripts/build_encar_mapping.py)
     const mappingPromise = fetch('data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null);
-
-    function initLocalCatalog() {
-      return Promise.all([ fetch('cars.json').then(r => r.json()), mappingPromise ])
+    Promise.all([ fetch('cars.json').then(r => r.json()), mappingPromise ])
       .then(([data, mapping]) => {
         if (mapping && typeof mapping === 'object') {
           ['mark','model','generation','type','trim'].forEach(cat => {
@@ -3413,27 +3148,6 @@
           gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
         }
       });
-    }
-
-    function initServerCatalog() {
-      useServerApi = true;
-      if (markTrigger) markTrigger.textContent = 'Все марки';
-      if (modelTrigger) { modelTrigger.disabled = false; modelTrigger.textContent = 'Все модели'; }
-      if (generationTrigger) { generationTrigger.disabled = true; generationTrigger.textContent = 'Недоступно в API режиме'; }
-      if (trimTrigger) { trimTrigger.disabled = true; trimTrigger.textContent = 'Недоступно в API режиме'; }
-      return loadApiFacets().then(function() { return fetchApiCars(true); }).then(function() {
-        if (gridEl) gridEl.setAttribute('aria-busy', 'false');
-      }).catch(function(err) {
-        console.error('Ошибка API каталога, fallback на cars.json', err);
-        useServerApi = false;
-        return initLocalCatalog();
-      });
-    }
-
-    fetch(buildApiUrl('/api/health', {}), { method: 'GET' })
-      .then(function(r) { if (!r.ok) throw new Error('health failed'); return r.json(); })
-      .then(function() { return initServerCatalog(); })
-      .catch(function() { return initLocalCatalog(); });
 
     // Кнопка сброса
     document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
@@ -3467,8 +3181,8 @@
       sortSelect.addEventListener('change', () => {
         currentSort = sortSelect.value || 'date_new';
         page = 1;
-        if (useServerApi) fetchApiCars(true).catch(console.error);
-        else { sortFilteredCars(); draw(); }
+        sortFilteredCars();
+        draw();
       });
     }
 
@@ -3536,20 +3250,38 @@
             delay: 400,
           });
         }
+        // #region agent log
+        fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:brand-init',message:'Brand splitting applied',data:{brandChildCount:brandEl.children.length,hasSplitting:brandEl.classList.contains('splitting')},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
+        // #endregion
       });
     }
 
+    // #region agent log
     var _resizeTick = null;
-    function _onHeroResize() {
+    function _logResize() {
+      var w = window.innerWidth;
+      var media900 = window.matchMedia('(max-width: 900px)').matches;
+      var sliderWrap = document.querySelector('.hero-banner-slider-wrap');
+      var swiperEl = document.querySelector('.hero-banner-slider');
+      var firstSlide = swiperEl ? swiperEl.querySelector('.swiper-slide') : null;
+      var sliderWrapW = sliderWrap ? sliderWrap.getBoundingClientRect().width : 0;
+      var swiperElW = swiperEl ? swiperEl.getBoundingClientRect().width : 0;
+      var slideW = firstSlide ? firstSlide.getBoundingClientRect().width : 0;
+      var swiperWidth = heroSwiper && heroSwiper.width != null ? heroSwiper.width : null;
+      fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:resize',message:'Resize before update',data:{innerWidth:w,media900:media900,sliderWrapWidth:sliderWrapW,swiperElWidth:swiperElW,slideWidth:slideW,swiperCachedWidth:swiperWidth},timestamp:Date.now(),hypothesisId:'H1,H2,H3,H4,H5'})}).catch(function(){});
       if (heroSwiper && typeof heroSwiper.update === 'function') {
         heroSwiper.update();
+        var slideWAfter = firstSlide ? firstSlide.getBoundingClientRect().width : 0;
+        var swiperWidthAfter = heroSwiper.width != null ? heroSwiper.width : null;
+        fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:resize',message:'Resize after swiper.update()',data:{slideWidthAfter:slideWAfter,swiperCachedWidthAfter:swiperWidthAfter},timestamp:Date.now(),hypothesisId:'H1,H5'})}).catch(function(){});
       }
     }
     window.addEventListener('resize', function() {
       if (_resizeTick) clearTimeout(_resizeTick);
-      _resizeTick = setTimeout(_onHeroResize, 200);
+      _resizeTick = setTimeout(_logResize, 200);
     });
-    setTimeout(_onHeroResize, 600);
+    setTimeout(_logResize, 600);
+    // #endregion
   })();
 </script>
 

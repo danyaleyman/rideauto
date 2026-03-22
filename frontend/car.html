@@ -1416,7 +1416,6 @@
             border-radius: var(--radius-md);
             background: var(--wra-surface);
             min-height: 80px;
-            overflow: hidden;
         }
         .inspection-block .inspection-group-body {
             display: none;
@@ -1424,7 +1423,6 @@
         }
         .inspection-block .inspection-group-body.is-visible {
             display: block;
-            animation: wraReportPanelIn 0.35s ease-out;
         }
         .inspection-block .inspection-group-body .data-table {
             margin: 0;
@@ -1512,19 +1510,15 @@
         .history-group-body {
             display: none;
             padding: var(--space-4) var(--space-5);
+            animation: historyPanelIn 0.3s ease-out;
         }
         .history-group-body.is-visible {
             display: block;
-            animation: wraReportPanelIn 0.35s ease-out;
         }
-        @keyframes wraReportPanelIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes historyPanelIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-        /* Отчёт истории / инспекции: семантика значений */
-        .report-value-good { color: var(--wra-success); font-weight: var(--font-semibold); }
-        .report-value-warn { color: #d97706; font-weight: var(--font-semibold); }
-        .report-value-bad { color: var(--wra-danger); font-weight: var(--font-semibold); }
         .history-group-body .history-table { margin: 0; }
         .history-data-grid {
             display: grid;
@@ -1564,12 +1558,6 @@
             font-weight: var(--font-medium);
             color: var(--wra-text-muted);
             margin-bottom: 2px;
-        }
-        .history-accident-value {
-            display: block;
-            font-size: var(--text-sm);
-            color: var(--wra-gray-900);
-            line-height: 1.35;
         }
         @media (max-width: 600px) {
             .history-wrap { padding: var(--space-4); }
@@ -2623,11 +2611,6 @@
                 });
             }
         });
-        const apiBase = (window.localStorage && window.localStorage.getItem('encar_api_base')) || '';
-        function buildApiUrl(path) {
-            const base = apiBase ? apiBase.replace(/\/$/, '') : '';
-            return base + path;
-        }
 
         // ---------- Маппинг опций ----------
         const optionRu = {
@@ -2822,63 +2805,6 @@
         function formatKm(km) { return km ? Number(km).toLocaleString() + ' км' : '—'; }
         function formatDate(iso) { return iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
         function formatNumber(num) { return num?.toLocaleString() ?? '—'; }
-        function parseNumeric(val, fallback) {
-            var n = Number(String(val == null ? '' : val).replace(',', '.'));
-            return Number.isFinite(n) ? n : fallback;
-        }
-        function calculatePriceFallbackRub(d) {
-            var priceWon10k = parseNumeric(d && d.price_won, 0);
-            if (!priceWon10k || priceWon10k <= 0) return null;
-            var krwPerUsdt = parseNumeric(d && d.krw_per_usdt, 1400);
-            var usdtRub = parseNumeric(d && d.usdt_rub, 95);
-            var eurRub = parseNumeric(d && d.eur_rub, 105);
-            var priceWon = priceWon10k * 10000;
-            var carRub = (priceWon + 440000) * (usdtRub / krwPerUsdt);
-            var freightRub = 1000 * usdtRub;
-            var engineVolume = Math.max(0, Math.round(parseNumeric(d && (d.engine_volume || d.displacement), 2000)));
-            var year = Math.round(parseNumeric(d && d.year, (new Date()).getFullYear() - 5));
-            var ageYears = Math.max(0, (new Date()).getFullYear() - year);
-            var powerHp = parseNumeric(d && (d.power || d.power_hp || d.outputHorsepower), null);
-            var tiers = [[200000,1231],[450000,2462],[1200000,4924],[2700000,13541],[4200000,18465],[5500000,21344],[10000000,49240],[Infinity,73860]];
-            var customsFee = 73860;
-            for (var i = 0; i < tiers.length; i++) {
-                if (carRub <= tiers[i][0]) { customsFee = tiers[i][1]; break; }
-            }
-            var idx = engineVolume <= 1000 ? 0 : engineVolume <= 1500 ? 1 : engineVolume <= 1800 ? 2 : engineVolume <= 2300 ? 3 : engineVolume <= 3000 ? 4 : 5;
-            var dutyRate35 = [1.5, 1.7, 2.5, 2.7, 3.0, 3.6];
-            var dutyRate5p = [3.0, 3.2, 3.5, 4.8, 5.0, 5.7];
-            var duty = 0;
-            if (ageYears < 3) {
-                var carValueEur = carRub / eurRub;
-                duty = Math.max(carValueEur * 0.54, engineVolume * 2.5) * eurRub;
-            } else {
-                duty = engineVolume * (ageYears <= 5 ? dutyRate35[idx] : dutyRate5p[idx]) * eurRub;
-            }
-            var utilCoef;
-            if (engineVolume <= 3000 && (powerHp == null || powerHp <= 160)) utilCoef = ageYears < 3 ? 0.17 : 0.26;
-            else if (engineVolume <= 3000) utilCoef = ageYears < 3 ? 129.2 : 197.81;
-            else utilCoef = ageYears < 3 ? 164.53 : 219.48;
-            var customsTotal = customsFee + duty + (20000 * utilCoef);
-            var vehicleSum = carRub + freightRub + customsTotal;
-            var total = vehicleSum + 86000 + (vehicleSum * 0.10);
-            return Number.isFinite(total) ? total : null;
-        }
-        function resolveDisplayPrice(d, options) {
-            var opts = options || {};
-            var fallbackText = opts.fallbackText || 'Цена по запросу';
-            var hasExplicitPrice = d && d.my_price != null && d.my_price !== '' && !d.price_calc_failed;
-            if (hasExplicitPrice) {
-                var value = Math.round(Number(d.my_price));
-                return { text: Number.isFinite(value) ? (value.toLocaleString() + ' ₽') : fallbackText, value: Number.isFinite(value) ? value : null, isFallback: !Number.isFinite(value) };
-            }
-            if (d && d.price_calc_failed) return { text: fallbackText, value: null, isFallback: true };
-            var fallbackValue = calculatePriceFallbackRub(d);
-            if (fallbackValue && Number.isFinite(fallbackValue)) {
-                var rounded = Math.round(fallbackValue);
-                return { text: rounded.toLocaleString() + ' ₽', value: rounded, isFallback: false };
-            }
-            return { text: (d && d.price_won != null) ? fallbackText : '—', value: null, isFallback: true };
-        }
         /** Сумма в вонах → строка в рублях по курсу ЦБ (rubPerWon = руб за 1 вон). */
         function formatWonToRub(won, rubPerWon) {
             if (rubPerWon <= 0) return '—';
@@ -2886,52 +2812,28 @@
             if (isNaN(n) || n === 0) return '—';
             return Math.round(n * rubPerWon).toLocaleString('ru-RU') + ' ₽';
         }
-        /** Семантический класс для полей отчёта истории (Encar record). */
-        function historyReportValueClass(label, value) {
-            var vStr = value == null ? '' : String(value).trim();
-            if (vStr === '—' || vStr === '') return '';
-            if (label === 'Количество владельцев') {
-                var ow = parseInt(vStr.replace(/\s/g, ''), 10);
-                if (!isNaN(ow)) {
-                    if (ow <= 1) return 'report-value-good';
-                    if (ow >= 3) return 'report-value-warn';
-                }
-                return '';
-            }
-            var riskLabels = ['Мои аварии (кол-во)', 'Аварии с другими', 'Угон', 'Тотал', 'Потоп', 'Залог', 'Гос.средства'];
-            if (riskLabels.indexOf(label) >= 0) {
-                var n2 = parseInt(String(vStr).replace(/[\s\u00a0]/g, ''), 10);
-                if (!isNaN(n2) && /^[\d\s\u00a0]+$/.test(vStr)) return n2 === 0 ? 'report-value-good' : 'report-value-bad';
-                if (/^(0|없음|없다|무|n|no|нет)$/i.test(vStr)) return 'report-value-good';
-                return '';
-            }
-            return '';
-        }
-        function historyReportPairHtml(label, value) {
-            var cls = historyReportValueClass(label, value);
-            var extra = cls ? (' ' + cls) : '';
-            return '<div class="dotted-pair"><span class="key">' + label + '</span><span class="value' + extra + '">' + value + '</span></div>';
-        }
-        function accidentSeverityClass(type) {
-            var t = String(type == null ? '' : type).trim();
-            if (t === '1') return 'report-value-warn';
-            if (t === '2' || t === '3') return 'report-value-bad';
-            return '';
-        }
-        function accidentCostClass(won, rubPerWon) {
-            if (rubPerWon <= 0) return '';
-            var n = Number(won);
-            if (isNaN(n) || n <= 0) return 'report-value-good';
-            return 'report-value-bad';
-        }
         /** Пояснение для типа ДТП 1/2/3 (классификация по степени повреждений). */
         var accidentTypeLabels = { '1': 'Лёгкое (мелкие повреждения)', '2': 'Умеренное (средний ремонт)', '3': 'Серьёзное (крупный ремонт)' };
+
+        function renderObjectTable(obj, translate = false) {
+            if (!obj || !Object.keys(obj).length) return '';
+            let html = `<table class="w-full text-sm data-table">`;
+            for (let [k,v] of Object.entries(obj)) {
+                if (v && typeof v === 'object') continue;
+                if (v != null && v !== '') {
+                    const dk = translate ? (partNamesRu[k] || k) : k;
+                    const dv = translate ? (statusRu[v] || v) : v;
+                    html += `<tr><td class="text-gray-600">${dk}</td><td class="font-medium text-right">${dv}</td></tr>`;
+                }
+            }
+            return html + '</table>';
+        }
 
         function renderBodyPanels(panels) {
             if (!panels?.length) return '';
             let html = '<div class="card"><h2 class="card-title">Диагностика кузова</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-3">';
             panels.forEach(p => {
-                const cls = p.status === 'оригинал' ? 'report-value-good' : 'report-value-bad';
+                const cls = p.status === 'оригинал' ? 'text-green-600' : 'text-amber-600';
                 html += `<div class="flex justify-between py-2 border-b border-gray-100"><span class="font-medium">${p.part}</span><span class="${cls}">${p.status}</span></div>`;
             });
             return html + '</div></div>';
@@ -2947,8 +2849,8 @@
             { part: 'Левая задняя дверь', left: 0, top: 48, width: 28, height: 28 },
             { part: 'Левое заднее крыло', left: 0, top: 74, width: 28, height: 36 },
             { part: 'Правое переднее крыло', left: 80, top: 0, width: 0, height: 38 },
-            { part: 'Правая передняя дверь', left: 80, top: 22, width: 8, height: 26 },
-            { part: 'Правая задняя дверь', left: 80, top: 48, width: 8, height: 26 },
+            { part: 'Правая передняя дверь', left: 80, top: 22, width: 08, height: 26 },
+            { part: 'Правая задняя дверь', left: 80, top: 48, width: 08, height: 26 },
             { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 36 },
         ];
         var exteriorPanelMap = { 'FRONT_DOOR_LEFT': 'Левая передняя дверь', 'FRONT_DOOR_RIGHT': 'Правая передняя дверь', 'BACK_DOOR_LEFT': 'Левая задняя дверь', 'BACK_DOOR_RIGHT': 'Правая задняя дверь', 'HOOD': 'Капот', 'TRUNK_LID': 'Крышка багажника', 'FRONT_FENDER_LEFT': 'Левое переднее крыло', 'FRONT_FENDER_RIGHT': 'Правое переднее крыло', 'REAR_FENDER_LEFT': 'Левое заднее крыло', 'REAR_FENDER_RIGHT': 'Правое заднее крыло', 'BACK_FENDER_LEFT': 'Левое заднее крыло', 'BACK_FENDER_RIGHT': 'Правое заднее крыло' };
@@ -3020,44 +2922,6 @@
             'SCRATCH': { key: 'scratch', label: 'Царапины' }, 'DENT': { key: 'unevenness', label: 'Неровности' },
             'DAMAGE': { key: 'damage', label: 'Повреждение' }, 'CORROSION': { key: 'corrosion', label: 'Коррозия' }
         };
-
-        /** Класс ячейки инспекции: зелёный / жёлтый / красный по сырому и отображаемому значению. */
-        function getInspectionValueClass(rawVal, displayedVal) {
-            var raw = rawVal != null ? String(rawVal).trim() : '';
-            var disp = (displayedVal != null ? String(displayedVal) : raw).trim();
-            var info = innerStatusToKey[raw] || innerStatusToKey[disp];
-            if (info) {
-                if (info.key === 'good') return 'report-value-good';
-                if (info.key === 'scratch' || info.key === 'unevenness') return 'report-value-warn';
-                return 'report-value-bad';
-            }
-            var low = disp.toLowerCase();
-            if (/^(норма|нормально|в норме|оригинал|без замечаний)$/i.test(disp) || low === 'норма' || low === 'нормально' || low === 'в норме') return 'report-value-good';
-            if (/^отсутствует$/i.test(disp) || raw === '없음' || raw === '정상' || raw === '적정') return 'report-value-good';
-            if (/микротеч/i.test(disp) || /미세/.test(raw)) return 'report-value-warn';
-            if (/^присутствует$/i.test(disp) || raw === '있음') return 'report-value-warn';
-            if (/неисправ|течь|замен|ремонт|покраш|поврежд|корроз|избыток|недостат/i.test(low)) return 'report-value-bad';
-            if (/누유|누수|불량|교체|교환|도장|판금/.test(raw)) return 'report-value-bad';
-            return '';
-        }
-
-        function renderObjectTable(obj, translate) {
-            if (translate === undefined) translate = false;
-            if (!obj || !Object.keys(obj).length) return '';
-            var html = '<table class="w-full text-sm data-table">';
-            for (var i = 0, keys = Object.keys(obj); i < keys.length; i++) {
-                var k = keys[i];
-                var v = obj[k];
-                if (v && typeof v === 'object') continue;
-                if (v != null && v !== '') {
-                    var dk = translate ? (partNamesRu[k] || k) : k;
-                    var dv = translate ? (statusRu[v] || v) : v;
-                    var vc = getInspectionValueClass(v, dv);
-                    html += '<tr><td class="text-gray-600">' + dk + '</td><td class="font-medium text-right' + (vc ? ' ' + vc : '') + '">' + dv + '</td></tr>';
-                }
-            }
-            return html + '</table>';
-        }
 
         function getIconForStatus(statusKey) {
             var icons = { replaced: 'image/exchange.svg', painted: 'image/painted.svg', scratch: 'image/Scratch.svg', unevenness: 'image/Unevenness.svg', damage: 'image/Damage.svg', corrosion: 'image/Corrosion.svg' };
@@ -3477,11 +3341,10 @@
 
             const priceWon = d.price_won;
             const priceWonFormatted = priceWon ? (priceWon * 10000).toLocaleString() + ' вон' : '—';
-            const resolvedPrice = resolveDisplayPrice(d, { fallbackText: 'Цена по запросу' });
-            const myPrice = resolvedPrice.value;
-            const priceUnavailable = !resolvedPrice.value;
+            const myPrice = d.my_price;
+            const priceUnavailable = d.price_calc_failed || (myPrice == null || myPrice === '');
             const PRICE_FALLBACK = 'Обратитесь к менеджеру для просчёта';
-            const myPriceFormatted = priceUnavailable ? PRICE_FALLBACK : resolvedPrice.text;
+            const myPriceFormatted = priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽');
 
             const priceRub = d.price_rub_estimate;
             const documentsKrwRub = d.documents_krw_rub;
@@ -3615,7 +3478,7 @@
                         <h3 class="order-title">${fullName}</h3>
                     </div>
                     <div class="order-price-block">
-                        <div class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : resolvedPrice.text}</div>
+                        <div class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽')}</div>
                         <div class="order-price-sub">под ключ до Владивостока <span class="info-icon-wrap" data-tooltip="Цена под ключ до Владивостока с учётом всех платежей"><img src="image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>
                     </div>
                     ${!priceUnavailable && totalForBar ? `
@@ -3656,61 +3519,7 @@
             const currentMark = d.mark || '';
             if (!currentPrice || !currentMark) return '';
 
-            try {
-                var apiSimilarUrl = buildApiUrl('/api/similar?car_id=' + encodeURIComponent(currentCar.id || currentCar.inner_id || (d && d.inner_id) || '') + '&limit=8');
-                var apiResp = await fetch(apiSimilarUrl);
-                if (apiResp.ok) {
-                    var apiData = await apiResp.json();
-                    var apiCars = (apiData && apiData.result) || [];
-                    if (apiCars.length) {
-                        let htmlApi = `
-                            <div class="similar-cars-section">
-                                <div class="similar-cars-header">
-                                    <h2 class="similar-cars-title">Похожие по цене ${currentMark}</h2>
-                                </div>
-                                <div class="similar-cars-grid" id="similar-cars-grid">
-                        `;
-                        apiCars.forEach(function(car) {
-                            var cd = car.data || {};
-                            var images = getPreviewImages(cd);
-                            var mainImg = images[0] || '';
-                            var title = [filterOptionLabel(cd.mark, 'mark'), filterOptionLabel(cd.model, 'model'), filterOptionLabel(cd.generation || cd.configuration, 'generation')].filter(Boolean).join(' ').trim();
-                            if (!title) title = (cd.mark || '') + ' ' + (cd.model || '');
-                            var model = filterOptionLabel(cd.model, 'model') || cd.model || '';
-                            var year = cd.year ? String(cd.year).slice(0, 4) : '';
-                            var km = formatKm(cd.km_age);
-                            var price = resolveDisplayPrice(cd, { fallbackText: 'Цена по запросу' }).text;
-                            var linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (cd.inner_id != null ? cd.inner_id : ''));
-                            htmlApi += `
-                                <div class="similar-car-card">
-                                    <a href="car.html?id=${encodeURIComponent(linkId)}" class="similar-car-link">
-                                        <div class="similar-car-image">
-                                            <img src="${mainImg}" alt="${title}">
-                                        </div>
-                                        <div class="similar-car-info">
-                                            <h3 class="similar-car-title">${title}</h3>
-                                            <div class="similar-car-model">${model}</div>
-                                            <div class="similar-car-details">
-                                                <div class="similar-car-mileage">${year} • ${km}</div>
-                                                <div class="similar-car-price">${price}</div>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                            `;
-                        });
-                        htmlApi += `
-                                </div>
-                            </div>
-                        `;
-                        if (!options || !options.lazy) {
-                            const container = document.getElementById('car-content');
-                            if (container) container.insertAdjacentHTML('beforeend', htmlApi);
-                        }
-                        return htmlApi;
-                    }
-                }
-
+                try {
                 var jsonUrl = new URL('cars.json', window.location.href).href;
                 var response = await fetch(jsonUrl);
                 if (!response.ok) throw new Error('Ошибка загрузки данных');
@@ -3763,7 +3572,8 @@
                     var model = filterOptionLabel(cd.model, 'model') || cd.model || '';
                     var year = cd.year ? String(cd.year).slice(0, 4) : '';
                     var km = formatKm(cd.km_age);
-                    var price = resolveDisplayPrice(cd, { fallbackText: 'Цена по запросу' }).text;
+                    var priceUnav = cd.price_calc_failed || (cd.my_price == null || cd.my_price === '');
+                    var price = priceUnav ? 'Обратитесь к менеджеру для просчёта' : (Math.round(Number(cd.my_price)).toLocaleString() + ' ₽');
                     var linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (cd.inner_id != null ? cd.inner_id : ''));
 
                     html += `
@@ -3993,9 +3803,9 @@
             const bodyPanelsHtml = renderBodyPanels(insp.bodyPanels);
             const commentsHtml = renderComments(insp.bodyComments);
             const additionalHtml = (insp.additional && Object.keys(insp.additional).length)
-                ? `<div class="card"><h2 class="card-title">Дополнительная информация</h2><table class="w-full text-sm data-table">${Object.entries(insp.additional).map(([k,v])=>{ const dv = statusRu[v] || v; const vc = getInspectionValueClass(v, dv); return `<tr><td class="text-gray-600">${k}</td><td class="font-medium text-right${vc ? ' ' + vc : ''}">${dv}</td></tr>`; }).join('')}</table></div>` : '';
+                ? `<div class="card"><h2 class="card-title">Дополнительная информация</h2><table class="w-full text-sm data-table">${Object.entries(insp.additional).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table></div>` : '';
             const bodyChangedHtml = (insp.bodyChanged && Object.keys(insp.bodyChanged).length)
-                ? `<div class="card"><h2 class="card-title">Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>{ const dv = statusRu[v] || v; const vc = getInspectionValueClass(v, dv) || 'report-value-bad'; return `<tr><td class="text-gray-600">${partNamesRu[k] || k}</td><td class="font-medium text-right ${vc}">${dv}</td></tr>`; }).join('')}</table></div>` : '';
+                ? `<div class="card"><h2 class="card-title">Заменённые/покрашенные детали</h2><table class="w-full text-sm data-table">${Object.entries(insp.bodyChanged).map(([k,v])=>`<tr><td>${partNamesRu[k] || k}</td><td>${statusRu[v] || v}</td></tr>`).join('')}</table></div>` : '';
 
             const conditionDiagramHtml = renderConditionDiagram(rawData, extra.diagnosis_photos || []);
             window.diagnosisPhotosForModal = (extra.diagnosis_photos || []).filter(function(url) { return typeof url === 'string' && url.trim() !== ''; }).slice(0, 5).map(function(url) { return { path: url }; });
@@ -4004,52 +3814,42 @@
             let recordHtml = '';
             if (extra.record_open) {
                 const r = extra.record_open;
-                var passportPairs = [
-                    ['Гос. номер', r.carNo || '—'],
-                    ['Первая регистрация', r.firstDate || '—'],
-                    ['Топливо', toDisplayRu(r.fuel) || '—'],
-                    ['Кузов', toDisplayRu(r.carShape) || '—']
+                var historyPairs = [
+                    { label: 'Гос. номер', value: r.carNo || '—' },
+                    { label: 'Первая регистрация', value: r.firstDate || '—' },
+                    { label: 'Топливо', value: toDisplayRu(r.fuel) || '—' },
+                    { label: 'Кузов', value: toDisplayRu(r.carShape) || '—' },
+                    { label: 'Количество владельцев', value: r.ownerChangeCnt ?? '0' },
+                    { label: 'Мои аварии (кол-во)', value: r.myAccidentCnt ?? '0' },
+                    { label: 'Аварии с другими', value: r.otherAccidentCnt ?? '0' },
+                    { label: 'Угон', value: r.robberCnt ?? '0' },
+                    { label: 'Тотал', value: r.totalLossCnt ?? '0' },
+                    { label: 'Потоп', value: r.floodTotalLossCnt ?? '0' },
+                    { label: 'Залог', value: r.loan ?? '0' },
+                    { label: 'Гос.средства', value: r.government ?? '0' }
                 ];
-                var riskPairs = [
-                    ['Количество владельцев', r.ownerChangeCnt ?? '0'],
-                    ['Мои аварии (кол-во)', r.myAccidentCnt ?? '0'],
-                    ['Аварии с другими', r.otherAccidentCnt ?? '0'],
-                    ['Угон', r.robberCnt ?? '0'],
-                    ['Тотал', r.totalLossCnt ?? '0'],
-                    ['Потоп', r.floodTotalLossCnt ?? '0'],
-                    ['Залог', r.loan ?? '0'],
-                    ['Гос.средства', r.government ?? '0']
-                ];
-                var passportHtml = passportPairs.map(function(row) { return historyReportPairHtml(row[0], row[1]); }).join('');
-                var riskHtml = riskPairs.map(function(row) { return historyReportPairHtml(row[0], row[1]); }).join('');
+                var historyDataHtml = historyPairs.map(function(p) { return '<div class="dotted-pair"><span class="key">' + p.label + '</span><span class="value">' + p.value + '</span></div>'; }).join('');
                 const hasAccidents = r.accidents && r.accidents.length > 0;
-                var krwPerUsdt = d.krw_per_usdt || 1400;
-                var usdtRub = d.usdt_rub || 95;
-                var rubPerWon = usdtRub / krwPerUsdt;
                 recordHtml = '<div class="history-wrap"><h2 class="history-main-title">История автомобиля</h2>';
                 recordHtml += '<div class="history-headers-grid">';
-                recordHtml += '<button type="button" class="history-group-header is-active" data-history-index="0" aria-expanded="true" aria-controls="history-body-0" id="history-header-0">Паспорт и регистрация</button>';
-                recordHtml += '<button type="button" class="history-group-header" data-history-index="1" aria-expanded="false" aria-controls="history-body-1" id="history-header-1">Риски и эксплуатация</button>';
-                if (hasAccidents) recordHtml += '<button type="button" class="history-group-header" data-history-index="2" aria-expanded="false" aria-controls="history-body-2" id="history-header-2">Детали ДТП <span class="history-tab-badge">' + r.accidents.length + '</span></button>';
+                recordHtml += '<button type="button" class="history-group-header is-active" data-history-index="0" aria-expanded="true" aria-controls="history-body-0" id="history-header-0">Основные данные</button>';
+                if (hasAccidents) recordHtml += '<button type="button" class="history-group-header" data-history-index="1" aria-expanded="false" aria-controls="history-body-1" id="history-header-1">Детали ДТП <span class="history-tab-badge">' + r.accidents.length + '</span></button>';
                 recordHtml += '</div><div class="history-panel">';
-                recordHtml += '<div class="history-group-body is-visible" id="history-body-0" role="region" aria-labelledby="history-header-0"><div class="history-data-grid">' + passportHtml + '</div></div>';
-                recordHtml += '<div class="history-group-body" id="history-body-1" role="region" aria-labelledby="history-header-1"><div class="history-data-grid">' + riskHtml + '</div></div>';
+                recordHtml += '<div class="history-group-body is-visible" id="history-body-0" role="region" aria-labelledby="history-header-0"><div class="history-data-grid">' + historyDataHtml + '</div></div>';
                 if (hasAccidents) {
-                    recordHtml += '<div class="history-group-body" id="history-body-2" role="region" aria-labelledby="history-header-2">';
-                    r.accidents.forEach(function(acc) {
+                    var krwPerUsdt = d.krw_per_usdt || 1400;
+                    var usdtRub = d.usdt_rub || 95;
+                    var rubPerWon = usdtRub / krwPerUsdt;
+                    recordHtml += '<div class="history-group-body" id="history-body-1" role="region" aria-labelledby="history-header-1">';
+                    r.accidents.forEach(acc => {
                         var typeText = accidentTypeLabels[String(acc.type)] || acc.type || '—';
-                        var typeCls = accidentSeverityClass(acc.type);
-                        var clsIns = accidentCostClass(acc.insuranceBenefit, rubPerWon);
-                        var clsPart = accidentCostClass(acc.partCost, rubPerWon);
-                        var clsLabor = accidentCostClass(acc.laborCost, rubPerWon);
-                        var clsPaint = accidentCostClass(acc.paintingCost, rubPerWon);
                         recordHtml += '<div class="accident-card"><div class="history-accident-grid">';
-                        recordHtml += '<div><span class="history-accident-label">Дата</span><span class="history-accident-value">' + (acc.date || '—') + '</span></div>';
-                        recordHtml += '<div><span class="history-accident-label">Тип</span><span class="history-accident-value' + (typeCls ? ' ' + typeCls : '') + '">' + typeText + '</span></div>';
-                        recordHtml += '<div><span class="history-accident-label">Страховая выплата</span><span class="history-accident-value' + (clsIns ? ' ' + clsIns : '') + '">' + formatWonToRub(acc.insuranceBenefit, rubPerWon) + '</span></div>';
-                        recordHtml += '<div><span class="history-accident-label">Запчасти</span><span class="history-accident-value' + (clsPart ? ' ' + clsPart : '') + '">' + formatWonToRub(acc.partCost, rubPerWon) + '</span></div>';
-                        recordHtml += '<div><span class="history-accident-label">Работы</span><span class="history-accident-value' + (clsLabor ? ' ' + clsLabor : '') + '">' + formatWonToRub(acc.laborCost, rubPerWon) + '</span></div>';
-                        recordHtml += '<div><span class="history-accident-label">Покраска</span><span class="history-accident-value' + (clsPaint ? ' ' + clsPaint : '') + '">' + formatWonToRub(acc.paintingCost, rubPerWon) + '</span></div>';
+                        recordHtml += '<div><span class="history-accident-label">Дата</span>' + (acc.date || '—') + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Тип</span>' + typeText + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Страховая выплата</span>' + formatWonToRub(acc.insuranceBenefit, rubPerWon) + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Запчасти</span>' + formatWonToRub(acc.partCost, rubPerWon) + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Работы</span>' + formatWonToRub(acc.laborCost, rubPerWon) + '</div>';
+                        recordHtml += '<div><span class="history-accident-label">Покраска</span>' + formatWonToRub(acc.paintingCost, rubPerWon) + '</div>';
                         recordHtml += '</div></div>';
                     });
                     recordHtml += '</div>';
@@ -4415,13 +4215,6 @@
             sections.forEach(section => observer.observe(section.element));
         }
 
-        function restartReportPanelAnimation(panelBody) {
-            if (!panelBody) return;
-            panelBody.style.animation = 'none';
-            void panelBody.offsetWidth;
-            panelBody.style.removeProperty('animation');
-        }
-
         // Аккордеон: Опции (вертикальный), Инспекция (вкладки), История (вертикальный) — делегирование
         document.getElementById('car-content').addEventListener('click', function(e) {
             var optHeader = e.target.closest('.option-accordion-header');
@@ -4446,10 +4239,7 @@
                 inspHeader.setAttribute('aria-expanded', 'true');
                 var bodies = block.querySelectorAll('.inspection-group-body');
                 var body = bodies[parseInt(index, 10)];
-                if (body) {
-                    body.classList.add('is-visible');
-                    restartReportPanelAnimation(body);
-                }
+                if (body) body.classList.add('is-visible');
                 return;
             }
             var histHeader = e.target.closest('.history-group-header');
@@ -4464,10 +4254,7 @@
                 histHeader.classList.add('is-active');
                 histHeader.setAttribute('aria-expanded', 'true');
                 var body = wrap.querySelector('#history-body-' + index);
-                if (body) {
-                    body.classList.add('is-visible');
-                    restartReportPanelAnimation(body);
-                }
+                if (body) body.classList.add('is-visible');
             }
         });
 
@@ -4486,21 +4273,9 @@
                 return response.json();
             });
         }
-        function tryFetchCarApi(id) {
-            return fetch(buildApiUrl('/api/car/' + encodeURIComponent(id))).then(function(response) {
-                if (!response.ok) throw new Error('API car request failed');
-                return response.json();
-            });
-        }
         var urlSame = new URL('cars.json', window.location.href).href;
         var urlParent = new URL('../cars.json', window.location.href).href;
-        tryFetchCarApi(carId)
-            .then(function(apiData) {
-                var carDataApi = apiData && apiData.result ? apiData.result : null;
-                if (!carDataApi) throw new Error('API car is empty');
-                renderCar(carDataApi);
-            })
-            .catch(function() { return tryFetch(urlSame)
+        tryFetch(urlSame)
             .catch(function() { return tryFetch(urlParent); })
             .then(function(data) {
                 var cars = data.result || [];
@@ -4513,7 +4288,7 @@
                     return;
                 }
                 renderCar(carData);
-            }); })
+            })
             .catch(function(err) {
                 console.error(err);
                 var el = document.getElementById('car-content');
