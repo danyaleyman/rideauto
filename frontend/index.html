@@ -389,11 +389,6 @@
       overflow: visible;
       visibility: visible;
       pointer-events: auto;
-      animation: filter-cascade-fade 0.32s ease 0.06s both;
-    }
-    @keyframes filter-cascade-fade {
-      from { opacity: 0; }
-      to { opacity: 1; }
     }
 
     /* Сворачиваемые блоки (часть фильтров, без перегруза) */
@@ -475,8 +470,7 @@
     @media (prefers-reduced-motion: reduce) {
       .filter-cascade-slot,
       .filter-section-toggle__body,
-      .filter-section-toggle__chev,
-      .filter-cascade-slot.is-revealed .filter-cascade-slot__inner {
+      .filter-section-toggle__chev {
         transition: none !important;
         animation: none !important;
       }
@@ -3509,8 +3503,8 @@
         var btn = pair[0], panel = pair[1];
         if (!btn || !panel) return;
         btn.addEventListener('click', function(e) {
-          e.stopPropagation();
           if (e.target && e.target.closest('.ms-tag-remove')) return;
+          e.stopPropagation();
           if (btn.disabled) return;
           var isOpen = panel.classList.contains('is-open');
           closeAllDropdowns();
@@ -3530,6 +3524,7 @@
       if (markListEl) {
         markListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'mark') return;
+          closeAllDropdowns();
           setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
           rebuildModelList();
           rebuildGenerationList();
@@ -3540,6 +3535,7 @@
       if (modelListEl) {
         modelListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'model') return;
+          closeAllDropdowns();
           setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
           rebuildGenerationList();
           rebuildTrimList();
@@ -3549,6 +3545,7 @@
       if (generationListEl) {
         generationListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'generation') return;
+          closeAllDropdowns();
           setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
           rebuildTrimList();
           applyFilters();
@@ -3557,6 +3554,7 @@
       if (trimListEl) {
         trimListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'trim') return;
+          closeAllDropdowns();
           setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
           applyFilters();
         });
