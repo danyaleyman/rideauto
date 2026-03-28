@@ -2,43 +2,176 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Как купить авто из Кореи — World Ride Auto</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Как купить авто из Кореи — World Ride Auto | Интерактивные шаги</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/cookie-consent.css">
     <script src="js/copy-protection.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Переменные страницы (общие токены в css/common.css) */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         :root {
+            --radius-xl: 20px;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+            --transition-fast: 0.15s ease;
+            --transition: 0.25s ease;
+
             --bg-body: var(--wra-gray-100);
-            --bg-card: var(--wra-white);
+            --bg-card: var(--wra-surface);
             --color-primary: var(--wra-primary);
-            --color-primary-hover: var(--wra-primary-hover);
+            --color-primary-dark: var(--wra-primary-dark);
+            --color-primary-light: var(--wra-primary-light);
             --text-main: var(--wra-text);
             --text-muted: var(--wra-text-muted);
-            --text-nav: var(--wra-gray-700);
             --border: var(--wra-border);
             --bg-dark: var(--wra-gray-900);
-            --shadow: var(--wra-shadow, 0 2px 10px rgba(0,0,0,0.05));
-            --radius-lg: var(--radius-lg, 1rem);
-            --radius-md: var(--radius-md, 0.75rem);
-            --radius-sm: var(--radius-sm, 0.5rem);
+            --font-sans: var(--font-sans);
         }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(24px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .animate-in { animation: fadeInUp 0.6s ease-out forwards; }
-        .animate-fade { animation: fadeIn 0.5s ease-out forwards; }
-        .step-card { opacity: 0; }
-        .step-card.visible { animation: fadeInUp 0.5s ease-out forwards; }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: var(--font-sans); background-color: var(--bg-body); color: var(--text-main); line-height: 1.6; }
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* Единая шапка как в каталоге */
+        .header {
+            background: var(--wra-surface);
+            border-bottom: 1px solid var(--wra-border);
+            box-shadow: var(--shadow-sm);
+            padding: var(--space-4) var(--space-5);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            color: var(--wra-text);
+            text-decoration: none;
+        }
+        .logo img {
+            height: 40px;
+            width: auto;
+            display: block;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .nav-menu a {
+            color: var(--wra-gray-700);
+            text-decoration: none;
+            font-weight: var(--font-medium);
+            font-size: var(--text-sm);
+            transition: color var(--transition);
+            position: relative;
+        }
+        .nav-menu a:hover { color: var(--wra-primary); }
+        .nav-menu a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--wra-primary);
+            transition: width var(--transition-smooth);
+        }
+        .nav-menu a:hover::after { width: 100%; }
+        .nav-menu a.active {
+            color: var(--wra-primary);
+            font-weight: var(--font-semibold);
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: var(--text-sm);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-primary {
+            background: var(--cta-dark-bg);
+            color: var(--wra-white);
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+            background: var(--cta-dark-bg-hover);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--wra-text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--wra-gray-100);
+            color: var(--wra-text);
+            transform: translateY(-1px);
+        }
+        .btn-calculate {
+            padding: 10px 20px;
+            border-radius: var(--radius-pill);
+            font-weight: var(--font-semibold);
+            font-size: var(--text-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: var(--cta-dark-bg);
+            color: var(--wra-white);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            min-height: var(--control-height);
+        }
 
         .container {
             max-width: 1280px;
@@ -46,1258 +179,1091 @@
             padding: 2rem 1.5rem;
         }
 
-        /* Шапка как на главной */
-        .navbar {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 16px 20px;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            box-shadow: var(--shadow);
-        }
-        .nav-container {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-        }
-        .nav-logo {
-            display: inline-flex;
-            align-items: center;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
-            text-decoration: none;
-        }
-        .nav-logo img { height: 40px; width: auto; display: block; }
-        .nav-menu {
-            display: flex;
-            gap: 32px;
-            flex: 1;
-            justify-content: center;
-        }
-        .nav-link {
-            color: var(--text-nav);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
-        }
-        .nav-link:hover { color: var(--color-primary); }
-        .nav-link.active { color: var(--color-primary); font-weight: 600; }
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .btn-calculate {
-            background: var(--color-primary);
-            color: var(--wra-white);
-            border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-        }
-        .btn-calculate:hover {
-            background: var(--color-primary-hover);
-            transform: translateY(-2px);
-        }
-        .nav-contact { display: none; }
-        .btn-secondary {
-            background: transparent;
-            color: var(--color-primary);
-            border: 2px solid var(--color-primary);
-            padding: 0.6rem 1.25rem;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-secondary:hover { background: var(--color-primary); color: var(--wra-white); }
-        .nav-link.active { cursor: default; }
-        .hero-block { opacity: 0; }
-        .hero-block.visible { animation: fadeInUp 0.7s ease-out forwards; }
-        .contact-messengers {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            margin: 2.5rem 0 1rem;
-        }
-        .contact-messengers-title { font-size: 1.4rem; font-weight: 500; }
-        .contact-messengers-btns { display: flex; gap: 1rem; }
-        .btn-messenger {
-            background: var(--text-main);
-            color: var(--wra-white);
-            padding: 0.7rem 2rem;
-            border-radius: 40px;
-            text-decoration: none;
-            transition: background 0.2s ease;
-        }
-        .btn-messenger:hover { background: var(--color-primary); }
-        
-        /* Заголовок */
+        /* Hero */
         .hero {
-            text-align: center;
-            margin-bottom: 2.5rem;
-            padding: 2rem 0;
-        }
-        .hero h1 {
-            font-size: 2.8rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            color: var(--text-main);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-        }
-        .hero h1 i {
-            color: var(--color-primary);
-            font-size: 2.5rem;
-        }
-        .hero .subhead {
-            font-size: 1.2rem;
-            color: var(--text-muted);
-            border-left: 5px solid var(--color-primary);
-            padding-left: 1.5rem;
-            margin: 1.5rem auto 0 auto;
-            font-weight: 400;
-            max-width: 800px;
-        }
-
-        /* Сетка шагов */
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-        }
-
-        .step-card {
-            background: var(--bg-card);
-            border-radius: var(--radius-lg);
-            padding: 2rem;
-            box-shadow: var(--shadow);
-            border: 1px solid rgba(0,0,0,0.02);
-            transition: all 0.25s ease;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .step-card:hover {
-            box-shadow: var(--shadow-hover);
-            border-color: var(--border);
-            transform: translateY(-2px);
-        }
-
-        .step-header {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-        }
-
-        .step-number {
-            font-size: 2.5rem;
-            font-weight: 800;
-            line-height: 1;
-            color: var(--wra-gray-200);
-            min-width: 60px;
-            text-align: center;
-            user-select: none;
-            background: linear-gradient(145deg, var(--wra-gray-50), var(--wra-gray-100));
-            border-radius: 50%;
-            width: 64px;
-            height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid var(--border);
-        }
-
-        .step-title {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .step-title i {
-            color: var(--color-primary);
-            font-size: 1.8rem;
-            background: var(--wra-primary-light);
-            width: 48px;
-            height: 48px;
-            border-radius: 30px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-        }
-
-        .step-desc {
-            font-size: 1.05rem;
-            color: var(--wra-gray-800);
-            margin-bottom: 0.5rem;
-        }
-
-        .highlight {
-            background: var(--wra-primary-light);
-            border-radius: var(--radius-md);
-            padding: 1.2rem 1.5rem;
-            margin: 0.8rem 0;
-            border-left: 6px solid var(--color-primary);
-        }
-
-        .highlight p {
-            margin-bottom: 0.3rem;
-        }
-
-        .badge {
-            display: inline-block;
-            background: var(--bg-dark);
-            color: var(--wra-white);
-            padding: 0.25rem 1rem;
-            border-radius: 30px;
-            font-weight: 500;
-            font-size: 0.9rem;
-            margin-right: 0.8rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .badge-light {
-            background: var(--wra-gray-200);
-            color: var(--wra-gray-800);
-        }
-
-        .list-docs {
-            list-style: none;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.8rem;
-            margin: 0.8rem 0;
-        }
-
-        .list-docs li {
-            background: #f1f4f9;
-            padding: 0.5rem 1rem;
-            border-radius: 40px;
-            font-size: 0.95rem;
-            border: 1px solid #dbe1ed;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .list-docs li i {
-            color: var(--color-primary);
-            margin-right: 4px;
-        }
-
-        .grid-2col {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.2rem;
-            margin-top: 1rem;
-        }
-
-        .info-box {
-            background: var(--bg-card);
-            border-radius: var(--radius-md);
-            padding: 1.2rem 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-            border: 1px solid var(--border);
-        }
-
-        .info-box strong {
-            color: var(--bg-dark);
-            font-size: 1.1rem;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        .price-tag {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--bg-dark);
-            background: var(--wra-primary-light);
-            display: inline-block;
-            padding: 0.3rem 1.2rem;
-            border-radius: var(--radius-pill);
-            margin: 0.8rem 0;
-        }
-
-        .attention {
-            background: var(--wra-gray-50);
-            border-radius: var(--radius-md);
-            padding: 1rem 1.5rem;
-            border-left: 6px solid var(--wra-gray-500);
-            margin: 1rem 0;
-        }
-
-        .small-note {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-top: 0.5rem;
-        }
-
-        .gps-tag {
-            margin-top: 0.8rem;
-            font-size: 0.95rem;
-        }
-        .gps-tag i {
-            color: var(--wra-success);
-        }
-
-        .divider {
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.25), transparent);
-            margin: 2.5rem 0;
-        }
-
-        /* Калькулятор стоимости */
-        .calculator-section {
-            background: var(--bg-card);
-            border-radius: var(--radius-lg);
-            padding: 2.5rem;
-            box-shadow: var(--shadow);
-            margin-bottom: 3rem;
-            border: 1px solid rgba(0,0,0,0.02);
-        }
-        
-        .calc-header {
             text-align: center;
             margin-bottom: 2rem;
         }
-        
-        .calc-header h2 {
-            font-size: 2rem;
+
+        .hero h1 {
+            font-size: 2.7rem;
             font-weight: 800;
-            color: var(--text-main);
+            background: linear-gradient(135deg, var(--wra-gray-900), var(--wra-primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        /* ========= СВАЙП-КАРУСЕЛЬ (шаги) ========= */
+        .steps-slider-section {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--wra-border);
+            margin-bottom: 2.5rem;
+            padding: 1.2rem 1rem 1.8rem;
+            transition: var(--transition);
+        }
+        .steps-slider-section:hover,
+        .calculator-section:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            padding: 0 0.5rem 1rem 0.5rem;
+            border-bottom: 2px dashed var(--border);
             margin-bottom: 0.5rem;
+            position: sticky;
+            top: 70px;
+            background: var(--bg-card);
+            z-index: 5;
+        }
+        .step-progress {
+            height: 4px;
+            background: #e5e9f2;
+            border-radius: 999px;
+            margin: 0.75rem 0 0.5rem;
+            overflow: hidden;
+        }
+        .step-progress-bar {
+            height: 100%;
+            background: var(--color-primary);
+            width: 9%;
+            transition: width var(--transition);
+        }
+
+        .step-badge {
+            font-size: 0.85rem;
+            background: var(--color-primary-light);
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .step-title-large {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 1rem;
+            gap: 12px;
+            flex-wrap: wrap;
         }
-        
-        .calc-header h2 i {
-            color: var(--color-primary);
+
+        .step-title-large i {
             font-size: 2rem;
+            color: var(--color-primary);
+            background: var(--color-primary-light);
+            padding: 10px;
+            border-radius: 60px;
+            box-shadow: var(--shadow-sm);
         }
-        
-        .calc-header p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
+
+        /* SVG-зона */
+        .svg-stage {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 1rem 0 1.2rem;
+            min-height: 180px;
         }
-        
+
+        .svg-stage svg {
+            width: 200px;
+            height: 180px;
+            filter: drop-shadow(0 8px 12px rgba(0,0,0,0.05));
+            transition: transform 0.3s ease;
+        }
+        .svg-stage svg:hover {
+            transform: scale(1.05);
+        }
+
+        /* текст шага */
+        .step-description {
+            background: linear-gradient(180deg, #fafcff, #f4f8ff);
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
+            margin: 0.5rem 0 1rem;
+            border: 1px solid var(--wra-border);
+            border-left: 4px solid var(--color-primary);
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        .step-description .highlight {
+            background: var(--wra-primary-light);
+            padding: 0.8rem;
+            border-radius: var(--radius-sm);
+            margin-top: 0.8rem;
+        }
+
+        /* навигация карусели */
+        .carousel-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.2rem;
+        }
+
+        .nav-arrow {
+            background: var(--wra-surface);
+            border: 1px solid var(--border);
+            border-radius: 60px;
+            padding: 0.6rem 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+        }
+
+        .nav-arrow:hover {
+            background: var(--wra-gray-800);
+            color: var(--wra-white);
+            border-color: var(--wra-gray-800);
+        }
+        .nav-arrow:active {
+            transform: scale(0.96);
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .step-dot {
+            width: 38px;
+            height: 6px;
+            background: #d4dfed;
+            border-radius: 8px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all var(--transition-fast);
+        }
+
+        .step-dot.active {
+            background: var(--color-primary);
+            width: 48px;
+            opacity: 1;
+        }
+
+        /* Калькулятор + форма — стильно */
+        .calculator-section {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--wra-border);
+            transition: var(--transition);
+        }
+
         .calc-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
         }
-        
+
         .calc-form {
-            background: var(--wra-gray-50);
-            padding: 2rem;
+            background: var(--control-bg);
+            padding: 1.5rem;
             border-radius: var(--radius-md);
-            border: 1px solid var(--border);
+            border: 1px solid var(--control-bg-hover);
         }
-        
-        .form-row {
+
+        .calc-fields {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
-            margin-bottom: 1.5rem;
         }
-        
-        .calc-form label {
-            display: block;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-        
-        .calc-form input {
-            width: 100%;
-            padding: 0.8rem 1.2rem;
-            border-radius: 40px;
-            border: 2px solid var(--border);
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        
-        .calc-form input:focus {
-            outline: none;
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        }
-        .calc-rates-row {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-bottom: 1.25rem;
-            padding: 0.75rem 1rem;
-            background: rgba(59, 130, 246, 0.06);
-            border-radius: var(--radius-sm);
-            border: 1px solid rgba(59, 130, 246, 0.15);
-            font-size: 0.85rem;
-        }
-        .calc-rates-label { color: var(--text-muted); }
-        .calc-rates-values { color: var(--text-main); font-weight: 500; }
-        .btn-calc-refresh {
-            margin-left: auto;
-            padding: 0.4rem 0.8rem;
-            border: 1px solid var(--border);
-            background: white;
-            border-radius: 50px;
-            cursor: pointer;
-            color: var(--text-muted);
-            transition: color 0.2s, border-color 0.2s;
-        }
-        .btn-calc-refresh:hover { color: var(--color-primary); border-color: var(--color-primary); }
-        .result-note {
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.65);
-            margin-top: 0.75rem;
-            line-height: 1.4;
-        }
-        .cost-item.subtotal-item {
-            border-top: 1px dashed rgba(255,255,255,0.25);
-            margin-top: 0.25rem;
-            padding-top: 0.75rem;
-        }
-        .calc-result {
-            background: var(--bg-dark);
-            color: var(--wra-white);
-            padding: 2rem;
-            border-radius: var(--radius-md);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .result-header {
-            text-align: center;
-            margin-bottom: 2rem;
-            border-bottom: 2px solid rgba(255,255,255,0.2);
-            padding-bottom: 1.5rem;
-        }
-        
-        .result-header h3 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: rgba(255,255,255,0.9);
-        }
-        
-        .result-price {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: var(--color-primary-hover);
-            letter-spacing: -0.02em;
-        }
-        
-        .cost-breakdown {
+
+        .field {
             display: flex;
             flex-direction: column;
-            gap: 0.8rem;
+            gap: 0.5rem;
         }
-        
-        .cost-item {
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .field input,
+        .field select {
+            width: 100%;
+            border: 1px solid var(--control-border);
+            border-radius: 12px;
+            min-height: var(--control-height);
+            padding: 10px 12px;
+            font-size: 0.95rem;
+            background: var(--control-bg);
+            color: var(--text-main);
+            transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
+        }
+        .field select,
+        .form-side select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%236b7280' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 12px 12px;
+            padding-right: 34px;
+        }
+        .field input:hover,
+        .field select:hover {
+            background: var(--control-bg-hover);
+            border-color: var(--wra-gray-400);
+        }
+        .field input:focus,
+        .field select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            background: var(--control-bg);
+            box-shadow: 0 0 0 3px rgba(10, 88, 202, 0.1);
+        }
+
+        .field-grid-inline {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.5rem;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+        }
+
+        .chip {
+            border: 1px solid var(--control-border);
+            background: var(--control-bg);
+            border-radius: 999px;
+            min-height: var(--control-height-sm);
+            padding: 8px 12px;
+            font-size: 0.86rem;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+        .chip:hover {
+            background: var(--control-bg-hover);
+        }
+
+        .chip.active {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+            font-weight: 700;
+        }
+
+        .calc-rates-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.8rem 1.2rem;
-            background: rgba(255,255,255,0.05);
-            border-radius: 40px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s ease;
+            background: var(--control-bg-disabled);
+            padding: 0.6rem 0.8rem;
+            border-radius: 60px;
+            gap: 0.7rem;
+            margin-top: 0.4rem;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            border: 1px solid var(--control-border-soft);
         }
-        
-        .cost-item:hover {
-            background: rgba(255,255,255,0.1);
-            transform: translateX(4px);
+
+        .calc-rates-row button {
+            background: transparent;
+            border: none;
+            color: var(--control-text);
+            cursor: pointer;
+            font-size: 1rem;
         }
-        
-        .cost-item span:first-child {
-            color: rgba(255,255,255,0.8);
-            font-weight: 500;
+
+        .calc-result {
+            background: linear-gradient(135deg, #111, #1c1f2b);
+            color: var(--wra-white);
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255,255,255,0.08);
         }
-        
-        .cost-item span:last-child {
-            font-weight: 700;
-            font-size: 1.1rem;
+
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        
+
         .highlight-total {
-            background: rgba(255, 187, 46, 0.15);
-            border-color: rgba(255, 187, 46, 0.3);
             font-weight: 800;
             font-size: 1.2rem;
+            color: #ffb32e;
         }
-        
-        .highlight-total span:last-child {
-            color: var(--color-primary-hover);
+        .result-price {
+            font-weight: 800;
+            letter-spacing: -0.02em;
         }
 
-        /* Блок «Ответим на все вопросы» */
         .contact-row {
             display: grid;
-            grid-template-columns: 1fr 1.25fr;
+            grid-template-columns: 1fr 1.2fr;
             gap: 2rem;
             background: var(--bg-card);
-            border-radius: var(--radius-lg);
-            padding: 0;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
-            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
             overflow: hidden;
+            margin-top: 1rem;
+            transition: var(--transition);
         }
+        .contact-row:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
         .contact-info {
             background: var(--bg-dark);
-            color: var(--wra-white);
-            padding: 2rem 2.25rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            color: white;
+            padding: 2rem;
         }
-        .contact-info h3 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            color: var(--wra-white);
-        }
-        .contact-info h3 i {
-            color: var(--color-primary);
-            font-size: 1.35rem;
-        }
-        .contact-info > p {
-            font-size: 0.95rem;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 1.25rem;
-            line-height: 1.5;
-        }
-        .time-badge {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem 1.25rem;
-            margin-bottom: 1.5rem;
-        }
-        .time-zone {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255,255,255,0.1);
-            padding: 0.6rem 1rem;
-            border-radius: 50px;
-            font-size: 0.9rem;
-            border: 1px solid rgba(255,255,255,0.12);
-        }
-        .time-zone i {
-            color: rgba(255,255,255,0.7);
-            font-size: 0.85rem;
-        }
-        .time-zone .live-time {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--wra-primary-light);
-            min-width: 4.5em;
-        }
-        .contact-info .contact-extra {
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.75);
-            margin-top: 0.5rem;
-        }
-        .contact-info .contact-extra i {
-            color: var(--wra-success);
-            margin-right: 0.35rem;
-        }
-        .messengers {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
-        }
-        .messenger-icon {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.65rem 1.25rem;
-            border-radius: 50px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--wra-white);
-            text-decoration: none;
-            background: rgba(255,255,255,0.12);
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: background 0.2s, border-color 0.2s, transform 0.2s;
-        }
-        .messenger-icon:hover {
-            background: var(--color-primary);
-            border-color: var(--color-primary);
-            color: var(--wra-white);
-            transform: translateY(-1px);
-        }
-        .messenger-icon i { font-size: 1.2rem; }
 
+        .messenger-icon, .btn-messenger {
+            background: rgba(255,255,255,0.12);
+            padding: 0.6rem 1.2rem;
+            border-radius: 60px;
+            text-decoration: none;
+            color: white;
+            display: inline-flex;
+            gap: 0.6rem;
+        }
         .form-side {
-            padding: 2rem 2.25rem;
-            background: var(--wra-surface);
+            padding: 2rem;
         }
-        .form-side h3 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin: 0 0 1.25rem 0;
-        }
-        .form-side .form-group {
-            margin-bottom: 1rem;
-        }
-        .form-side .form-group input,
-        .form-side .form-group select,
-        .form-side .form-group textarea {
+        .form-side input,
+        .form-side textarea,
+        .form-side select {
             width: 100%;
-            padding: 0.75rem 1.15rem;
-            border-radius: 10px;
+            margin-bottom: 1rem;
+            border-radius: 12px;
             border: 1px solid var(--border);
-            font-size: 1rem;
-            background: var(--bg-card);
-            color: var(--text-main);
-            transition: border-color 0.2s, box-shadow 0.2s;
+            padding: 10px;
+            transition: var(--transition);
+            background: #fff;
+            font-size: 0.95rem;
+            min-height: var(--control-height);
         }
-        .form-side .form-group select {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 1rem center;
-            padding-right: 2.5rem;
-        }
-        .form-side .form-group input::placeholder,
-        .form-side .form-group textarea::placeholder {
-            color: var(--text-muted);
-        }
-        .form-side .form-group textarea {
-            border-radius: 10px;
+        .form-side textarea {
             resize: vertical;
             min-height: 80px;
         }
-        .form-side .form-group input:focus,
-        .form-side .form-group select:focus,
-        .form-side .form-group textarea:focus {
+        .form-side input:focus,
+        .form-side textarea:focus,
+        .form-side select:focus {
             outline: none;
             border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            box-shadow: 0 0 0 3px rgba(10, 88, 202, 0.1);
         }
-        .form-side .btn-submit {
-            width: 100%;
-            padding: 0.85rem 1.5rem;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--wra-white);
-            background: var(--color-primary);
-            cursor: pointer;
-            transition: background 0.2s, transform 0.2s;
-        }
-        .form-side .btn-submit:hover {
-            background: var(--color-primary-hover);
-            transform: translateY(-1px);
-        }
-        .form-side .policy-note {
-            font-size: 0.8rem;
-            color: var(--text-muted);
+        .post-calc-cta {
             margin-top: 1rem;
-            line-height: 1.45;
+            padding: 1rem;
+            border: 1px dashed rgba(255, 255, 255, 0.24);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
         }
-        @media (max-width: 900px) {
-            .contact-row {
+        .post-calc-cta p {
+            font-size: 0.88rem;
+            color: rgba(255, 255, 255, 0.78);
+            margin-bottom: 0.7rem;
+        }
+        .btn-convert {
+            width: 100%;
+            justify-content: center;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 780px) {
+            .header {
+                padding: var(--space-3) var(--space-4);
+            }
+            .header-content {
+                flex-wrap: wrap;
+                row-gap: 10px;
+            }
+            .nav-menu {
+                order: 3;
+                width: 100%;
+                justify-content: flex-start;
+                gap: 18px;
+                flex-wrap: wrap;
+            }
+            .header-buttons {
+                margin-left: auto;
+                gap: 8px;
+            }
+            .header-buttons .btn {
+                min-height: 40px;
+                padding: 9px 14px;
+            }
+            .calc-grid, .contact-row {
                 grid-template-columns: 1fr;
             }
-            .contact-info { padding: 1.75rem; }
-            .form-side { padding: 1.75rem; }
-        }
-
-        /* Футер — в css/common.css */
-
-        /* Адаптив */
-        @media (max-width: 900px) {
-            .contact-row {
+            .calc-fields {
                 grid-template-columns: 1fr;
             }
-            .step-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.8rem;
+            .step-title-large {
+                font-size: 1.3rem;
             }
-            .step-number {
-                width: 56px;
-                height: 56px;
-                font-size: 2rem;
+            .svg-stage svg {
+                width: 150px;
+                height: 140px;
+            }
+            .slider-header {
+                top: 64px;
             }
         }
 
+        .footer-legal {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0;
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        button, .nav-arrow, .step-dot {
+            user-select: none;
+            cursor: pointer;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .animate-slide {
+            animation: fadeSlide 0.24s ease-out;
+        }
+
+        @keyframes fadeSlide {
+            from {
+                opacity: 0.35;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .animate-slide,
+            .btn-calculate,
+            .btn-secondary,
+            .nav-arrow {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
         @media (max-width: 600px) {
+            body {
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
+            }
             .container {
-                padding: 1.5rem 1rem;
+                padding: 1rem 0.9rem 1.25rem;
             }
-            .hero h1 {
-                font-size: 2.2rem;
+            .steps-slider-section {
+                touch-action: pan-y;
             }
-            .step-card {
-                padding: 1.5rem;
+            .nav-arrow,
+            .btn,
+            .btn-calculate,
+            .chip {
+                min-height: 42px;
             }
         }
     </style>
 </head>
 <body>
-        <!-- Шапка как на главной -->
-        <header class="navbar">
-            <div class="nav-container">
-                <a href="index.html" class="nav-logo"><img src="image/logo.svg" alt="World Ride Auto"></a>
-                <nav class="nav-menu">
-                    <a href="#" class="nav-link">О компании</a>
-                    <a href="index.html" class="nav-link">Каталог</a>
-                    <span class="nav-link active">Как купить</span>
-                    <a href="#" class="nav-link">Контакты</a>
-                </nav>
-                <div class="nav-actions">
-                    <a href="https://t.me/nikits15" class="btn-calculate" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a>
-                    <button class="btn-secondary" onclick="scrollToCalculator()"><i class="fas fa-calculator"></i> Калькулятор</button>
-                </div>
-            </div>
-        </header>
 
-        <div class="container">
-            <div class="hero hero-block" id="hero-block">
-                <h1><i class="fas fa-car"></i> World Ride Auto</h1>
-                <div class="subhead">Прозрачный цикл покупки: от согласования до доставки в ваш город</div>
-            </div>
+<header class="header">
+    <div class="header-content">
+        <a href="index.html" class="logo"><img src="image/logo.svg" alt="World Ride Auto" onerror="this.src='https://placehold.co/120x40?text=WRA'"></a>
+        <nav class="nav-menu">
+            <a href="howtobuy.html">О компании</a>
+            <a href="index.html">Каталог</a>
+            <a href="howtobuy.html" class="active">Как купить</a>
+            <a href="howtobuy.html">Контакты</a>
+        </nav>
+        <div class="header-buttons">
+            <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank" rel="noopener">Связаться с менеджером</a>
+            <button class="btn btn-secondary" onclick="document.querySelector('.calculator-section').scrollIntoView({behavior:'smooth'})">Калькулятор</button>
+        </div>
+    </div>
+</header>
 
-        <!-- Сетка шагов (все 11 этапов) -->
-        <div class="steps-grid">
-            <!-- Шаг 1: Согласование авто -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">01</div>
-                    <div class="step-title"><i class="fas fa-clipboard-list"></i> Согласовываем автомобили для осмотра</div>
-                </div>
-                <div class="step-desc">Вы самостоятельно выбираете авто в каталоге <strong>World Ride Auto</strong> или на <strong>Encar</strong> с помощью нашего расширения. Мы поможем с подбором.</div>
-            </div>
+<div class="container">
+    <div class="hero">
+        <h1><i class="fas fa-route"></i> Прозрачный импорт из Кореи</h1>
+        <p style="color: var(--text-muted);">Свайпайте этапы — каждый шаг с уникальной иллюстрацией</p>
+    </div>
 
-            <!-- Шаг 2: Возвратный залог -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">02</div>
-                    <div class="step-title"><i class="fas fa-hand-holding-usd"></i> Вносите возвратный залог</div>
-                </div>
-                <div class="step-desc">После выбора автомобиля для осмотра вносите <span class="badge">148 369 ₽ (в т.ч. НДС 5%)</span>. Эти средства идут на бронирование (если решите купить) и наши услуги.</div>
-                <div class="highlight">
-                    <p><i class="fas fa-file-contract" style="color:#1e4d8c;"></i> Залог оформляется договором. Полный возврат, если авто не подобран.</p>
-                    <p><i class="fas fa-qrcode"></i> Оплата по QR‑коду, чек можно проверить на сайте ФНС.</p>
-                </div>
-            </div>
-
-            <!-- Шаг 3: Осмотр авто -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">03</div>
-                    <div class="step-title"><i class="fas fa-video"></i> Осматриваем авто</div>
-                </div>
-                <div class="step-desc">Специалист выезжает на осмотр, снимает процесс и отправляет фото‑видео отчёт. Ждём вашего подтверждения на бронирование, чтобы автомобиль не ушёл другому.</div>
-            </div>
-
-            <!-- Шаг 4: Подходит / не подходит -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">04</div>
-                    <div class="step-title"><i class="fas fa-thumbs-up"></i> Авто вам подходит</div>
-                </div>
-                <div class="step-desc">Вносим задаток за автомобиль (используем ваш залог). С этого момента залог <strong>становится невозвратным</strong>.</div>
-                <div class="attention">
-                    <i class="fas fa-times-circle" style="color:#c0392b; margin-right: 10px;"></i> <strong>Не подходит?</strong> Ищем дальше — <strong>3 осмотра бесплатно</strong>, каждый следующий <span class="badge badge-light">20 000 ₽ (в т.ч. НДС 5%)</span>. Либо возвращаем залог полностью.
-                </div>
-            </div>
-
-            <!-- Шаг 5: Составляем договор / инвойс -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">05</div>
-                    <div class="step-title"><i class="fas fa-file-signature"></i> Составляем договор</div>
-                </div>
-                <div class="step-desc">Вы присылаете паспортные данные, мы выписываем <strong>инвойс на полную сумму выкупа</strong> (за вычетом залога) и готовим договор.</div>
-                <div class="small-note"><i class="fas fa-shield-alt"></i> Растаможка будет на того, кто оплатил инвойс — защита от мошенников.</div>
-            </div>
-
-            <!-- Шаг 6: Оплата инвойса (срочно) -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">06</div>
-                    <div class="step-title"><i class="fas fa-clock"></i> Оплачиваете инвойс в банке</div>
-                </div>
-                <div class="attention">
-                    <strong>⚠️ Внимание!</strong> Оплатите инвойс как можно быстрее. Деньги должны поступить к нам в течение <strong>7 календарных дней</strong>, иначе задаток сгорает по правилам дилера Кореи.
-                </div>
-            </div>
-
-            <!-- Шаг 7: Документы -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">07</div>
-                    <div class="step-title"><i class="fas fa-folder-open"></i> Присылаете документы</div>
-                </div>
-                <div class="grid-2col">
-                    <div class="info-box">
-                        <strong><i class="fas fa-print"></i> Бумажные (во Владивосток, СДЭК)</strong>
-                        <ul class="list-docs">
-                            <li><i class="fas fa-copy"></i> Нотариально заверенная копия паспорта (лицевая + прописка)</li>
-                        </ul>
-                    </div>
-                    <div class="info-box">
-                        <strong><i class="fas fa-telegram-plane"></i> Электронные (Telegram)</strong>
-                        <ul class="list-docs">
-                            <li><i class="fas fa-id-card"></i> скан паспорта</li>
-                            <li><i class="fas fa-id-card"></i> скан ИНН</li>
-                            <li><i class="fas fa-id-card"></i> скан СНИЛС</li>
-                            <li><i class="fas fa-globe"></i> скрин регистрации на <a href="#" style="color:#1d4ed8;">spp.ru</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Шаг 8: Выкуп и подготовка -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">08</div>
-                    <div class="step-title"><i class="fas fa-ship"></i> Покупаем автомобиль</div>
-                </div>
-                <div class="step-desc">После поступления денег мы выкупаем авто, бронируем место на корабле и готовим к экспорту.</div>
-            </div>
-
-            <!-- Шаг 9: Отправка во Владивосток -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">09</div>
-                    <div class="step-title"><i class="fas fa-ship"></i> Отправляем авто во Владивосток</div>
-                </div>
-                <div class="step-desc">Корабль идёт 2 дня. Сразу после отплытия брокер подаёт документы для ускорения растаможки.</div>
-                <div class="badge-light" style="display: inline-block; padding: 0.3rem 1.5rem;">Срок растаможки обычно 4–14 дней (от загрузки таможни)</div>
-            </div>
-
-            <!-- Шаг 10: Растаможка и СВХ -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">10</div>
-                    <div class="step-title"><i class="fas fa-calculator"></i> Растаможиваем автомобиль</div>
-                </div>
-                <div class="step-desc">Авто ставится на стоянку СВХ на время оформления.</div>
-                <div class="highlight">
-                    <p><i class="fas fa-box"></i> <strong>Бесплатное хранение – 5 дней.</strong> Далее <strong>2 000 ₽/сутки</strong>.</p>
-                    <p><i class="fas fa-euro-sign"></i> Таможенные расходы зависят от курса евро, их устанавливает ФТС. Брокер выставит счёт после растаможки.</p>
-                </div>
-            </div>
-
-            <!-- Шаг 11: Доставка в город -->
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-number">11</div>
-                    <div class="step-title"><i class="fas fa-truck"></i> Отправляем авто в ваш город</div>
-                </div>
-                <div class="step-desc">Вы выбираете транспортную компанию, мы заранее высылаем контакты. После оплаты таможенных расходов брокер отвозит машину в ТК.</div>
-                <p class="gps-tag"><i class="fas fa-map-marker-alt"></i> В каждый автомобиль помещён GPS‑маячок — отслеживаем перемещение.</p>
-                <p><i class="fas fa-phone-alt"></i> Вы держите связь с ТК и отслеживаете машину.</p>
+    <!-- Слайдер с шагами (свайп + кнопки) -->
+    <div class="steps-slider-section" id="stepsSlider">
+        <div class="slider-header">
+            <div class="step-badge" id="stepCounterDisplay">Шаг 1 из 11</div>
+            <div class="step-title-large" id="stepTitleIcon">
+                <i class="fas fa-clipboard-list"></i> <span id="stepMainTitle">Согласовываем автомобиль</span>
             </div>
         </div>
-
-        <div class="divider"></div>
-
-        <!-- Калькулятор стоимости -->
-        <div class="calculator-section">
-            <div class="calc-header">
-                <h2><i class="fas fa-calculator"></i> Рассчитайте стоимость вашего автомобиля</h2>
-                <p>Введите параметры автомобиля для получения точной сметы</p>
-            </div>
-            
-            <div class="calc-grid">
-                <div class="calc-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Цена авто в Корее (млн ₩)</label>
-                            <input type="number" id="calc-price" placeholder="30" min="1" max="500" step="0.1" title="Например 30 = 30 000 000 ₩">
-                        </div>
-                        <div class="form-group">
-                            <label>Год выпуска</label>
-                            <input type="number" id="calc-year" placeholder="2019" min="2010" max="2026">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Объём двигателя (см³)</label>
-                            <input type="number" id="calc-engine" placeholder="2000" min="500" max="6000">
-                        </div>
-                        <div class="form-group">
-                            <label>Мощность (л.с.) — необязательно</label>
-                            <input type="number" id="calc-power" placeholder="150" min="50" max="800" title="Для утильсбора: ≤160 л.с. даёт льготу">
-                        </div>
-                    </div>
-                    <div class="calc-rates-row">
-                        <span class="calc-rates-label">Курсы загружаются автоматически</span>
-                        <span class="calc-rates-values" id="calc-rates-display">USDT/RUB: — · EUR/RUB: —</span>
-                        <button type="button" class="btn-calc-refresh" id="calc-refresh-rates" title="Обновить курсы"><i class="fas fa-sync-alt"></i></button>
-                    </div>
-                    <button class="btn-calculate" type="button" id="calc-submit-btn" onclick="calculateCost()">
-                        <i class="fas fa-calculator"></i> Рассчитать стоимость
-                    </button>
-                </div>
-                
-                <div class="calc-result">
-                    <div class="result-header">
-                        <h3>Итоговая стоимость «под ключ»</h3>
-                        <div class="result-price" id="total-price">— ₽</div>
-                        <p class="result-note">Авто + документы 440k ₩, фрахт 1000 $, растаможка по правилам 2026, брокер 86 000 ₽, комиссия 10%</p>
-                    </div>
-                    <div class="cost-breakdown">
-                        <div class="cost-item">
-                            <span>Стоимость авто (в рублях)</span>
-                            <span id="car-price">— ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Фрахт (1000 $)</span>
-                            <span id="freight">— ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Таможенный сбор</span>
-                            <span id="customs-fee">— ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Пошлина</span>
-                            <span id="duty">— ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Утилизационный сбор</span>
-                            <span id="utilization">— ₽</span>
-                        </div>
-                        <div class="cost-item subtotal-item">
-                            <span>Растаможка итого</span>
-                            <span id="customs-total">— ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Брокер (оформление в РФ)</span>
-                            <span id="broker">— ₽</span>
-                        </div>
-                        <div class="cost-item">
-                            <span>Комиссия 10%</span>
-                            <span id="commission">— ₽</span>
-                        </div>
-                        <div class="cost-item highlight-total">
-                            <span>Итого к оплате</span>
-                            <span id="total-price-final">— ₽</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="step-progress" aria-hidden="true">
+            <div class="step-progress-bar" id="stepProgressBar"></div>
         </div>
 
-        <div class="divider"></div>
-
-        <!-- Контактный блок «Ответим на все вопросы» -->
-        <div class="contact-row">
-            <div class="contact-info">
-                <h3><i class="fas fa-comments"></i> Ответим на все вопросы</h3>
-                <p>Текущее время по городам — на связи в рабочее время.</p>
-                <div class="time-badge" id="time-by-cities">
-                    <div class="time-zone" data-tz="Europe/Moscow">
-                        <i class="fas fa-map-marker-alt"></i> Москва <span class="live-time">--:--</span>
-                    </div>
-                    <div class="time-zone" data-tz="Asia/Seoul">
-                        <i class="fas fa-map-marker-alt"></i> Сеул <span class="live-time">--:--</span>
-                    </div>
-                    <div class="time-zone" data-tz="Asia/Vladivostok">
-                        <i class="fas fa-map-marker-alt"></i> Владивосток <span class="live-time">--:--</span>
-                    </div>
-                </div>
-                <p class="contact-extra"><i class="fas fa-check-circle"></i> Принимаем и обрабатываем заявки 24/7</p>
-                <div class="messengers">
-                    <a href="https://t.me/nikits15" class="messenger-icon" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a>
-                    <a href="#" class="messenger-icon"><i class="fab fa-whatsapp"></i> WhatsApp</a>
-                </div>
-            </div>
-            <div class="form-side">
-                <h3>Отправьте данные — мы свяжемся</h3>
-                <form id="contact-form" action="#" method="get">
-                    <div class="form-group">
-                        <input type="text" name="name" id="cf-name" placeholder="ФИО / Организация" required>
-                    </div>
-                    <div class="form-group">
-                        <select name="contact_method" id="cf-method">
-                            <option value="">Способ связи</option>
-                            <option value="WhatsApp">WhatsApp</option>
-                            <option value="Telegram">Telegram</option>
-                            <option value="Телефон">Телефон</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <input type="tel" name="phone" id="cf-phone" placeholder="Телефон">
-                    </div>
-                    <div class="form-group">
-                        <textarea name="comment" id="cf-comment" rows="2" placeholder="Комментарий (авто, бюджет, пожелания)"></textarea>
-                    </div>
-                    <button type="submit" class="btn-submit">Отправить →</button>
-                    <div class="policy-note">
-                        Нажимая «Отправить», заявка уходит в Telegram менеджеру. Вы даёте согласие на обработку персональных данных.
-                    </div>
-                </form>
-            </div>
+        <!-- SVG зона (динамическая) -->
+        <div class="svg-stage" id="svgStage">
+            <!-- svg будет подставляться скриптом -->
         </div>
 
-        <!-- Нижний блок с мессенджерами -->
-        <div class="contact-messengers">
-            <span class="contact-messengers-title">Наши мессенджеры для связи</span>
-            <div class="contact-messengers-btns">
-                <a href="https://t.me/nikits15" class="btn-messenger" target="_blank" rel="noopener"><i class="fab fa-telegram"></i> Telegram</a>
-                <a href="#" class="btn-messenger"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+        <!-- Текстовое описание -->
+        <div class="step-description" id="stepDescription">
+            <!-- динамический текст -->
+        </div>
+
+        <!-- навигация -->
+        <div class="carousel-nav">
+            <button class="nav-arrow" id="prevStepBtn"><i class="fas fa-chevron-left"></i> Назад</button>
+            <div class="step-indicator" id="stepDots"></div>
+            <button class="nav-arrow" id="nextStepBtn">Вперёд <i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <!-- КАЛЬКУЛЯТОР -->
+    <div class="calculator-section" id="calculator">
+        <div style="text-align:center; margin-bottom:1.5rem;">
+            <h2><i class="fas fa-calculator"></i> Рассчитайте стоимость под ключ</h2>
+            <p>Логика синхронизирована с backend/price.py</p>
+        </div>
+        <div class="calc-grid">
+            <div class="calc-form">
+                <div class="calc-fields">
+                    <div class="field">
+                        <label for="calc-price">Стоимость</label>
+                        <div class="field-grid-inline">
+                            <input type="number" id="calc-price" placeholder="30000" value="30000">
+                            <select id="calc-currency">
+                                <option value="KRW" selected>KRW</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="RUB">RUB</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="calc-engine">Объем, см3</label>
+                        <input type="number" id="calc-engine" placeholder="2000" value="2000">
+                    </div>
+                    <div class="field">
+                        <label for="calc-power">Мощность</label>
+                        <div class="field-grid-inline">
+                            <input type="number" id="calc-power" placeholder="180" value="180">
+                            <select id="calc-power-unit">
+                                <option value="hp" selected>л.с.</option>
+                                <option value="kw">кВт</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="calc-mass">Масса, тонн</label>
+                        <input type="number" id="calc-mass" placeholder="1.8" step="0.1" value="1.8">
+                    </div>
+                    <div class="field full">
+                        <label>Возраст авто</label>
+                        <div class="chips" id="calc-age-group">
+                            <button type="button" class="chip active" data-age="lt3">меньше 3-х лет</button>
+                            <button type="button" class="chip" data-age="3to5">3-5 лет</button>
+                            <button type="button" class="chip" data-age="5to7">5-7 лет</button>
+                            <button type="button" class="chip" data-age="gt7">больше 7 лет</button>
+                        </div>
+                    </div>
+                    <div class="field full">
+                        <label>Тип двигателя</label>
+                        <div class="chips" id="calc-engine-type">
+                            <button type="button" class="chip active" data-fuel="petrol">бензиновый</button>
+                            <button type="button" class="chip" data-fuel="diesel">дизельный</button>
+                            <button type="button" class="chip" data-fuel="petrol_hybrid">бензиновый и электрический</button>
+                            <button type="button" class="chip" data-fuel="diesel_hybrid">дизельный и электрический</button>
+                            <button type="button" class="chip" data-fuel="electric">электрический</button>
+                        </div>
+                    </div>
+                    <div class="field full">
+                        <label for="calc-cleared-eaes">
+                            <input type="checkbox" id="calc-cleared-eaes" style="width:auto; margin-right:0.35rem;">
+                            авто растаможен при ввозе в ЕАЭС
+                        </label>
+                    </div>
+                    <div class="calc-rates-row full">
+                        <span id="calc-rates-display">USDT/RUB: — · EUR/RUB: —</span>
+                        <button type="button" id="calc-refresh-rates" title="Обновить курсы"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                    <button class="btn-calculate full" id="calc-submit-btn" type="button">Рассчитать стоимость</button>
+                </div>
+            </div>
+            <div class="calc-result">
+                <div class="result-header"><h3>Итоговая стоимость</h3><div class="result-price" id="total-price" style="font-size:2rem;">— ₽</div></div>
+                <div class="cost-breakdown">
+                    <div class="cost-item"><span>Авто + документы</span><span id="car-price">—</span></div>
+                    <div class="cost-item"><span>Фрахт (1000$)</span><span id="freight">—</span></div>
+                    <div class="cost-item"><span>Таможенный сбор</span><span id="customs-fee">—</span></div>
+                    <div class="cost-item"><span>Пошлина</span><span id="duty">—</span></div>
+                    <div class="cost-item"><span>Акциз</span><span id="excise">—</span></div>
+                    <div class="cost-item"><span>Утильсбор</span><span id="utilization">—</span></div>
+                    <div class="cost-item"><span>НДС</span><span id="vat">—</span></div>
+                    <div class="cost-item"><span>Брокер</span><span id="broker">—</span></div>
+                    <div class="cost-item"><span id="commission-label">Комиссия</span><span id="commission">—</span></div>
+                    <div class="cost-item highlight-total"><span>Итого к оплате</span><span id="total-price-final">—</span></div>
+                </div>
+                <div class="small-note" style="font-size:0.7rem; margin-top:1rem;">*растаможка по правилам 2026, ориентировочно</div>
+                <div class="post-calc-cta">
+                    <p id="calcLeadHint">После расчета отправьте заявку — менеджер подтвердит финальную смету и доступные варианты.</p>
+                    <button type="button" class="btn btn-primary btn-convert" id="calcLeadBtn">Получить подбор авто</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // Функция для прокрутки к калькулятору
-        function scrollToCalculator() {
-            const calculator = document.querySelector('.calculator-section');
-            if (calculator) calculator.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        // Курсы (как в price.py): KRW/USDT, USDT/RUB, EUR/RUB ЦБ
-        var calcRates = { krw_per_usdt: 1400, usdt_rub: 95, eur_rub: 105 };
-
-        function formatCurrency(amount) {
-            if (amount == null || isNaN(amount)) return '— ₽';
-            return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(Math.round(amount));
-        }
-
-        function updateRatesDisplay() {
-            var el = document.getElementById('calc-rates-display');
-            if (el) el.textContent = 'USDT/RUB: ' + (calcRates.usdt_rub ? calcRates.usdt_rub.toFixed(2) : '—') + ' · EUR/RUB: ' + (calcRates.eur_rub ? calcRates.eur_rub.toFixed(2) : '—');
-        }
-
-        function fetchCalcRates(callback) {
-            var done = 0;
-            function check() { if (++done >= 3) { updateRatesDisplay(); if (callback) callback(); } }
-            fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTKRW', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) { calcRates.krw_per_usdt = parseFloat(d.price) || calcRates.krw_per_usdt; }).catch(function() {}).finally(check);
-            fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTRUB', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) { calcRates.usdt_rub = parseFloat(d.price) || calcRates.usdt_rub; }).catch(function() {}).finally(check);
-            fetch('https://www.cbr-xml-daily.ru/daily_json.js', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) {
-                var eur = d.Valute && d.Valute.EUR;
-                if (eur) calcRates.eur_rub = eur.Nominal && eur.Value ? eur.Value / eur.Nominal : (eur.Value || 105);
-            }).catch(function() {}).finally(check);
-        }
-
-        // Растаможка по правилам 2026 (логика из price.py)
-        var CUSTOMS_FEE_TIERS_RUB = [
-            [200000, 1231], [450000, 2462], [1200000, 4924], [2700000, 13541], [4200000, 18465], [5500000, 21344], [10000000, 49240], [Infinity, 73860]
-        ];
-        var DUTY_EUR_PER_CC_3_5 = [1.5, 1.7, 2.5, 2.7, 3.0, 3.6];
-        var DUTY_EUR_PER_CC_5_PLUS = [3.0, 3.2, 3.5, 4.8, 5.0, 5.7];
-        var UTIL_BASE = 20000;
-        var UTIL_COEF = { '0,0': 0.17, '0,1': 0.26, '1,0': 0.17, '1,1': 0.26, '2,0': 0.17, '2,1': 0.26, '3,0': 129.2, '3,1': 197.81, '4,0': 164.53, '4,1': 219.48 };
-        var DOCUMENTS_KRW = 440000, FREIGHT_USD = 1000, BROKER_RUB = 86000, COMMISSION_RATE = 0.10;
-
-        function engineBracketIndex(cc) {
-            if (cc <= 1000) return 0; if (cc <= 1500) return 1; if (cc <= 1800) return 2; if (cc <= 2300) return 3; if (cc <= 3000) return 4; return 5;
-        }
-        function customsFeeTiered(carValueRub) {
-            for (var i = 0; i < CUSTOMS_FEE_TIERS_RUB.length; i++)
-                if (carValueRub <= CUSTOMS_FEE_TIERS_RUB[i][0]) return CUSTOMS_FEE_TIERS_RUB[i][1];
-            return 73860;
-        }
-        function dutyEurPerCc(engineCc, ageYears) {
-            var idx = engineBracketIndex(engineCc);
-            if (ageYears < 3) return 0;
-            if (ageYears <= 5) return DUTY_EUR_PER_CC_3_5[idx];
-            return DUTY_EUR_PER_CC_5_PLUS[idx];
-        }
-        function dutyUnder3(carValueEur, engineCc) {
-            var byPercent = carValueEur * 0.54;
-            var byCc = engineCc * 2.5;
-            return Math.max(byPercent, byCc);
-        }
-        function utilization2026(engineCc, ageYears, powerHp) {
-            if (engineCc <= 3000 && (powerHp == null || powerHp <= 160)) {
-                var k = ageYears < 3 ? 0.17 : 0.26;
-                return UTIL_BASE * k;
-            }
-            var idx = Math.min(engineBracketIndex(engineCc), 4);
-            var ageBucket = ageYears < 3 ? 0 : 1;
-            var k = UTIL_COEF[idx + ',' + ageBucket];
-            if (k == null) k = ageBucket === 0 ? 112.52 : 170.36;
-            return UTIL_BASE * k;
-        }
-
-        function calculateCost() {
-            var priceMln = parseFloat(document.getElementById('calc-price').value) || 0;
-            var year = parseInt(document.getElementById('calc-year').value, 10) || new Date().getFullYear() - 5;
-            var engineCc = parseInt(document.getElementById('calc-engine').value, 10) || 2000;
-            var powerHpEl = document.getElementById('calc-power');
-            var powerHp = powerHpEl && powerHpEl.value ? parseFloat(powerHpEl.value) : null;
-            var ageYears = Math.max(0, new Date().getFullYear() - year);
-
-            var krwPerUsdt = calcRates.krw_per_usdt || 1400;
-            var usdtRub = calcRates.usdt_rub || 95;
-            var eurRub = calcRates.eur_rub || 105;
-            var krwToRub = usdtRub / krwPerUsdt;
-
-            var priceWon = priceMln * 1000000;
-            var carAndDocsRub = (priceWon + DOCUMENTS_KRW) * krwToRub;
-            var freightRub = FREIGHT_USD * usdtRub;
-
-            var customsFee = customsFeeTiered(carAndDocsRub);
-            var duty;
-            if (ageYears < 3) {
-                var carValueEur = carAndDocsRub / eurRub;
-                duty = dutyUnder3(carValueEur, engineCc) * eurRub;
-            } else {
-                var eurPerCc = dutyEurPerCc(engineCc, ageYears);
-                duty = engineCc * eurPerCc * eurRub;
-            }
-            var utilization = utilization2026(engineCc, ageYears, powerHp);
-            var customsTotal = customsFee + duty + utilization;
-
-            var vehicleSum = carAndDocsRub + freightRub + customsTotal;
-            var commission = vehicleSum * COMMISSION_RATE;
-            var total = vehicleSum + BROKER_RUB + commission;
-
-            document.getElementById('car-price').textContent = formatCurrency(carAndDocsRub);
-            document.getElementById('freight').textContent = formatCurrency(freightRub);
-            document.getElementById('customs-fee').textContent = formatCurrency(customsFee);
-            document.getElementById('duty').textContent = formatCurrency(duty);
-            document.getElementById('utilization').textContent = formatCurrency(utilization);
-            document.getElementById('customs-total').textContent = formatCurrency(customsTotal);
-            document.getElementById('broker').textContent = formatCurrency(BROKER_RUB);
-            document.getElementById('commission').textContent = formatCurrency(commission);
-            document.getElementById('total-price').textContent = formatCurrency(total);
-            document.getElementById('total-price-final').textContent = formatCurrency(total);
-        }
-
-        (function initCalculator() {
-            updateRatesDisplay();
-            fetchCalcRates(function() { calculateCost(); });
-            var refreshBtn = document.getElementById('calc-refresh-rates');
-            if (refreshBtn) refreshBtn.addEventListener('click', function() { refreshBtn.disabled = true; fetchCalcRates(function() { refreshBtn.disabled = false; calculateCost(); }); });
-            ['calc-price', 'calc-year', 'calc-engine', 'calc-power'].forEach(function(id) {
-                var el = document.getElementById(id);
-                if (el) el.addEventListener('input', calculateCost);
-            });
-        })();
-
-        // Фактическое время по городам (обновление раз в секунду)
-        (function() {
-            var zones = document.querySelectorAll('#time-by-cities .time-zone[data-tz]');
-            function formatTime(tz) {
-                try {
-                    return new Date().toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                } catch (e) {
-                    return '--:--:--';
-                }
-            }
-            function update() {
-                zones.forEach(function(el) {
-                    var span = el.querySelector('.live-time');
-                    if (span) span.textContent = formatTime(el.getAttribute('data-tz'));
-                });
-            }
-            update();
-            setInterval(update, 1000);
-        })();
-
-        // Отправка заявки: открывает Telegram с предзаполненным сообщением (заявка уходит менеджеру в ЛС)
-        (function() {
-            var form = document.getElementById('contact-form');
-            var telegramBase = 'https://t.me/nikits15';
-            if (form) {
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    var name = (document.getElementById('cf-name') && document.getElementById('cf-name').value) || '';
-                    var method = (document.getElementById('cf-method') && document.getElementById('cf-method').value) || '';
-                    var phone = (document.getElementById('cf-phone') && document.getElementById('cf-phone').value) || '';
-                    var comment = (document.getElementById('cf-comment') && document.getElementById('cf-comment').value) || '';
-                    var lines = ['Заявка с сайта «Как купить»'];
-                    if (name) lines.push('ФИО/Организация: ' + name);
-                    if (method) lines.push('Способ связи: ' + method);
-                    if (phone) lines.push('Телефон: ' + phone);
-                    if (comment) lines.push('Комментарий: ' + comment);
-                    var text = lines.join('\n');
-                    window.open(telegramBase + (text ? '?text=' + encodeURIComponent(text) : ''), '_blank', 'noopener');
-                });
-            }
-        })();
-
-        // Анимация появления: герой и карточки шагов
-        (function() {
-            var hero = document.getElementById('hero-block');
-            if (hero) hero.classList.add('visible');
-            var cards = document.querySelectorAll('.step-card');
-            var io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(function(entries) {
-                entries.forEach(function(e) {
-                    if (e.isIntersecting) e.target.classList.add('visible');
-                });
-            }, { rootMargin: '0px 0px -40px 0px', threshold: 0.1 }) : null;
-            if (io) {
-                cards.forEach(function(card, i) {
-                    card.style.animationDelay = (i * 0.06) + 's';
-                    io.observe(card);
-                });
-            } else {
-                cards.forEach(function(c, i) {
-                    c.classList.add('visible');
-                    c.style.animationDelay = (i * 0.06) + 's';
-                });
-            }
-        })();
-    </script>
-
-<!-- Футер как в index.html -->
+    <!-- Контактная форма (сохранена) -->
+    <div class="contact-row">
+        <div class="contact-info">
+            <h3><i class="fas fa-headset"></i> Ответим на все вопросы</h3>
+            <div id="time-by-cities" style="display:flex; gap:1rem; margin:1rem 0;">
+                <div>Москва <span id="mskTime">--:--</span></div>
+                <div>Сеул <span id="seoulTime">--:--</span></div>
+                <div>Владивосток <span id="vladTime">--:--</span></div>
+            </div>
+            <div class="messengers">
+                <a href="https://t.me/nikits15" class="messenger-icon" target="_blank"><i class="fab fa-telegram"></i> Telegram</a>
+                <a href="#" class="messenger-icon"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+            </div>
+        </div>
+        <div class="form-side">
+            <h3>Отправьте данные — мы свяжемся</h3>
+            <form id="contact-form">
+                <input type="text" id="cf-name" placeholder="ФИО / Организация">
+                <select id="cf-method">
+                    <option>Telegram</option><option>WhatsApp</option><option>Телефон</option>
+                </select>
+                <input type="tel" id="cf-phone" placeholder="Телефон">
+                <textarea id="cf-comment" rows="2" placeholder="Комментарий (авто, бюджет)"></textarea>
+                <button type="submit" class="btn-calculate" style="width:100%; margin-top:1rem;">Отправить →</button>
+            </form>
+        </div>
+    </div>
+</div>
 <div class="footer-wrap">
-  <footer class="footer">
-    <div class="footer-top">
-      <a href="index.html" class="footer-logo">
-        <img src="image/logo.svg" alt="World Ride Auto">
-      </a>
-      <nav class="footer-nav">
-        <a href="#">Политика конфиденциальности</a>
-        <a href="#">Пользовательское соглашение</a>
-      </nav>
-      <div class="footer-copy">
-        <span class="copy-line">&copy; World Ride Auto 2026</span>
-        <span class="copy-made">сделано в World Ride Auto</span>
-      </div>
-    </div>
-    <div class="footer-legal">
-      <p>Информация, размещённая в настоящем каталоге, не является публичной офертой в смысле статьи 437 Гражданского кодекса Российской Федерации, а также статьи 435 Гражданского кодекса Республики Корея. Все сведения об автомобилях, включая ориентировочные расчёты и стоимость, представлены исключительно в информационных целях и формируются на основе открытых источников, доступных в Республике Корея. Целью размещения информации является ознакомление пользователей с доступным ассортиментом и уровнем цен на транспортные средства на корейском рынке. Деятельность сервиса осуществляется в строгом соответствии с законодательством Российской Федерации и Республики Корея.</p>
-      <p>본 카탈로그에 게시된 정보는 러시아 연방 민법 제437조 및 대한민국 민법 제1435조에 따른 공개적인 청약으로 간주되지 않습니다. 차량에 대한 모든 정보, 포함하여 예시 계산 및 가격은 오직 정보 제공을 목적으로 하며, 대한민국 내에서 접근 가능한 공개 출처를 기반으로 작성되었습니다. 본 정보 제공의 목적은 사용자에게 한국 시장에서 제공되는 차량의 품목 구성과 가격 수준에 대한 이해를 돕기 위한 것입니다. 본 서비스의 운영은 러시아 연방 및 대한민국의 관련 법령을 철저히 준수하여 이루어집니다.</p>
-    </div>
-  </footer>
+    <footer class="footer">
+        <div class="footer-top">
+            <a href="index.html" class="footer-logo">
+                <img src="image/logo.svg" alt="World Ride Auto">
+            </a>
+            <nav class="footer-nav">
+                <a href="privacy.html">Политика конфиденциальности</a>
+                <a href="cookies.html">Политика cookie</a>
+                <a href="agreement.html">Пользовательское соглашение</a>
+            </nav>
+            <div class="footer-copy">
+                <span class="copy-line">&copy; World Ride Auto 2026</span>
+                <span class="copy-made">сделано в World Ride Auto</span>
+            </div>
+        </div>
+        <div class="footer-legal">
+            <p>Информация не является публичной офертой. Все расчёты примерны. Авто доставляется под заказ.</p>
+        </div>
+    </footer>
 </div>
 
+<script>
+    // ========= 1. ДАННЫЕ ЭТАПОВ (11 шагов с контентом и SVG) =========
+    const stepsData = [
+        { title: "Согласовываем авто для осмотра", iconFa: "fa-clipboard-list", desc: "Вы выбираете авто в каталоге World Ride Auto или на Encar. Мы помогаем с подбором, согласовываем варианты. После выбора фиксируем автомобиль для осмотра." },
+        { title: "Вносите возвратный залог", iconFa: "fa-hand-holding-usd", desc: "Залог 148 369 ₽ (в т.ч. НДС 5%). Оформляется договор. Полный возврат, если авто не подобран. Оплата по QR‑коду с чеком ФНС." },
+        { title: "Осмотр авто", iconFa: "fa-video", desc: "Специалист выезжает на осмотр, снимает видео, фотоотчёт. Вы подтверждаете бронирование, чтобы авто не ушёл другому покупателю." },
+        { title: "Авто подходит / задаток", iconFa: "fa-thumbs-up", desc: "Вносим задаток (используем ваш залог). С этого момента залог невозвратный. Если не подходит — ищем дальше (3 осмотра бесплатно)." },
+        { title: "Составляем договор / инвойс", iconFa: "fa-file-signature", desc: "Вы присылаете паспортные данные, мы выписываем инвойс на полную сумму выкупа (за вычетом залога). Растаможка на того, кто оплатил." },
+        { title: "Оплата инвойса (срочно)", iconFa: "fa-clock", desc: "Оплатите в течение 7 календарных дней, иначе задаток сгорает по правилам дилера Кореи. Деньги должны поступить для выкупа." },
+        { title: "Присылаете документы", iconFa: "fa-folder-open", desc: "Нотариальная копия паспорта + скан ИНН, СНИЛС, регистрация на spp.ru. Электронные копии в Telegram." },
+        { title: "Выкуп и подготовка", iconFa: "fa-ship", desc: "После поступления денег выкупаем авто, бронируем место на судне, готовим экспортные документы." },
+        { title: "Отправка морем во Владивосток", iconFa: "fa-ship", desc: "Корабль идёт 2 дня. Брокер подаёт документы сразу после отплытия для ускорения растаможки." },
+        { title: "Растаможка и СВХ", iconFa: "fa-calculator", desc: "Авто на СВХ. Бесплатное хранение 5 дней, далее 2 000 ₽/сутки. Таможенные расходы по факту." },
+        { title: "Доставка в ваш город", iconFa: "fa-truck", desc: "Выбираете ТК, мы отправляем авто после оплаты таможенных расходов. GPS-маячок для отслеживания." }
+    ];
+
+    // SVG-генератор (условные, позже замените на свои)
+    function getStepSvg(stepIndex) {
+        const svgMap = [
+            `<svg viewBox="0 0 200 160"><rect width="160" height="80" x="20" y="40" fill="#eef4ff" rx="12" stroke="#0a58ca" stroke-width="2"/><circle cx="50" cy="100" r="12" fill="#2c3e66"/><circle cx="140" cy="100" r="12" fill="#2c3e66"/><text x="100" y="85" text-anchor="middle" fill="#0a58ca" font-size="14">🚗 + 📋</text></svg>`,
+            `<svg viewBox="0 0 200 160"><rect x="40" y="50" width="120" height="60" fill="#eef4ff" rx="12" stroke="#0a58ca"/><text x="100" y="95" text-anchor="middle" font-size="28">💰↩️</text><text x="100" y="125" font-size="12">возвратный залог</text></svg>`,
+            `<svg viewBox="0 0 200 160"><circle cx="100" cy="70" r="35" fill="none" stroke="#0a58ca" stroke-width="2"/><text x="100" y="80" text-anchor="middle" font-size="28">🔍</text><rect x="60" y="105" width="80" height="20" fill="#cbdff2" rx="10"/><text x="100" y="120" text-anchor="middle" font-size="12">осмотр</text></svg>`,
+            `<svg viewBox="0 0 200 160"><path d="M40,100 L160,100" stroke="#0a58ca" stroke-width="3"/><circle cx="100" cy="70" r="25" fill="#eef4ff" stroke="#0a58ca"/><text x="100" y="78" text-anchor="middle" font-size="28">👍</text><text x="100" y="125" text-anchor="middle">подтверждение</text></svg>`,
+            `<svg viewBox="0 0 200 160"><rect x="30" y="50" width="140" height="70" fill="#f0f4fa" stroke="#0a58ca" rx="8"/><text x="100" y="95" text-anchor="middle" font-size="24">📄✍️</text><text x="100" y="120" font-size="12">договор/инвойс</text></svg>`,
+            `<svg viewBox="0 0 200 160"><circle cx="100" cy="70" r="30" fill="#FFE6CC" stroke="#0a58ca"/><text x="100" y="80" text-anchor="middle" font-size="28">⏱️💳</text><text x="100" y="125" font-size="12">оплата инвойса</text></svg>`,
+            `<svg viewBox="0 0 200 160"><polygon points="40,50 160,50 140,110 60,110" fill="#eef4ff" stroke="#0a58ca"/><text x="100" y="85" text-anchor="middle" font-size="24">📂📑</text><text x="100" y="120" font-size="12">документы</text></svg>`,
+            `<svg viewBox="0 0 200 160"><rect x="20" y="60" width="160" height="50" fill="#eef4ff" rx="8"/><text x="100" y="95" text-anchor="middle" font-size="28">💰🚘</text><text x="100" y="125" font-size="12">выкуп авто</text></svg>`,
+            `<svg viewBox="0 0 200 160"><path d="M20,80 L180,80" stroke="#2c6e9e" stroke-width="3"/><rect x="40" y="45" width="120" height="35" fill="#cbdff2"/><text x="100" y="70" text-anchor="middle">🚢</text><text x="100" y="115" font-size="12">морская отправка</text></svg>`,
+            `<svg viewBox="0 0 200 160"><rect x="30" y="50" width="140" height="70" fill="#eef4ff" rx="8" stroke="#0a58ca"/><text x="100" y="90" text-anchor="middle" font-size="28">🛃📊</text><text x="100" y="120" font-size="12">растаможка</text></svg>`,
+            `<svg viewBox="0 0 200 160"><rect x="10" y="70" width="180" height="40" fill="#cbdff2" rx="20"/><text x="100" y="98" text-anchor="middle" font-size="22">🚛📍</text><text x="100" y="130" font-size="12">доставка по РФ</text></svg>`
+        ];
+        return svgMap[stepIndex] || svgMap[0];
+    }
+
+    let currentStep = 0;
+    const totalSteps = stepsData.length;
+
+    function updateStepUI() {
+        const step = stepsData[currentStep];
+        document.getElementById("stepMainTitle").innerText = step.title;
+        document.getElementById("stepCounterDisplay").innerText = `Шаг ${currentStep+1} из ${totalSteps}`;
+        document.getElementById("stepDescription").innerHTML = `<i class="fas ${step.iconFa}" style="color:#0a58ca; margin-right:8px;"></i> ${step.desc} ${currentStep===1 ? '<div class="highlight">Залог возвратный по договору, оплата по QR-коду</div>' : ''} ${currentStep===5 ? '<div class="highlight">⚠️ Оплатите в течение 7 дней!</div>' : ''}`;
+        const svgContainer = document.getElementById("svgStage");
+        svgContainer.innerHTML = getStepSvg(currentStep);
+        // обновить точки
+        const dotsContainer = document.getElementById("stepDots");
+        dotsContainer.innerHTML = "";
+        for(let i=0; i<totalSteps; i++) {
+            const dot = document.createElement("div");
+            dot.classList.add("step-dot");
+            if(i===currentStep) dot.classList.add("active");
+            dot.addEventListener("click", (function(idx){ return function(){ goToStep(idx); }; })(i));
+            dotsContainer.appendChild(dot);
+        }
+        // анимация
+        document.querySelector(".step-description").classList.add("animate-slide");
+        setTimeout(()=> document.querySelector(".step-description")?.classList.remove("animate-slide"), 400);
+        const pb = document.getElementById('stepProgressBar');
+        if (pb) pb.style.width = `${((currentStep + 1) / totalSteps) * 100}%`;
+    }
+
+    function goToStep(idx) {
+        if(idx<0) idx=0;
+        if(idx>=totalSteps) idx=totalSteps-1;
+        currentStep = idx;
+        updateStepUI();
+    }
+
+    function nextStep() { if(currentStep+1 < totalSteps) goToStep(currentStep+1); }
+    function prevStep() { if(currentStep-1 >= 0) goToStep(currentStep-1); }
+
+    // свайп поддержка
+    let touchStartX = 0;
+    const sliderZone = document.getElementById("stepsSlider");
+    sliderZone.addEventListener("touchstart", (e) => { touchStartX = e.changedTouches[0].screenX; });
+    sliderZone.addEventListener("touchend", (e) => {
+        const diff = e.changedTouches[0].screenX - touchStartX;
+        if(Math.abs(diff) > 50) diff > 0 ? prevStep() : nextStep();
+    });
+
+    document.getElementById("prevStepBtn").addEventListener("click", prevStep);
+    document.getElementById("nextStepBtn").addEventListener("click", nextStep);
+
+    // ========= 2. КАЛЬКУЛЯТОР (синхронен с backend/price.py) =========
+    const calcRates = { krw_per_usdt: 1400, usdt_rub: 95, eur_rub: 105 };
+    const DOCS_KRW = 440000;
+    const FREIGHT_USD = 1000;
+    const BROKER_RUB = 86000;
+    const COMMISSION_RATE_DEFAULT = 0.10;
+    const COMMISSION_CAR_RUB_THRESHOLD = 4000000;
+    const COMMISSION_CAP_TARGET_RUB = 400000;
+    const COMMISSION_CAP_ROUND_RUB = 1000;
+    const UTIL_BASE = 20000;
+    const DUTY_3_5 = [1.5, 1.7, 2.5, 2.7, 3.0, 3.6];
+    const DUTY_5_PLUS = [3.0, 3.2, 3.5, 4.8, 5.0, 5.7];
+    const DUTY_UNDER3_TIERS = [
+        [8500, 0.54, 2.5],
+        [16700, 0.48, 3.5],
+        [42300, 0.48, 5.5],
+        [84500, 0.48, 7.5],
+        [169000, 0.48, 15.0],
+        [Infinity, 0.48, 20.0]
+    ];
+    const UTIL_COEF = {
+        '0_0': 0.17, '0_1': 0.26,
+        '1_0': 0.17, '1_1': 0.26,
+        '2_0': 0.17, '2_1': 0.26,
+        '3_0': 129.2, '3_1': 197.81,
+        '4_0': 164.53, '4_1': 219.48,
+        '5_0': 180.0, '5_1': 245.0
+    };
+    const UTIL_POWER_MULT = [
+        [160, 1.0], [200, 1.1], [250, 1.25], [300, 1.45], [Infinity, 1.7]
+    ];
+    const EXCISE_TIERS = [
+        [90, 0], [150, 64], [200, 613], [300, 1004], [400, 1711], [500, 1771], [Infinity, 1829]
+    ];
+    const CUSTOMS_TIERS = [
+        [200000, 1231], [450000, 2462], [1200000, 4924], [2700000, 13541],
+        [4200000, 18465], [5500000, 21344], [10000000, 49240], [Infinity, 73860]
+    ];
+
+    let selectedAgeGroup = 'lt3';
+    let selectedFuel = 'petrol';
+
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 })
+            .format(Math.round(amount || 0));
+    }
+
+    function updateRatesDisplay() {
+        const el = document.getElementById('calc-rates-display');
+        if (el) el.textContent = `USDT/RUB: ${calcRates.usdt_rub.toFixed(2)} · EUR/RUB (ЦБ): ${calcRates.eur_rub.toFixed(2)}`;
+    }
+
+    function fetchCalcRates(callback) {
+        let done = 0;
+        function checkDone() {
+            done += 1;
+            if (done >= 3) {
+                updateRatesDisplay();
+                if (callback) callback();
+            }
+        }
+        fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTKRW')
+            .then(r => r.json()).then(d => { calcRates.krw_per_usdt = parseFloat(d.price) || 1400; })
+            .catch(() => {}).finally(checkDone);
+        fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTRUB')
+            .then(r => r.json()).then(d => { calcRates.usdt_rub = parseFloat(d.price) || 95; })
+            .catch(() => {}).finally(checkDone);
+        fetch('https://www.cbr-xml-daily.ru/daily_json.js')
+            .then(r => r.json())
+            .then(d => {
+                const eur = d && d.Valute ? d.Valute.EUR : null;
+                if (eur) calcRates.eur_rub = (eur.Value / eur.Nominal) || 105;
+            })
+            .catch(() => {})
+            .finally(checkDone);
+    }
+
+    function selectChip(groupId, chip) {
+        const root = document.getElementById(groupId);
+        if (!root) return;
+        root.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+    }
+
+    function toHp(value, unit) {
+        if (!value) return 0;
+        return unit === 'kw' ? value * 1.35962 : value;
+    }
+
+    function ageFromGroup(group) {
+        if (group === 'lt3') return 2;
+        if (group === '3to5') return 4;
+        if (group === '5to7') return 6;
+        return 8;
+    }
+
+    function engineBracket(cc) {
+        if (cc <= 1000) return 0;
+        if (cc <= 1500) return 1;
+        if (cc <= 1800) return 2;
+        if (cc <= 2300) return 3;
+        if (cc <= 3000) return 4;
+        return 5;
+    }
+
+    function customsFeeTiered(valueRub) {
+        for (let i = 0; i < CUSTOMS_TIERS.length; i += 1) {
+            if (valueRub <= CUSTOMS_TIERS[i][0]) return CUSTOMS_TIERS[i][1];
+        }
+        return 73860;
+    }
+
+    function dutyRub(carValueRub, eurRub, engineCc, ageYears, fuel) {
+        if (fuel === 'electric') return 0;
+        const cc = engineCc > 0 ? engineCc : 2000;
+        if (ageYears < 3) {
+            const carEur = carValueRub / eurRub;
+            for (let i = 0; i < DUTY_UNDER3_TIERS.length; i += 1) {
+                const [limit, pct, minCc] = DUTY_UNDER3_TIERS[i];
+                if (carEur <= limit) return Math.max(carEur * pct, cc * minCc) * eurRub;
+            }
+        }
+        const idx = engineBracket(cc);
+        const eurPerCc = ageYears <= 5 ? DUTY_3_5[idx] : DUTY_5_PLUS[idx];
+        return cc * eurPerCc * eurRub;
+    }
+
+    function utilRub(engineCc, ageYears, hpIce, fuel) {
+        if (fuel === 'electric') return 0;
+        const cc = engineCc > 0 ? engineCc : 2000;
+        const ageBucket = ageYears < 3 ? 0 : 1;
+        const hpOk = !hpIce || hpIce <= 160;
+        if (hpOk) return UTIL_BASE * (ageBucket === 0 ? 0.17 : 0.26);
+        const idx = engineBracket(cc);
+        const key = `${idx}_${ageBucket}`;
+        const coef = UTIL_COEF[key] != null ? UTIL_COEF[key] : (ageBucket === 0 ? 112.52 : 170.36);
+        let mult = 1.0;
+        for (let i = 0; i < UTIL_POWER_MULT.length; i += 1) {
+            if (hpIce <= UTIL_POWER_MULT[i][0]) { mult = UTIL_POWER_MULT[i][1]; break; }
+        }
+        return UTIL_BASE * coef * mult;
+    }
+
+    function exciseRub(hp) {
+        if (!hp || hp <= 0) return 0;
+        for (let i = 0; i < EXCISE_TIERS.length; i += 1) {
+            const [lim, rate] = EXCISE_TIERS[i];
+            if (hp <= lim) return hp * rate;
+        }
+        return 0;
+    }
+
+    function vatRub(carValueRub, duty, excise, fuel, ageYears) {
+        if (fuel !== 'electric') return 0;
+        if (ageYears <= 5) return 0;
+        return Math.max(0, carValueRub + duty + excise) * 0.22;
+    }
+
+    function classifyFuel(fuelKey) {
+        if (fuelKey === 'electric') return 'electric';
+        if (fuelKey === 'petrol_hybrid' || fuelKey === 'diesel_hybrid') return 'hybrid';
+        return 'ice';
+    }
+
+    function commissionRub(carValueRub, customsTotalRub, brokerRub) {
+        const base = carValueRub + customsTotalRub + brokerRub;
+        if (carValueRub <= COMMISSION_CAR_RUB_THRESHOLD) return { value: base * COMMISSION_RATE_DEFAULT, rate: COMMISSION_RATE_DEFAULT };
+        const fixed = Math.round(COMMISSION_CAP_TARGET_RUB / COMMISSION_CAP_ROUND_RUB) * COMMISSION_CAP_ROUND_RUB;
+        return { value: fixed, rate: base > 0 ? fixed / base : 0 };
+    }
+
+    function carValueRubFromInput(priceInput, currency) {
+        if (currency === 'KRW') {
+            const krwToRub = calcRates.usdt_rub / calcRates.krw_per_usdt;
+            return (priceInput + DOCS_KRW) * krwToRub;
+        }
+        if (currency === 'USD') return (priceInput * calcRates.usdt_rub) + (DOCS_KRW * (calcRates.usdt_rub / calcRates.krw_per_usdt));
+        if (currency === 'EUR') return (priceInput * calcRates.eur_rub) + (DOCS_KRW * (calcRates.usdt_rub / calcRates.krw_per_usdt));
+        return priceInput + (DOCS_KRW * (calcRates.usdt_rub / calcRates.krw_per_usdt));
+    }
+
+    function calculateCost() {
+        const priceInput = parseFloat(document.getElementById('calc-price').value) || 0;
+        const currency = document.getElementById('calc-currency').value;
+        const engineCc = parseInt(document.getElementById('calc-engine').value, 10) || 0;
+        const powerRaw = parseFloat(document.getElementById('calc-power').value) || 0;
+        const powerUnit = document.getElementById('calc-power-unit').value;
+        const isClearedEaes = document.getElementById('calc-cleared-eaes').checked;
+
+        const ageYears = ageFromGroup(selectedAgeGroup);
+        const hpIce = toHp(powerRaw, powerUnit);
+        const fuel = classifyFuel(selectedFuel);
+        const carValueRub = carValueRubFromInput(priceInput, currency);
+        const freightRub = FREIGHT_USD * calcRates.usdt_rub;
+
+        let customsFee = 0;
+        let duty = 0;
+        let excise = 0;
+        let util = 0;
+        let vat = 0;
+
+        if (!isClearedEaes) {
+            customsFee = customsFeeTiered(carValueRub);
+            duty = dutyRub(carValueRub, calcRates.eur_rub, engineCc, ageYears, fuel);
+            excise = exciseRub(hpIce);
+            util = utilRub(engineCc, ageYears, hpIce, fuel);
+            vat = vatRub(carValueRub, duty, excise, fuel, ageYears);
+        }
+
+        const customsTotal = customsFee + duty + excise + util + vat;
+        const comm = commissionRub(carValueRub, customsTotal, BROKER_RUB);
+        const vehicleSum = carValueRub + freightRub + customsTotal;
+        const total = vehicleSum + BROKER_RUB + comm.value;
+
+        document.getElementById('car-price').innerText = formatCurrency(carValueRub);
+        document.getElementById('freight').innerText = formatCurrency(freightRub);
+        document.getElementById('customs-fee').innerText = formatCurrency(customsFee);
+        document.getElementById('duty').innerText = formatCurrency(duty);
+        document.getElementById('excise').innerText = formatCurrency(excise);
+        document.getElementById('utilization').innerText = formatCurrency(util);
+        document.getElementById('vat').innerText = formatCurrency(vat);
+        document.getElementById('broker').innerText = formatCurrency(BROKER_RUB);
+        document.getElementById('commission').innerText = formatCurrency(comm.value);
+        document.getElementById('commission-label').innerText = `Комиссия (${(comm.rate * 100).toFixed(2)}%)`;
+        document.getElementById('total-price').innerText = formatCurrency(total);
+        document.getElementById('total-price-final').innerText = formatCurrency(total);
+        const leadHint = document.getElementById('calcLeadHint');
+        if (leadHint) {
+            leadHint.textContent = total > 0
+                ? `Ориентировочная сумма: ${formatCurrency(total)}. Оставьте заявку — подтвердим финальный расчет и доступность автомобиля.`
+                : 'После расчета отправьте заявку — менеджер подтвердит финальную смету и доступные варианты.';
+        }
+    }
+
+    document.getElementById('calc-age-group').addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        selectedAgeGroup = chip.dataset.age || 'lt3';
+        selectChip('calc-age-group', chip);
+        calculateCost();
+    });
+    document.getElementById('calc-engine-type').addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        selectedFuel = chip.dataset.fuel || 'petrol';
+        selectChip('calc-engine-type', chip);
+        calculateCost();
+    });
+
+    document.getElementById('calc-submit-btn').addEventListener('click', calculateCost);
+    document.getElementById('calc-refresh-rates').addEventListener('click', () => fetchCalcRates(calculateCost));
+    document.getElementById('calcLeadBtn').addEventListener('click', () => {
+        document.getElementById('contact-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    ['calc-price', 'calc-currency', 'calc-engine', 'calc-power', 'calc-power-unit', 'calc-mass', 'calc-cleared-eaes']
+        .forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', calculateCost);
+            el.addEventListener('change', calculateCost);
+        });
+
+    fetchCalcRates(calculateCost);
+
+    // Время городов
+    function updateTimes() {
+        try {
+            document.getElementById('mskTime').innerText = new Date().toLocaleTimeString('ru-RU', {timeZone:'Europe/Moscow', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            document.getElementById('seoulTime').innerText = new Date().toLocaleTimeString('ru-RU', {timeZone:'Asia/Seoul', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            document.getElementById('vladTime').innerText = new Date().toLocaleTimeString('ru-RU', {timeZone:'Asia/Vladivostok', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        } catch(e) {}
+    }
+    updateTimes(); setInterval(updateTimes, 1000);
+
+    // Форма отправки в Telegram
+    document.getElementById('contact-form').addEventListener('submit', function(e){
+        e.preventDefault();
+        let name=document.getElementById('cf-name').value;
+        let method=document.getElementById('cf-method').value;
+        let phone=document.getElementById('cf-phone').value;
+        let comment=document.getElementById('cf-comment').value;
+        let text = `Заявка с сайта "Как купить"\nФИО: ${name}\nСвязь: ${method}\nТелефон: ${phone}\nКомментарий: ${comment}`;
+        window.open(`https://t.me/nikits15?text=${encodeURIComponent(text)}`, '_blank');
+    });
+
+    // инициализация шагов
+    goToStep(0);
+</script>
+<script src="js/cookie-consent.js" defer></script>
 </body>
 </html>

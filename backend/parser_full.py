@@ -13,36 +13,78 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def _get_proxy_for_parser() -> Optional[Dict[str, str]]:
-    """Прокси для доступа к Encar (Корея). ENCAR_PROXY_URL или ENCAR_PROXY_SERVER + USER + PASSWORD."""
+def _normalize_proxy_url(url: str) -> str:
+    u = (url or "").strip()
+    if not u:
+        return ""
+    if not u.startswith("http"):
+        u = "http://" + u
+    return u
+
+
+def _proxy_urls_from_scraper_config() -> List[str]:
+    """Те же URL, что у async-скрапера (scraper_config.yaml → proxy.urls)."""
+    try:
+        import yaml
+    except ImportError:
+        return []
+    path = Path(__file__).resolve().parent.parent / "scraper_config.yaml"
+    if not path.is_file():
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception:
+        return []
+    px = cfg.get("proxy") or {}
+    if not px.get("enabled"):
+        return []
+    urls = px.get("urls") or []
+    out = [_normalize_proxy_url(str(u)) for u in urls if u]
+    return [u for u in out if u]
+
+
+def collect_encar_proxy_urls() -> List[str]:
+    """
+    Список HTTP(S) прокси для ротации (каждый запрос — следующий).
+    Приоритет: ENCAR_PROXY_URLS (разделители , ; | перевод строки) → ENCAR_PROXY_URL
+    → ENCAR_PROXY_SERVER+USER+PASSWORD → scraper_config.yaml proxy.urls
+    """
+    raw = os.environ.get("ENCAR_PROXY_URLS", "").strip()
+    if raw:
+        return [
+            _normalize_proxy_url(x)
+            for x in re.split(r"[\n,;|]+", raw)
+            if x.strip()
+        ]
     url = os.environ.get("ENCAR_PROXY_URL", "").strip()
     if url:
-        if not url.startswith("http"):
-            url = "http://" + url
-        return {"http": url, "https": url}
+        return [_normalize_proxy_url(url)]
     server = os.environ.get("ENCAR_PROXY_SERVER", "").strip()
-    if not server:
-        return None
-    if not server.startswith("http"):
-        server = "http://" + server
-    user = os.environ.get("ENCAR_PROXY_USER", "")
-    password = os.environ.get("ENCAR_PROXY_PASSWORD", "")
-    if user and password:
-        from urllib.parse import quote_plus
-        auth = f"{quote_plus(user)}:{quote_plus(password)}"
-        base = server.split("://", 1)[1] if "://" in server else server
-        url = f"{server.split('://')[0]}://{auth}@{base}"
-        return {"http": url, "https": url}
-    return {"http": server, "https": server}
+    if server:
+        if not server.startswith("http"):
+            server = "http://" + server
+        user = os.environ.get("ENCAR_PROXY_USER", "")
+        password = os.environ.get("ENCAR_PROXY_PASSWORD", "")
+        if user and password:
+            from urllib.parse import quote_plus
+
+            auth = f"{quote_plus(user)}:{quote_plus(password)}"
+            scheme, rest = server.split("://", 1)
+            full = f"{scheme}://{auth}@{rest}"
+            return [_normalize_proxy_url(full)]
+        return [_normalize_proxy_url(server)]
+    return _proxy_urls_from_scraper_config()
 
 
 class EncarFullParser:
     def __init__(self):
         self.session = requests.Session()
-        proxy = _get_proxy_for_parser()
-        if proxy:
-            self.session.proxies.update(proxy)
-            logger.info("Using proxy for Encar API: %s", list(proxy.keys()))
+        self._proxy_urls: List[str] = collect_encar_proxy_urls()
+        self._proxy_index = 0
+        if self._proxy_urls:
+            self._apply_next_proxy()
+            logger.info("Encar parser: ротационный прокси, %d URL", len(self._proxy_urls))
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -66,6 +108,19 @@ class EncarFullParser:
         self._power_lookup: Optional[Dict[str, Any]] = None
         self.lookup_path = Path(__file__).resolve().parent.parent / "frontend" / "data" / "car_power_lookup.json"
         self._power_stats = {"with_power": 0, "without_power": 0}
+
+    def _apply_next_proxy(self) -> None:
+        if not self._proxy_urls:
+            return
+        u = self._proxy_urls[self._proxy_index % len(self._proxy_urls)]
+        self._proxy_index += 1
+        self.session.proxies.clear()
+        self.session.proxies.update({"http": u, "https": u})
+
+    def _session_get(self, url: str, **kwargs) -> Any:
+        if self._proxy_urls:
+            self._apply_next_proxy()
+        return self.session.get(url, **kwargs)
 
     def _get_power_lookup(self) -> Dict[str, Any]:
         """Загружает lookup-файл с данными о мощности (ключи: производитель|модель|бейдж и др.)."""
@@ -238,7 +293,7 @@ class EncarFullParser:
             'sr': f"|ModifiedDate|{offset}|{limit}"
         }
         try:
-            resp = self.session.get(self.list_url, params=params, headers=headers, timeout=15)
+            resp = self._session_get(self.list_url, params=params, headers=headers, timeout=15)
             if resp.status_code == 200:
                 return resp.json()
             else:
@@ -256,7 +311,7 @@ class EncarFullParser:
         include = "ADVERTISEMENT,CATEGORY,CONDITION,CONTACT,MANAGE,OPTIONS,PHOTOS,SPEC,PARTNERSHIP,CENTER,VIEW"
         url = f"{self.vehicle_detail_url.format(car_id)}?include={include}"
         try:
-            resp = self.session.get(url, headers=headers, timeout=10)
+            resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 return resp.json()
             else:
@@ -276,7 +331,7 @@ class EncarFullParser:
         encoded_plate = urllib.parse.quote(plate_number)
         url = self.record_url.format(car_id) + f"?vehicleNo={encoded_plate}"
         try:
-            resp = self.session.get(url, headers=headers, timeout=10)
+            resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 return resp.json()
             else:
@@ -293,7 +348,7 @@ class EncarFullParser:
         }
         url = self.diagnosis_url.format(car_id)
         try:
-            resp = self.session.get(url, headers=headers, timeout=10)
+            resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 print(f"    ✅ Диагностика получена для {car_id}")
                 return resp.json()
@@ -313,7 +368,7 @@ class EncarFullParser:
         }
         url = self.inspection_url.format(car_id)
         try:
-            resp = self.session.get(url, headers=headers, timeout=10)
+            resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 print(f"    ✅ Полная инспекция получена для {car_id}")
                 return resp.json()
@@ -331,7 +386,7 @@ class EncarFullParser:
         }
         url = self.sellingpoint_url.format(car_id)
         try:
-            resp = self.session.get(url, headers=headers, timeout=10)
+            resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 return resp.json()
             else:
@@ -348,7 +403,7 @@ class EncarFullParser:
         }
         url = self.user_url.format(seller_id)
         try:
-            resp = self.session.get(url, headers=headers, timeout=10)
+            resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 return resp.json()
             else:
@@ -637,8 +692,9 @@ class EncarFullParser:
         body_type = spec.get('bodyName', '')
         seat_count = spec.get('seatCount', '')
 
-        # Мощность (л.с.): 1) encar (item.hp), 2) lookup car_power_lookup.json, 3) парсим из badge/gradeName. Корейские ключи: 현대|그랜저|Exclusive
+        # Мощность (л.с.): 1) encar (item.hp), 2) lookup car_power_lookup.json, 3) парсим из badge/gradeName, 4) engine_map.json
         power = ''
+        power_from_engine_map = False
         lookup = self._get_power_lookup()
 
         # 1. Из ответа encar (редко, но бывает)
@@ -679,7 +735,33 @@ class EncarFullParser:
             if power and not (20 <= int(power) <= 2000):
                 power = ''
 
-        # 4. Если не найдено — пустая строка (на фронте прочерк)
+        # 4. Каталог двигателей engine_map.json (марка/модель/объём/топливо/турбо)
+        if not power:
+            try:
+                from engine_hp_resolver import resolve_engine_hp
+
+                cat = (detail.get("category") or {}) if detail else {}
+                hint = {
+                    "mark": cat.get("manufacturerName") or manufacturer,
+                    "manufacturerName": cat.get("manufacturerName") or manufacturer,
+                    "model": cat.get("modelName") or model,
+                    "modelName": cat.get("modelName") or model,
+                    "modelGroupName": cat.get("modelGroupName") or "",
+                    "generation": badge,
+                    "configuration": badge,
+                    "gradeName": grade_name,
+                    "displacement": displacement,
+                    "engine_type": engine_type,
+                    "year": year,
+                }
+                hp_int = resolve_engine_hp(hint, record_source=False)
+                if hp_int is not None:
+                    power = str(hp_int)
+                    power_from_engine_map = True
+            except ImportError:
+                pass
+
+        # 5. Если не найдено — пустая строка (на фронте прочерк)
         if power:
             self._power_stats["with_power"] += 1
         else:
@@ -831,6 +913,10 @@ class EncarFullParser:
             'seatColor': '',
             'seatCount': str(seat_count) if seat_count else ''
         }
+
+        if power_from_engine_map:
+            data["power_source"] = "engine_map"
+            data["power_estimated"] = True
 
         return {
             'id': 0,

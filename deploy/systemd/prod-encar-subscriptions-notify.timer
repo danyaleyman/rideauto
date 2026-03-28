@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Prod Encar subscription notifications every 10 minutes
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+Unit=prod-encar-subscriptions-notify.service
+
+[Install]
+WantedBy=timers.target

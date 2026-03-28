@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ENCAR · Детальная карточка авто</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/cookie-consent.css">
+    <link rel="stylesheet" href="css/auth-favorites.css">
     <script src="js/copy-protection.js"></script>
+    <script src="js/auth-favorites.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -15,6 +21,11 @@
             --app-bg: var(--wra-gray-100);
             --app-details-width: 776px;
             --header-height: 87px;
+            /* Баланс текста и «воздуха» в карточках страницы авто */
+            --car-section-pad-y: 22px;
+            --car-section-pad-x: 26px;
+            --car-section-title-size: 1.0625rem;
+            --car-body-text-size: 0.8125rem;
             --color-neutral-100: var(--wra-white);
             --color-neutral-200: var(--wra-gray-200);
             --color-neutral-300: var(--wra-gray-300);
@@ -142,7 +153,7 @@
         /* Основные характеристики — карточка в общем стиле страницы */
         .detail-section {
             background: var(--wra-surface);
-            padding: var(--space-6) var(--space-8);
+            padding: var(--car-section-pad-y) var(--car-section-pad-x);
             border-radius: var(--radius-xl);
             margin-bottom: var(--space-4);
             border: 1px solid var(--wra-gray-200);
@@ -150,13 +161,13 @@
         }
         .detail-section h2, .card h2, .condition-diagram-title, .condition-diagram-title .ml-2 {
             font-family: var(--font-sans);
-            font-size: var(--text-lg);
+            font-size: var(--car-section-title-size);
             font-weight: var(--font-semibold);
             color: var(--wra-gray-900);
         }
         .detail-section h2 {
-            margin: 0 0 var(--space-5) 0;
-            padding-bottom: var(--space-4);
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.75rem;
             border-bottom: 2px solid var(--wra-gray-100);
         }
         #basic-info .detail-section .grid {
@@ -176,7 +187,7 @@
         .dotted-pair:last-child { border-bottom: none; }
         .dotted-pair .key {
             color: var(--wra-text-muted);
-            font-size: var(--text-sm);
+            font-size: var(--car-body-text-size);
             font-weight: var(--font-medium);
             white-space: nowrap;
             flex: 1 1 auto;
@@ -185,7 +196,7 @@
         .dotted-pair .key::after { display: none; }
         .dotted-pair .value {
             font-weight: var(--font-semibold);
-            font-size: var(--text-sm);
+            font-size: var(--car-body-text-size);
             color: var(--wra-gray-900);
             white-space: nowrap;
             flex-shrink: 0;
@@ -198,7 +209,7 @@
             background: var(--wra-surface);
             border: 1px solid var(--wra-gray-200);
             border-radius: var(--radius-xl);
-            padding: var(--space-6) var(--space-8);
+            padding: var(--car-section-pad-y) var(--car-section-pad-x);
             margin-bottom: var(--space-4);
             box-shadow: var(--shadow-sm);
             transition: box-shadow var(--transition);
@@ -208,11 +219,11 @@
         }
         #car-content .card h2,
         #car-content .card .card-title {
-            font-size: var(--text-lg);
+            font-size: var(--car-section-title-size);
             font-weight: var(--font-semibold);
             color: var(--wra-gray-900);
-            margin: 0 0 var(--space-4) 0;
-            padding-bottom: var(--space-4);
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.75rem;
             border-bottom: 2px solid var(--wra-gray-100);
         }
         #car-content .card .card-body { margin-top: 0; }
@@ -237,7 +248,7 @@
         }
         .gallery-card h2 {
             margin: 0 0 12px 0;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 600;
         }
         .gallery-encar-row {
@@ -372,7 +383,7 @@
             top: 50%;
             transform: translateY(-50%);
             width: 44px;
-            height: 44px;
+            height: var(--control-height);
             border-radius: 50%;
             background: rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.3);
@@ -620,7 +631,7 @@
         .order-card {
             background: var(--wra-surface);
             border-radius: var(--radius-xl);
-            padding: var(--space-6);
+            padding: var(--car-section-pad-y) var(--car-section-pad-x);
             border: 1px solid var(--wra-gray-200);
             box-shadow: var(--shadow-sm);
             position: relative;
@@ -633,7 +644,7 @@
             margin-bottom: var(--space-3);
         }
         .order-card .order-title {
-            font-size: var(--text-base);
+            font-size: var(--car-section-title-size);
             font-weight: var(--font-semibold);
             color: var(--wra-gray-900);
             margin: 0;
@@ -694,10 +705,11 @@
         .order-card .calc-list li.price-fallback-note .price { font-weight: 500; font-size: 0.9rem; color: var(--wra-primary); white-space: normal; }
         .order-card .order-price-total.order-price-fallback { font-size: 0.95rem; font-weight: 600; white-space: normal; line-height: 1.3; }
         .order-card .order-price-total {
-            font-size: var(--text-xl);
+            font-size: clamp(1.125rem, 2.8vw, 1.35rem);
             font-weight: var(--font-bold);
             color: var(--wra-gray-900);
             margin-bottom: var(--space-4);
+            line-height: 1.25;
         }
         .order-card .order-link {
             display: inline-flex;
@@ -966,25 +978,26 @@
             justify-content: center;
             gap: var(--space-2);
             width: 100%;
-            height: 48px;
+            height: 44px;
             padding: 0 var(--space-6);
             border-radius: var(--radius-md);
             font-weight: var(--font-semibold);
-            font-size: var(--text-base);
-            background: var(--wra-primary);
+            font-size: var(--text-sm);
+            background: var(--cta-dark-bg);
             color: var(--wra-white);
             border: none;
             cursor: pointer;
             text-decoration: none;
             margin-bottom: var(--space-4);
             font-family: inherit;
-            transition: background var(--transition), box-shadow var(--transition);
+            transition: background var(--transition), box-shadow var(--transition), transform var(--transition-fast);
             box-sizing: border-box;
         }
         .order-btn-manager:hover {
-            background: var(--wra-primary-hover);
+            background: var(--cta-dark-bg-hover);
             color: var(--wra-white);
             box-shadow: var(--shadow);
+            transform: translateY(-1px);
         }
         .order-btn-calc {
             display: inline-flex;
@@ -1007,9 +1020,9 @@
             box-sizing: border-box;
         }
         .order-btn-calc:hover {
-            background: var(--wra-gray-50);
-            color: var(--wra-primary);
-            border-color: var(--wra-primary);
+            background: var(--control-bg-hover);
+            color: var(--control-text);
+            border-color: var(--control-border);
         }
         .order-howto-bar {
             display: flex;
@@ -1034,13 +1047,23 @@
             background: var(--wra-gray-50);
             border-color: var(--wra-gray-300);
         }
-        .order-howto-bar .chevron-img {
-            width: 18px;
-            height: 18px;
+        .order-howto-bar-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
-            transition: transform var(--transition);
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: var(--wra-gray-100);
+            color: var(--wra-primary);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s ease, color 0.25s ease;
         }
-        .order-howto-bar:hover .chevron-img { transform: translate(3px, 0); }
+        .order-howto-bar:hover .order-howto-bar-icon {
+            transform: translate(5px, 0);
+            background: var(--wra-primary-light);
+        }
+        .order-howto-bar-icon svg { display: block; }
 
         /* Модальное окно: Расчёт цены (как у конкурента) */
         .calc-modal-overlay {
@@ -1108,9 +1131,37 @@
             background: var(--color-neutral-200); color: var(--color-neutral-800);
             padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: 500;
         }
-        .calc-modal-why-course { margin-top: 12px; font-size: 13px; color: var(--color-neutral-600); }
-        .calc-modal-why-course summary { cursor: pointer; color: var(--color-primary); font-weight: 500; }
-        .calc-modal-why-course p { margin: 8px 0 0 0; line-height: 1.5; }
+        .calc-modal-why-course { margin-top: 12px; font-size: 0.8125rem; color: var(--color-neutral-600); }
+        .calc-modal-why-course summary {
+            cursor: pointer;
+            color: var(--color-primary);
+            font-weight: 500;
+            list-style: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+        .calc-modal-why-course summary::-webkit-details-marker { display: none; }
+        .calc-modal-why-course summary::marker { content: ''; }
+        .calc-why-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            background: var(--wra-primary-light);
+            color: var(--color-primary);
+            transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s ease;
+        }
+        .calc-modal-why-course[open] .calc-why-icon {
+            transform: rotate(180deg);
+            background: rgba(59, 130, 246, 0.22);
+        }
+        .calc-why-icon svg { display: block; }
+        .calc-modal-why-course p { margin: 8px 0 0 0; line-height: 1.5; padding-left: 34px; }
         .calc-modal-section {
             background: var(--wra-surface);
             border: 1px solid var(--color-neutral-200);
@@ -1231,15 +1282,15 @@
         
         /* Опции и оборудование — вертикальный аккордеон (как в первой версии): заголовок — разворачивается/сворачивается, снизу контент */
         .options-equipment-block {
-            padding: var(--space-6) var(--space-8);
+            padding: var(--car-section-pad-y) var(--car-section-pad-x);
             border-radius: var(--radius-xl);
         }
         .options-equipment-block .options-block-title {
-            font-size: var(--text-lg);
+            font-size: var(--car-section-title-size);
             font-weight: var(--font-semibold);
             color: var(--wra-gray-900);
-            margin: 0 0 var(--space-5) 0;
-            padding-bottom: var(--space-4);
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.75rem;
             border-bottom: 2px solid var(--wra-gray-100);
             display: flex;
             align-items: center;
@@ -1268,13 +1319,13 @@
             align-items: center;
             justify-content: space-between;
             gap: var(--space-3);
-            padding: var(--space-4) var(--space-5);
-            min-height: 48px;
+            padding: 12px 14px;
+            min-height: 46px;
             border: none;
             background: transparent;
             color: var(--wra-gray-900);
             font-family: inherit;
-            font-size: var(--text-sm);
+            font-size: var(--car-body-text-size);
             font-weight: var(--font-semibold);
             text-align: left;
             cursor: pointer;
@@ -1311,26 +1362,54 @@
             background: var(--wra-primary);
             color: var(--wra-white);
         }
-        .options-equipment-block .option-accordion-chevron {
-            display: inline-block;
-            width: 0;
-            height: 0;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-top: 6px solid var(--wra-gray-500);
-            transition: transform var(--transition-smooth);
+        .options-equipment-block .option-accordion-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: var(--wra-gray-200);
+            color: var(--wra-gray-600);
+            flex-shrink: 0;
+            transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
         }
-        .options-equipment-block .option-accordion-item.is-open .option-accordion-chevron {
-            transform: rotate(180deg);
-            border-top-color: var(--wra-primary);
+        .options-equipment-block .option-accordion-item.is-open .option-accordion-icon {
+            background: var(--wra-primary);
+            color: var(--wra-white);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+        }
+        .options-equipment-block .option-accordion-svg {
+            display: block;
+        }
+        .options-equipment-block .option-accordion-svg .opt-acc-chev,
+        .options-equipment-block .option-accordion-svg .opt-acc-check {
+            transition: opacity 0.28s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: center;
+        }
+        .options-equipment-block .option-accordion-svg .opt-acc-check {
+            opacity: 0;
+            transform: scale(0.2) rotate(-50deg);
+        }
+        .options-equipment-block .option-accordion-svg .opt-acc-chev {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+        .options-equipment-block .option-accordion-item.is-open .option-accordion-svg .opt-acc-chev {
+            opacity: 0;
+            transform: scale(0.65) translateY(3px);
+        }
+        .options-equipment-block .option-accordion-item.is-open .option-accordion-svg .opt-acc-check {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
         }
         .options-equipment-block .option-accordion-body {
             overflow: hidden;
             max-height: 0;
-            transition: max-height var(--transition-smooth);
+            transition: max-height 0.45s cubic-bezier(0.33, 1, 0.68, 1);
         }
         .options-equipment-block .option-accordion-item.is-open .option-accordion-body {
-            max-height: 600px;
+            max-height: 1200px;
         }
         .options-equipment-block .option-accordion-body .option-tags {
             padding: var(--space-3) var(--space-5) var(--space-5);
@@ -1366,15 +1445,15 @@
 
         /* Инспекционная диагностика — строка заголовков + одна панель построчно */
         .inspection-block {
-            padding: var(--space-6) var(--space-8);
+            padding: var(--car-section-pad-y) var(--car-section-pad-x);
             border-radius: var(--radius-xl);
         }
         .inspection-block .inspection-block-title {
-            font-size: var(--text-lg);
+            font-size: var(--car-section-title-size);
             font-weight: var(--font-semibold);
             color: var(--wra-gray-900);
-            margin: 0 0 var(--space-4) 0;
-            padding-bottom: var(--space-4);
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.75rem;
             border-bottom: 2px solid var(--wra-gray-100);
         }
         .inspection-block .inspection-headers-grid {
@@ -1384,14 +1463,14 @@
             margin-bottom: var(--space-4);
         }
         .inspection-block .inspection-group-header {
-            padding: var(--space-3) var(--space-4);
-            min-height: 44px;
+            padding: 10px 12px;
+            min-height: 42px;
             border: 1px solid var(--wra-gray-200);
             border-radius: var(--radius-md);
             background: var(--wra-gray-50);
             color: var(--wra-gray-800);
             font-family: inherit;
-            font-size: var(--text-sm);
+            font-size: var(--car-body-text-size);
             font-weight: var(--font-semibold);
             text-align: center;
             cursor: pointer;
@@ -1434,7 +1513,7 @@
 
         /* История автомобиля — оформление как Инспекционная диагностика (карточка, вкладки, панель) */
         .history-wrap {
-            padding: var(--space-6) var(--space-8);
+            padding: var(--car-section-pad-y) var(--car-section-pad-x);
             border-radius: var(--radius-xl);
             background: var(--wra-surface);
             border: 1px solid var(--wra-gray-200);
@@ -1442,11 +1521,11 @@
             margin-bottom: var(--space-4);
         }
         .history-wrap .history-main-title {
-            font-size: var(--text-lg);
+            font-size: var(--car-section-title-size);
             font-weight: var(--font-semibold);
             color: var(--wra-gray-900);
-            margin: 0 0 var(--space-4) 0;
-            padding-bottom: var(--space-4);
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.75rem;
             border-bottom: 2px solid var(--wra-gray-100);
         }
         .history-headers-grid {
@@ -1456,14 +1535,14 @@
             margin-bottom: var(--space-4);
         }
         .history-group-header {
-            padding: var(--space-3) var(--space-4);
-            min-height: 44px;
+            padding: 10px 12px;
+            min-height: 42px;
             border: 1px solid var(--wra-gray-200);
             border-radius: var(--radius-md);
             background: var(--wra-gray-50);
             color: var(--wra-gray-800);
             font-family: inherit;
-            font-size: var(--text-sm);
+            font-size: var(--car-body-text-size);
             font-weight: var(--font-semibold);
             text-align: center;
             cursor: pointer;
@@ -1582,12 +1661,13 @@
             box-shadow: var(--shadow);
         }
         .data-table td {
-            padding: 0.6rem 0.2rem;
+            padding: 0.55rem 0.25rem;
             border-bottom: 1px dashed var(--wra-gray-200);
+            font-size: var(--car-body-text-size);
         }
         .data-table tr:last-child td { border-bottom: none; }
         .inspection-subtitle {
-            font-size: var(--text-lg);
+            font-size: var(--car-section-title-size);
             font-weight: var(--font-semibold);
             margin-top: 1.5rem;
             margin-bottom: 0.75rem;
@@ -1616,11 +1696,11 @@
 
         /* Схема состояния кузова: разделитель на всю ширину, отступ подзаголовков */
         #car-content .card .card-title.condition-diagram-title {
-            margin-left: calc(-1 * var(--space-8));
-            margin-right: calc(-1 * var(--space-8));
-            padding-left: var(--space-8);
-            padding-right: var(--space-8);
-            padding-bottom: var(--space-4);
+            margin-left: calc(-1 * var(--car-section-pad-x));
+            margin-right: calc(-1 * var(--car-section-pad-x));
+            padding-left: var(--car-section-pad-x);
+            padding-right: var(--car-section-pad-x);
+            padding-bottom: 0.75rem;
             border-bottom: 2px solid var(--wra-gray-100);
         }
         .condition-diagrams-row {
@@ -1837,7 +1917,7 @@
             .zone-tooltip { font-size: 11px; padding: 6px 10px; max-width: 160px; }
         }
         .condition-diagram-caption {
-            font-size: var(--text-sm);
+            font-size: var(--car-body-text-size);
             font-weight: var(--font-medium);
             color: var(--wra-text-muted);
             margin: var(--space-3) 0 var(--space-2);
@@ -1934,7 +2014,7 @@
             font-size: 0.9rem;
         }
         .manager-button {
-            background: #2563eb;
+            background: var(--cta-dark-bg);
             color: white;
             border-radius: 60px;
             padding: 0.75rem 1.5rem;
@@ -1946,10 +2026,10 @@
             transition: background 0.2s;
         }
         .manager-button:hover {
-            background: #1d4ed8;
+            background: var(--cta-dark-bg-hover);
         }
         .telegram-link {
-            color: #2563eb;
+            color: var(--wra-primary);
             font-size: 0.9rem;
             text-decoration: underline;
         }
@@ -1966,14 +2046,15 @@
             margin-bottom: 1rem;
         }
         .car-header-compact .title {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
+            line-height: 1.3;
         }
         .car-header-compact .details {
             display: flex;
             flex-wrap: wrap;
             gap: 1rem;
-            font-size: 0.95rem;
+            font-size: var(--car-body-text-size);
             color: #4b5563;
         }
         
@@ -1989,9 +2070,10 @@
             margin-bottom: 20px;
         }
         .similar-cars-title {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: #111827;
+            line-height: 1.3;
         }
         .similar-cars-grid {
             display: grid;
@@ -2032,11 +2114,32 @@
             overflow: hidden;
             background: #edf2f7;
         }
+        .similar-car-image::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, #edf2f7 20%, #e5e7eb 50%, #edf2f7 80%);
+            background-size: 220% 100%;
+            animation: similarImageShimmer 1.3s linear infinite;
+        }
         .similar-car-image img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: transform 0.3s ease;
+            opacity: 0;
+            position: relative;
+            z-index: 1;
+        }
+        .similar-car-image.similar-loaded::before {
+            display: none;
+        }
+        .similar-car-image.similar-loaded img {
+            opacity: 1;
+        }
+        @keyframes similarImageShimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
         .similar-car-card:hover .similar-car-image img {
             transform: scale(1.05);
@@ -2255,14 +2358,14 @@
         .util li a.btn-primary,
         .util li button.btn-secondary {
             padding: 10px 20px;
-            border-radius: 20px;
+            border-radius: 999px;
             font-weight: 600;
             font-size: 0.9rem;
             text-decoration: none;
             transition: all 0.3s ease;
             border: 2px solid transparent;
             min-width: 220px;
-            height: 40px;
+            height: var(--control-height);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -2270,7 +2373,7 @@
             line-height: normal;
         }
         .util li a.btn-primary {
-            background: #3A3A3A;
+            background: var(--cta-dark-bg);
             color: white;
             box-shadow: 0 4px 15px rgba(58, 58, 58, 0.3);
         }
@@ -2280,14 +2383,15 @@
             background: #2d2d2d;
         }
         .util li button.btn-secondary {
-            background: #F3F3F3;
-            color: #111827;
-            border: none;
+            background: var(--control-bg-disabled);
+            color: var(--control-text);
+            border: 1px solid var(--control-border-soft);
             min-width: auto;
             padding: 10px 24px;
         }
         .util li button.btn-secondary:hover {
-            background: #e5e5e5;
+            background: var(--control-bg-hover);
+            border-color: var(--control-border);
         }
         .header-area .logo a {
             display: inline-flex;
@@ -2297,6 +2401,386 @@
             height: 40px;
             width: auto;
             display: block;
+        }
+
+        /* === Compact unified style (catalog-aligned) === */
+        .header-area {
+            height: 74px;
+            font-size: 13px;
+        }
+        .gnb { max-height: 74px; }
+        .gnb li a {
+            height: 74px;
+            padding: 0 11px;
+            font-size: 13px;
+        }
+        .util li { margin-left: 10px; }
+        .util li a.btn-primary,
+        .util li button.btn-secondary {
+            min-width: 0;
+            height: 34px;
+            padding: 7px 12px;
+            font-size: 0.8125rem;
+            border-radius: var(--radius-md);
+        }
+
+        .content-header {
+            padding-bottom: 10px;
+            margin-bottom: 4px;
+        }
+        .breadcrumbs {
+            font-size: 0.8125rem;
+            min-height: 34px;
+            padding: 4px 0;
+            gap: 0 6px;
+        }
+
+        .detail-section,
+        .card {
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        }
+        .detail-section h2,
+        #car-content .card h2,
+        #car-content .card .card-title {
+            font-size: 0.9375rem;
+            margin: 0 0 10px 0;
+            padding-bottom: 8px;
+        }
+        .dotted-pair {
+            padding: 8px 0;
+            gap: 10px;
+        }
+        .dotted-pair .key,
+        .dotted-pair .value {
+            font-size: 0.8125rem;
+        }
+
+        .gallery-main { border-radius: 14px; }
+        .gallery-thumb {
+            width: 94px;
+            height: 64px;
+            border-radius: 10px;
+        }
+        .modal-content,
+        .calc-modal-panel,
+        .howto-modal-panel {
+            border-radius: 14px;
+        }
+
+        .order-card {
+            border-radius: 14px;
+            padding: 12px;
+        }
+        .order-card .order-title {
+            font-size: 0.875rem;
+        }
+        .order-card .order-meta,
+        .order-card .order-link,
+        .order-card .order-howto {
+            font-size: 0.8125rem;
+        }
+        .order-card .order-price-total {
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        .order-card .order-calc-btn,
+        .order-card .telegram-btn {
+            min-height: 34px;
+            padding: 8px 10px;
+            font-size: 0.8125rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+        }
+        .order-card-top {
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .order-card-actions .order-icon-btn {
+            width: 26px;
+            height: 26px;
+        }
+        .order-card-actions .order-icon-btn img {
+            width: 18px;
+            height: 18px;
+        }
+
+        .similar-cars-section {
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top-width: 1px;
+        }
+        .similar-cars-title {
+            font-size: 1.0625rem;
+            font-weight: 700;
+        }
+        .similar-cars-grid {
+            gap: 12px;
+        }
+        .similar-car-card {
+            border-radius: 14px;
+            box-shadow: var(--shadow-sm);
+        }
+        .similar-car-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        .similar-car-image {
+            height: 136px;
+        }
+        .similar-car-info {
+            padding: 10px;
+            gap: 6px;
+            font-size: 0.8125rem;
+        }
+        .similar-car-title {
+            font-size: 0.875rem;
+        }
+        .similar-car-model,
+        .similar-car-mileage {
+            font-size: 0.75rem;
+        }
+        .similar-car-price {
+            font-size: 0.8125rem;
+        }
+
+        /* Micro-compact pass: tabs, tables, accordions */
+        .options-equipment-block .option-accordion-header,
+        .inspection-block .inspection-group-header,
+        .history-group-header {
+            min-height: 34px;
+            padding: 7px 10px;
+            font-size: 0.8125rem;
+            border-radius: var(--radius-md);
+        }
+        .inspection-block .inspection-headers-grid,
+        .history-headers-grid {
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .history-tab-badge {
+            min-width: 16px;
+            height: 16px;
+            font-size: 10px;
+            padding: 0 4px;
+        }
+
+        .history-wrap {
+            padding: 12px 14px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+        }
+        .history-wrap .history-main-title {
+            font-size: 0.9375rem;
+            margin: 0 0 10px 0;
+            padding-bottom: 8px;
+        }
+        .history-group-body {
+            padding: 10px 12px;
+        }
+        .history-data-grid {
+            gap: 6px 14px;
+        }
+        .history-group-body .accident-card,
+        .accident-card {
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+        .history-accident-grid {
+            gap: 6px 10px;
+            font-size: 0.8125rem;
+        }
+        .history-accident-label {
+            font-size: 0.6875rem;
+        }
+
+        .data-table td {
+            padding: 0.45rem 0.2rem;
+            font-size: 0.8125rem;
+        }
+        .inspection-subtitle {
+            font-size: 0.875rem;
+            margin-top: 10px;
+            margin-bottom: 6px;
+            padding-bottom: 2px;
+        }
+
+        .order-badge {
+            padding: 4px 10px;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+        .order-badge .info-icon-wrap {
+            width: 16px;
+            height: 16px;
+            min-width: 16px;
+            min-height: 16px;
+        }
+        .order-badge .info-icon-img {
+            width: 12px;
+            height: 12px;
+        }
+
+        .calc-modal-body .calc-list li {
+            padding: 8px 0;
+            font-size: 0.8125rem;
+        }
+        .calc-modal-body .calc-list .price {
+            font-size: 0.8125rem;
+        }
+
+        /* Mobile cleanup */
+        @media (max-width: 1024px) {
+            .header-area {
+                width: 100%;
+                padding: 0 10px;
+            }
+            .gnb li a {
+                padding: 0 8px;
+            }
+            .util li a.btn-primary,
+            .util li button.btn-secondary {
+                padding: 7px 10px;
+            }
+            #app {
+                padding-top: 14px !important;
+                padding-bottom: 14px !important;
+            }
+            .details-layout {
+                gap: 12px;
+            }
+        }
+        @media (max-width: 900px) {
+            .header-area {
+                height: 64px;
+            }
+            .gnb {
+                display: none;
+            }
+            .util {
+                right: 10px;
+            }
+            .util li {
+                margin-left: 6px;
+            }
+            .util li a.btn-primary,
+            .util li button.btn-secondary {
+                min-height: 32px;
+                font-size: 0.75rem;
+                padding: 6px 8px;
+            }
+            .content-header {
+                position: static;
+                padding-bottom: 8px;
+            }
+            .breadcrumbs {
+                min-height: 30px;
+                font-size: 0.75rem;
+            }
+            .detail-section,
+            .card,
+            .history-wrap,
+            .order-card {
+                border-radius: 12px;
+                padding: 14px 16px;
+                margin-bottom: 10px;
+            }
+            .gallery-encar-row {
+                gap: 8px;
+            }
+            .gallery-main-wrap {
+                aspect-ratio: 16 / 10;
+            }
+            .gallery-main {
+                border-radius: 12px;
+            }
+            .gallery-thumbs-col .thumbnail {
+                width: 88px;
+                height: 60px;
+            }
+            .order-card .order-calc-btn,
+            .order-card .telegram-btn {
+                min-height: 32px;
+                font-size: 0.75rem;
+                padding: 7px 8px;
+            }
+            .similar-cars-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            .similar-car-image {
+                height: 122px;
+            }
+        }
+        @media (max-width: 600px) {
+            #app {
+                padding-left: 8px !important;
+                padding-right: 8px !important;
+            }
+            .header-area .logo img {
+                height: 34px;
+            }
+            .util li a.btn-primary {
+                display: none;
+            }
+            .breadcrumbs .current {
+                max-width: 160px;
+            }
+            .dotted-pair .key,
+            .dotted-pair .value,
+            .data-table td,
+            .history-accident-grid {
+                font-size: 0.75rem;
+            }
+            .history-headers-grid,
+            .inspection-block .inspection-headers-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 4px;
+            }
+            .history-group-header,
+            .inspection-block .inspection-group-header,
+            .options-equipment-block .option-accordion-header {
+                min-height: 30px;
+                font-size: 0.75rem;
+                padding: 6px 8px;
+            }
+            .similar-cars-section {
+                margin-top: 14px;
+                padding-top: 12px;
+            }
+            .similar-cars-title {
+                font-size: 0.9375rem;
+            }
+            .similar-cars-grid {
+                grid-template-columns: 1fr;
+            }
+            .similar-car-image {
+                height: 130px;
+            }
+            .modal-close {
+                width: 38px;
+                height: 38px;
+            }
+            .modal-nav {
+                width: 42px;
+                height: 42px;
+            }
+            .modal-thumb {
+                width: 84px;
+                height: 60px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .options-equipment-block .option-accordion-svg .opt-acc-chev,
+            .options-equipment-block .option-accordion-svg .opt-acc-check,
+            .options-equipment-block .option-accordion-icon,
+            .options-equipment-block .option-accordion-body,
+            .calc-why-icon,
+            .order-howto-bar-icon {
+                transition: none !important;
+            }
         }
     </style>
 </head>
@@ -2319,7 +2803,9 @@
         </ul>
         <ul class="util">
             <li><a href="https://t.me/nikits15" class="btn-primary" target="_blank">Связаться с менеджером</a></li>
-            <li><button class="btn-secondary" onclick="alert('Функция входа в разработке')">Войти</button></li>
+            <li><button type="button" id="headerFavoritesBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Избранные автомобили">Избранное <span class="auth-fav-count">0</span></button></li>
+            <li><button type="button" id="headerAccountBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Личный кабинет">Кабинет</button></li>
+            <li><button type="button" id="headerLoginBtn" class="btn-secondary">Войти</button></li>
         </ul>
     </header>
 </div>
@@ -2401,6 +2887,14 @@
 
 <script>
     (function() {
+        window.WRA_TELEGRAM_LOGIN_BOT = window.WRA_TELEGRAM_LOGIN_BOT || "worldrideauto_bot";
+        if (window.WRAAuthFavorites) {
+            window.WRAAuthFavorites.initHeader({
+                loginButtonSelector: '#headerLoginBtn',
+                favoritesButtonSelector: '#headerFavoritesBtn',
+                accountButtonSelector: '#headerAccountBtn'
+            });
+        }
         // ---------- Модалки правой колонки (Подробный расчёт, Как оформить) ----------
         function initOrderModals() {
             var calcOverlay = document.getElementById('calcModalOverlay');
@@ -2556,11 +3050,13 @@
             if (!val) return val;
             const s = String(val).trim();
             const map = category && filterMappingKoEn[category] ? filterMappingKoEn[category] : null;
+            if (!map) return val;
             if (map && map[s]) return map[s];
-            if (map) {
-                const key = Object.keys(map).find(k => k.trim() === s || s.indexOf(k) >= 0);
-                if (key) return map[key];
-            }
+            const key = Object.keys(map).find(k => String(k).trim() === s);
+            if (key) return map[key];
+            const sLower = s.toLowerCase();
+            const keyLower = Object.keys(map).find(k => String(k).trim().toLowerCase() === sLower);
+            if (keyLower) return map[keyLower];
             return val;
         }
         const koreanPhraseToEn = {
@@ -2587,20 +3083,39 @@
             }
             return out.replace(/\s+/g, ' ').trim();
         }
+        function containsHangul(str) {
+            return /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/.test(String(str || ''));
+        }
+        function stripKoreanForTitlePart(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]+/g, ' ')
+                .replace(/\(\s*\)/g, ' ')
+                .replace(/\[\s*\]/g, ' ')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
+        }
+        function sanitizeUiLabel(label) {
+            if (!label) return '';
+            if (!containsHangul(label)) return label;
+            return stripKoreanForTitlePart(label) || '';
+        }
         function filterOptionLabel(val, category) {
             const s = String(val || '').trim();
             const ruCategories = ['bodyType', 'engineType', 'transmission', 'color'];
             if (ruCategories.indexOf(category) >= 0) {
                 const en = toDisplayEn(s, category);
-                return toDisplayRu(en || s) || en || s;
+                return sanitizeUiLabel(toDisplayRu(en || s) || en || s);
             }
             let en = toDisplayEn(s, category);
-            if (en !== s) return en;
+            if (en !== s) return sanitizeUiLabel(en);
             if (['model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
                 const fallback = applyKoreanPhraseFallback(s);
-                if (fallback !== s) return fallback || s;
+                if (fallback !== s) {
+                    return sanitizeUiLabel(fallback || s);
+                }
             }
-            return toDisplayRu(s);
+            return sanitizeUiLabel(toDisplayRu(s) || s);
         }
         fetch('data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null).then(m => {
             if (m && typeof m === 'object') {
@@ -2786,7 +3301,7 @@
                     html += `<div class="option-accordion-item${isFirst ? ' is-open' : ''}">`;
                     html += `<button type="button" class="option-accordion-header" data-options-index="${catIndex}" aria-expanded="${isFirst}" aria-controls="options-body-${catIndex}" id="options-header-${catIndex}">`;
                     html += `<span class="option-category-name">${cat}</span>`;
-                    html += `<span class="option-accordion-meta"><span class="option-count">${count}</span><span class="option-accordion-chevron"></span></span>`;
+                    html += '<span class="option-accordion-meta"><span class="option-count">' + count + '</span><span class="option-accordion-icon" aria-hidden="true"><svg class="option-accordion-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><path class="opt-acc-chev" d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path class="opt-acc-check" d="M6.5 12.5l4 4 9-9" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>';
                     html += `</button>`;
                     html += `<div class="option-accordion-body" id="options-body-${catIndex}" role="region" aria-labelledby="options-header-${catIndex}">`;
                     html += '<div class="option-tags">';
@@ -2849,8 +3364,8 @@
             { part: 'Левая задняя дверь', left: 0, top: 48, width: 28, height: 28 },
             { part: 'Левое заднее крыло', left: 0, top: 74, width: 28, height: 36 },
             { part: 'Правое переднее крыло', left: 80, top: 0, width: 0, height: 38 },
-            { part: 'Правая передняя дверь', left: 80, top: 22, width: 08, height: 26 },
-            { part: 'Правая задняя дверь', left: 80, top: 48, width: 08, height: 26 },
+            { part: 'Правая передняя дверь', left: 80, top: 22, width: 8, height: 26 },
+            { part: 'Правая задняя дверь', left: 80, top: 48, width: 8, height: 26 },
             { part: 'Правое заднее крыло', left: 80, top: 74, width: 20, height: 36 },
         ];
         var exteriorPanelMap = { 'FRONT_DOOR_LEFT': 'Левая передняя дверь', 'FRONT_DOOR_RIGHT': 'Правая передняя дверь', 'BACK_DOOR_LEFT': 'Левая задняя дверь', 'BACK_DOOR_RIGHT': 'Правая задняя дверь', 'HOOD': 'Капот', 'TRUNK_LID': 'Крышка багажника', 'FRONT_FENDER_LEFT': 'Левое переднее крыло', 'FRONT_FENDER_RIGHT': 'Правое переднее крыло', 'REAR_FENDER_LEFT': 'Левое заднее крыло', 'REAR_FENDER_RIGHT': 'Правое заднее крыло', 'BACK_FENDER_LEFT': 'Левое заднее крыло', 'BACK_FENDER_RIGHT': 'Правое заднее крыло' };
@@ -3342,8 +3857,9 @@
             const priceWon = d.price_won;
             const priceWonFormatted = priceWon ? (priceWon * 10000).toLocaleString() + ' вон' : '—';
             const myPrice = d.my_price;
-            const priceUnavailable = d.price_calc_failed || (myPrice == null || myPrice === '');
-            const PRICE_FALLBACK = 'Обратитесь к менеджеру для просчёта';
+            const hasEncarPrice = d.price_won != null && Number(d.price_won) > 0;
+            const priceUnavailable = !hasEncarPrice || d.price_calc_failed || (myPrice == null || myPrice === '');
+            const PRICE_FALLBACK = 'Мало данных для расчёта цены. Обратитесь к менеджеру.';
             const myPriceFormatted = priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽');
 
             const priceRub = d.price_rub_estimate;
@@ -3352,6 +3868,7 @@
             const customsFee = d.customs_fee_rub;
             const duty = d.duty_rub;
             const util = d.util_rub;
+            const vatRub = d.vat_rub;
             const customsTotal = d.customs_total_rub;
             const brokerRub = d.broker_rub;
             const commissionRub = d.commission_rub;
@@ -3398,7 +3915,7 @@
                         <span>1$ = ${Math.round(usdtRub)} ₽</span>
                     </div>
                     <details class="calc-modal-why-course">
-                        <summary>Почему такой курс?</summary>
+                        <summary><span class="calc-why-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Почему такой курс?</span></summary>
                         <p>У любой криптовалюты есть курс покупки и курс продажи. Разница между ними — это комиссия обменников, спред и риски ликвидности. При расчёте мы используем реальный курс (KRW→USDT→RUB) с учётом комиссий обменников.</p>
                     </details>
                 </div>
@@ -3436,6 +3953,7 @@
                         <div class="calc-modal-section-row"><span class="key">Таможенное оформление</span><span class="price">${fmt(customsFee)}</span></div>
                         <div class="calc-modal-section-row"><span class="key">Единая таможенная ставка (ЕТС)</span><span class="price">${fmt(duty)}</span></div>
                         <div class="calc-modal-section-row"><span class="key">Утилизационный сбор</span><span class="price">${fmt(util)}</span></div>
+                        <div class="calc-modal-section-row"><span class="key">НДС 20%</span><span class="price">${fmt(vatRub)}</span></div>
                     </div>
                     <div class="calc-modal-section-row">
                         <span class="key">Комиссия нашей компании (10%) <span class="info-dot" title="10% от суммы авто и растаможки">i</span></span>
@@ -3508,7 +4026,7 @@
                         <div class="calc-modal-content-tpl">${modalCoursesHtml}${modalKoreaHtml}${modalRussiaHtml}</div>
                     </div>
                 </div>
-                <a href="howtobuy.html" class="order-howto-bar">Как купить автомобиль? <img src="image/Chevron_Right.svg" alt="" class="chevron-img"></a>
+                <a href="howtobuy.html" class="order-howto-bar"><span>Как купить автомобиль?</span><span class="order-howto-bar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 7l5 5-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
             `;
         }
 
@@ -3572,15 +4090,16 @@
                     var model = filterOptionLabel(cd.model, 'model') || cd.model || '';
                     var year = cd.year ? String(cd.year).slice(0, 4) : '';
                     var km = formatKm(cd.km_age);
-                    var priceUnav = cd.price_calc_failed || (cd.my_price == null || cd.my_price === '');
-                    var price = priceUnav ? 'Обратитесь к менеджеру для просчёта' : (Math.round(Number(cd.my_price)).toLocaleString() + ' ₽');
+            var hasEncarPrice = cd.price_won != null && Number(cd.price_won) > 0;
+            var priceUnav = !hasEncarPrice || cd.price_calc_failed || (cd.my_price == null || cd.my_price === '');
+            var price = priceUnav ? 'Мало данных для расчёта цены' : (Math.round(Number(cd.my_price)).toLocaleString() + ' ₽');
                     var linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (cd.inner_id != null ? cd.inner_id : ''));
 
                     html += `
                         <div class="similar-car-card">
                             <a href="car.html?id=${encodeURIComponent(linkId)}" class="similar-car-link">
                                 <div class="similar-car-image">
-                                    <img src="${mainImg}" alt="${title}">
+                                    <img src="${mainImg}" alt="${title}" loading="lazy" decoding="async">
                                 </div>
                                 <div class="similar-car-info">
                                     <h3 class="similar-car-title">${title}</h3>
@@ -3611,6 +4130,21 @@
                 console.error('Ошибка загрузки похожих автомобилей:', err);
                 return '';
             }
+        }
+
+        function setupSimilarCarsImageSkeleton(scope) {
+            const root = scope || document;
+            root.querySelectorAll('.similar-car-image').forEach(function(wrap) {
+                var img = wrap.querySelector('img');
+                if (!img) return;
+                function show() { wrap.classList.add('similar-loaded'); }
+                if (img.complete && img.naturalWidth > 0) {
+                    show();
+                    return;
+                }
+                img.addEventListener('load', show, { once: true });
+                img.addEventListener('error', show, { once: true });
+            });
         }
 
         // ---------- Функция для получения превью фото (та же логика, что в каталоге index.html: приоритет вида «перед») ----------
@@ -3694,6 +4228,55 @@
             return 'SIDE';
         }
 
+        var motorHpByCodeCar = {};
+        function normalizeMotorCodeCar(s) {
+            return String(s || '').replace(/\s+/g, '').toUpperCase();
+        }
+        function extractInspectionMotorCodeCar(d) {
+            try {
+                var det = d && d.extra && d.extra.inspection && d.extra.inspection.master && d.extra.inspection.master.detail;
+                return (det && (det.motorType || det.motor_type || det.engineCode)) || '';
+            } catch (e) { return ''; }
+        }
+        function buildMotorHpIndexCar(em) {
+            motorHpByCodeCar = {};
+            if (!em || typeof em !== 'object') return;
+            var list = Array.isArray(em) ? em : (Array.isArray(em.engines) ? em.engines : []);
+            list.forEach(function(row) {
+                if (!row || typeof row !== 'object') return;
+                var codes = row.motor_codes || row.motorCodes;
+                if (!Array.isArray(codes)) return;
+                var hp = parseInt(String(row.hp || '').replace(/\D/g, ''), 10);
+                if (isNaN(hp) || hp < 20 || hp > 2000) return;
+                var pr = parseInt(row.priority, 10) || 0;
+                codes.forEach(function(c) {
+                    var key = normalizeMotorCodeCar(c);
+                    if (!key) return;
+                    var prev = motorHpByCodeCar[key];
+                    if (!prev || pr >= prev.priority) motorHpByCodeCar[key] = { hp: hp, priority: pr };
+                });
+            });
+            Object.keys(motorHpByCodeCar).forEach(function(k) {
+                motorHpByCodeCar[k] = motorHpByCodeCar[k].hp;
+            });
+        }
+        function getPowerDisplayForSpecs(d) {
+            var v = d.power || d.hp || d.outputHorsepower || d.power_hp;
+            if (v) {
+                var n = parseInt(String(v).replace(/\D/g, ''), 10);
+                if (!isNaN(n) && n >= 20 && n <= 2000) {
+                    var est0 = d.power_estimated === true || d.power_source === 'engine_map' || d.power_source === 'power_lookup';
+                    return (est0 ? '≈' : '') + n + ' л.с.';
+                }
+            }
+            var mc = normalizeMotorCodeCar(extractInspectionMotorCodeCar(d));
+            if (mc && motorHpByCodeCar[mc] != null) {
+                var nh = motorHpByCodeCar[mc];
+                if (nh >= 20 && nh <= 2000) return '≈' + nh + ' л.с.';
+            }
+            return '';
+        }
+
         // ---------- Главная функция отрисовки ----------
         function renderCar(rawData) {
             const container = document.getElementById('car-content');
@@ -3775,19 +4358,19 @@
 
             const galleryHtml = renderGallery(sortedPhotos, fullNameForGallery);
 
-            var driveVal = toDisplayRu(d.drive_type || d.prep_drive_type) || '';
-            var powerVal = (function() { var v = d.power || d.hp || d.outputHorsepower || d.power_hp; if (!v) return ''; var n = parseInt(String(v).replace(/\D/g, ''), 10); if (Number.isNaN(n) || n < 20 || n > 2000) return ''; return n + ' л.с.'; })();
+            var driveVal = filterOptionLabel(d.drive_type || d.prep_drive_type, 'type') || '';
+            var powerVal = getPowerDisplayForSpecs(d);
             const specs = [
                 { label: 'Марка', value: filterOptionLabel(d.mark, 'mark') },
                 { label: 'Модель', value: filterOptionLabel(d.model, 'model') },
                 { label: 'Поколение', value: filterOptionLabel(d.generation, 'generation') },
                 { label: 'Комплектация', value: filterOptionLabel(d.configuration || d.gradeName, 'trim') },
                 { label: 'Год выпуска', value: d.year?.slice(0,4) },
-                { label: 'Цвет', value: toDisplayRu(d.color) },
+                { label: 'Цвет', value: filterOptionLabel(d.color, 'color') },
                 { label: 'Пробег', value: formatKm(d.km_age) },
-                { label: 'Тип двигателя', value: toDisplayRu(d.engine_type) },
-                { label: 'Коробка', value: toDisplayRu(d.transmission_type) },
-                { label: 'Кузов', value: toDisplayRu(d.body_type) },
+                { label: 'Тип двигателя', value: filterOptionLabel(d.engine_type, 'engineType') },
+                { label: 'Коробка', value: filterOptionLabel(d.transmission_type, 'transmission') },
+                { label: 'Кузов', value: filterOptionLabel(d.body_type, 'bodyType') },
             ].concat(driveVal ? [{ label: 'Привод', value: driveVal }] : []).concat(
                 { label: 'VIN', value: d.vin },
                 { label: 'Кол-во мест', value: d.seatCount },
@@ -3817,8 +4400,8 @@
                 var historyPairs = [
                     { label: 'Гос. номер', value: r.carNo || '—' },
                     { label: 'Первая регистрация', value: r.firstDate || '—' },
-                    { label: 'Топливо', value: toDisplayRu(r.fuel) || '—' },
-                    { label: 'Кузов', value: toDisplayRu(r.carShape) || '—' },
+                    { label: 'Топливо', value: filterOptionLabel(r.fuel, 'engineType') || '—' },
+                    { label: 'Кузов', value: filterOptionLabel(r.carShape, 'bodyType') || '—' },
                     { label: 'Количество владельцев', value: r.ownerChangeCnt ?? '0' },
                     { label: 'Мои аварии (кол-во)', value: r.myAccidentCnt ?? '0' },
                     { label: 'Аварии с другими', value: r.otherAccidentCnt ?? '0' },
@@ -3896,6 +4479,13 @@
                 </div>
             `;
 
+            var favButton = container.querySelector('.order-icon-favourite');
+            var currentCarId = rawData.id != null ? rawData.id : (rawData.inner_id != null ? rawData.inner_id : ((d && d.inner_id != null) ? d.inner_id : null));
+            if (favButton && currentCarId != null && window.WRAAuthFavorites) {
+                window.WRAAuthFavorites.bindFavoriteButton(favButton, currentCarId);
+                window.WRAAuthFavorites.addHistory(currentCarId);
+            }
+
             // Тултипы для бейджей и info в правой колонке (как в index.html)
             (function initOrderCardTooltips() {
                 var orderCard = document.getElementById('orderCard');
@@ -3954,6 +4544,7 @@
                         var section = wrap.firstElementChild;
                         if (section) {
                             similarPlaceholder.parentNode.replaceChild(section, similarPlaceholder);
+                            setupSimilarCarsImageSkeleton(section);
                         }
                     } else {
                         similarPlaceholder.remove();
@@ -4275,9 +4866,13 @@
         }
         var urlSame = new URL('cars.json', window.location.href).href;
         var urlParent = new URL('../cars.json', window.location.href).href;
-        tryFetch(urlSame)
-            .catch(function() { return tryFetch(urlParent); })
-            .then(function(data) {
+        var engineMapUrl = new URL('data/engine_map.json', window.location.href).href;
+        Promise.all([
+            tryFetch(urlSame).catch(function() { return tryFetch(urlParent); }),
+            fetch(engineMapUrl).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; })
+        ]).then(function(results) {
+                var data = results[0];
+                buildMotorHpIndexCar(results[1]);
                 var cars = data.result || [];
                 var carData = cars.find(function(item) {
                     return String(item.id) === String(carId) || String(item.inner_id) === String(carId) || String((item.data && item.data.inner_id) || '') === String(carId);
@@ -4351,8 +4946,9 @@
         <img src="image/logo.svg" alt="World Ride Auto">
       </a>
       <nav class="footer-nav">
-        <a href="#">Политика конфиденциальности</a>
-        <a href="#">Пользовательское соглашение</a>
+        <a href="privacy.html">Политика конфиденциальности</a>
+        <a href="cookies.html">Политика cookie</a>
+        <a href="agreement.html">Пользовательское соглашение</a>
       </nav>
       <div class="footer-copy">
         <span class="copy-line">&copy; World Ride Auto 2026</span>
@@ -4365,6 +4961,6 @@
     </div>
   </footer>
 </div>
-
+<script src="js/cookie-consent.js" defer></script>
 </body>
 </html>

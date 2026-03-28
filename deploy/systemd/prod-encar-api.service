@@ -1,0 +1,24 @@
+[Unit]
+Description=Prod Encar API Server
+After=network.target
+
+[Service]
+Type=simple
+User=prod-encar
+Group=prod-encar
+WorkingDirectory=/opt/prod-encar
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/prod-encar
+ExecStart=/usr/bin/python3 /opt/prod-encar/backend/api_server.py --db /opt/prod-encar/encar_cars.db --host 127.0.0.1 --port 8080
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/prod-encar
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

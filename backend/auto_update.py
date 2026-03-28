@@ -300,12 +300,20 @@ class AutoUpdateManager:
                     out_path = repo_dir / "frontend" / "cars.json"
                     if db_path.exists():
                         export_script = backend_dir / "export_from_scraper_db.py"
-                        export_cmd = [sys.executable, str(export_script), "--db", str(db_path), "--out", str(out_path)]
+                        export_cmd = [
+                            sys.executable, str(export_script),
+                            "--db", str(db_path),
+                            "--out", str(out_path),
+                            "--chunk-size", "5000",
+                            "--chunk-dir", str(repo_dir / "frontend" / "data" / "chunks"),
+                            "--chunk-index", str(repo_dir / "frontend" / "data" / "cars.index.json"),
+                            "--gzip",
+                        ]
                         exp = subprocess.run(export_cmd, cwd=str(backend_dir))
                         if exp.returncode == 0:
-                            logger.info("Экспорт в frontend/cars.json выполнен")
+                            logger.info("Экспорт в frontend/cars.json (+ chunks + gzip) выполнен")
                         else:
-                            logger.warning("Экспорт в frontend/cars.json завершился с ошибкой")
+                            logger.warning("Экспорт в frontend/cars.json (+ chunks + gzip) завершился с ошибкой")
                     else:
                         logger.warning("encar_cars.db не найден после обновления, экспорт на фронт пропущен")
                 report = {

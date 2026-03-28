@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World Ride Auto - Авто из Азии</title>
+    <link rel="icon" type="image/svg+xml" href="image/logo%20no%20text.svg">
     <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/auth-favorites.css">
+    <link rel="stylesheet" href="css/cookie-consent.css">
+    <script src="js/auth-favorites.js"></script>
     <script src="js/copy-protection.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/767a85f1ee.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
@@ -169,7 +173,7 @@
     }
     .skeleton-card {
       background: var(--wra-surface);
-      border-radius: var(--radius-xl);
+      border-radius: 14px;
       border: 1px solid var(--wra-border);
       display: flex;
       flex-direction: row;
@@ -177,15 +181,15 @@
       overflow: hidden;
     }
     .skeleton-card .skeleton-preview {
-      flex: 0 0 320px;
-      width: 320px;
-      height: 200px;
+      flex: 0 0 290px;
+      width: 290px;
+      height: 186px;
       background: linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%);
       background-size: 200% 100%;
       animation: skeleton-shine 1.2s ease-in-out infinite;
     }
-    .skeleton-card .skeleton-body { flex: 1; padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: 12px; }
-    .skeleton-card .skeleton-line { height: 16px; border-radius: 4px; background: linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size: 200% 100%; animation: skeleton-shine 1.2s ease-in-out infinite; }
+    .skeleton-card .skeleton-body { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .skeleton-card .skeleton-line { height: 13px; border-radius: 4px; background: linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size: 200% 100%; animation: skeleton-shine 1.2s ease-in-out infinite; }
     .skeleton-card .skeleton-line.wide { width: 80%; }
     .skeleton-card .skeleton-line.narrow { width: 50%; }
     @keyframes skeleton-shine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -232,23 +236,34 @@
     .filters-open-btn {
       display: none;
       align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
+      gap: 6px;
+      padding: 7px 10px;
       background: var(--wra-surface);
-      border: 1px solid var(--wra-border);
+      border: 1px solid var(--wra-gray-300);
       border-radius: var(--radius-md);
       font-weight: 600;
-      font-size: var(--text-sm);
+      font-size: var(--filter-control-font);
+      min-height: var(--filter-control-height);
       cursor: pointer;
       box-shadow: var(--shadow-sm);
+      transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+    }
+    .filters-open-btn:hover {
+      border-color: var(--wra-gray-400);
+      background: var(--wra-gray-50);
+    }
+    .filters-open-btn:focus-visible {
+      outline: none;
+      border-color: var(--wra-gray-500);
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
     }
     .filters-open-btn .filters-badge {
       background: var(--wra-primary);
       color: var(--wra-white);
-      font-size: 0.75rem;
-      min-width: 20px;
-      height: 20px;
-      border-radius: 10px;
+      font-size: 11px;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -294,7 +309,7 @@
 
     /* Панель фильтров — стилистика проекта, анимации и индикаторы */
     .filters-panel {
-      width: 320px;
+      width: 292px;
       background: var(--wra-surface);
       border-radius: var(--radius-lg);
       padding: 0;
@@ -309,6 +324,10 @@
       box-shadow: var(--shadow);
       transition: box-shadow var(--transition-smooth);
     }
+    .filters-panel {
+      --filter-control-height: 34px;
+      --filter-control-font: 0.8125rem;
+    }
     .filters-panel:focus-within {
       box-shadow: var(--shadow-md);
     }
@@ -316,50 +335,166 @@
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: var(--space-5) var(--space-5) 0;
+      padding: 14px 14px 0;
       min-height: 0;
       scroll-behavior: smooth;
+      scrollbar-width: none; /* Firefox: скрыть полосу, прокрутка сохраняется */
+      -ms-overflow-style: none; /* legacy Edge */
     }
     .filters-panel-scroll::-webkit-scrollbar {
-      width: 6px;
-    }
-    .filters-panel-scroll::-webkit-scrollbar-track {
-      background: var(--wra-gray-50);
-      border-radius: 3px;
-    }
-    .filters-panel-scroll::-webkit-scrollbar-thumb {
-      background: var(--wra-gray-300);
-      border-radius: 3px;
-    }
-    .filters-panel-scroll::-webkit-scrollbar-thumb:hover {
-      background: var(--wra-gray-400);
+      width: 0;
+      height: 0;
     }
     .filters-panel-footer {
       flex-shrink: 0;
-      padding: var(--space-4) var(--space-5) var(--space-5);
+      padding: 12px 14px 14px;
       border-top: 1px solid var(--wra-border);
       background: var(--wra-surface);
     }
     .filter-group {
-      margin-bottom: var(--space-6);
+      margin-bottom: 14px;
       border-bottom: 1px solid var(--wra-border);
-      padding-bottom: var(--space-5);
+      padding-bottom: 12px;
       transition: border-color var(--transition);
     }
-    .filter-group:last-child {
+    .filters-panel-scroll > .filter-group:last-child {
       border-bottom: none;
       margin-bottom: 0;
       padding-bottom: 0;
     }
-    .filter-group h4 {
-      margin: 0 0 var(--space-3) 0;
-      font-size: var(--text-base);
+    .filter-section-toggle__inner > .filter-group:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 10px;
+    }
+
+    /* Каскад: модель / поколение / комплектация появляются после выбора предыдущего шага */
+    .filter-cascade-slot {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.42s cubic-bezier(0.33, 1, 0.68, 1);
+    }
+    .filter-cascade-slot.is-revealed {
+      grid-template-rows: 1fr;
+    }
+    .filter-cascade-slot__inner {
+      min-height: 0;
+    }
+    .filter-cascade-slot:not(.is-revealed) .filter-cascade-slot__inner {
+      overflow: hidden;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .filter-cascade-slot.is-revealed .filter-cascade-slot__inner {
+      overflow: visible;
+      visibility: visible;
+      pointer-events: auto;
+      animation: filter-cascade-fade 0.32s ease 0.06s both;
+    }
+    @keyframes filter-cascade-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Сворачиваемые блоки (часть фильтров, без перегруза) */
+    .filter-section-toggle {
+      margin-bottom: 14px;
+    }
+    .filter-section-toggle__btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--wra-border);
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, var(--wra-gray-50) 0%, var(--wra-white) 100%);
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.8125rem;
       color: var(--wra-gray-800);
-      font-weight: var(--font-bold);
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: var(--shadow-sm);
+    }
+    .filter-section-toggle__btn:hover {
+      border-color: var(--wra-gray-300);
+      background: var(--wra-gray-50);
+    }
+    .filter-section-toggle__btn:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+    .filter-section-toggle.is-open .filter-section-toggle__btn {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom-color: var(--wra-border);
+      box-shadow: none;
+      background: var(--wra-gray-50);
+    }
+    .filter-section-toggle__chev {
+      flex-shrink: 0;
+      width: 0.45em;
+      height: 0.45em;
+      border-right: 2px solid var(--wra-gray-500);
+      border-bottom: 2px solid var(--wra-gray-500);
+      transform: rotate(45deg);
+      margin-top: -0.15em;
+      transition: transform 0.3s cubic-bezier(0.33, 1, 0.68, 1);
+    }
+    .filter-section-toggle.is-open .filter-section-toggle__chev {
+      transform: rotate(225deg);
+      margin-top: 0.12em;
+    }
+    .filter-section-toggle__body {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.38s cubic-bezier(0.33, 1, 0.68, 1);
+    }
+    .filter-section-toggle.is-open .filter-section-toggle__body {
+      grid-template-rows: 1fr;
+    }
+    .filter-section-toggle__inner {
+      overflow: hidden;
+      min-height: 0;
+      border: 1px solid var(--wra-border);
+      border-top: none;
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      padding: 12px 12px 4px;
+      background: var(--wra-surface);
+    }
+    .filter-section-toggle:not(.is-open) .filter-section-toggle__inner {
+      visibility: hidden;
+    }
+    .filter-section-toggle.is-open .filter-section-toggle__inner {
+      visibility: visible;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .filter-cascade-slot,
+      .filter-section-toggle__body,
+      .filter-section-toggle__chev,
+      .filter-cascade-slot.is-revealed .filter-cascade-slot__inner {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+    .filter-group h4 {
+      margin: 0 0 8px 0;
+      font-size: 0.875rem;
+      color: var(--wra-gray-800);
+      font-weight: 600;
       display: flex;
       align-items: center;
       gap: var(--space-2);
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
+    }
+    .filter-group .filter-subtitle {
+      font-size: 0.75rem;
+      color: var(--wra-gray-500);
+      margin-top: -2px;
     }
     .filter-group h4 i {
       font-style: normal;
@@ -368,10 +503,11 @@
     }
     .filter-group select {
       width: 100%;
-      padding: 10px 36px 10px 14px;
+      padding: 8px 34px 8px 12px;
       border: 1px solid var(--wra-gray-300);
       border-radius: var(--radius-md);
-      font-size: var(--text-sm);
+      font-size: var(--filter-control-font);
+      min-height: var(--filter-control-height);
       background: var(--wra-surface);
       outline: none;
       cursor: pointer;
@@ -408,19 +544,68 @@
       display: grid;
       grid-template-columns: 28px 1fr 1fr;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     .year-range-label {
-      font-size: var(--text-xs);
+      font-size: 0.75rem;
       color: var(--wra-gray-600);
       font-weight: var(--font-medium);
     }
     .year-range-row select {
       width: 100%;
       min-width: 0;
+      min-height: var(--filter-control-height);
+      height: var(--filter-control-height);
+      padding: 7px 36px 7px 10px;
+      border: 1px solid var(--wra-gray-300);
+      border-radius: var(--radius-md);
+      background: var(--wra-surface);
+      font-size: var(--filter-control-font);
+      font-weight: 500;
+      line-height: 1.2;
+      transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition), transform var(--transition-fast);
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%236b7280' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 12px 12px;
+    }
+    .year-range-row select:hover:not(:disabled) {
+      border-color: var(--wra-gray-400);
+      background-color: var(--wra-gray-50);
+    }
+    .year-range-row select:focus {
+      border-color: var(--wra-gray-500);
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+      transform: translateY(-1px);
+    }
+    .year-dropdown {
+      width: 100%;
+      min-width: 0;
+    }
+    .year-dropdown .filter-dropdown-trigger {
+      width: 100%;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .year-dropdown .filter-dropdown-panel {
+      max-height: 240px;
+    }
+    .year-native-select {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      border: 0 !important;
     }
     .checkbox-list {
-      max-height: 220px;
+      max-height: 190px;
       overflow-y: auto;
       overflow-x: hidden;
       padding-right: 6px;
@@ -444,8 +629,8 @@
       display: flex;
       align-items: center;
       margin-bottom: 4px;
-      font-size: var(--text-sm);
-      padding: 8px 10px;
+      font-size: var(--filter-control-font);
+      padding: 6px 8px;
       border-radius: var(--radius-sm);
       transition: background-color var(--transition), color var(--transition);
       cursor: pointer;
@@ -505,6 +690,103 @@
       font-size: 0.8rem;
       white-space: nowrap;
     }
+    .checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      width: 100%;
+      font-family: var(--font-sans);
+    }
+    .checkbox[data-disabled="true"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .checkbox__input-wrap {
+      border: 0;
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      padding: 0;
+      position: absolute;
+      width: 1px;
+      white-space: nowrap;
+    }
+    .checkbox__control {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 0.25rem;
+      border: 1px solid var(--wra-gray-300);
+      background: var(--wra-white);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                  border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                  transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+      box-shadow: var(--shadow-sm);
+      flex: 0 0 auto;
+    }
+    .checkbox:hover .checkbox__control {
+      border-color: var(--wra-gray-400);
+    }
+    .checkbox[data-selected="true"] .checkbox__control {
+      background: var(--wra-primary);
+      border-color: var(--wra-primary);
+    }
+    .checkbox:focus-within .checkbox__control {
+      outline: none;
+      box-shadow: none;
+    }
+    .checkbox__indicator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 0.75rem;
+      height: 0.75rem;
+      color: var(--wra-white);
+    }
+    .checkbox__indicator svg {
+      width: 100%;
+      height: 100%;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+    .checkbox__indicator svg polyline {
+      stroke-dasharray: 22;
+      stroke-dashoffset: 44;
+      transition: stroke-dashoffset 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .checkbox[data-selected="true"] .checkbox__indicator svg polyline {
+      stroke-dashoffset: 0;
+    }
+    .checkbox__content {
+      color: var(--wra-gray-900);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      line-height: 1.15rem;
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+    .checkbox__label {
+      cursor: pointer;
+    }
+    .checkbox__label .opt-count {
+      float: right;
+      margin-left: 10px;
+      color: var(--wra-gray-500);
+      font-weight: 400;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
     /* Dropdown multiselect (внешне как select, внутри — чекбоксы) */
     .filter-dropdown {
       position: relative;
@@ -512,21 +794,97 @@
     .filter-dropdown-trigger {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       width: 100%;
-      padding: 10px 36px 10px 14px;
+      padding: 7px 36px 7px 10px;
       border: 1px solid var(--wra-gray-300);
       border-radius: var(--radius-md);
       background: var(--wra-surface);
       color: var(--wra-text);
-      font-size: var(--text-sm);
+      font-size: var(--filter-control-font);
       text-align: left;
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      position: relative;
+      gap: 6px;
+      min-height: var(--filter-control-height);
+      transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition), transform var(--transition-fast);
+    }
+    .filter-dropdown-trigger::after {
+      content: "";
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      transform: translateY(-50%) rotate(180deg); /* closed: arrow up */
+      transform-origin: center;
+      transition: transform var(--transition);
+      opacity: 0.9;
+      pointer-events: none;
       background-repeat: no-repeat;
-      background-position: right 12px center;
+      background-position: center;
+      background-size: 12px 12px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%236b7280' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    .trigger-placeholder {
+      color: var(--wra-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: inline-block;
+      max-width: 100%;
+    }
+    .trigger-tags {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: 100%;
+    }
+    .ms-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 170px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--wra-gray-100);
+      border: 1px solid var(--wra-gray-200);
+      color: var(--wra-gray-800);
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: 500;
+    }
+    .ms-tag-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ms-tag-remove {
+      border: none;
+      background: transparent;
+      color: var(--wra-gray-500);
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+    .ms-tag-remove:hover {
+      background: var(--wra-gray-200);
+      color: var(--wra-gray-700);
+    }
+    .ms-tag-more {
+      font-size: 11px;
+      color: var(--wra-gray-600);
+      font-weight: 600;
+      white-space: nowrap;
     }
     .filter-dropdown-trigger:hover { border-color: var(--wra-gray-400); }
     .filter-dropdown-trigger:disabled {
@@ -534,11 +892,18 @@
       cursor: not-allowed;
     }
     .filter-dropdown-trigger[aria-expanded="true"] {
-      border-color: var(--wra-primary);
-      box-shadow: 0 0 0 2px rgba(var(--wra-primary-rgb, 59, 130, 246), 0.2);
+      border-color: var(--wra-gray-400);
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+    }
+    .filter-dropdown-trigger[aria-expanded="true"]::after {
+      transform: translateY(-50%) rotate(0deg); /* open: arrow down */
+    }
+    .filter-dropdown-trigger.active {
+      background-color: var(--wra-gray-50);
+      transform: translateY(-1px);
     }
     .filter-dropdown-panel {
-      display: none;
+      display: block;
       position: absolute;
       top: 100%;
       left: 0;
@@ -546,13 +911,31 @@
       margin-top: 4px;
       max-height: 260px;
       overflow-y: auto;
+      scrollbar-width: none; /* Firefox: hide scrollbar but keep scroll */
+      -ms-overflow-style: none; /* old Edge/IE */
       background: var(--wra-surface);
       border: 1px solid var(--wra-gray-300);
       border-radius: var(--radius-md);
       box-shadow: var(--shadow-lg);
       z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-6px) scale(0.985);
+      transform-origin: top center;
+      transition: opacity var(--transition), transform var(--transition), visibility 0s linear var(--transition);
     }
-    .filter-dropdown-panel.is-open { display: block; }
+    .filter-dropdown-panel::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+    .filter-dropdown-panel.is-open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+      transition: opacity var(--transition), transform var(--transition), visibility 0s;
+    }
     .filter-dropdown-list {
       padding: 8px;
     }
@@ -564,10 +947,11 @@
     }
     .range-inputs input {
       width: 100%;
-      padding: 10px 14px;
+      padding: 8px 10px;
       border: 1px solid var(--wra-gray-300);
       border-radius: var(--radius-md);
-      font-size: var(--text-sm);
+      font-size: var(--filter-control-font);
+      min-height: var(--filter-control-height);
       outline: none;
       background: var(--wra-surface);
       transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
@@ -577,8 +961,8 @@
       background-color: var(--wra-gray-50);
     }
     .range-inputs input:focus {
-      border-color: var(--wra-primary);
-      box-shadow: var(--shadow-focus);
+      border-color: var(--wra-gray-500);
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
       background-color: var(--wra-surface);
     }
     .range-inputs input::placeholder {
@@ -591,15 +975,16 @@
       background: var(--wra-gray-100);
       border: 1px solid var(--wra-gray-300);
       border-radius: var(--radius-md);
-      padding: 12px var(--space-5);
-      font-size: var(--text-sm);
-      font-weight: var(--font-bold);
+      padding: 9px 12px;
+      font-size: var(--filter-control-font);
+      font-weight: 600;
+      min-height: var(--filter-control-height);
       color: var(--wra-gray-800);
       cursor: pointer;
       width: 100%;
       transition: background var(--transition), border-color var(--transition), transform var(--transition-fast), box-shadow var(--transition);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      text-transform: none;
+      letter-spacing: 0;
     }
     .reset-btn:hover {
       background: var(--wra-gray-200);
@@ -608,7 +993,7 @@
     }
     .reset-btn:focus-visible {
       outline: none;
-      box-shadow: var(--shadow-focus);
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
     }
     .reset-btn:active {
       transform: translateY(0);
@@ -724,55 +1109,124 @@
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: var(--space-3);
-      margin-bottom: 20px;
+      gap: 10px;
+      margin-bottom: 14px;
     }
     .catalog-header h1 {
       margin: 0;
-      font-size: var(--text-2xl);
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
     }
     .catalog-header-controls {
       display: flex;
       align-items: center;
-      gap: var(--space-3);
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .catalog-header-controls > .found-counter,
+    .catalog-header-controls > .sort-dropdown {
+      min-height: var(--filter-control-height);
+      height: var(--filter-control-height);
+      box-sizing: border-box;
     }
     .found-counter {
-      background: var(--wra-gray-50);
-      padding: var(--space-2) 18px;
-      border-radius: var(--radius-pill);
-      border: 1px solid var(--wra-border);
-      font-weight: var(--font-medium);
-    }
-    .sort-select {
-      padding: var(--space-2) 32px var(--space-2) 14px;
-      border-radius: var(--radius-pill);
-      border: 1px solid var(--wra-gray-300);
       background: var(--wra-surface);
-      font-size: var(--text-sm);
-      cursor: pointer;
-      outline: none;
-      transition: border-color var(--transition), box-shadow var(--transition);
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
-      background-position: right 10px center;
-      background-repeat: no-repeat;
-      background-size: 12px;
+      padding: 0 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--wra-gray-300);
+      font-weight: 500;
+      font-size: var(--filter-control-font);
+      line-height: 1.2;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
     }
-    .sort-select:focus {
-      border-color: var(--wra-primary);
-      box-shadow: var(--shadow-focus);
+    .found-counter:hover {
+      border-color: var(--wra-gray-400);
+      background: var(--wra-gray-50);
+    }
+    .sort-dropdown {
+      min-width: 270px;
+    }
+    .sort-dropdown .filter-dropdown-trigger {
+      width: 100%;
+      min-height: var(--filter-control-height);
+      height: var(--filter-control-height);
+      font-size: var(--filter-control-font);
+      border-radius: var(--radius-md);
+      font-weight: 500;
+      line-height: 1.2;
+    }
+    .sort-dropdown-panel {
+      max-height: 280px;
+    }
+    .sort-options {
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sort-option {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--wra-text);
+      text-align: left;
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font-size: var(--filter-control-font);
+      line-height: 1.25;
+      cursor: pointer;
+      transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+    }
+    .sort-option:hover {
+      background: var(--wra-gray-50);
+      border-color: var(--wra-gray-200);
+    }
+    .sort-option.active {
+      background: var(--wra-gray-100);
+      border-color: var(--wra-gray-300);
+      color: var(--wra-gray-900);
+      font-weight: 600;
+    }
+    .sort-select-native {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      border: 0 !important;
+    }
+    .filter-group select:focus,
+    .filter-dropdown-trigger:focus,
+    .range-inputs input:focus,
+    .reset-btn:focus-visible {
+      border-color: var(--wra-gray-500);
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
     }
     .info-icon-wrap.count-info {
-      width: 20px;
-      height: 20px;
-      min-width: 20px;
-      min-height: 20px;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      min-height: 18px;
       padding: 0;
       font-size: 11px;
-      margin-left: 6px;
+      margin-left: 2px;
+      border-radius: 999px;
+      border: 1px solid var(--wra-gray-300);
+      background: var(--wra-surface);
+      transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
     }
-    .info-icon-wrap.count-info .info-icon-img { width: 14px; height: 14px; }
+    .info-icon-wrap.count-info:hover {
+      background: var(--wra-gray-100);
+      border-color: var(--wra-gray-400);
+      transform: translateY(-1px);
+    }
+    .info-icon-wrap.count-info .info-icon-img { width: 12px; height: 12px; }
 
     /* Список автомобилей — горизонтальные карточки, одна под другой */
     .car-grid {
@@ -780,7 +1234,7 @@
       flex-direction: column;
       width: 100%;
       margin: 0 0 30px 0;
-      gap: 20px;
+      gap: 14px;
     }
     /* на совсем узких экранах просто уменьшаем отступы */
     @media (max-width: 600px) {
@@ -791,7 +1245,7 @@
 
     .car-card {
       background: var(--wra-surface);
-      border-radius: var(--radius-xl);
+      border-radius: 14px;
       box-shadow: var(--shadow);
       overflow: hidden;
       transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
@@ -801,29 +1255,29 @@
       border: 1px solid var(--wra-border);
     }
     .car-card:hover {
-      transform: translateY(-4px);
+      transform: translateY(-2px);
       box-shadow: var(--shadow-md);
       border-color: var(--wra-gray-300);
     }
 
     .preview {
       position: relative;
-      flex: 0 0 320px;
-      width: 320px;
-      min-height: 200px;
+      flex: 0 0 290px;
+      width: 290px;
+      min-height: 186px;
       align-self: stretch;
       overflow: hidden;
       background: var(--wra-gray-200);
-      border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+      border-radius: 14px 0 0 14px;
     }
     .card-badge {
       position: absolute;
       top: var(--space-3);
       left: var(--space-3);
       z-index: 2;
-      padding: 6px var(--space-3);
+      padding: 4px 8px;
       border-radius: var(--radius-sm);
-      font-size: var(--text-xs);
+      font-size: 11px;
       font-weight: var(--font-semibold);
       color: var(--wra-white);
       background: rgba(0,0,0,0.55);
@@ -838,7 +1292,7 @@
         width: 100%;
         max-width: none;
         height: 220px;
-        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        border-radius: 14px 14px 0 0;
       }
       .preview img {
         border-radius: 0;
@@ -857,13 +1311,13 @@
       opacity: 1;
     }
     .car-info {
-      padding: var(--space-5) var(--space-6);
-      font-size: var(--text-sm);
+      padding: 12px 14px;
+      font-size: 0.8125rem;
       display: flex;
       flex-direction: column;
       min-width: 0;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       flex: 1;
     }
     .car-info-header {
@@ -879,10 +1333,10 @@
       flex-shrink: 0;
     }
     .car-actions .icon-btn {
-      width: 28px;
-      height: 28px;
-      min-width: 28px;
-      min-height: 28px;
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      min-height: 24px;
       padding: 0;
       border: none;
       background: var(--wra-gray-100);
@@ -893,7 +1347,7 @@
       justify-content: center;
       transition: background var(--transition), opacity var(--transition);
     }
-    .car-actions .icon-btn img { display: block; width: 16px; height: 16px; }
+    .car-actions .icon-btn img { display: block; width: 14px; height: 14px; }
     .car-actions .icon-btn:hover {
       background: var(--wra-gray-200);
     }
@@ -901,16 +1355,17 @@
     .car-main {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
     .car-info h2 {
-      font-size: 1.0625rem;
+      font-size: 0.9375rem;
       margin: 0;
       font-weight: var(--font-bold);
       line-height: 1.35;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
+      line-clamp: 2;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -922,7 +1377,7 @@
     .origin a:hover { color: var(--wra-primary); }
     .meta {
       color: var(--wra-text-muted);
-      font-size: var(--text-sm);
+      font-size: 0.75rem;
       line-height: 1.4;
     }
     .meta-strong {
@@ -933,7 +1388,7 @@
       display: inline-flex;
       align-items: center;
       gap: var(--space-1);
-      font-size: var(--text-xs);
+      font-size: 11px;
       color: var(--wra-text-muted);
       white-space: nowrap;
     }
@@ -950,9 +1405,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: var(--space-2);
+      margin-top: 6px;
       border-top: 1px solid var(--wra-border);
-      padding-top: 10px;
+      padding-top: 8px;
       gap: var(--space-3);
       flex-wrap: wrap;
     }
@@ -965,7 +1420,7 @@
     }
     .price-rub {
       font-weight: var(--font-bold);
-      font-size: var(--text-xl);
+      font-size: 1rem;
       color: var(--wra-price);
       line-height: 1.3;
     }
@@ -1003,9 +1458,9 @@
     .info-icon-wrap:hover .info-icon-img { filter: brightness(0) invert(1); }
     .tax-btn {
       display: inline-block;
-      padding: 6px 14px;
+      padding: 5px 10px;
       border-radius: var(--radius-pill);
-      font-size: var(--text-xs);
+      font-size: 11px;
       font-weight: var(--font-medium);
       cursor: pointer;
       text-decoration: none;
@@ -1075,20 +1530,22 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: var(--space-2);
-      margin: 28px 0 var(--space-4);
+      gap: 6px;
+      margin: 18px 0 10px;
       flex-wrap: wrap;
     }
     .pagination .pagination-prev,
     .pagination .pagination-next {
       border: 1px solid var(--wra-gray-300);
-      padding: var(--space-2) 14px;
+      min-width: 34px;
+      min-height: 34px;
+      padding: 6px 10px;
       background: var(--wra-surface);
       border-radius: var(--radius-md);
       cursor: pointer;
       font-weight: var(--font-semibold);
       color: var(--wra-gray-700);
-      transition: background var(--transition), border-color var(--transition);
+      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
     }
     .pagination .pagination-prev:hover:not(:disabled),
     .pagination .pagination-next:hover:not(:disabled) {
@@ -1111,16 +1568,16 @@
       opacity: 0.6;
     }
     .pagination button.page-num {
-      min-width: 40px;
-      min-height: 44px;
+      min-width: 34px;
+      min-height: 34px;
       border: 1px solid var(--wra-gray-300);
-      padding: var(--space-2) var(--space-3);
+      padding: 6px 8px;
       background: var(--wra-surface);
       border-radius: var(--radius-md);
       cursor: pointer;
       font-weight: var(--font-medium);
-      font-size: var(--text-sm);
-      transition: background var(--transition), border-color var(--transition);
+      font-size: 0.8125rem;
+      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
     }
     .pagination button.page-num.active {
       background: var(--wra-gray-800);
@@ -1130,6 +1587,13 @@
     .pagination button.page-num:hover:not(.active) {
       background: var(--wra-gray-100);
       border-color: var(--wra-gray-400);
+    }
+    .pagination button.page-num:focus-visible,
+    .pagination .pagination-prev:focus-visible,
+    .pagination .pagination-next:focus-visible {
+      outline: none;
+      border-color: var(--wra-gray-500);
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
     }
     .pagination .pagination-ellipsis {
       padding: 0 var(--space-1);
@@ -1177,7 +1641,7 @@
       min-width: 200px;
     }
     .hero-banner-brand .brand-name {
-      font-family: 'Plus Jakarta Sans', var(--font-sans);
+      font-family: var(--font-sans);
       font-size: var(--text-2xl);
       font-weight: var(--font-bold);
       color: var(--wra-gray-900);
@@ -1565,6 +2029,113 @@
       .hero-banner .slide-content p { font-size: 0.9rem; }
     }
 
+    /* Mobile cleanup */
+    @media (max-width: 900px) {
+      .main-layout {
+        gap: 12px;
+        padding: 10px;
+      }
+      .catalog-header {
+        margin-bottom: 10px;
+      }
+      .catalog-header-controls {
+        width: 100%;
+      }
+      .found-counter,
+      .sort-dropdown {
+        min-height: 34px;
+      }
+    }
+    @media (max-width: 600px) {
+      .main-layout {
+        padding: 8px;
+      }
+      .catalog-header {
+        gap: 8px;
+      }
+      .catalog-header h1 {
+        width: 100%;
+        font-size: 1rem;
+      }
+      .filters-open-btn,
+      .found-counter,
+      .sort-dropdown {
+        width: 100%;
+        justify-content: center;
+      }
+      .sort-dropdown {
+        width: 100%;
+        min-width: 0;
+      }
+      .filters-panel-desktop {
+        max-width: 100%;
+      }
+      .filters-panel-scroll {
+        padding: 10px 10px 0;
+      }
+      .filters-panel-footer {
+        padding: 10px;
+      }
+      .filter-group {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+      }
+      .filter-group h4 {
+        font-size: 0.8125rem;
+      }
+      .filter-dropdown-trigger,
+      .filter-group select,
+      .range-inputs input,
+      .reset-btn {
+        min-height: 32px;
+        font-size: 0.75rem;
+      }
+      .car-grid {
+        gap: 10px;
+        padding: 0;
+      }
+      .car-card {
+        border-radius: 12px;
+      }
+      .preview {
+        height: 200px;
+        border-radius: 12px 12px 0 0;
+      }
+      .car-info {
+        padding: 10px;
+      }
+      .car-info h2 {
+        font-size: 0.875rem;
+      }
+      .meta {
+        font-size: 0.6875rem;
+      }
+      .price-rub {
+        font-size: 0.9375rem;
+      }
+      .pagination {
+        gap: 4px;
+        margin-top: 12px;
+      }
+      .pagination button.page-num,
+      .pagination .pagination-prev,
+      .pagination .pagination-next {
+        min-width: 30px;
+        min-height: 30px;
+        font-size: 0.75rem;
+        padding: 4px 6px;
+      }
+      .skeleton-card {
+        border-radius: 12px;
+      }
+      .skeleton-card .skeleton-preview {
+        height: 200px;
+      }
+      .skeleton-card .skeleton-body {
+        padding: 10px;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1582,7 +2153,12 @@
       </nav>
       <div class="header-buttons">
         <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank">Связаться с менеджером</a>
-        <button class="btn btn-secondary" onclick="alert('Функция входа в разработке')">Войти</button>
+        <button type="button" id="saveSearchSubBtn" class="btn btn-secondary">Подписка на поиск</button>
+        <button type="button" id="headerFavoritesBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Избранные автомобили">
+          Избранное <span class="auth-fav-count">0</span>
+        </button>
+        <button type="button" id="headerAccountBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Личный кабинет">Кабинет</button>
+        <button type="button" id="headerLoginBtn" class="btn btn-secondary">Войти</button>
       </div>
     </div>
   </header>
@@ -1656,65 +2232,84 @@
           </div>
         </div>
       </div>
-      <!-- 2. Модель -->
-      <div class="filter-group">
-        <h4>Модель</h4>
-        <div class="filter-dropdown" id="modelDropdown">
-          <button type="button" class="filter-dropdown-trigger" id="modelTrigger" aria-expanded="false" disabled>Сначала выберите марку</button>
-          <div class="filter-dropdown-panel" id="modelPanel">
-            <div class="checkbox-list filter-dropdown-list" id="modelList"></div>
+      <!-- 2. Модель (появляется после выбора марки) -->
+      <div class="filter-cascade-slot" id="cascadeSlotModel" aria-hidden="true">
+        <div class="filter-cascade-slot__inner">
+          <div class="filter-group">
+            <h4>Модель</h4>
+            <div class="filter-dropdown" id="modelDropdown">
+              <button type="button" class="filter-dropdown-trigger" id="modelTrigger" aria-expanded="false" disabled>Сначала выберите марку</button>
+              <div class="filter-dropdown-panel" id="modelPanel">
+                <div class="checkbox-list filter-dropdown-list" id="modelList"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <!-- 3. Поколение -->
-      <div class="filter-group">
-        <h4>Поколение</h4>
-        <div class="filter-dropdown" id="generationDropdown">
-          <button type="button" class="filter-dropdown-trigger" id="generationTrigger" aria-expanded="false" disabled>Сначала выберите модель</button>
-          <div class="filter-dropdown-panel" id="generationPanel">
-            <div class="checkbox-list filter-dropdown-list" id="generationList"></div>
+      <div class="filter-cascade-slot" id="cascadeSlotGeneration" aria-hidden="true">
+        <div class="filter-cascade-slot__inner">
+          <div class="filter-group">
+            <h4>Поколение</h4>
+            <div class="filter-dropdown" id="generationDropdown">
+              <button type="button" class="filter-dropdown-trigger" id="generationTrigger" aria-expanded="false" disabled>Сначала выберите модель</button>
+              <div class="filter-dropdown-panel" id="generationPanel">
+                <div class="checkbox-list filter-dropdown-list" id="generationList"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <!-- 4. Комплектация -->
-      <div class="filter-group">
-        <h4>Комплектация</h4>
-        <div class="filter-dropdown" id="trimDropdown">
-          <button type="button" class="filter-dropdown-trigger" id="trimTrigger" aria-expanded="false" disabled>Сначала выберите поколение</button>
-          <div class="filter-dropdown-panel" id="trimPanel">
-            <div class="checkbox-list filter-dropdown-list" id="trimList"></div>
+      <div class="filter-cascade-slot" id="cascadeSlotTrim" aria-hidden="true">
+        <div class="filter-cascade-slot__inner">
+          <div class="filter-group">
+            <h4>Комплектация</h4>
+            <div class="filter-dropdown" id="trimDropdown">
+              <button type="button" class="filter-dropdown-trigger" id="trimTrigger" aria-expanded="false" disabled>Сначала выберите поколение</button>
+              <div class="filter-dropdown-panel" id="trimPanel">
+                <div class="checkbox-list filter-dropdown-list" id="trimList"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <!-- 5. Тип кузова -->
-      <div class="filter-group">
-        <h4>Тип кузова</h4>
-        <div class="checkbox-list" id="bodyList"></div>
-      </div>
-      <!-- 6. Мощность от/до (л.с.) -->
-      <div class="filter-group">
-        <h4>Мощность (л.с.)</h4>
-        <div class="range-inputs">
-          <input type="number" id="powerFrom" placeholder="От" min="0" step="10">
-          <input type="number" id="powerTo" placeholder="До" min="0" step="10">
+      <!-- Кузов и двигатель (сворачиваемый блок) -->
+      <div class="filter-section-toggle" id="filterSectionTech">
+        <button type="button" class="filter-section-toggle__btn" id="filterSectionTechBtn" aria-expanded="false" aria-controls="filterSectionTechBody">
+          <span>Кузов и двигатель</span>
+          <span class="filter-section-toggle__chev" aria-hidden="true"></span>
+        </button>
+        <div class="filter-section-toggle__body" id="filterSectionTechBody" role="region" aria-labelledby="filterSectionTechBtn" aria-hidden="true">
+          <div class="filter-section-toggle__inner">
+            <div class="filter-group">
+              <h4>Тип кузова</h4>
+              <div class="checkbox-list" id="bodyList"></div>
+            </div>
+            <div class="filter-group">
+              <h4>Мощность (л.с.)</h4>
+              <div class="range-inputs">
+                <input type="number" id="powerFrom" placeholder="От" min="0" step="10">
+                <input type="number" id="powerTo" placeholder="До" min="0" step="10">
+              </div>
+            </div>
+            <div class="filter-group">
+              <h4>Объём двигателя (см³)</h4>
+              <div class="range-inputs">
+                <input type="number" id="engineFrom" placeholder="От" min="0" step="100">
+                <input type="number" id="engineTo" placeholder="До" min="0" step="100">
+              </div>
+            </div>
+            <div class="filter-group">
+              <h4>Вид топлива</h4>
+              <div class="checkbox-list" id="fuelList"></div>
+            </div>
+            <div class="filter-group">
+              <h4>Коробка передач</h4>
+              <div class="checkbox-list" id="transmissionList"></div>
+            </div>
+          </div>
         </div>
-      </div>
-      <!-- 7. Объём двигателя от/до (см³) -->
-      <div class="filter-group">
-        <h4>Объём двигателя (см³)</h4>
-        <div class="range-inputs">
-          <input type="number" id="engineFrom" placeholder="От" min="0" step="100">
-          <input type="number" id="engineTo" placeholder="До" min="0" step="100">
-        </div>
-      </div>
-      <!-- 8. Вид топлива -->
-      <div class="filter-group">
-        <h4>Вид топлива</h4>
-        <div class="checkbox-list" id="fuelList"></div>
-      </div>
-      <div class="filter-group">
-        <h4>Коробка передач</h4>
-        <div class="checkbox-list" id="transmissionList"></div>
       </div>
       <!-- 9. Цена -->
       <div class="filter-group">
@@ -1738,13 +2333,29 @@
         <div class="year-range-wrap">
           <div class="year-range-row">
             <span class="year-range-label">От</span>
-            <select id="yearFrom"><option value="">Год</option></select>
-            <select id="monthFrom"><option value="">Месяц</option></select>
+            <div class="filter-dropdown year-dropdown" id="yearFromDropdown">
+              <button type="button" class="filter-dropdown-trigger" id="yearFromTrigger" aria-expanded="false">Год от</button>
+              <div class="filter-dropdown-panel" id="yearFromPanel"><div class="sort-options" id="yearFromOptions"></div></div>
+            </div>
+            <div class="filter-dropdown year-dropdown" id="monthFromDropdown">
+              <button type="button" class="filter-dropdown-trigger" id="monthFromTrigger" aria-expanded="false">Месяц от</button>
+              <div class="filter-dropdown-panel" id="monthFromPanel"><div class="sort-options" id="monthFromOptions"></div></div>
+            </div>
+            <select id="yearFrom" class="year-native-select"><option value="">Год</option></select>
+            <select id="monthFrom" class="year-native-select"><option value="">Месяц</option></select>
           </div>
           <div class="year-range-row">
             <span class="year-range-label">До</span>
-            <select id="yearTo"><option value="">Год</option></select>
-            <select id="monthTo"><option value="">Месяц</option></select>
+            <div class="filter-dropdown year-dropdown" id="yearToDropdown">
+              <button type="button" class="filter-dropdown-trigger" id="yearToTrigger" aria-expanded="false">Год до</button>
+              <div class="filter-dropdown-panel" id="yearToPanel"><div class="sort-options" id="yearToOptions"></div></div>
+            </div>
+            <div class="filter-dropdown year-dropdown" id="monthToDropdown">
+              <button type="button" class="filter-dropdown-trigger" id="monthToTrigger" aria-expanded="false">Месяц до</button>
+              <div class="filter-dropdown-panel" id="monthToPanel"><div class="sort-options" id="monthToOptions"></div></div>
+            </div>
+            <select id="yearTo" class="year-native-select"><option value="">Год</option></select>
+            <select id="monthTo" class="year-native-select"><option value="">Месяц</option></select>
           </div>
         </div>
       </div>
@@ -1753,50 +2364,70 @@
         <h4>Тип привода</h4>
         <div class="drive-checkbox-wrap">
           <div class="checkbox-item">
-            <input type="checkbox" id="filterDriveAwd" data-filter="drive" value="AWD">
-            <label for="filterDriveAwd">Полный привод</label>
+            <label class="checkbox" data-selected="false">
+              <span class="checkbox__input-wrap"><input type="checkbox" id="filterDriveAwd" data-filter="drive" value="AWD"></span>
+              <span class="checkbox__control"><span class="checkbox__indicator"><svg aria-hidden="true" viewBox="0 0 17 18" fill="none"><polyline points="1 9 7 14 15 4"/></svg></span></span>
+              <span class="checkbox__content"><span class="checkbox__label">Полный привод</span></span>
+            </label>
           </div>
         </div>
       </div>
-      <!-- 13. Страховые случаи шт. от/до + без случаев -->
-      <div class="filter-group">
-        <h4>Страховые случаи (шт.)</h4>
-        <div class="range-inputs">
-          <input type="number" id="insuranceCasesFrom" placeholder="От" min="0">
-          <input type="number" id="insuranceCasesTo" placeholder="До" min="0">
-        </div>
-        <div class="drive-checkbox-wrap" style="margin-top: 10px;">
-          <div class="checkbox-item">
-            <input type="checkbox" id="filterNoInsuranceCases" data-filter="noInsuranceCases">
-            <label for="filterNoInsuranceCases">Без страховых случаев</label>
-          </div>
-        </div>
-      </div>
-      <!-- 14. Страховые выплаты от/до + без выплат -->
-      <div class="filter-group">
-        <h4>Страховые выплаты (вон)</h4>
-        <div class="range-inputs">
-          <input type="number" id="insurancePayoutsFrom" placeholder="От" min="0">
-          <input type="number" id="insurancePayoutsTo" placeholder="До" min="0">
-        </div>
-        <div class="drive-checkbox-wrap" style="margin-top: 10px;">
-          <div class="checkbox-item">
-            <input type="checkbox" id="filterNoInsurancePayouts" data-filter="noInsurancePayouts">
-            <label for="filterNoInsurancePayouts">Без страховых выплат</label>
-          </div>
-        </div>
-      </div>
-      <!-- 15. Повреждённые элементы (замена) от/до + без повреждений -->
-      <div class="filter-group">
-        <h4>Повреждённые элементы (замена), шт.</h4>
-        <div class="range-inputs">
-          <input type="number" id="damagedFrom" placeholder="От" min="0">
-          <input type="number" id="damagedTo" placeholder="До" min="0">
-        </div>
-        <div class="drive-checkbox-wrap" style="margin-top: 10px;">
-          <div class="checkbox-item">
-            <input type="checkbox" id="filterNoDamaged" data-filter="noDamaged">
-            <label for="filterNoDamaged">Без повреждений</label>
+      <!-- Страховка и повреждения (сворачиваемый блок) -->
+      <div class="filter-section-toggle" id="filterSectionHistory">
+        <button type="button" class="filter-section-toggle__btn" id="filterSectionHistoryBtn" aria-expanded="false" aria-controls="filterSectionHistoryBody">
+          <span>Страховка и повреждения</span>
+          <span class="filter-section-toggle__chev" aria-hidden="true"></span>
+        </button>
+        <div class="filter-section-toggle__body" id="filterSectionHistoryBody" role="region" aria-labelledby="filterSectionHistoryBtn" aria-hidden="true">
+          <div class="filter-section-toggle__inner">
+            <div class="filter-group">
+              <h4>Страховые случаи (шт.)</h4>
+              <div class="range-inputs">
+                <input type="number" id="insuranceCasesFrom" placeholder="От" min="0">
+                <input type="number" id="insuranceCasesTo" placeholder="До" min="0">
+              </div>
+              <div class="drive-checkbox-wrap" style="margin-top: 10px;">
+                <div class="checkbox-item">
+                  <label class="checkbox" data-selected="false">
+                    <span class="checkbox__input-wrap"><input type="checkbox" id="filterNoInsuranceCases" data-filter="noInsuranceCases"></span>
+                    <span class="checkbox__control"><span class="checkbox__indicator"><svg aria-hidden="true" viewBox="0 0 17 18" fill="none"><polyline points="1 9 7 14 15 4"/></svg></span></span>
+                    <span class="checkbox__content"><span class="checkbox__label">Без страховых случаев</span></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="filter-group">
+              <h4>Страховые выплаты (вон)</h4>
+              <div class="range-inputs">
+                <input type="number" id="insurancePayoutsFrom" placeholder="От" min="0">
+                <input type="number" id="insurancePayoutsTo" placeholder="До" min="0">
+              </div>
+              <div class="drive-checkbox-wrap" style="margin-top: 10px;">
+                <div class="checkbox-item">
+                  <label class="checkbox" data-selected="false">
+                    <span class="checkbox__input-wrap"><input type="checkbox" id="filterNoInsurancePayouts" data-filter="noInsurancePayouts"></span>
+                    <span class="checkbox__control"><span class="checkbox__indicator"><svg aria-hidden="true" viewBox="0 0 17 18" fill="none"><polyline points="1 9 7 14 15 4"/></svg></span></span>
+                    <span class="checkbox__content"><span class="checkbox__label">Без страховых выплат</span></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="filter-group">
+              <h4>Повреждённые элементы (замена), шт.</h4>
+              <div class="range-inputs">
+                <input type="number" id="damagedFrom" placeholder="От" min="0">
+                <input type="number" id="damagedTo" placeholder="До" min="0">
+              </div>
+              <div class="drive-checkbox-wrap" style="margin-top: 10px;">
+                <div class="checkbox-item">
+                  <label class="checkbox" data-selected="false">
+                    <span class="checkbox__input-wrap"><input type="checkbox" id="filterNoDamaged" data-filter="noDamaged"></span>
+                    <span class="checkbox__control"><span class="checkbox__indicator"><svg aria-hidden="true" viewBox="0 0 17 18" fill="none"><polyline points="1 9 7 14 15 4"/></svg></span></span>
+                    <span class="checkbox__content"><span class="checkbox__label">Без повреждений</span></span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1834,8 +2465,23 @@
           <span class="info-icon-wrap count-info" id="countInfoIcon" title="Количество найденных автомобилей"><img src="image/Info.svg" alt="i" width="14" height="14" class="info-icon-img"></span>
         </span>
         <span id="catalogAriaLive" class="wra-sr-only" aria-live="polite" aria-atomic="true"></span>
-        <select id="sortSelect" class="sort-select">
-          <option value="date_new">По дате размещения — новее</option>
+        <div class="filter-dropdown sort-dropdown" id="sortDropdown">
+          <button type="button" class="filter-dropdown-trigger" id="sortTrigger" aria-expanded="false">По дате размещения — новее</button>
+          <div class="filter-dropdown-panel sort-dropdown-panel" id="sortPanel">
+            <div class="sort-options" id="sortOptions">
+              <button type="button" class="sort-option active" data-value="date_new">По дате размещения — новее</button>
+              <button type="button" class="sort-option" data-value="date_old">По дате размещения — старше</button>
+              <button type="button" class="sort-option" data-value="year_new">По году — новее</button>
+              <button type="button" class="sort-option" data-value="year_old">По году — старше</button>
+              <button type="button" class="sort-option" data-value="price_high">По цене — дороже</button>
+              <button type="button" class="sort-option" data-value="price_low">По цене — дешевле</button>
+              <button type="button" class="sort-option" data-value="mileage_high">По пробегу — больше</button>
+              <button type="button" class="sort-option" data-value="mileage_low">По пробегу — меньше</button>
+            </div>
+          </div>
+        </div>
+        <select id="sortSelect" class="sort-select-native" aria-hidden="true" tabindex="-1">
+          <option value="date_new" selected>По дате размещения — новее</option>
           <option value="date_old">По дате размещения — старше</option>
           <option value="year_new">По году — новее</option>
           <option value="year_old">По году — старше</option>
@@ -1862,8 +2508,9 @@
         <img src="image/logo.svg" alt="World Ride Auto">
       </a>
       <nav class="footer-nav">
-        <a href="#">Политика конфиденциальности</a>
-        <a href="#">Пользовательское соглашение</a>
+        <a href="privacy.html">Политика конфиденциальности</a>
+        <a href="cookies.html">Политика cookie</a>
+        <a href="agreement.html">Пользовательское соглашение</a>
       </nav>
       <div class="footer-copy">
         <span class="copy-line">&copy; World Ride Auto 2026</span>
@@ -1901,6 +2548,21 @@
     const generationPanel = document.getElementById('generationPanel');
     const trimTrigger = document.getElementById('trimTrigger');
     const trimPanel = document.getElementById('trimPanel');
+    const sortTrigger = document.getElementById('sortTrigger');
+    const sortPanel = document.getElementById('sortPanel');
+    const sortOptionsEl = document.getElementById('sortOptions');
+    const yearFromTrigger = document.getElementById('yearFromTrigger');
+    const yearFromPanel = document.getElementById('yearFromPanel');
+    const yearFromOptions = document.getElementById('yearFromOptions');
+    const monthFromTrigger = document.getElementById('monthFromTrigger');
+    const monthFromPanel = document.getElementById('monthFromPanel');
+    const monthFromOptions = document.getElementById('monthFromOptions');
+    const yearToTrigger = document.getElementById('yearToTrigger');
+    const yearToPanel = document.getElementById('yearToPanel');
+    const yearToOptions = document.getElementById('yearToOptions');
+    const monthToTrigger = document.getElementById('monthToTrigger');
+    const monthToPanel = document.getElementById('monthToPanel');
+    const monthToOptions = document.getElementById('monthToOptions');
     const sortSelect = document.getElementById('sortSelect');
     const catalogAriaLive = document.getElementById('catalogAriaLive');
     const filtersOpenBtn = document.getElementById('filtersOpenBtn');
@@ -1935,30 +2597,180 @@
     if (filtersDrawerClose) filtersDrawerClose.addEventListener('click', closeFiltersDrawer);
 
     function closeAllDropdowns() {
-      [markPanel, modelPanel, generationPanel, trimPanel].forEach(function(p) {
+      [markPanel, modelPanel, generationPanel, trimPanel, sortPanel, yearFromPanel, monthFromPanel, yearToPanel, monthToPanel].forEach(function(p) {
         if (p) { p.classList.remove('is-open'); }
       });
-      [markTrigger, modelTrigger, generationTrigger, trimTrigger].forEach(function(b) {
-        if (b) { b.setAttribute('aria-expanded', 'false'); }
+      [markTrigger, modelTrigger, generationTrigger, trimTrigger, sortTrigger, yearFromTrigger, monthFromTrigger, yearToTrigger, monthToTrigger].forEach(function(b) {
+        if (b) {
+          b.classList.remove('active');
+          b.setAttribute('aria-expanded', 'false');
+        }
       });
+    }
+    function syncCustomSelectUi(selectEl, triggerEl, optionsEl, fallbackText) {
+      if (!selectEl || !triggerEl || !optionsEl) return;
+      const opts = Array.from(selectEl.options || []);
+      optionsEl.innerHTML = '';
+      let selectedText = fallbackText || '';
+      opts.forEach(function(opt) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sort-option';
+        btn.setAttribute('data-value', opt.value);
+        btn.textContent = (opt.textContent || '').trim();
+        if (opt.value === selectEl.value) {
+          btn.classList.add('active');
+          selectedText = btn.textContent || selectedText;
+        }
+        optionsEl.appendChild(btn);
+      });
+      triggerEl.textContent = selectedText || fallbackText || '';
+    }
+    function bindCustomSelectDropdown(selectEl, triggerEl, panelEl, optionsEl, fallbackText) {
+      if (!selectEl || !triggerEl || !panelEl || !optionsEl) return;
+      if (!triggerEl.dataset.boundDropdown) {
+        triggerEl.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const isOpen = panelEl.classList.contains('is-open');
+          closeAllDropdowns();
+          if (!isOpen) {
+            panelEl.classList.add('is-open');
+            triggerEl.classList.add('active');
+            triggerEl.setAttribute('aria-expanded', 'true');
+          }
+        });
+        optionsEl.addEventListener('click', function(e) {
+          const option = e.target.closest('.sort-option');
+          if (!option) return;
+          const value = option.getAttribute('data-value') || '';
+          selectEl.value = value;
+          selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+          syncCustomSelectUi(selectEl, triggerEl, optionsEl, fallbackText);
+          closeAllDropdowns();
+        });
+        selectEl.addEventListener('change', function() {
+          syncCustomSelectUi(selectEl, triggerEl, optionsEl, fallbackText);
+        });
+        triggerEl.dataset.boundDropdown = '1';
+      }
+      syncCustomSelectUi(selectEl, triggerEl, optionsEl, fallbackText);
+    }
+    function syncSortUi(value) {
+      if (!sortOptionsEl || !sortTrigger) return;
+      let selectedText = 'По дате размещения — новее';
+      sortOptionsEl.querySelectorAll('.sort-option').forEach(function(btn) {
+        const on = btn.getAttribute('data-value') === value;
+        btn.classList.toggle('active', on);
+        if (on) selectedText = btn.textContent.trim();
+      });
+      sortTrigger.textContent = selectedText;
     }
     function setDropdownTriggerText(trigger, listEl, filterKey, allLabel) {
       if (!trigger || !listEl) return;
       const sel = getSelectedValues(listEl, filterKey);
       if (sel.size === 0) {
-        trigger.textContent = allLabel;
+        trigger.innerHTML = '<span class="trigger-placeholder">' + escapeHtml(allLabel) + '</span>';
         return;
       }
-      const labels = [];
+      const selected = [];
       listEl.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
         if (!cb.checked) return;
         const label = cb.closest('.checkbox-item');
-        const t = label ? label.querySelector('label') : null;
+        const t = label ? label.querySelector('.checkbox__label') : null;
         const text = t ? t.textContent.replace(/\s*\(\d[\d\s]*\)\s*$/, '').trim() : cb.value;
-        labels.push(text);
+        selected.push({ value: cb.value, text: text });
       });
-      trigger.textContent = labels.length > 3 ? labels.slice(0, 2).join(', ') + ' +' + (labels.length - 2) : labels.join(', ');
+      const visible = selected.slice(0, 2);
+      const tagsHtml = visible.map(function(item) {
+        return (
+          '<span class="ms-tag">' +
+            '<span class="ms-tag-text">' + escapeHtml(item.text) + '</span>' +
+            '<span class="ms-tag-remove" role="button" tabindex="0" data-filter-key="' + escapeHtml(filterKey) + '" data-filter-value="' + encodeURIComponent(item.value) + '" aria-label="Убрать фильтр">×</span>' +
+          '</span>'
+        );
+      }).join('');
+      const moreHtml = selected.length > 2 ? ('<span class="ms-tag-more">+' + (selected.length - 2) + '</span>') : '';
+      trigger.innerHTML = '<span class="trigger-tags">' + tagsHtml + moreHtml + '</span>';
     }
+
+    function checkboxTemplate(id, filterKey, value, labelHtml) {
+      return (
+        '<label class="checkbox" data-selected="false">' +
+          '<span class="checkbox__input-wrap"><input type="checkbox" id="' + id + '" data-filter="' + filterKey + '" value="' + value + '"></span>' +
+          '<span class="checkbox__control"><span class="checkbox__indicator"><svg aria-hidden="true" viewBox="0 0 17 18" fill="none"><polyline points="1 9 7 14 15 4"/></svg></span></span>' +
+          '<span class="checkbox__content"><span class="checkbox__label">' + labelHtml + '</span></span>' +
+        '</label>'
+      );
+    }
+
+    function syncCheckboxVisualStates(root) {
+      const scope = root || document;
+      scope.querySelectorAll('.checkbox').forEach(function(el) {
+        const input = el.querySelector('input[type=checkbox]');
+        if (!input) return;
+        el.setAttribute('data-selected', input.checked ? 'true' : 'false');
+        el.setAttribute('data-disabled', input.disabled ? 'true' : 'false');
+      });
+    }
+
+    document.addEventListener('change', function(e) {
+      const target = e.target;
+      if (!target || target.type !== 'checkbox') return;
+      const checkbox = target.closest('.checkbox');
+      if (!checkbox) return;
+      checkbox.setAttribute('data-selected', target.checked ? 'true' : 'false');
+      checkbox.setAttribute('data-disabled', target.disabled ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', function(e) {
+      const removeBtn = e.target.closest('.ms-tag-remove');
+      if (!removeBtn) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const filterKey = removeBtn.getAttribute('data-filter-key');
+      const rawValue = removeBtn.getAttribute('data-filter-value') || '';
+      const value = decodeURIComponent(rawValue);
+
+      const map = {
+        mark: { list: markListEl, trigger: markTrigger, allLabel: 'Все марки' },
+        model: { list: modelListEl, trigger: modelTrigger, allLabel: 'Все модели' },
+        generation: { list: generationListEl, trigger: generationTrigger, allLabel: 'Все поколения' },
+        trim: { list: trimListEl, trigger: trimTrigger, allLabel: 'Все комплектации' }
+      };
+      const conf = map[filterKey];
+      if (!conf || !conf.list) return;
+
+      conf.list.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
+        if (cb.value === value) cb.checked = false;
+      });
+      syncCheckboxVisualStates(conf.list);
+
+      if (filterKey === 'mark') {
+        setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
+        rebuildModelList();
+        rebuildGenerationList();
+        rebuildTrimList();
+      } else if (filterKey === 'model') {
+        setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
+        rebuildGenerationList();
+        rebuildTrimList();
+      } else if (filterKey === 'generation') {
+        setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
+        rebuildTrimList();
+      } else if (filterKey === 'trim') {
+        setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+      }
+      applyFilters();
+    });
+
+    document.addEventListener('keydown', function(e) {
+      const removeBtn = e.target && e.target.closest ? e.target.closest('.ms-tag-remove') : null;
+      if (!removeBtn) return;
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      removeBtn.click();
+    });
 
     // Вспомогательные функции для фильтрации по данным из cars.json / record / inspection
     function getInsuranceCasesCount(car) {
@@ -2082,11 +2894,13 @@
       if (!val) return val;
       const s = String(val).trim();
       const map = category && filterMappingKoEn[category] ? filterMappingKoEn[category] : null;
-      if (map && map[s]) return map[s];
-      if (map) {
-        const key = Object.keys(map).find(k => k.trim() === s || s.indexOf(k) >= 0);
-        if (key) return map[key];
-      }
+      if (!map) return val;
+      if (map[s]) return map[s];
+      const exactKey = Object.keys(map).find(k => String(k).trim() === s);
+      if (exactKey) return map[exactKey];
+      const sLower = s.toLowerCase();
+      const keyLower = Object.keys(map).find(k => String(k).trim().toLowerCase() === sLower);
+      if (keyLower) return map[keyLower];
       return val;
     }
     // Словарь корейских слов/фраз в поколениях и комплектациях (когда маппинг не дал EN или вернул то же)
@@ -2113,6 +2927,23 @@
         if (out.indexOf(ko) !== -1) out = out.split(ko).join(en || ko);
       }
       return out.replace(/\s+/g, ' ').trim();
+    }
+    function containsHangul(str) {
+      return /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/.test(String(str || ''));
+    }
+    function stripKoreanForTitlePart(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]+/g, ' ')
+        .replace(/\(\s*\)/g, ' ')
+        .replace(/\[\s*\]/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
+    function sanitizeUiLabel(label) {
+      if (!label) return '';
+      if (!containsHangul(label)) return label;
+      return stripKoreanForTitlePart(label) || '';
     }
     // Перевод для UI на русский: тип кузова, топливо, коробка, цвет (без корейских символов в выводе)
     const displayRu = {
@@ -2144,15 +2975,15 @@
       const ruCategories = ['bodyType', 'engineType', 'transmission', 'color'];
       if (ruCategories.indexOf(category) >= 0) {
         const en = toDisplayEn(s, category);
-        return toDisplayRu(en || s) || en || s;
+        return sanitizeUiLabel(toDisplayRu(en || s) || en || s);
       }
       let en = toDisplayEn(s, category);
-      if (en !== s) return en;
+      if (en !== s) return sanitizeUiLabel(en);
       if (['model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
         const fallback = applyKoreanPhraseFallback(s);
-        if (fallback !== s) return fallback || s;
+        if (fallback !== s) return sanitizeUiLabel(fallback || s);
       }
-      return toDisplayRu(s);
+      return sanitizeUiLabel(toDisplayRu(s) || s);
     }
     function taxClass(yearStr) {
       const carYear = parseInt(String(yearStr).slice(0, 4));
@@ -2361,10 +3192,10 @@
         const fullTitle = [titleMark, titleModel, titleGen].filter(Boolean).join(' ').trim() || (d.mark || '') + ' ' + (d.model || '');
         const powerNum = getPowerNum(car);
         const powerPart = powerNum ? `${powerNum} л.с.` : '';
-        const fuelPart = toDisplayRu(d.engine_type) || '';
+        const fuelPart = filterOptionLabel(d.engine_type, 'engineType') || '';
         const volumePart = d.displacement ? `${Number(d.displacement).toLocaleString('ru-RU')} см³` : '';
-        const drivePart = toDisplayRu(d.drive_type || d.prep_drive_type) || '';
-        const bodyRu = toDisplayRu(d.body_type) || '';
+        const drivePart = filterOptionLabel(d.drive_type || d.prep_drive_type, 'type') || '';
+        const bodyRu = filterOptionLabel(d.body_type, 'bodyType') || '';
         const carUrl = (d.url || '#');
         const detailUrl = car.id != null ? 'car.html?id=' + encodeURIComponent(car.id) : (car.inner_id != null ? 'car.html?id=' + encodeURIComponent(car.inner_id) : (d.inner_id != null ? 'car.html?id=' + encodeURIComponent(d.inner_id) : '#'));
 
@@ -2453,10 +3284,17 @@
         });
         // Избранное — переключение состояния
         const favBtn = card.querySelector('.car-actions .icon-btn:last-child');
-        if (favBtn) favBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          favBtn.classList.toggle('fav-active');
-        });
+        if (favBtn) {
+          const sid = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (car.data && car.data.inner_id != null ? car.data.inner_id : null));
+          if (window.WRAAuthFavorites && typeof window.WRAAuthFavorites.bindFavoriteButton === 'function' && sid != null) {
+            window.WRAAuthFavorites.bindFavoriteButton(favBtn, sid);
+          } else {
+            favBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              favBtn.classList.toggle('fav-active');
+            });
+          }
+        }
         // Клик по карточке для перехода на детальную страницу
         card.setAttribute('role', 'link');
         card.setAttribute('tabindex', '0');
@@ -2596,6 +3434,10 @@
           sel.appendChild(o);
         }
       });
+      bindCustomSelectDropdown(yearFromEl, yearFromTrigger, yearFromPanel, yearFromOptions, 'Год от');
+      bindCustomSelectDropdown(monthFromEl, monthFromTrigger, monthFromPanel, monthFromOptions, 'Месяц от');
+      bindCustomSelectDropdown(yearToEl, yearToTrigger, yearToPanel, yearToOptions, 'Год до');
+      bindCustomSelectDropdown(monthToEl, monthToTrigger, monthToPanel, monthToOptions, 'Месяц до');
 
       // Тип кузова, топливо, коробка — чекбоксы (маппинг KO→EN)
       const bodies = [...new Set(allCars.map(c => c.data?.body_type).filter(Boolean))].sort();
@@ -2619,7 +3461,7 @@
         div.className = 'checkbox-item';
         const id = 'filter-color-' + val.replace(/\s/g, '_');
         const labelText = filterOptionLabel(val, 'color');
-        div.innerHTML = '<input type="checkbox" id="' + id + '" data-filter="color" value="' + escapeHtml(val) + '"><label for="' + id + '">' + escapeHtml(labelText) + '</label>';
+        div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText));
         colorListVisible.appendChild(div);
       });
       allColors.forEach(val => {
@@ -2627,9 +3469,11 @@
         div.className = 'checkbox-item';
         const id = 'filter-color-modal-' + val.replace(/\s/g, '_');
         const labelText = filterOptionLabel(val, 'color');
-        div.innerHTML = '<input type="checkbox" id="' + id + '" data-filter="color" value="' + escapeHtml(val) + '"><label for="' + id + '">' + escapeHtml(labelText) + '</label>';
+        div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText));
         colorModalList.appendChild(div);
       });
+      syncCheckboxVisualStates(colorListVisible);
+      syncCheckboxVisualStates(colorModalList);
       showMoreColorsBtn.style.display = restColors.length > 0 ? 'block' : 'none';
 
       // Синхронизация чекбоксов цвета: модалка и видимые 4
@@ -2641,6 +3485,7 @@
         document.querySelectorAll('input[data-filter="color"]').forEach(cb => {
           cb.checked = !!byValue[cb.value];
         });
+        syncCheckboxVisualStates(document);
         applyFilters();
       }
       colorListVisible.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', syncColorCheckboxes));
@@ -2665,11 +3510,13 @@
         if (!btn || !panel) return;
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
+          if (e.target && e.target.closest('.ms-tag-remove')) return;
           if (btn.disabled) return;
           var isOpen = panel.classList.contains('is-open');
           closeAllDropdowns();
           if (!isOpen) {
             panel.classList.add('is-open');
+            btn.classList.add('active');
             btn.setAttribute('aria-expanded', 'true');
           }
         });
@@ -2721,12 +3568,17 @@
         if (el) el.addEventListener('input', applyFilters);
       });
       [yearFromEl, yearToEl, monthFromEl, monthToEl].filter(Boolean).forEach(function(el) { el.addEventListener('change', applyFilters); });
+      syncCheckboxVisualStates(document);
+
+      initFilterSectionToggles();
 
       if (markListEl) {
         rebuildModelList();
         rebuildGenerationList();
         rebuildTrimList();
         applyFilters();
+      } else {
+        syncCascadeSlotVisibility();
       }
     }
 
@@ -2745,6 +3597,60 @@
       return out;
     }
 
+    function closeFilterDropdownPair(trigger, panel) {
+      if (!trigger || !panel) return;
+      if (panel.classList.contains('is-open')) {
+        panel.classList.remove('is-open');
+        trigger.classList.remove('active');
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function syncCascadeSlotVisibility() {
+      const sm = getSelectedValues(markListEl, 'mark');
+      const sMo = getSelectedValues(modelListEl, 'model');
+      const sG = getSelectedValues(generationListEl, 'generation');
+      const slotModel = document.getElementById('cascadeSlotModel');
+      const slotGen = document.getElementById('cascadeSlotGeneration');
+      const slotTrim = document.getElementById('cascadeSlotTrim');
+      if (slotModel) {
+        const show = sm.size > 0;
+        if (!show) closeFilterDropdownPair(modelTrigger, modelPanel);
+        slotModel.classList.toggle('is-revealed', show);
+        slotModel.setAttribute('aria-hidden', show ? 'false' : 'true');
+      }
+      if (slotGen) {
+        const show = sMo.size > 0;
+        if (!show) closeFilterDropdownPair(generationTrigger, generationPanel);
+        slotGen.classList.toggle('is-revealed', show);
+        slotGen.setAttribute('aria-hidden', show ? 'false' : 'true');
+      }
+      if (slotTrim) {
+        const show = sG.size > 0;
+        if (!show) closeFilterDropdownPair(trimTrigger, trimPanel);
+        slotTrim.classList.toggle('is-revealed', show);
+        slotTrim.setAttribute('aria-hidden', show ? 'false' : 'true');
+      }
+    }
+
+    function initFilterSectionToggles() {
+      function bindToggle(btnId, wrapId, bodyId) {
+        const btn = document.getElementById(btnId);
+        const wrap = document.getElementById(wrapId);
+        const body = document.getElementById(bodyId);
+        if (!btn || !wrap || !body || btn._wraFilterSectionBound) return;
+        btn._wraFilterSectionBound = true;
+        btn.addEventListener('click', function() {
+          const open = !wrap.classList.contains('is-open');
+          wrap.classList.toggle('is-open', open);
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          body.setAttribute('aria-hidden', open ? 'false' : 'true');
+        });
+      }
+      bindToggle('filterSectionTechBtn', 'filterSectionTech', 'filterSectionTechBody');
+      bindToggle('filterSectionHistoryBtn', 'filterSectionHistory', 'filterSectionHistoryBody');
+    }
+
     function renderCheckboxesWithCounts(container, values, labelFn, countFn, filterKey) {
       if (!container) return;
       container.innerHTML = '';
@@ -2756,11 +3662,10 @@
         const label = labelFn ? labelFn(val) : val;
         const cnt = countFn ? countFn(val) : null;
         const suffix = (cnt != null) ? (' <span class="opt-count">(' + Number(cnt).toLocaleString('ru-RU') + ')</span>') : '';
-        div.innerHTML =
-          '<input type="checkbox" id="' + id + '" data-filter="' + filterKey + '" value="' + escapeHtml(val) + '">' +
-          '<label for="' + id + '">' + escapeHtml(label) + suffix + '</label>';
+        div.innerHTML = checkboxTemplate(id, filterKey, escapeHtml(val), escapeHtml(label) + suffix);
         container.appendChild(div);
       });
+      syncCheckboxVisualStates(container);
     }
 
     function rebuildModelList() {
@@ -2817,7 +3722,7 @@
       );
       if (modelTrigger) {
         modelTrigger.disabled = selectedMarks.size === 0;
-        if (selectedMarks.size === 0) modelTrigger.textContent = 'Сначала выберите марку';
+        if (selectedMarks.size === 0) modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
         else setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
       }
     }
@@ -2845,13 +3750,16 @@
       );
       if (generationTrigger) {
         generationTrigger.disabled = selectedModels.size === 0;
-        if (selectedModels.size === 0) generationTrigger.textContent = 'Сначала выберите модель';
+        if (selectedModels.size === 0) generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
         else setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
       }
     }
 
     function rebuildTrimList() {
-      if (!trimListEl) return;
+      if (!trimListEl) {
+        syncCascadeSlotVisibility();
+        return;
+      }
       const selectedMarks = getSelectedValues(markListEl, 'mark');
       const selectedModels = getSelectedValues(modelListEl, 'model');
       const selectedGenerations = getSelectedValues(generationListEl, 'generation');
@@ -2876,25 +3784,30 @@
       );
       if (trimTrigger) {
         trimTrigger.disabled = selectedGenerations.size === 0;
-        if (selectedGenerations.size === 0) trimTrigger.textContent = 'Сначала выберите поколение';
+        if (selectedGenerations.size === 0) trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
         else setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
       }
+      syncCascadeSlotVisibility();
     }
 
     function renderCheckboxes(containerId, values, filterKey, labelCategory) {
       const container = document.getElementById(containerId);
       if (!container) return;
+      container.innerHTML = '';
       values.forEach(val => {
         const div = document.createElement('div');
         div.className = 'checkbox-item';
         const id = `filter-${filterKey}-${val.replace(/\s/g, '_')}`;
         const labelText = labelCategory ? filterOptionLabel(val, labelCategory) : toDisplayRu(val);
-        div.innerHTML = `
-          <input type="checkbox" id="${id}" data-filter="${filterKey}" value="${val.replace(/"/g, '&quot;')}">
-          <label for="${id}">${String(labelText).replace(/</g, '&lt;')}</label>
-        `;
+        div.innerHTML = checkboxTemplate(
+          id,
+          filterKey,
+          val.replace(/"/g, '&quot;'),
+          String(labelText).replace(/</g, '&lt;')
+        );
         container.appendChild(div);
       });
+      syncCheckboxVisualStates(container);
     }
 
     // Основная фильтрация
@@ -3044,10 +3957,10 @@
       [markListEl, modelListEl, generationListEl, trimListEl].forEach(function(container) {
         if (container) container.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
       });
-      if (markTrigger) markTrigger.textContent = 'Все марки';
-      if (modelTrigger) { modelTrigger.disabled = true; modelTrigger.textContent = 'Сначала выберите марку'; }
-      if (generationTrigger) { generationTrigger.disabled = true; generationTrigger.textContent = 'Сначала выберите модель'; }
-      if (trimTrigger) { trimTrigger.disabled = true; trimTrigger.textContent = 'Сначала выберите поколение'; }
+      if (markTrigger) markTrigger.innerHTML = '<span class="trigger-placeholder">Все марки</span>';
+      if (modelTrigger) { modelTrigger.disabled = true; modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>'; }
+      if (generationTrigger) { generationTrigger.disabled = true; generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>'; }
+      if (trimTrigger) { trimTrigger.disabled = true; trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>'; }
       document.querySelectorAll('#bodyList input[type=checkbox], #fuelList input[type=checkbox], #transmissionList input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
       document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) { cb.checked = false; });
       var ids = ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'yearFrom', 'monthFrom', 'yearTo', 'monthTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo', 'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'];
@@ -3057,6 +3970,7 @@
       chk = document.getElementById('filterNoInsuranceCases'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoInsurancePayouts'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoDamaged'); if (chk) chk.checked = false;
+      syncCheckboxVisualStates(document);
       rebuildModelList();
       rebuildGenerationList();
       rebuildTrimList();
@@ -3077,32 +3991,73 @@
           });
         }
         const rawCars = data.result || [];
-        // Убираем дубликаты по ID, VIN и Car ID
-        const seenIds = new Set();
+        // Надежная дедупликация: сначала стабильные ID, затем резервный fingerprint
+        const seenPrimary = new Set();
         const seenVins = new Set();
-        const seenCarIds = new Set();
-        
+        const seenFallback = new Set();
+        function asKey(v) {
+          if (v == null) return '';
+          const s = String(v).trim();
+          return s && s !== 'null' && s !== 'undefined' ? s : '';
+        }
+        function extractPrimaryKey(car) {
+          const d = (car && car.data) || {};
+          const candidates = [
+            car && car.id,
+            car && car.car_id,
+            car && car.inner_id,
+            d && d.id,
+            d && d.car_id,
+            d && d.inner_id,
+            d && d.vin
+          ];
+          for (let i = 0; i < candidates.length; i++) {
+            const key = asKey(candidates[i]);
+            if (key) return key;
+          }
+          return '';
+        }
+        function buildFallbackFingerprint(car) {
+          const d = (car && car.data) || {};
+          const parts = [
+            asKey(d.mark),
+            asKey(d.model),
+            asKey(d.generation || d.configuration),
+            asKey(d.year || d.yearMonth),
+            asKey(d.km_age),
+            asKey(d.price_won),
+            asKey(d.displacement),
+            asKey(d.power),
+            asKey(d.body_type)
+          ];
+          return parts.join('|');
+        }
         allCars = rawCars.filter(car => {
           if (!car) return false;
-          
-          // Проверяем дубликаты по основному ID
-          if (car.id != null && seenIds.has(car.id)) return false;
-          
-          // Проверяем дубликаты по VIN
-          const vin = car.data?.vin || car.vin;
-          if (vin && seenVins.has(vin)) return false;
-          
-          // Проверяем дубликаты по Car ID (если есть в data)
-          const carId = car.data?.car_id || car.car_id;
-          if (carId && seenCarIds.has(carId)) return false;
-          
-          // Если прошли все проверки, добавляем в множества
-          if (car.id != null) seenIds.add(car.id);
-          if (vin) seenVins.add(vin);
-          if (carId) seenCarIds.add(carId);
-          
+          const d = (car && car.data) || {};
+          const vin = asKey(d.vin);
+          if (vin) {
+            if (seenVins.has(vin)) return false;
+            seenVins.add(vin);
+          }
+          const primary = extractPrimaryKey(car);
+          if (primary) {
+            if (seenPrimary.has(primary)) return false;
+            seenPrimary.add(primary);
+            return true;
+          }
+          const fp = buildFallbackFingerprint(car);
+          if (!fp) return true;
+          if (seenFallback.has(fp)) return false;
+          seenFallback.add(fp);
           return true;
         });
+        try {
+          const rawCount = Array.isArray(rawCars) ? rawCars.length : 0;
+          const dedupCount = allCars.length;
+          const removed = Math.max(0, rawCount - dedupCount);
+          console.info('[catalog] cars loaded:', rawCount, '| deduped:', dedupCount, '| removed duplicates:', removed);
+        } catch (e) {}
         
         filteredCars = [...allCars];
         sortFilteredCars();
@@ -3177,13 +4132,39 @@
     }
 
     // Обработчик сортировки
-    if (sortSelect) {
+    if (sortSelect && sortTrigger && sortPanel) {
+      sortTrigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isOpen = sortPanel.classList.contains('is-open');
+        closeAllDropdowns();
+        if (!isOpen) {
+          sortPanel.classList.add('is-open');
+          sortTrigger.classList.add('active');
+          sortTrigger.setAttribute('aria-expanded', 'true');
+        }
+      });
+      if (sortOptionsEl) {
+        sortOptionsEl.addEventListener('click', function(e) {
+          const option = e.target.closest('.sort-option');
+          if (!option) return;
+          const value = option.getAttribute('data-value') || 'date_new';
+          sortSelect.value = value;
+          syncSortUi(value);
+          closeAllDropdowns();
+          currentSort = value;
+          page = 1;
+          sortFilteredCars();
+          draw();
+        });
+      }
       sortSelect.addEventListener('change', () => {
         currentSort = sortSelect.value || 'date_new';
+        syncSortUi(currentSort);
         page = 1;
         sortFilteredCars();
         draw();
       });
+      syncSortUi(sortSelect.value || 'date_new');
     }
 
     // Тултип для счётчика автомобилей
@@ -3284,6 +4265,26 @@
     // #endregion
   })();
 </script>
+<script>
+  (function () {
+    if (!(window.WRAAuthFavorites && typeof window.WRAAuthFavorites.initHeader === 'function')) return;
+    window.WRAAuthFavorites.initHeader({
+      loginButtonSelector: '#headerLoginBtn',
+      favoritesButtonSelector: '#headerFavoritesBtn',
+      accountButtonSelector: '#headerAccountBtn'
+    });
+    var saveBtn = document.getElementById('saveSearchSubBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function () {
+        if (!window.WRAAuthFavorites || typeof window.WRAAuthFavorites.saveCurrentSearchSubscription !== 'function') return;
+        var name = prompt('Название подписки:', 'Подписка на поиск') || 'Подписка на поиск';
+        var filters = (window.location && window.location.search) ? Object.fromEntries(new URLSearchParams(window.location.search).entries()) : {};
+        window.WRAAuthFavorites.saveCurrentSearchSubscription(name, filters);
+      });
+    }
+  })();
+</script>
+<script src="js/cookie-consent.js" defer></script>
 
 </body>
 </html>

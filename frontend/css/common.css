@@ -26,14 +26,41 @@
   --wra-text-muted: #6b7280;
   --wra-footer-bg: #ffffff;
   --wra-footer-top: #ffffff;
+  /* Нейтральная UI-палитра (фильтры/калькулятор/вторичные кнопки) */
+  --wra-ui-900: #3A3A3A;
+  --wra-ui-850: #2F2F2F;
+  --wra-ui-300: #BFBFBF;
+  --wra-ui-350: #D4D4D4;
+  --wra-ui-250: #DDDDDD;
+  --wra-ui-200: #E3E3E3;
+  --wra-ui-150: #EAEAEA;
+  --wra-ui-120: #F3F3F3;
+  --wra-ui-100: #F8F8F8;
+  --wra-ui-muted: #8B8B8B;
   /* Семантические цвета */
   --wra-surface: #ffffff;
   --wra-price: #1d4ed8;
   --wra-success: #16a34a;
   --wra-danger: #dc2626;
 
-  /* Шрифты — единый стиль по проекту */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Apple → SF; затем Roboto (Google Fonts на странице); Android — системный Roboto; далее system-ui / Segoe / Noto */
+  --font-sans:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "SF Pro Display",
+    Roboto,
+    system-ui,
+    "Segoe UI",
+    "Segoe UI Variable",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    "Noto Sans",
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol",
+    sans-serif;
 
   /* Типографическая шкала */
   --text-xs: 0.75rem;
@@ -69,6 +96,9 @@
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-pill: 50px;
+  /* Контролы */
+  --control-height: 44px;
+  --control-height-sm: 36px;
 
   /* Тени — коммерческий объём */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -84,6 +114,18 @@
 
   /* Алиасы для совместимости со страницами */
   --wra-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  /* Алиасы контролов/состояний */
+  --control-bg: var(--wra-ui-100);
+  --control-bg-hover: var(--wra-ui-200);
+  --control-bg-disabled: var(--wra-ui-120);
+  --control-border: var(--wra-ui-350);
+  --control-border-soft: var(--wra-ui-250);
+  --control-border-hover: var(--wra-ui-300);
+  --control-text: var(--wra-ui-900);
+  --control-text-muted: var(--wra-ui-muted);
+  --control-focus-ring: 0 0 0 2px rgba(58, 58, 58, 0.15);
+  --cta-dark-bg: var(--wra-primary);
+  --cta-dark-bg-hover: var(--wra-primary-hover);
 }
 
 /* ========== БАЗА ========== */

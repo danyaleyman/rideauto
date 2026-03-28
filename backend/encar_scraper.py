@@ -410,9 +410,9 @@ class AsyncEncarClient:
         h.setdefault("Accept-Language", "en-US,en;q=0.9")
         h.setdefault("Origin", origin)
         h.setdefault("Referer", origin + "/")
-        proxy = self._next_proxy()
         last_error: Optional[str] = None
         for attempt in range(self.max_attempts):
+            proxy = self._next_proxy()
             await self._jitter()
             try:
                 async with self._session.request(
@@ -511,16 +511,32 @@ async def list_producer(
             break
         offset = checkpoint.get_last_offset(car_type)
         type_label = "import" if car_type == "for" else "domestic"
+        list_fail_streak = 0
         while offset < max_offset:
             if max_cars > 0 and stats.get("saved", 0) >= max_cars:
+                log.info("List producer stopping: max_cars=%s (уже в БД/сессии)", max_cars)
                 break
+            # Не копим десятки тысяч pending, если нужно всего max_cars карточек
+            if max_cars > 0:
+                pend = checkpoint.pending_count()
+                if stats.get("saved", 0) + pend >= max_cars + 3 * page_size:
+                    log.info(
+                        "List producer stopping: достаточно очереди (saved=%s pending=%s max_cars=%s)",
+                        stats.get("saved", 0), pend, max_cars,
+                    )
+                    break
             data, status, err = await client.fetch_list_page(offset, page_size, car_type)
             if status != 200 or not data:
                 log.warning("List page failed car_type=%s offset=%s status=%s err=%s", car_type, offset, status, err)
-                if status == 429 or (status >= 500 and offset > 0):
-                    await asyncio.sleep(60)
+                if status in (407, 429) or (status >= 500 and offset > 0):
+                    list_fail_streak += 1
+                    if list_fail_streak > 25:
+                        log.error("List: too many failures at offset=%s, stopping list for %s", offset, car_type)
+                        break
+                    await asyncio.sleep(5 if status == 407 else 60)
                     continue
                 break
+            list_fail_streak = 0
             items = data.get("SearchResults") or []
             if not items:
                 log.info("List exhausted car_type=%s at offset=%s", car_type, offset)
@@ -588,6 +604,8 @@ async def detail_worker(
     queue: asyncio.Queue,
     stats: dict,
     log: logging.Logger,
+    max_cars: int = 0,
+    stats_lock: Optional[asyncio.Lock] = None,
 ) -> None:
     sem = asyncio.Semaphore(1)
     while True:
@@ -611,6 +629,11 @@ async def detail_worker(
         if checkpoint.is_collected(car_id):
             queue.task_done()
             continue
+        if max_cars > 0 and stats_lock is not None:
+            async with stats_lock:
+                if stats["saved"] >= max_cars:
+                    queue.task_done()
+                    continue
         async with sem:
             detail, d_status, _ = await client.fetch_vehicle_detail(car_id)
         if d_status != 200 or not detail:
@@ -670,11 +693,23 @@ async def detail_worker(
             inspection, sellingpoint, user_info, stats["saved"] + 1,
         )
         if car:
-            storage.save_car(car, car_id)
-            checkpoint.mark_collected(car_id)
-            stats["saved"] += 1
-            if stats["saved"] % 100 == 0:
+            did_save = False
+            if max_cars > 0 and stats_lock is not None:
+                async with stats_lock:
+                    if stats["saved"] < max_cars:
+                        storage.save_car(car, car_id)
+                        checkpoint.mark_collected(car_id)
+                        stats["saved"] += 1
+                        did_save = True
+            else:
+                storage.save_car(car, car_id)
+                checkpoint.mark_collected(car_id)
+                stats["saved"] += 1
+                did_save = True
+            if did_save and stats["saved"] % 100 == 0:
                 log.info("Worker %s saved car_id=%s total=%s", worker_id, car_id, stats["saved"])
+            if max_cars > 0 and not did_save:
+                stats["parse_fail"] += 1
         else:
             stats["parse_fail"] += 1
         stats["processed"] += 1
@@ -723,8 +758,18 @@ async def run_scraper(
         "detail_fail": 0,
         "parse_fail": 0,
     }
+    # Уже сохранённые в SQLite машины учитываем в max_cars (иначе при рестарте list заливает тысячи pending).
+    if backend == "sqlite" and isinstance(storage, SQLiteStorage) and storage.conn:
+        try:
+            row = storage.conn.execute("SELECT COUNT(*) FROM cars").fetchone()
+            stats["saved"] = int(row[0] or 0)
+            if stats["saved"]:
+                log.info("В БД уже есть %s машин — лимит max_cars считается с учётом них", stats["saved"])
+        except Exception:
+            pass
     queue: asyncio.Queue = asyncio.Queue(maxsize=concurrency * 4)
     parser = EncarFullParser()
+    stats_lock = asyncio.Lock()
     start_time = time.time()
     refill_done = False
 
@@ -749,7 +794,11 @@ async def run_scraper(
                 )
             workers = [
                 asyncio.create_task(
-                    detail_worker(i, client, checkpoint, storage, parser, config, queue, stats, log)
+                    detail_worker(
+                        i, client, checkpoint, storage, parser, config, queue, stats, log,
+                        max_cars=max_cars,
+                        stats_lock=stats_lock if max_cars > 0 else None,
+                    )
                 )
                 for i in range(concurrency)
             ]
@@ -787,24 +836,9 @@ async def run_scraper(
             stats_task = asyncio.create_task(log_stats())
             await producer
             # Keep refilling from pending until empty
-            # #region agent log
-            _debug_log = Path(__file__).resolve().parent / "debug-6415ac.log"
-            try:
-                with open(_debug_log, "a", encoding="utf-8") as _f:
-                    _f.write(json.dumps({"location": "encar_scraper.py:post_producer_start", "message": "post_producer_refill_entered", "data": {"pending": checkpoint.pending_count()}, "timestamp": time.time(), "hypothesisId": "H1", "runId": "post-fix"}) + "\n")
-            except Exception:
-                pass
-            # #endregion
             try:
                 for refill_round in range(1000):
                     batch = checkpoint.pop_pending_batch(limit=100)
-                    # #region agent log
-                    try:
-                        with open(_debug_log, "a", encoding="utf-8") as _f:
-                            _f.write(json.dumps({"location": "encar_scraper.py:refill_loop", "message": "refill_batch", "data": {"round": refill_round, "batch_len": len(batch), "pending": checkpoint.pending_count()}, "timestamp": time.time(), "hypothesisId": "H3", "runId": "post-fix"}) + "\n")
-                    except Exception:
-                        pass
-                    # #endregion
                     for it in batch:
                         await queue.put(it)
                     if not batch and checkpoint.pending_count() == 0:
@@ -843,13 +877,6 @@ async def run_scraper(
                 pass
 
     finally:
-        # #region agent log
-        try:
-            with open(Path(__file__).resolve().parent / "debug-6415ac.log", "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"location": "encar_scraper.py:cleanup", "message": "before_checkpoint_close", "data": {}, "timestamp": time.time(), "hypothesisId": "H1", "runId": "post-fix"}) + "\n")
-        except Exception:
-            pass
-        # #endregion
         checkpoint.close()
         storage.close()
 
@@ -885,13 +912,25 @@ def _run_export_to_frontend(db_path: str, log) -> None:
     if not export_script.exists():
         log.warning("Скрипт экспорта не найден: %s", export_script)
         return
+    export_args = [
+        os.environ.get("PYTHON", sys.executable), str(export_script),
+        "--db", str(path),
+        "--out", str(out_path),
+        "--chunk-size", "5000",
+        "--chunk-dir", str(repo_dir / "frontend" / "data" / "chunks"),
+        "--chunk-index", str(repo_dir / "frontend" / "data" / "cars.index.json"),
+        "--gzip",
+        "--learn-engine-map",
+    ]
+    if os.environ.get("SKIP_LEARN_ENGINE_MAP", "").strip().lower() in ("1", "true", "yes"):
+        export_args = [a for a in export_args if a != "--learn-engine-map"]
     try:
         r = subprocess.run(
-            [os.environ.get("PYTHON", sys.executable), str(export_script), "--db", str(path), "--out", str(out_path)],
+            export_args,
             cwd=str(backend_dir),
         )
         if r.returncode == 0:
-            log.info("Экспорт в frontend/cars.json выполнен")
+            log.info("Экспорт в frontend/cars.json (+ chunks + gzip) выполнен")
         else:
             log.warning("Экспорт завершился с кодом %s", r.returncode)
     except Exception as e:

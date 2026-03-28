@@ -23,6 +23,140 @@ python backend/run_system.py --daily
 
 Данные для фронта: `frontend/cars.json` и `frontend/data/encar_mapping.json`.
 
+## Production-ready выгрузка (100k+)
+
+Теперь экспорт поддерживает:
+- `frontend/cars.json` (обратная совместимость),
+- чанки `frontend/data/chunks/cars_*.json`,
+- индекс `frontend/data/cars.index.json`,
+- сжатые версии `.gz` для CDN/Nginx.
+
+Ручной запуск:
+
+```bash
+python backend/export_from_scraper_db.py \
+  --db encar_cars.db \
+  --out frontend/cars.json \
+  --chunk-size 5000 \
+  --chunk-dir frontend/data/chunks \
+  --chunk-index frontend/data/cars.index.json \
+  --gzip
+```
+
+`auto_update.py` и `encar_scraper.py` выполняют такой экспорт автоматически после успешного обновления.
+
+## API для серверной пагинации/фильтров
+
+Для больших объёмов каталога (100k+) используйте API вместо полной загрузки всех карточек в браузер:
+
+```bash
+python backend/api_server.py --db encar_cars.db --host 0.0.0.0 --port 8080
+```
+
+Эндпоинты:
+- `GET /api/health`
+- `GET /api/cars?page=1&per_page=12&mark=KIA&model=K5&year_from=2020&year_to=2024`
+- `GET /api/facets?mark=BMW`
+- `GET /api/car/{id}`
+- `GET /api/similar?car_id=...&limit=8`
+
+`frontend/index.html` теперь сначала пытается работать в API-режиме (`/api/health`), и если API недоступен — автоматически откатывается на `cars.json`.
+`frontend/car.html` также сначала пытается загрузить данные через API (`/api/car/{id}` и `/api/similar`), а при недоступности API — откатывается на `cars.json`.
+
+Если API размещён на другом хосте/порту, можно задать базовый URL в браузере:
+
+```js
+localStorage.setItem('encar_api_base', 'http://YOUR_HOST:8080');
+```
+
+## VPS production setup (Nginx + systemd)
+
+В проект добавлен готовый набор:
+
+- `deploy/nginx/prod-encar.conf`
+- `deploy/systemd/prod-encar-api.service`
+- `deploy/systemd/prod-encar-auto-update.service`
+- `deploy/systemd/prod-encar-auto-update.timer`
+- `deploy/deploy_prod.sh`
+
+Быстрый деплой на Linux VPS:
+
+```bash
+chmod +x deploy/deploy_prod.sh
+./deploy/deploy_prod.sh
+```
+
+По умолчанию ставится в `/opt/prod-encar`, API слушает `127.0.0.1:8080`, Nginx публикует фронт и проксирует `/api/*`.
+
+## Security hardening (рекомендуется)
+
+Ниже набор команд для Ubuntu 22.04, чтобы безопасно разместить проект на VPS.
+
+### 1) Сетевой доступ (UFW)
+
+Открывай только нужные порты:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ufw
+
+# SSH-порт нужно знать заранее (чтобы не залочить себя).
+# Уточни порт SSH на VPS, затем используй его в команде ниже.
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow SSH_PORT/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+sudo ufw enable
+sudo ufw status verbose
+```
+
+### 2) Fail2ban (защита от брутфорса SSH)
+
+```bash
+sudo apt-get install -y fail2ban
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+# базовые джайлы
+sudo tee -a /etc/fail2ban/jail.local > /dev/null <<'EOF'
+[sshd]
+enabled = true
+port = 22
+logpath = /var/log/auth.log
+maxretry = 5
+findtime = 10m
+bantime = 1h
+
+[nginx-http-auth]
+enabled = true
+EOF
+
+sudo systemctl restart fail2ban
+sudo systemctl status fail2ban --no-pager
+```
+
+### 3) Разрешение на сервисы без root
+
+В systemd unit’ах используется отдельный пользователь `prod-encar`, deploy-скрипт создаёт его и выдаёт права на `/opt/prod-encar`.
+
+Проверь, что systemd unit’ы активны:
+
+```bash
+systemctl status prod-encar-api.service --no-pager
+systemctl status prod-encar-auto-update.timer --no-pager
+```
+
+### 4) TLS (HTTPS) через certbot
+
+Если есть домен, включи TLS:
+
+```bash
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d YOUR_DOMAIN -d www.YOUR_DOMAIN
+sudo certbot renew --dry-run
+```
+
 ## Документация
 
 - `backend/README_POSTGRESQL.md`

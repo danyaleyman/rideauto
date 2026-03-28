@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Мощность (л.с.) из локальной базы power_lookup.json (марка/модель/год/объём).
-Используется при экспорте для подстановки мощности, если в парсере не найдена.
+Мощность (л.с.): 1) уже в данных Encar, 2) каталог двигателей engine_map.json,
+3) ручной список power_lookup.json (марка/модель/год/объём).
+
+При подстановке из engine_map выставляются power_source и power_estimated (оценка).
 """
 from __future__ import annotations
 
@@ -85,9 +87,14 @@ def get_power_from_lookup(car_data: Dict[str, Any]) -> Optional[int]:
     return None
 
 
-def get_power_for_car(car_data: Dict[str, Any]) -> Optional[int]:
+def get_power_for_car(
+    car_data: Dict[str, Any],
+    *,
+    record_source: bool = False,
+) -> Optional[int]:
     """
-    Получить мощность (л.с.) для авто: уже есть в данных или из power_lookup.json.
+    Получить мощность (л.с.): из данных, engine_map.json, затем power_lookup.json.
+    record_source=True — записать power_source / power_estimated при обогащении.
     """
     if not isinstance(car_data, dict):
         return None
@@ -96,4 +103,15 @@ def get_power_for_car(car_data: Dict[str, Any]) -> Optional[int]:
             return int(re.sub(r"\D", "", str(car_data["power"])))
         except ValueError:
             pass
-    return get_power_from_lookup(car_data)
+    try:
+        from engine_hp_resolver import resolve_engine_hp
+
+        hp_map = resolve_engine_hp(car_data, record_source=record_source)
+        if hp_map is not None:
+            return hp_map
+    except ImportError:
+        pass
+    hp_lookup = get_power_from_lookup(car_data)
+    if hp_lookup is not None and record_source:
+        car_data.setdefault("power_source", "power_lookup")
+    return hp_lookup

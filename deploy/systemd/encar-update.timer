@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Prod Encar update daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=encar-update.service
+
+[Install]
+WantedBy=timers.target

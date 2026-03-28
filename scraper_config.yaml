@@ -26,14 +26,15 @@ retry:
   backoff_base: 1
   backoff_max: 60
   # Retry on these status codes
-  retry_statuses: [429, 500, 502, 503, 504]
+  # 407 = proxy auth / proxy error — повтор с другим URL из списка
+  retry_statuses: [407, 429, 500, 502, 503, 504]
 
 proxy:
   enabled: true
-  # Korea proxies (geo.floppydata.com:10080) — ротация по запросу
+  # HTTP, United States (geo.floppydata.com) — ротация на каждый запрос (round-robin)
   urls:
-    - "http://UciwZyfTPlvUn4OS:FDsAIHONGvLKdUlN@geo.floppydata.com:10080"
-    - "http://J0ujsUxFURqYjxvq:uAY7gu3lhqz7M4TI@geo.floppydata.com:10080"
+    - "http://xXPvYvt0ZWsCs0Fj:72TQqwsARSkkicI6@geo.floppydata.com:10080"
+    - "http://44yE6gInasmcVgGy:b3z81xfZLM9YZZgZ@geo.floppydata.com:10080"
   rotate_every: 1
 
 user_agents:
@@ -48,8 +49,8 @@ car_types:
   - for
   - kor
 
-# Test run: stop after this many cars saved (0 = no limit, collect until list exhausted)
-max_cars: 2000
+# Stop after this many cars saved (0 = no limit). CLI --max-cars overrides.
+max_cars: 1000
 
 # Checkpoint and state
 checkpoint:

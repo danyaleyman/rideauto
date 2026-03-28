@@ -22,7 +22,7 @@ To resume after a stop, run the same command again; it will load pending IDs fro
 |-----------|--------------|-------------|
 | `http`    | `concurrency`, `list_page_size`, `max_list_offset`, `list_page_delay_min/max`, `request_jitter_min/max`, `timeout_total` | Concurrency, pagination, delays, timeouts |
 | `retry`   | `max_attempts`, `backoff_base`, `backoff_max`, `retry_statuses` | Retries and backoff |
-| `proxy`   | `enabled`, `urls`, `rotate_every` | Proxy list and rotation |
+| `proxy`   | `enabled`, `urls` (HTTP `http://user:pass@host:port`), ротация на каждый запрос | Синхронный `parser_full` читает те же `urls` из `scraper_config.yaml`, либо `ENCAR_PROXY_URLS` |
 | `user_agents` | List of strings | Rotated per request |
 | `car_types`   | `["for", "kor"]` | Import / domestic |
 | `checkpoint`  | `path`, `max_pending_ids`, `save_interval_seconds` | Checkpoint DB and limits |
