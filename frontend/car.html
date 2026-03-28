@@ -36,7 +36,7 @@
             --color-neutral-900: var(--wra-gray-900);
             --color-primary: var(--wra-primary);
         }
-        body { margin: 0; padding: 0; background: var(--app-bg); font-family: var(--font-sans); }
+        body { margin: 0; padding: 0; padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--app-bg); font-family: var(--font-sans); overflow-x: clip; }
         * { box-sizing: border-box; }
         
         /* Контент-шапка: назад + хлебные крошки (как у конкурента) */

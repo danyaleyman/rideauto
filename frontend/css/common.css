@@ -19,6 +19,8 @@
   --wra-gray-900: #111827;
   --wra-primary: #3b82f6;
   --wra-primary-hover: #2563eb;
+  /* Ссылки на светлом фоне (юр. страницы, вспомогательный текст) */
+  --wra-primary-dark: #1d4ed8;
   --wra-primary-light: #eff6ff;
   --wra-accent-dark: #1e3a5f;
   --wra-border: #e5e7eb;
@@ -135,6 +137,22 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -145,6 +163,17 @@ body {
   background-color: var(--wra-white);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+/* Базовые ссылки (страницы без своих переопределений) */
+a {
+  color: var(--wra-primary-hover);
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: var(--wra-accent-dark);
 }
 
 /* Фон страницы для каталога/карточки (можно переопределить на странице) */

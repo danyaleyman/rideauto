@@ -9,17 +9,18 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/common.css">
   <style>
-    body { margin: 0; background: var(--wra-gray-100); font-family: var(--font-sans); color: var(--wra-gray-900); }
-    .doc-wrap { max-width: 980px; margin: 32px auto; padding: 0 16px; }
-    .doc-card { background: var(--wra-surface); border: 1px solid var(--wra-border); border-radius: 16px; padding: 24px; box-shadow: var(--shadow-sm); }
-    h1 { margin: 0 0 16px; font-size: 30px; }
-    h2 { margin: 24px 0 8px; font-size: 20px; }
+    body { margin: 0; background: var(--wra-gray-100); font-family: var(--font-sans); color: var(--wra-gray-900); padding-bottom: 32px; }
+    .doc-wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .doc-card { background: var(--wra-surface); border: 1px solid var(--wra-border); border-radius: 16px; padding: clamp(20px, 4vw, 28px); box-shadow: var(--shadow-sm); }
+    h1 { margin: 0 0 12px; font-size: clamp(1.35rem, 4vw, 1.75rem); line-height: 1.25; color: var(--wra-gray-900); }
+    h2 { margin: 22px 0 8px; font-size: clamp(1rem, 2.5vw, 1.2rem); color: var(--wra-gray-900); }
     p, li { line-height: 1.6; color: var(--wra-gray-700); }
-    .muted { color: var(--wra-gray-500); font-size: 14px; }
-    a { color: var(--wra-primary-dark); }
+    .muted { color: var(--wra-text-muted); font-size: 14px; }
+    .doc-card a { color: var(--wra-primary-dark); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+    .doc-card a:hover { color: var(--wra-primary-hover); }
   </style>
 </head>
-<body>
+<body class="wra-page-gray">
   <main class="doc-wrap">
     <article class="doc-card">
       <h1>Политика использования cookie</h1>

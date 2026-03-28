@@ -2,9 +2,9 @@
 
 .cookie-consent {
   position: fixed;
-  left: 16px;
-  right: 16px;
-  bottom: 16px;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
   z-index: 5000;
   width: 420px;
   max-width: calc(100vw - 32px);

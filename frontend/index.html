@@ -152,7 +152,7 @@
     }
     .btn-secondary:hover { background: var(--wra-gray-200); }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 0; font-family: var(--font-sans); background: var(--wra-gray-100); }
+    body { margin: 0; padding: 0; padding-bottom: env(safe-area-inset-bottom, 0px); font-family: var(--font-sans); background: var(--wra-gray-100); overflow-x: clip; }
     .skip-link {
       position: absolute;
       top: -100px;
