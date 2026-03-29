@@ -3317,15 +3317,16 @@
       const reqId = ++catalogRequestId;
       page = 1;
       try {
-        await refreshFacetBars(reqId);
-        if (reqId !== catalogRequestId) return;
+        refreshFacetBars(reqId).catch(function(e) {
+          if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
+        });
         await loadCarsPage(1, reqId);
       } catch (e) {
         if (reqId !== catalogRequestId) return;
         console.error(e);
         if (gridEl) {
           gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось обновить фильтры.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
+          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось обновить каталог.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
         }
       }
     }
@@ -3961,26 +3962,29 @@
         }
 
         var reqId = ++catalogRequestId;
-        await refreshFacetBars(reqId);
-        if (reqId !== catalogRequestId) return;
+        refreshFacetBars(reqId).catch(function(e) {
+          if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
+        });
+        var todayEl = document.getElementById('bannerTodayCount');
+        var statsPromise = todayEl
+          ? fetch(apiUrl('/api/stats')).then(function(sr) {
+              if (!sr.ok) throw new Error('stats HTTP ' + sr.status);
+              return sr.json();
+            }).catch(function() { return null; })
+          : Promise.resolve(null);
+
         await loadCarsPage(wantPage, reqId);
         if (reqId !== catalogRequestId) return;
         if (wantPage > catalogPages && catalogPages >= 1) {
-          reqId = ++catalogRequestId;
-          await loadCarsPage(catalogPages, reqId);
+          var reqClamp = ++catalogRequestId;
+          await loadCarsPage(catalogPages, reqClamp);
         }
 
-        var todayEl = document.getElementById('bannerTodayCount');
         if (todayEl) {
           try {
-            var sr = await fetch(apiUrl('/api/stats'));
-            if (sr.ok) {
-              var st = await sr.json();
-              var n = (st && typeof st.listed_today === 'number') ? st.listed_today : 0;
-              todayEl.textContent = n > 0 ? ('+' + n.toLocaleString('ru-RU')) : '+0';
-            } else {
-              todayEl.textContent = '+0';
-            }
+            var st = await statsPromise;
+            var n = (st && typeof st.listed_today === 'number') ? st.listed_today : 0;
+            todayEl.textContent = n > 0 ? ('+' + n.toLocaleString('ru-RU')) : '+0';
           } catch (e2) {
             todayEl.textContent = '+0';
           }
