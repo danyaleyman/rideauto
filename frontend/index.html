@@ -2793,7 +2793,7 @@
       return null;
     }
     function getPowerNum(car) {
-      const d = car.data;
+      const d = (car && (car.data || car)) || {};
       let p = d?.power ?? d?.hp ?? d?.outputHorsepower ?? d?.power_hp;
       if (p !== undefined && p !== null && p !== '') {
         const n = parseInt(String(p).replace(/\D/g, ''), 10);
@@ -3315,6 +3315,24 @@
       }, 320);
     }
 
+    function parseCarsApiPayload(data) {
+      var raw = null;
+      if (data && Array.isArray(data.result)) raw = data.result;
+      else if (data && Array.isArray(data.cars)) raw = data.cars;
+      else if (data && Array.isArray(data.items)) raw = data.items;
+      var list = Array.isArray(raw) ? raw : [];
+      var meta = data && data.meta && typeof data.meta === 'object' ? data.meta : {};
+      var total = Number(meta.total);
+      if (!Number.isFinite(total) || total < 0) total = 0;
+      var pages = Number(meta.pages);
+      var perPage = Number(meta.per_page);
+      if (!Number.isFinite(perPage) || perPage < 1) perPage = PER_PAGE;
+      if (!Number.isFinite(pages) || pages < 1) {
+        pages = total > 0 ? Math.max(1, Math.ceil(total / perPage)) : 1;
+      }
+      return { list: list, total: total, pages: pages };
+    }
+
     async function loadCarsPage(targetPage, reqId) {
       if (reqId == null) reqId = ++catalogRequestId;
       showSkeleton();
@@ -3327,10 +3345,15 @@
         if (!res.ok) throw new Error('cars HTTP ' + res.status);
         const data = await res.json();
         if (reqId !== catalogRequestId) return;
+        const parsed = parseCarsApiPayload(data);
+        pageCars = parsed.list;
+        catalogTotal = parsed.total;
+        catalogPages = parsed.pages;
         page = targetPage;
-        pageCars = data.result || [];
-        catalogTotal = (data.meta && data.meta.total != null) ? data.meta.total : 0;
-        catalogPages = (data.meta && data.meta.pages != null) ? data.meta.pages : 1;
+        if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
+          await loadCarsPage(1, reqId);
+          return;
+        }
         updateFilterCountBadge();
         draw();
       } catch (err) {
@@ -3490,14 +3513,25 @@
 
     // Отрисовка карточек
     function draw() {
-      if (gridEl) gridEl.setAttribute('aria-busy', 'false');
-      if (catalogTotal === 0) {
+      if (!gridEl) return;
+      gridEl.setAttribute('aria-busy', 'false');
+      var totalN = Number(catalogTotal);
+      if (!Number.isFinite(totalN) || totalN < 0) totalN = 0;
+      if (totalN === 0) {
         var resetBtn = document.getElementById('resetFiltersBtn');
         var resetHtml = resetBtn ? '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'resetFiltersBtn\').click()">Сбросить фильтры</button>' : '';
         gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Ничего не найдено. Попробуйте изменить фильтры.</p>' + resetHtml + '</div>';
-        paginationEl.innerHTML = '';
+        if (paginationEl) paginationEl.innerHTML = '';
         if (foundCounter) foundCounter.innerText = '0';
         if (catalogAriaLive) catalogAriaLive.textContent = 'Показано 0 автомобилей';
+        return;
+      }
+
+      if (!pageCars || pageCars.length === 0) {
+        gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Список не загрузился (есть ' + totalN.toLocaleString('ru-RU') + ' объявлений в базе). Обновите страницу.</p><a href="index.html" class="btn btn-primary">Обновить</a></div>';
+        if (paginationEl) paginationEl.innerHTML = '';
+        if (foundCounter) foundCounter.innerText = totalN.toLocaleString('ru-RU') + ' автомобилей';
+        if (catalogAriaLive) catalogAriaLive.textContent = 'Каталог не отобразился';
         return;
       }
 
@@ -3562,35 +3596,41 @@
 
         // Переключение фото движением курсора
         const preview = card.querySelector('.preview');
-        const imgs = Array.from(preview.querySelectorAll('img'));
-        preview.addEventListener('mousemove', (e) => {
-          if (imgs.length <= 1) return;
-          const w = preview.offsetWidth;
-          const pos = e.offsetX / w;
-          const idx = Math.min(Math.floor(pos * imgs.length), imgs.length - 1);
-          imgs.forEach((img, k) => img.classList.toggle('active', k === idx));
-        });
-        preview.addEventListener('mouseleave', () => {
-          imgs.forEach((img, k) => img.classList.toggle('active', k === 0));
-        });
+        if (preview) {
+          const imgs = Array.from(preview.querySelectorAll('img'));
+          preview.addEventListener('mousemove', (e) => {
+            if (imgs.length <= 1) return;
+            const w = preview.offsetWidth;
+            const pos = e.offsetX / w;
+            const idx = Math.min(Math.floor(pos * imgs.length), imgs.length - 1);
+            imgs.forEach((img, k) => img.classList.toggle('active', k === idx));
+          });
+          preview.addEventListener('mouseleave', () => {
+            imgs.forEach((img, k) => img.classList.toggle('active', k === 0));
+          });
+        }
 
         // Тултип для кнопки ставки
         const btn = card.querySelector('.tax-btn');
-        const btnTooltip = document.createElement('div');
-        btnTooltip.className = 'tooltip';
-        btnTooltip.innerHTML = tax.tooltip;
-        document.body.appendChild(btnTooltip);
-        btn.addEventListener('mouseenter', () => { positionTooltip(btnTooltip, btn.getBoundingClientRect()); });
-        btn.addEventListener('mouseleave', () => { btnTooltip.style.display = 'none'; });
+        if (btn) {
+          const btnTooltip = document.createElement('div');
+          btnTooltip.className = 'tooltip';
+          btnTooltip.innerHTML = tax.tooltip;
+          document.body.appendChild(btnTooltip);
+          btn.addEventListener('mouseenter', () => { positionTooltip(btnTooltip, btn.getBoundingClientRect()); });
+          btn.addEventListener('mouseleave', () => { btnTooltip.style.display = 'none'; });
+        }
 
         // Тултип для info-icon (иконка «i» у «до Владивостока»)
         const info = card.querySelector('.delivery-line .info-icon-wrap');
-        const infoTooltip = document.createElement('div');
-        infoTooltip.className = 'tooltip';
-        infoTooltip.innerHTML = 'Доставка до Владивостока. Срок и стоимость уточняйте у менеджера.';
-        document.body.appendChild(infoTooltip);
-        info.addEventListener('mouseenter', () => { positionTooltip(infoTooltip, info.getBoundingClientRect()); });
-        info.addEventListener('mouseleave', () => { infoTooltip.style.display = 'none'; });
+        if (info) {
+          const infoTooltip = document.createElement('div');
+          infoTooltip.className = 'tooltip';
+          infoTooltip.innerHTML = 'Доставка до Владивостока. Срок и стоимость уточняйте у менеджера.';
+          document.body.appendChild(infoTooltip);
+          info.addEventListener('mouseenter', () => { positionTooltip(infoTooltip, info.getBoundingClientRect()); });
+          info.addEventListener('mouseleave', () => { infoTooltip.style.display = 'none'; });
+        }
 
         // Поделиться — копировать ссылку и показать «Ссылка скопирована»
         const shareBtn = card.querySelector('.car-actions .icon-btn:first-child');
@@ -3652,11 +3692,12 @@
       });
 
       drawPagination();
-      if (foundCounter) foundCounter.innerText = `${catalogTotal.toLocaleString('ru-RU')} автомобилей`;
-      if (catalogAriaLive) catalogAriaLive.textContent = 'Показано ' + catalogTotal.toLocaleString('ru-RU') + ' автомобилей';
+      if (foundCounter) foundCounter.innerText = `${totalN.toLocaleString('ru-RU')} автомобилей`;
+      if (catalogAriaLive) catalogAriaLive.textContent = 'Показано ' + totalN.toLocaleString('ru-RU') + ' автомобилей';
     }
 
     function drawPagination() {
+      if (!paginationEl) return;
       const total = catalogPages;
       paginationEl.innerHTML = '';
       if (total <= 1) return;
