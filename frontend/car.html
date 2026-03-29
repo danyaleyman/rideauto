@@ -10,10 +10,19 @@
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/cookie-consent.css">
     <link rel="stylesheet" href="css/auth-favorites.css">
+    <script src="js/wra-site-config.js"></script>
     <script src="js/copy-protection.js"></script>
     <script src="js/auth-favorites.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script>
+    /* Кнопка экспорта в Telegram на car.html: только для авторизованных Telegram-аккаунтов из списка (ID — числовой Telegram user id, не id в БД сайта). */
+    window.WRA_ADMIN_TELEGRAM_IDS = window.WRA_ADMIN_TELEGRAM_IDS || [377261863];
+    window.WRA_ADMIN_TELEGRAM_USERNAMES = window.WRA_ADMIN_TELEGRAM_USERNAMES || ['daniilleyman'];
+    /* Ссылка «Посмотреть отчёт»: пусто = URL карточки на этом сайте; иначе база, например https://www.wrideauto.ru/r/ */
+    window.WRA_CHANNEL_EXPORT_REPORT_BASE = window.WRA_CHANNEL_EXPORT_REPORT_BASE || '';
+    /* Опционально: window.WRA_CHANNEL_EXPORT_REPORT_SLUG = function(raw) { return 'slug'; }; если slug не совпадает с id Encar */
+    </script>
 
     <style>
         /* Переменные страницы (общие в css/common.css) */
@@ -696,6 +705,32 @@
             transition: background var(--transition), color var(--transition);
         }
         .order-card .order-calc-btn:hover { background: var(--wra-primary-light); }
+        .order-card .wra-admin-export-btn {
+            display: inline-flex;
+            width: 100%;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 14px;
+            margin-bottom: var(--space-3);
+            border-radius: var(--radius-md);
+            font-weight: var(--font-semibold);
+            font-size: var(--car-body-text-size, 0.8125rem);
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px dashed var(--wra-gray-400);
+            background: var(--wra-gray-50);
+            color: var(--wra-gray-700);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .order-card .wra-admin-export-btn:hover {
+            background: var(--wra-gray-100);
+            border-color: var(--wra-gray-500);
+        }
+        .order-card .wra-admin-export-btn:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
         .order-card .order-meta {
             font-size: var(--text-sm);
             color: var(--wra-gray-600);
@@ -2486,7 +2521,8 @@
             margin-bottom: 10px;
         }
         .order-card .order-calc-btn,
-        .order-card .telegram-btn {
+        .order-card .telegram-btn,
+        .order-card .wra-admin-export-btn {
             min-height: 34px;
             padding: 8px 10px;
             font-size: 0.8125rem;
@@ -2700,7 +2736,8 @@
                 height: 60px;
             }
             .order-card .order-calc-btn,
-            .order-card .telegram-btn {
+            .order-card .telegram-btn,
+            .order-card .wra-admin-export-btn {
                 min-height: 32px;
                 font-size: 0.75rem;
                 padding: 7px 8px;
@@ -2887,7 +2924,8 @@
 
 <script>
     (function() {
-        window.WRA_TELEGRAM_LOGIN_BOT = window.WRA_TELEGRAM_LOGIN_BOT || "worldrideauto_bot";
+        var wraLastCarRawForExport = null;
+
         if (window.WRAAuthFavorites) {
             window.WRAAuthFavorites.initHeader({
                 loginButtonSelector: '#headerLoginBtn',
@@ -4019,6 +4057,7 @@
                         <i class="fa-regular fa-paper-plane"></i> Написать менеджеру
                     </a>
                     <button type="button" class="order-btn-calc" id="openCalcModal" aria-label="Показать расчёт цены">Показать расчёт цены</button>
+                    ${isChannelExportAdminVisible() ? '<button type="button" class="wra-admin-export-btn" id="wraChannelExportBtn" aria-label="Скопировать текст для публикации в канале">Скопировать текст для Telegram</button>' : ''}
                     <div class="order-footer-text">
                         Нет аккаунта в Telegram? <a href="${TELEGRAM_REG_URL}" target="_blank" rel="noopener">Зарегистрироваться</a>
                     </div>
@@ -4277,10 +4316,215 @@
             return '';
         }
 
+        function formatDisplacementLitersExport(d) {
+            var v = d.displacement || d.engine_volume || d.engineDisplacement || '';
+            if (v == null || v === '') return '';
+            var num = parseInt(String(v).trim().replace(/\s/g, '').replace(/[^\d]/g, ''), 10);
+            if (isNaN(num) || num <= 0) return '';
+            var L = num / 1000;
+            return L.toFixed(1).replace(',', '.') + ' л';
+        }
+        function formatYearMonthExport(y) {
+            var digits = String(y == null ? '' : y).replace(/[^\d]/g, '');
+            if (digits.length >= 6) return digits.slice(0, 4) + '.' + digits.slice(4, 6);
+            if (digits.length >= 4) return digits.slice(0, 4);
+            return '';
+        }
+        function parseHpFromPowerDisplay(s) {
+            var m = String(s || '').replace(/≈/g, '').match(/(\d{2,4})\s*л\.с\./i);
+            return m ? parseInt(m[1], 10) : NaN;
+        }
+        function getTorqueNmExport(d) {
+            var t = d.torque_nm || d.torqueNm || d.torque;
+            if (t != null && t !== '') {
+                var n = parseInt(String(t).replace(/\D/g, ''), 10);
+                if (!isNaN(n) && n > 0 && n < 2000) return n;
+            }
+            try {
+                var det = d.extra && d.extra.inspection && d.extra.inspection.master && d.extra.inspection.master.detail;
+                if (det && det.maxTorque != null) {
+                    var n2 = parseInt(String(det.maxTorque).replace(/\D/g, ''), 10);
+                    if (!isNaN(n2) && n2 > 0) return n2;
+                }
+            } catch (e) {}
+            return null;
+        }
+        function buildReportExportUrl(raw) {
+            var base = typeof window.WRA_CHANNEL_EXPORT_REPORT_BASE === 'string' ? window.WRA_CHANNEL_EXPORT_REPORT_BASE.trim() : '';
+            var id = '';
+            if (typeof window.WRA_CHANNEL_EXPORT_REPORT_SLUG === 'function') {
+                try { id = String(window.WRA_CHANNEL_EXPORT_REPORT_SLUG(raw) || '').trim(); } catch (e) {}
+            }
+            if (!id) {
+                id = raw.id != null ? String(raw.id) : (raw.inner_id != null ? String(raw.inner_id) : '');
+                var dd = raw.data || {};
+                if (!id && dd.inner_id != null) id = String(dd.inner_id);
+            }
+            if (!id) return '';
+            if (base) return base.replace(/\/?$/, '/') + id;
+            try {
+                return new URL('car.html?id=' + encodeURIComponent(id), window.location.href).href;
+            } catch (e2) { return ''; }
+        }
+        function buildChannelExportText(raw) {
+            var d = raw.data || {};
+            var lines = [];
+            var mark = filterOptionLabel(d.manufacturerName || d.mark || '', 'mark');
+            var model = filterOptionLabel(d.modelName || d.model || '', 'model');
+            var gen = filterOptionLabel(d.generation || '', 'generation');
+            var modelSeg = gen ? (model + ' (' + gen + ')') : model;
+            var grade = filterOptionLabel(d.gradeName || d.configuration || '', 'trim');
+            var titleParts = [mark, modelSeg, grade].filter(Boolean);
+            lines.push('🏎' + titleParts.join(' '));
+
+            var dispL = formatDisplacementLitersExport(d);
+            var engType = filterOptionLabel(d.engine_type, 'engineType');
+            var engLine = '';
+            if (dispL && engType) engLine = dispL + ', ' + engType;
+            else if (dispL) engLine = dispL;
+            else if (engType) engLine = engType;
+            if (engLine) lines.push('• Двигатель: ' + engLine);
+
+            var powStr = getPowerDisplayForSpecs(d);
+            if (powStr) {
+                var powDisplay = String(powStr).replace(/^≈\s*/, '');
+                var hp = parseHpFromPowerDisplay(powStr);
+                if (!isNaN(hp)) {
+                    var kw = Math.round(hp * 0.735499);
+                    lines.push('• Мощность: ' + powDisplay + ' (' + kw + ' кВт)');
+                } else {
+                    lines.push('• Мощность: ' + powDisplay);
+                }
+            }
+            var tq = getTorqueNmExport(d);
+            if (tq != null) lines.push('• Крутящий момент: ' + tq + ' Н·м');
+
+            var driveVal = filterOptionLabel(d.drive_type || d.prep_drive_type, 'type');
+            if (driveVal) lines.push('• Привод: ' + driveVal);
+
+            var trans = filterOptionLabel(d.transmission_type, 'transmission');
+            if (trans) lines.push('• Трансмиссия: ' + trans);
+
+            var ym = formatYearMonthExport(d.year || d.yearMonth);
+            if (ym) lines.push('• Дата выпуска: ' + ym);
+
+            if (d.km_age != null && d.km_age !== '') {
+                lines.push('• Пробег: ' + Number(d.km_age).toLocaleString('ru-RU') + ' км');
+            }
+
+            lines.push('');
+
+            var trimName = filterOptionLabel(d.configuration || d.gradeName, 'trim') || 'стандартная';
+            lines.push('Комплектация ' + trimName + ':');
+            lines.push('');
+
+            var codes = (d.options && d.options.standard) || [];
+            if (codes.length) {
+                var groups = groupOptionsRu(codes);
+                var orderedCategories = ['Экстерьер и салон', 'Безопасность', 'Комфорт и мультимедиа', 'Сиденья', 'Другое'];
+                orderedCategories.forEach(function(cat) {
+                    if (groups[cat] && groups[cat].length) {
+                        groups[cat].forEach(function(opt) {
+                            lines.push('> ' + opt);
+                        });
+                    }
+                });
+            }
+
+            lines.push('');
+
+            var reportUrl = buildReportExportUrl(raw);
+            if (reportUrl) {
+                lines.push('Посмотреть отчёт об истории авто (' + reportUrl + ')');
+                lines.push('');
+            }
+
+            var myPrice = d.my_price;
+            var hasEncarPrice = d.price_won != null && Number(d.price_won) > 0;
+            var priceUnavailable = !hasEncarPrice || d.price_calc_failed || (myPrice == null || myPrice === '');
+            if (!priceUnavailable) {
+                lines.push('💳 Цена во Владивостоке под ключ:  ' + Math.round(Number(myPrice)).toLocaleString('ru-RU') + ' руб.');
+            } else {
+                lines.push('💳 Цена во Владивостоке под ключ:  уточняйте у менеджера');
+            }
+
+            var pub = new Date();
+            var dd = String(pub.getDate()).padStart(2, '0');
+            var mm = String(pub.getMonth() + 1).padStart(2, '0');
+            var yyyy = pub.getFullYear();
+            lines.push('');
+            lines.push('Цена является актуальной на момент публикации — ' + dd + '.' + mm + '.' + yyyy);
+
+            return lines.join('\n');
+        }
+
+        function isChannelExportAdminVisible() {
+            return !!(window.WRAAuthFavorites && typeof window.WRAAuthFavorites.isChannelExportAdmin === 'function' && window.WRAAuthFavorites.isChannelExportAdmin());
+        }
+
+        function bindWraChannelExportButton(rawData) {
+            var exportBtn = document.getElementById('wraChannelExportBtn');
+            if (!exportBtn || !rawData) return;
+            var exportBtnDefault = 'Скопировать текст для Telegram';
+            exportBtn.textContent = exportBtnDefault;
+            exportBtn.onclick = function() {
+                var text = buildChannelExportText(rawData);
+                function fallbackCopy(t) {
+                    var ta = document.createElement('textarea');
+                    ta.value = t;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); } catch (e) {}
+                    document.body.removeChild(ta);
+                }
+                function doneOk() {
+                    exportBtn.textContent = 'Скопировано в буфер';
+                    setTimeout(function() { exportBtn.textContent = exportBtnDefault; }, 2200);
+                }
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(doneOk).catch(function() {
+                        fallbackCopy(text);
+                        doneOk();
+                    });
+                } else {
+                    fallbackCopy(text);
+                    doneOk();
+                }
+            };
+        }
+
+        function syncWraChannelExportButton() {
+            if (!wraLastCarRawForExport) return;
+            var calc = document.getElementById('openCalcModal');
+            if (!calc || !calc.parentNode) return;
+            var existing = document.getElementById('wraChannelExportBtn');
+            var should = isChannelExportAdminVisible();
+            if (should && !existing) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'wra-admin-export-btn';
+                btn.id = 'wraChannelExportBtn';
+                btn.setAttribute('aria-label', 'Скопировать текст для публикации в канале');
+                btn.textContent = 'Скопировать текст для Telegram';
+                calc.parentNode.insertBefore(btn, calc.nextSibling);
+                bindWraChannelExportButton(wraLastCarRawForExport);
+            } else if (!should && existing) {
+                existing.remove();
+            } else if (should && existing) {
+                bindWraChannelExportButton(wraLastCarRawForExport);
+            }
+        }
+
+        document.addEventListener('wra-auth-changed', syncWraChannelExportButton);
+
         // ---------- Главная функция отрисовки ----------
         function renderCar(rawData) {
             const container = document.getElementById('car-content');
             if (!container) return;
+            wraLastCarRawForExport = rawData;
 
             const d = rawData.data || {};
             var breadcrumbId = document.getElementById('breadcrumb-id');
@@ -4485,6 +4729,8 @@
                 window.WRAAuthFavorites.bindFavoriteButton(favButton, currentCarId);
                 window.WRAAuthFavorites.addHistory(currentCarId);
             }
+
+            bindWraChannelExportButton(rawData);
 
             // Тултипы для бейджей и info в правой колонке (как в index.html)
             (function initOrderCardTooltips() {

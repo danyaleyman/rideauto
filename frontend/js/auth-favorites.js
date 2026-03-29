@@ -46,9 +46,16 @@
     } catch (e) {}
   }
 
+  function emitAuthChanged(detail) {
+    try {
+      window.dispatchEvent(new CustomEvent("wra-auth-changed", { detail: detail || {} }));
+    } catch (e) {}
+  }
+
   function setCurrentUser(user) {
     state.user = user;
     writeJson(USER_KEY, user);
+    emitAuthChanged({ user: user });
   }
 
   function logoutUser() {
@@ -62,6 +69,67 @@
     state.favorites = [];
     state.favoriteNotes = {};
     emitFavoritesChanged();
+    emitAuthChanged({ user: null });
+  }
+
+  function normalizeAdminTelegramIdSet() {
+    var set = {};
+    var raw = window.WRA_ADMIN_TELEGRAM_IDS;
+    function addOne(x) {
+      var s = String(x == null ? "" : x).trim();
+      if (!s) return;
+      var n = parseInt(s.replace(/\D/g, ""), 10);
+      if (!isNaN(n) && n > 0) set[String(n)] = true;
+    }
+    if (raw == null) return set;
+    if (typeof raw === "number") {
+      addOne(raw);
+      return set;
+    }
+    if (typeof raw === "string") {
+      raw.split(/[\s,;|]+/).forEach(function (p) { addOne(p); });
+      return set;
+    }
+    if (Array.isArray(raw)) raw.forEach(addOne);
+    return set;
+  }
+
+  function normalizeAdminUsernameSet() {
+    var set = {};
+    var raw = window.WRA_ADMIN_TELEGRAM_USERNAMES;
+    function addOne(x) {
+      var u = String(x == null ? "" : x)
+        .trim()
+        .replace(/^@+/, "")
+        .toLowerCase();
+      if (u) set[u] = true;
+    }
+    if (raw == null) return set;
+    if (typeof raw === "string") {
+      raw.split(/[\s,;|]+/).forEach(function (p) { addOne(p); });
+      return set;
+    }
+    if (Array.isArray(raw)) raw.forEach(addOne);
+    return set;
+  }
+
+  /** Доступ к скрытым действиям (экспорт в Telegram и т.д.): только указанные Telegram ID / username, при активной сессии. */
+  function isChannelExportAdmin(userOpt) {
+    var u = userOpt || state.user || getCurrentUser();
+    if (!u) return false;
+    var idSet = normalizeAdminTelegramIdSet();
+    var nameSet = normalizeAdminUsernameSet();
+    if (!Object.keys(idSet).length && !Object.keys(nameSet).length) return false;
+    var tgStr =
+      u.tg_id != null && String(u.tg_id).trim() !== ""
+        ? String(u.tg_id).trim()
+        : "";
+    var legacyId = u.id != null ? String(u.id).trim() : "";
+    if (tgStr && idSet[tgStr]) return true;
+    if (!tgStr && legacyId && idSet[legacyId]) return true;
+    var un = (u.username || "").toString().replace(/^@+/, "").trim().toLowerCase();
+    if (un && nameSet[un]) return true;
+    return false;
   }
 
   function favoritesStorageKey() {
@@ -629,6 +697,7 @@
     addHistory: addHistory,
     saveCurrentSearchSubscription: saveCurrentSearchSubscription,
     compareCars: compareCars,
-    quickCheckout: quickCheckout
+    quickCheckout: quickCheckout,
+    isChannelExportAdmin: isChannelExportAdmin
   };
 })();

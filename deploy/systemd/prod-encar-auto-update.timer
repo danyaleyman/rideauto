@@ -2,7 +2,7 @@
 Description=Run Prod Encar auto update daily
 
 [Timer]
-OnCalendar=*-*-* 03:00:00
+OnCalendar=*-*-* 12:00:00 Asia/Yekaterinburg
 Persistent=true
 Unit=prod-encar-auto-update.service
 

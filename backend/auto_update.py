@@ -294,28 +294,9 @@ class AutoUpdateManager:
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds()
                 status = "success" if proc.returncode == 0 else "error"
-                # После успешного обновления подтягиваем данные на фронт (cars.json)
+                # Экспорт в cars.json + расчёт цен (price.py) уже выполняется в конце encar_daily_update.run_one_cycle
                 if proc.returncode == 0:
-                    db_path = repo_dir / "encar_cars.db"
-                    out_path = repo_dir / "frontend" / "cars.json"
-                    if db_path.exists():
-                        export_script = backend_dir / "export_from_scraper_db.py"
-                        export_cmd = [
-                            sys.executable, str(export_script),
-                            "--db", str(db_path),
-                            "--out", str(out_path),
-                            "--chunk-size", "5000",
-                            "--chunk-dir", str(repo_dir / "frontend" / "data" / "chunks"),
-                            "--chunk-index", str(repo_dir / "frontend" / "data" / "cars.index.json"),
-                            "--gzip",
-                        ]
-                        exp = subprocess.run(export_cmd, cwd=str(backend_dir))
-                        if exp.returncode == 0:
-                            logger.info("Экспорт в frontend/cars.json (+ chunks + gzip) выполнен")
-                        else:
-                            logger.warning("Экспорт в frontend/cars.json (+ chunks + gzip) завершился с ошибкой")
-                    else:
-                        logger.warning("encar_cars.db не найден после обновления, экспорт на фронт пропущен")
+                    logger.info("SQLite daily: encar_daily_update завершил цикл (БД + экспорт на фронт).")
                 report = {
                     "status": status,
                     "update_type": "daily_sqlite",
@@ -457,9 +438,13 @@ def main():
     # Вывод результата
     print(f"Результат обновления: {result['status']}")
     if result['status'] == 'success':
-        print(f"Обработано автомобилей: {result['result'].get('total_processed', 0)}")
+        res = result.get("result") or {}
+        if isinstance(res, dict):
+            print(f"Обработано автомобилей: {res.get('total_processed', '— (sqlite: см. лог encar_daily_update)')}")
+        else:
+            print(f"Результат: {res}")
     else:
-        print(f"Ошибка: {result['error']}")
+        print(f"Ошибка: {result.get('error', result)}")
     
     # Возвращаем код завершения
     sys.exit(0 if result['status'] == 'success' else 1)

@@ -2,7 +2,8 @@
 Description=Run Prod Encar update daily
 
 [Timer]
-OnCalendar=*-*-* 03:00:00
+# 12:00 Asia/Yekaterinburg (ежедневное обновление: новые/проданные → цены → фронт)
+OnCalendar=*-*-* 12:00:00 Asia/Yekaterinburg
 Persistent=true
 Unit=encar-update.service
 

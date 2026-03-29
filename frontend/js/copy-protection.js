@@ -4,7 +4,17 @@
 (function() {
   'use strict';
 
+  function isAdminExportSession() {
+    try {
+      if (window.WRAAuthFavorites && typeof window.WRAAuthFavorites.isChannelExportAdmin === 'function' && window.WRAAuthFavorites.isChannelExportAdmin()) {
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
   function preventCopy(e) {
+    if (isAdminExportSession()) return;
     e.preventDefault();
     return false;
   }
@@ -15,6 +25,7 @@
   }
 
   function preventKeyCopy(e) {
+    if (isAdminExportSession()) return;
     var c = e.ctrlKey || e.metaKey;
     var key = (e.key || '').toLowerCase();
     if (c && (key === 'c' || key === 'x' || key === 'a' || key === 'u')) {

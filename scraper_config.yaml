@@ -31,10 +31,15 @@ retry:
 
 proxy:
   enabled: true
-  # HTTP, United States (geo.floppydata.com) — ротация на каждый запрос (round-robin)
+  # HTTP, geo.floppydata.com — парсер чередует URL (round-robin); у провайдера смена выхода по времени
   urls:
     - "http://xXPvYvt0ZWsCs0Fj:72TQqwsARSkkicI6@geo.floppydata.com:10080"
     - "http://44yE6gInasmcVgGy:b3z81xfZLM9YZZgZ@geo.floppydata.com:10080"
+    - "http://UmDdMFeb7Abh0A74:DrKXsWyBIbwykmoN@geo.floppydata.com:10080"
+    - "http://002zfOmFBTYpDtWK:a3fPWFZ9C5kgtfT7@geo.floppydata.com:10080"
+    - "http://nSowvpw1AjpSaldM:5TJHDOfTFwkc9S2v@geo.floppydata.com:10080"
+    - "http://Y0WGrTaf9yHKdn67:vB26qF7fNx3LFOIN@geo.floppydata.com:10080"
+    - "http://QL6zChYYlHtpWAJG:ZuQsuDcJvMK1NVIW@geo.floppydata.com:10080"
   rotate_every: 1
 
 user_agents:
@@ -44,13 +49,22 @@ user_agents:
   - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
   - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
 
-# Car types to collect: for = import, kor = domestic
+# Car types to collect: for = import (CarType N), kor = domestic (CarType Y) — как две вкладки Encar
 car_types:
   - for
   - kor
 
 # Stop after this many cars saved (0 = no limit). CLI --max-cars overrides.
-max_cars: 1000
+max_cars: 0
+
+# Параметры ежедневного цикла encar_daily_update.py (systemd обычно запускает его через auto_update.py --type daily)
+daily_update:
+  timezone: Asia/Yekaterinburg
+  run_at_hour: 12
+  run_at_minute: 0
+  # Сколько страниц списка на тип (for/kor) опросить за ночь для поиска новых id
+  new_list_pages_per_run: 30
+  sold_check_sample: 500
 
 # Checkpoint and state
 checkpoint:
