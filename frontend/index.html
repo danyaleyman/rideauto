@@ -3070,28 +3070,48 @@
       document.querySelectorAll('#transmissionList input[type=checkbox]:checked').forEach(function(cb) { selectedTrans.add(cb.value); });
       document.querySelectorAll('input[data-filter="color"]:checked').forEach(function(cb) { selectedColor.add(cb.value); });
 
-      const powerFrom = document.getElementById('powerFrom').value ? parseInt(document.getElementById('powerFrom').value, 10) : null;
-      const powerTo = document.getElementById('powerTo').value ? parseInt(document.getElementById('powerTo').value, 10) : null;
-      const engineFrom = document.getElementById('engineFrom').value ? parseInt(document.getElementById('engineFrom').value, 10) : null;
-      const engineTo = document.getElementById('engineTo').value ? parseInt(document.getElementById('engineTo').value, 10) : null;
-      const priceFrom = document.getElementById('priceFrom').value ? parseFloat(document.getElementById('priceFrom').value) : null;
-      const priceTo = document.getElementById('priceTo').value ? parseFloat(document.getElementById('priceTo').value) : null;
-      const mileageFrom = document.getElementById('mileageFrom').value ? parseInt(document.getElementById('mileageFrom').value, 10) : null;
-      const mileageTo = document.getElementById('mileageTo').value ? parseInt(document.getElementById('mileageTo').value, 10) : null;
-      const yearFrom = document.getElementById('yearFrom').value ? parseInt(document.getElementById('yearFrom').value, 10) : null;
-      const monthFrom = document.getElementById('monthFrom').value || null;
-      const yearTo = document.getElementById('yearTo').value ? parseInt(document.getElementById('yearTo').value, 10) : null;
-      const monthTo = document.getElementById('monthTo').value || null;
-      const driveAwdOnly = document.getElementById('filterDriveAwd').checked;
-      const insuranceCasesFrom = document.getElementById('insuranceCasesFrom').value ? parseInt(document.getElementById('insuranceCasesFrom').value, 10) : null;
-      const insuranceCasesTo = document.getElementById('insuranceCasesTo').value ? parseInt(document.getElementById('insuranceCasesTo').value, 10) : null;
-      const noInsuranceCases = document.getElementById('filterNoInsuranceCases').checked;
-      const insurancePayoutsFrom = document.getElementById('insurancePayoutsFrom').value ? parseFloat(document.getElementById('insurancePayoutsFrom').value) : null;
-      const insurancePayoutsTo = document.getElementById('insurancePayoutsTo').value ? parseFloat(document.getElementById('insurancePayoutsTo').value) : null;
-      const noInsurancePayouts = document.getElementById('filterNoInsurancePayouts').checked;
-      const damagedFrom = document.getElementById('damagedFrom').value ? parseInt(document.getElementById('damagedFrom').value, 10) : null;
-      const damagedTo = document.getElementById('damagedTo').value ? parseInt(document.getElementById('damagedTo').value, 10) : null;
-      const noDamaged = document.getElementById('filterNoDamaged').checked;
+      function numEl(id, parseFn) {
+        var node = document.getElementById(id);
+        if (!node || node.value === '' || node.value == null) return null;
+        var v = parseFn(node.value, 10);
+        return Number.isNaN(v) ? null : v;
+      }
+      function floatEl(id) {
+        var node = document.getElementById(id);
+        if (!node || node.value === '' || node.value == null) return null;
+        var v = parseFloat(node.value);
+        return Number.isNaN(v) ? null : v;
+      }
+      const powerFrom = numEl('powerFrom', parseInt);
+      const powerTo = numEl('powerTo', parseInt);
+      const engineFrom = numEl('engineFrom', parseInt);
+      const engineTo = numEl('engineTo', parseInt);
+      const priceFrom = floatEl('priceFrom');
+      const priceTo = floatEl('priceTo');
+      const mileageFrom = numEl('mileageFrom', parseInt);
+      const mileageTo = numEl('mileageTo', parseInt);
+      var yf = document.getElementById('yearFrom');
+      var mf = document.getElementById('monthFrom');
+      var yt = document.getElementById('yearTo');
+      var mt = document.getElementById('monthTo');
+      const yearFrom = yf && yf.value ? parseInt(yf.value, 10) : null;
+      const monthFrom = mf && mf.value ? mf.value : null;
+      const yearTo = yt && yt.value ? parseInt(yt.value, 10) : null;
+      const monthTo = mt && mt.value ? mt.value : null;
+      var driveEl = document.getElementById('filterDriveAwd');
+      const driveAwdOnly = !!(driveEl && driveEl.checked);
+      const insuranceCasesFrom = numEl('insuranceCasesFrom', parseInt);
+      const insuranceCasesTo = numEl('insuranceCasesTo', parseInt);
+      var nic = document.getElementById('filterNoInsuranceCases');
+      const noInsuranceCases = !!(nic && nic.checked);
+      const insurancePayoutsFrom = floatEl('insurancePayoutsFrom');
+      const insurancePayoutsTo = floatEl('insurancePayoutsTo');
+      var nip = document.getElementById('filterNoInsurancePayouts');
+      const noInsurancePayouts = !!(nip && nip.checked);
+      const damagedFrom = numEl('damagedFrom', parseInt);
+      const damagedTo = numEl('damagedTo', parseInt);
+      var nd = document.getElementById('filterNoDamaged');
+      const noDamaged = !!(nd && nd.checked);
 
       let activeCount = 0;
       if (selectedMarks.size > 0) activeCount++;
@@ -3930,18 +3950,35 @@
 
     showSkeleton();
 
-    const mappingPromise = fetch('data/encar_mapping.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+    var mappingPromise = (function() {
+      try {
+        if (typeof AbortController !== 'undefined') {
+          var ctrl = new AbortController();
+          var to = setTimeout(function() {
+            try { ctrl.abort(); } catch (e) {}
+          }, 8000);
+          return fetch('data/encar_mapping.json', { signal: ctrl.signal })
+            .then(function(r) { clearTimeout(to); return r.ok ? r.json() : null; })
+            .catch(function() { clearTimeout(to); return null; });
+        }
+      } catch (e) {}
+      return fetch('data/encar_mapping.json')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; });
+    })();
+
+    mappingPromise.then(function(mapping) {
+      if (mapping && typeof mapping === 'object') {
+        ['mark', 'model', 'generation', 'type', 'trim'].forEach(function(cat) {
+          if (mapping[cat] && typeof mapping[cat] === 'object') {
+            filterMappingKoEn[cat] = Object.assign({}, filterMappingKoEn[cat] || {}, mapping[cat]);
+          }
+        });
+      }
+    }).catch(function() {});
 
     (async function bootstrapCatalog() {
       try {
-        var mapping = await mappingPromise;
-        if (mapping && typeof mapping === 'object') {
-          ['mark', 'model', 'generation', 'type', 'trim'].forEach(function(cat) {
-            if (mapping[cat] && typeof mapping[cat] === 'object') {
-              filterMappingKoEn[cat] = Object.assign({}, filterMappingKoEn[cat] || {}, mapping[cat]);
-            }
-          });
-        }
         initCatalogFiltersUi();
 
         var savedScroll = null;
@@ -4007,8 +4044,8 @@
       }
     })();
 
-    // Кнопка сброса
-    document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
+    var resetFiltersBtn = document.getElementById('resetFiltersBtn');
+    if (resetFiltersBtn) resetFiltersBtn.addEventListener('click', resetFilters);
 
     // Модальное окно «Показать цвета ещё»
     const colorModalOverlay = document.getElementById('colorModalOverlay');
