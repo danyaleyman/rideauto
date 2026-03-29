@@ -3980,7 +3980,11 @@
 
     // Загрузка данных и маппинга KO→EN (data/encar_mapping.json от scripts/build_encar_mapping.py)
     const mappingPromise = fetch('data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null);
-    Promise.all([ fetch('cars.json').then(r => r.json()), mappingPromise ])
+    const carsPromise = fetch('cars.json').then(function(r) {
+      if (!r.ok) throw new Error('cars.json HTTP ' + r.status);
+      return r.json();
+    });
+    Promise.all([ carsPromise, mappingPromise ])
       .then(([data, mapping]) => {
         if (mapping && typeof mapping === 'object') {
           ['mark','model','generation','type','trim'].forEach(cat => {
@@ -4230,38 +4234,20 @@
             delay: 400,
           });
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:brand-init',message:'Brand splitting applied',data:{brandChildCount:brandEl.children.length,hasSplitting:brandEl.classList.contains('splitting')},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
-        // #endregion
       });
     }
 
-    // #region agent log
     var _resizeTick = null;
-    function _logResize() {
-      var w = window.innerWidth;
-      var media900 = window.matchMedia('(max-width: 900px)').matches;
-      var sliderWrap = document.querySelector('.hero-banner-slider-wrap');
-      var swiperEl = document.querySelector('.hero-banner-slider');
-      var firstSlide = swiperEl ? swiperEl.querySelector('.swiper-slide') : null;
-      var sliderWrapW = sliderWrap ? sliderWrap.getBoundingClientRect().width : 0;
-      var swiperElW = swiperEl ? swiperEl.getBoundingClientRect().width : 0;
-      var slideW = firstSlide ? firstSlide.getBoundingClientRect().width : 0;
-      var swiperWidth = heroSwiper && heroSwiper.width != null ? heroSwiper.width : null;
-      fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:resize',message:'Resize before update',data:{innerWidth:w,media900:media900,sliderWrapWidth:sliderWrapW,swiperElWidth:swiperElW,slideWidth:slideW,swiperCachedWidth:swiperWidth},timestamp:Date.now(),hypothesisId:'H1,H2,H3,H4,H5'})}).catch(function(){});
+    function _onHeroResize() {
       if (heroSwiper && typeof heroSwiper.update === 'function') {
         heroSwiper.update();
-        var slideWAfter = firstSlide ? firstSlide.getBoundingClientRect().width : 0;
-        var swiperWidthAfter = heroSwiper.width != null ? heroSwiper.width : null;
-        fetch('http://127.0.0.1:7249/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6415ac'},body:JSON.stringify({sessionId:'6415ac',location:'index.html:resize',message:'Resize after swiper.update()',data:{slideWidthAfter:slideWAfter,swiperCachedWidthAfter:swiperWidthAfter},timestamp:Date.now(),hypothesisId:'H1,H5'})}).catch(function(){});
       }
     }
     window.addEventListener('resize', function() {
       if (_resizeTick) clearTimeout(_resizeTick);
-      _resizeTick = setTimeout(_logResize, 200);
+      _resizeTick = setTimeout(_onHeroResize, 200);
     });
-    setTimeout(_logResize, 600);
-    // #endregion
+    setTimeout(_onHeroResize, 600);
   })();
 </script>
 <script>
