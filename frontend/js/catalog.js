@@ -1646,30 +1646,43 @@
       countInfoIcon.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
     }
 
-    // Инициализация Swiper баннера (карточки)
-    const heroSwiper = new Swiper('.hero-banner-slider', {
-      speed: 400,
-      loop: true,
-      slidesPerView: 1,
-      autoplay: { delay: 6000, disableOnInteraction: false },
-      pagination: {
-        el: '.hero-banner-pagination',
-        clickable: true,
-      },
-      spaceBetween: 0,
-      observer: true,
-      observeParents: true,
-    });
+    // Инициализация Swiper баннера — не роняем каталог, если CDN недоступен
+    var heroSwiper = null;
+    try {
+      if (typeof Swiper !== 'undefined') {
+        heroSwiper = new Swiper('.hero-banner-slider', {
+          speed: 400,
+          loop: true,
+          slidesPerView: 1,
+          autoplay: { delay: 6000, disableOnInteraction: false },
+          pagination: {
+            el: '.hero-banner-pagination',
+            clickable: true,
+          },
+          spaceBetween: 0,
+          observer: true,
+          observeParents: true,
+        });
+      }
+    } catch (eHero) {
+      console.warn('[catalog] Swiper init skipped', eHero);
+    }
 
     // Анимация .brand-name по строкам (Splitting.js + Anime.js)
     const brandEl = document.querySelector('.hero-banner-brand .brand-name');
     if (brandEl && typeof Splitting !== 'undefined' && typeof anime !== 'undefined') {
       document.fonts.ready.then(function() {
-        const result = Splitting({ target: brandEl, by: 'lines' })[0];
+        var result;
+        try {
+          result = Splitting({ target: brandEl, by: 'lines' })[0];
+        } catch (eSp) {
+          console.warn('[catalog] Splitting skipped', eSp);
+          return;
+        }
         if (!result || !result.lines) return;
         const flagEl = brandEl.querySelector('.flag');
         const lines = result.lines;
-        const allWords = lines.flat();
+        var allWords = typeof lines.flat === 'function' ? lines.flat() : [].concat.apply([], lines);
         allWords.forEach(function(el) {
           el.style.opacity = '0';
           el.style.transform = 'translateY(0.6em)';
