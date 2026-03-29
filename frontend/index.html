@@ -2522,9 +2522,15 @@
 <script>
   (function() {
     const PER_PAGE = 12;
-    let allCars = [];
-    let filteredCars = [];
     let page = 1;
+    let pageCars = [];
+    let catalogTotal = 0;
+    let catalogPages = 1;
+    let catalogRequestId = 0;
+    const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
+    function apiUrl(path) {
+      return API_BASE + path;
+    }
 
     // DOM элементы
     const gridEl = document.getElementById('grid');
@@ -2743,20 +2749,14 @@
 
       if (filterKey === 'mark') {
         setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
-        rebuildModelList();
-        rebuildGenerationList();
-        rebuildTrimList();
       } else if (filterKey === 'model') {
         setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
-        rebuildGenerationList();
-        rebuildTrimList();
       } else if (filterKey === 'generation') {
         setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
-        rebuildTrimList();
       } else if (filterKey === 'trim') {
         setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
       }
-      applyFilters();
+      void runApplyFilters();
     });
 
     document.addEventListener('keydown', function(e) {
@@ -2980,6 +2980,356 @@
       }
       return sanitizeUiLabel(toDisplayRu(s) || s);
     }
+    function buildCatalogFilterParams() {
+      const p = new URLSearchParams();
+      function addCsv(key, iterable) {
+        const a = [...iterable].filter(Boolean);
+        if (a.length) p.set(key, a.join(','));
+      }
+      addCsv('marks', getSelectedValues(markListEl, 'mark'));
+      addCsv('models', getSelectedValues(modelListEl, 'model'));
+      addCsv('generations', getSelectedValues(generationListEl, 'generation'));
+      addCsv('trims', getSelectedValues(trimListEl, 'trim'));
+
+      const bodies = [];
+      document.querySelectorAll('#bodyList input[type=checkbox]:checked').forEach(function(cb) { bodies.push(cb.value); });
+      addCsv('body', bodies);
+      const fuels = [];
+      document.querySelectorAll('#fuelList input[type=checkbox]:checked').forEach(function(cb) { fuels.push(cb.value); });
+      addCsv('fuel', fuels);
+      const trans = [];
+      document.querySelectorAll('#transmissionList input[type=checkbox]:checked').forEach(function(cb) { trans.push(cb.value); });
+      addCsv('trans', trans);
+      const colors = [];
+      document.querySelectorAll('input[data-filter="color"]:checked').forEach(function(cb) { colors.push(cb.value); });
+      addCsv('color', colors);
+
+      function el(id) { return document.getElementById(id); }
+      var pf = el('powerFrom');
+      if (pf && pf.value) p.set('power_from', pf.value);
+      var pt = el('powerTo');
+      if (pt && pt.value) p.set('power_to', pt.value);
+      var ef = el('engineFrom');
+      if (ef && ef.value) p.set('engine_from', ef.value);
+      var et = el('engineTo');
+      if (et && et.value) p.set('engine_to', et.value);
+      var prf = el('priceFrom');
+      if (prf && prf.value !== '') p.set('price_from', String(prf.value));
+      var prt = el('priceTo');
+      if (prt && prt.value !== '') p.set('price_to', String(prt.value));
+      var mf = el('mileageFrom');
+      if (mf && mf.value) p.set('mileage_from', mf.value);
+      var mt = el('mileageTo');
+      if (mt && mt.value) p.set('mileage_to', mt.value);
+
+      var yearFrom = el('yearFrom') && el('yearFrom').value ? parseInt(el('yearFrom').value, 10) : null;
+      var monthFrom = el('monthFrom') && el('monthFrom').value ? el('monthFrom').value : null;
+      var yearTo = el('yearTo') && el('yearTo').value ? parseInt(el('yearTo').value, 10) : null;
+      var monthTo = el('monthTo') && el('monthTo').value ? el('monthTo').value : null;
+      var fromYm = (yearFrom && yearFrom > 0) ? yearFrom * 12 + (monthFrom ? parseInt(monthFrom, 10) - 1 : 0) : null;
+      var toYm = (yearTo && yearTo > 0) ? yearTo * 12 + (monthTo ? parseInt(monthTo, 10) - 1 : 11) : null;
+      if (fromYm !== null) p.set('ym_from', String(fromYm));
+      if (toYm !== null) p.set('ym_to', String(toYm));
+
+      var icf = el('insuranceCasesFrom');
+      if (icf && icf.value) p.set('ins_cases_from', icf.value);
+      var ict = el('insuranceCasesTo');
+      if (ict && ict.value) p.set('ins_cases_to', ict.value);
+      var ipf = el('insurancePayoutsFrom');
+      if (ipf && ipf.value) p.set('ins_payout_from', ipf.value);
+      var ipt = el('insurancePayoutsTo');
+      if (ipt && ipt.value) p.set('ins_payout_to', ipt.value);
+      var df = el('damagedFrom');
+      if (df && df.value) p.set('damaged_from', df.value);
+      var dt = el('damagedTo');
+      if (dt && dt.value) p.set('damaged_to', dt.value);
+
+      var driveChk = el('filterDriveAwd');
+      if (driveChk && driveChk.checked) p.set('drive_awd', '1');
+      var nic = el('filterNoInsuranceCases');
+      if (nic && nic.checked) p.set('no_insurance_cases', '1');
+      var nip = el('filterNoInsurancePayouts');
+      if (nip && nip.checked) p.set('no_insurance_payouts', '1');
+      var nd = el('filterNoDamaged');
+      if (nd && nd.checked) p.set('no_damaged', '1');
+
+      return p;
+    }
+
+    function updateFilterCountBadge() {
+      const selectedMarks = getSelectedValues(markListEl, 'mark');
+      const selectedModels = getSelectedValues(modelListEl, 'model');
+      const selectedGenerations = getSelectedValues(generationListEl, 'generation');
+      const selectedTrims = getSelectedValues(trimListEl, 'trim');
+      const selectedBody = new Set();
+      const selectedFuel = new Set();
+      const selectedTrans = new Set();
+      const selectedColor = new Set();
+      document.querySelectorAll('#bodyList input[type=checkbox]:checked').forEach(function(cb) { selectedBody.add(cb.value); });
+      document.querySelectorAll('#fuelList input[type=checkbox]:checked').forEach(function(cb) { selectedFuel.add(cb.value); });
+      document.querySelectorAll('#transmissionList input[type=checkbox]:checked').forEach(function(cb) { selectedTrans.add(cb.value); });
+      document.querySelectorAll('input[data-filter="color"]:checked').forEach(function(cb) { selectedColor.add(cb.value); });
+
+      const powerFrom = document.getElementById('powerFrom').value ? parseInt(document.getElementById('powerFrom').value, 10) : null;
+      const powerTo = document.getElementById('powerTo').value ? parseInt(document.getElementById('powerTo').value, 10) : null;
+      const engineFrom = document.getElementById('engineFrom').value ? parseInt(document.getElementById('engineFrom').value, 10) : null;
+      const engineTo = document.getElementById('engineTo').value ? parseInt(document.getElementById('engineTo').value, 10) : null;
+      const priceFrom = document.getElementById('priceFrom').value ? parseFloat(document.getElementById('priceFrom').value) : null;
+      const priceTo = document.getElementById('priceTo').value ? parseFloat(document.getElementById('priceTo').value) : null;
+      const mileageFrom = document.getElementById('mileageFrom').value ? parseInt(document.getElementById('mileageFrom').value, 10) : null;
+      const mileageTo = document.getElementById('mileageTo').value ? parseInt(document.getElementById('mileageTo').value, 10) : null;
+      const yearFrom = document.getElementById('yearFrom').value ? parseInt(document.getElementById('yearFrom').value, 10) : null;
+      const monthFrom = document.getElementById('monthFrom').value || null;
+      const yearTo = document.getElementById('yearTo').value ? parseInt(document.getElementById('yearTo').value, 10) : null;
+      const monthTo = document.getElementById('monthTo').value || null;
+      const driveAwdOnly = document.getElementById('filterDriveAwd').checked;
+      const insuranceCasesFrom = document.getElementById('insuranceCasesFrom').value ? parseInt(document.getElementById('insuranceCasesFrom').value, 10) : null;
+      const insuranceCasesTo = document.getElementById('insuranceCasesTo').value ? parseInt(document.getElementById('insuranceCasesTo').value, 10) : null;
+      const noInsuranceCases = document.getElementById('filterNoInsuranceCases').checked;
+      const insurancePayoutsFrom = document.getElementById('insurancePayoutsFrom').value ? parseFloat(document.getElementById('insurancePayoutsFrom').value) : null;
+      const insurancePayoutsTo = document.getElementById('insurancePayoutsTo').value ? parseFloat(document.getElementById('insurancePayoutsTo').value) : null;
+      const noInsurancePayouts = document.getElementById('filterNoInsurancePayouts').checked;
+      const damagedFrom = document.getElementById('damagedFrom').value ? parseInt(document.getElementById('damagedFrom').value, 10) : null;
+      const damagedTo = document.getElementById('damagedTo').value ? parseInt(document.getElementById('damagedTo').value, 10) : null;
+      const noDamaged = document.getElementById('filterNoDamaged').checked;
+
+      let activeCount = 0;
+      if (selectedMarks.size > 0) activeCount++;
+      if (selectedModels.size > 0) activeCount++;
+      if (selectedGenerations.size > 0) activeCount++;
+      if (selectedTrims.size > 0) activeCount++;
+      activeCount += selectedBody.size + selectedFuel.size + selectedTrans.size + selectedColor.size;
+      if (powerFrom !== null) activeCount++;
+      if (powerTo !== null) activeCount++;
+      if (engineFrom !== null) activeCount++;
+      if (engineTo !== null) activeCount++;
+      if (priceFrom !== null) activeCount++;
+      if (priceTo !== null) activeCount++;
+      if (mileageFrom !== null) activeCount++;
+      if (mileageTo !== null) activeCount++;
+      if (yearFrom !== null) activeCount++;
+      if (monthFrom) activeCount++;
+      if (yearTo !== null) activeCount++;
+      if (monthTo) activeCount++;
+      if (driveAwdOnly) activeCount++;
+      if (insuranceCasesFrom !== null) activeCount++;
+      if (insuranceCasesTo !== null) activeCount++;
+      if (noInsuranceCases) activeCount++;
+      if (insurancePayoutsFrom !== null) activeCount++;
+      if (insurancePayoutsTo !== null) activeCount++;
+      if (noInsurancePayouts) activeCount++;
+      if (damagedFrom !== null) activeCount++;
+      if (damagedTo !== null) activeCount++;
+      if (noDamaged) activeCount++;
+      if (filterCountEl) filterCountEl.innerText = activeCount;
+      if (filtersBadge) filtersBadge.textContent = String(activeCount);
+    }
+
+    function renderFacetCheckboxList(container, rows, filterKey, labelCategory) {
+      if (!container || !Array.isArray(rows)) return;
+      const preserve = new Set();
+      container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]:checked').forEach(function(cb) {
+        preserve.add(cb.value);
+      });
+      const vals = rows.map(function(r) { return r.value; }).filter(Boolean);
+      vals.sort(function(a, b) {
+        const la = labelCategory ? filterOptionLabel(a, labelCategory) : String(a);
+        const lb = labelCategory ? filterOptionLabel(b, labelCategory) : String(b);
+        return String(la).localeCompare(String(lb), 'ru');
+      });
+      renderCheckboxesWithCounts(
+        container,
+        vals,
+        function(v) { return labelCategory ? filterOptionLabel(v, labelCategory) : v; },
+        function(v) {
+          for (var i = 0; i < rows.length; i++) {
+            if (rows[i].value === v) return rows[i].count;
+          }
+          return 0;
+        },
+        filterKey
+      );
+      container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
+        cb.checked = preserve.has(cb.value);
+      });
+      syncCheckboxVisualStates(container);
+    }
+
+    function renderColorFilterFromFacets(colorRows) {
+      const colorListVisible = document.getElementById('colorListVisible');
+      const colorModalList = document.getElementById('colorModalList');
+      const showMoreColorsBtn = document.getElementById('showMoreColorsBtn');
+      if (!colorListVisible || !colorModalList) return;
+
+      const preserve = new Set();
+      document.querySelectorAll('input[data-filter="color"]:checked').forEach(function(cb) { preserve.add(cb.value); });
+
+      const countMap = {};
+      (colorRows || []).forEach(function(r) {
+        if (r && r.value != null && r.value !== '') countMap[r.value] = r.count;
+      });
+      const allColors = (colorRows || []).map(function(r) { return r.value; }).filter(Boolean).sort(function(a, b) {
+        return (filterOptionLabel(a, 'color') || '').localeCompare(filterOptionLabel(b, 'color') || '', 'ru');
+      });
+
+      colorListVisible.innerHTML = '';
+      colorModalList.innerHTML = '';
+      const restColors = allColors.slice(4);
+
+      function appendColor(container, val, idPrefix) {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        const id = idPrefix + String(val).replace(/\s/g, '_');
+        const labelText = filterOptionLabel(val, 'color');
+        const cnt = countMap[val];
+        const suffix = cnt != null ? (' <span class="opt-count">(' + Number(cnt).toLocaleString('ru-RU') + ')</span>') : '';
+        div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText) + suffix);
+        container.appendChild(div);
+      }
+      allColors.slice(0, 4).forEach(function(val) { appendColor(colorListVisible, val, 'filter-color-'); });
+      allColors.forEach(function(val) { appendColor(colorModalList, val, 'filter-color-modal-'); });
+
+      document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
+        cb.checked = preserve.has(cb.value);
+      });
+      syncCheckboxVisualStates(colorListVisible);
+      syncCheckboxVisualStates(colorModalList);
+      syncCheckboxVisualStates(document);
+      if (showMoreColorsBtn) showMoreColorsBtn.style.display = restColors.length > 0 ? 'block' : 'none';
+    }
+
+    async function refreshFacetBars(reqId) {
+      const params = buildCatalogFilterParams();
+      const res = await fetch(apiUrl('/api/facets?' + params.toString()));
+      if (!res.ok) throw new Error('facets HTTP ' + res.status);
+      const data = await res.json();
+      if (reqId !== catalogRequestId) return;
+
+      function cascade(container, rows, filterKey, labelCat, trigger, allLabel) {
+        if (!container) return;
+        renderFacetCheckboxList(container, rows || [], filterKey, labelCat);
+        if (trigger) setDropdownTriggerText(trigger, container, filterKey, allLabel);
+      }
+
+      cascade(markListEl, data.marks, 'mark', 'mark', markTrigger, 'Все марки');
+
+      const selMarks = getSelectedValues(markListEl, 'mark');
+      if (selMarks.size === 0) {
+        if (modelListEl) modelListEl.innerHTML = '';
+        if (generationListEl) generationListEl.innerHTML = '';
+        if (trimListEl) trimListEl.innerHTML = '';
+        if (modelTrigger) {
+          modelTrigger.disabled = true;
+          modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
+        }
+        if (generationTrigger) {
+          generationTrigger.disabled = true;
+          generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
+        }
+        if (trimTrigger) {
+          trimTrigger.disabled = true;
+          trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+        }
+      } else {
+        cascade(modelListEl, data.models, 'model', 'model', modelTrigger, 'Все модели');
+        if (modelTrigger) modelTrigger.disabled = false;
+
+        const selModels = getSelectedValues(modelListEl, 'model');
+        if (selModels.size === 0) {
+          if (generationListEl) generationListEl.innerHTML = '';
+          if (trimListEl) trimListEl.innerHTML = '';
+          if (generationTrigger) {
+            generationTrigger.disabled = true;
+            generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
+          }
+          if (trimTrigger) {
+            trimTrigger.disabled = true;
+            trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+          }
+        } else {
+          cascade(generationListEl, data.generations, 'generation', 'generation', generationTrigger, 'Все поколения');
+          if (generationTrigger) generationTrigger.disabled = false;
+
+          const selGen = getSelectedValues(generationListEl, 'generation');
+          if (selGen.size === 0) {
+            if (trimListEl) trimListEl.innerHTML = '';
+            if (trimTrigger) {
+              trimTrigger.disabled = true;
+              trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+            }
+          } else {
+            cascade(trimListEl, data.trims, 'trim', 'trim', trimTrigger, 'Все комплектации');
+            if (trimTrigger) trimTrigger.disabled = false;
+          }
+        }
+      }
+
+      renderFacetCheckboxList(document.getElementById('bodyList'), data.bodies || [], 'body', 'bodyType');
+      renderFacetCheckboxList(document.getElementById('fuelList'), data.fuels || [], 'fuel', 'engineType');
+      renderFacetCheckboxList(document.getElementById('transmissionList'), data.transmissions || [], 'transmission', 'transmission');
+      renderColorFilterFromFacets(data.colors || []);
+
+      syncCascadeSlotVisibility();
+    }
+
+    let debouncedApplyTimer = null;
+    function scheduleDebouncedApplyFilters() {
+      if (debouncedApplyTimer) clearTimeout(debouncedApplyTimer);
+      debouncedApplyTimer = setTimeout(function() {
+        debouncedApplyTimer = null;
+        void runApplyFilters();
+      }, 320);
+    }
+
+    async function loadCarsPage(targetPage, reqId) {
+      if (reqId == null) reqId = ++catalogRequestId;
+      showSkeleton();
+      try {
+        const params = buildCatalogFilterParams();
+        params.set('page', String(targetPage));
+        params.set('per_page', String(PER_PAGE));
+        params.set('sort', currentSort || 'date_new');
+        const res = await fetch(apiUrl('/api/cars?' + params.toString()));
+        if (!res.ok) throw new Error('cars HTTP ' + res.status);
+        const data = await res.json();
+        if (reqId !== catalogRequestId) return;
+        page = targetPage;
+        pageCars = data.result || [];
+        catalogTotal = (data.meta && data.meta.total != null) ? data.meta.total : 0;
+        catalogPages = (data.meta && data.meta.pages != null) ? data.meta.pages : 1;
+        updateFilterCountBadge();
+        draw();
+      } catch (err) {
+        if (reqId !== catalogRequestId) return;
+        console.error(err);
+        pageCars = [];
+        catalogTotal = 0;
+        catalogPages = 1;
+        if (gridEl) {
+          gridEl.setAttribute('aria-busy', 'false');
+          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
+        }
+        if (paginationEl) paginationEl.innerHTML = '';
+      }
+    }
+
+    async function runApplyFilters() {
+      const reqId = ++catalogRequestId;
+      page = 1;
+      try {
+        await refreshFacetBars(reqId);
+        if (reqId !== catalogRequestId) return;
+        await loadCarsPage(1, reqId);
+      } catch (e) {
+        if (reqId !== catalogRequestId) return;
+        console.error(e);
+        if (gridEl) {
+          gridEl.setAttribute('aria-busy', 'false');
+          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось обновить фильтры.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
+        }
+      }
+    }
+
     function taxClass(yearStr) {
       const carYear = parseInt(String(yearStr).slice(0, 4));
       if (isNaN(carYear)) return { cls: 'high', text: 'Высокая ставка', tooltip: 'Не удалось определить возраст' };
@@ -2993,53 +3343,6 @@
         text: 'Высокая ставка',
         tooltip: age < 3 ? 'Авто младше 3 лет — максимальная ставка' : 'Авто старше 5 лет — максимальная ставка'
       };
-    }
-
-    // Сортировка списка
-    function sortFilteredCars() {
-      if (!Array.isArray(filteredCars) || filteredCars.length === 0) return;
-
-      const getDate = (d) => {
-        const iso = d.offer_created || d.created_at || '';
-        const ts = Date.parse(iso);
-        return Number.isNaN(ts) ? 0 : ts;
-      };
-      const getYear = (d) => {
-        const y = parseInt(String(d.year || '').slice(0, 4));
-        return Number.isNaN(y) ? 0 : y;
-      };
-      const getPrice = (d) => {
-        const p = Number(d.price_won);
-        return Number.isNaN(p) ? 0 : p;
-      };
-      const getMileage = (d) => {
-        const m = parseInt(String(d.km_age || ''));
-        return Number.isNaN(m) ? 0 : m;
-      };
-
-      filteredCars.sort((a, b) => {
-        const da = a.data || {};
-        const db = b.data || {};
-        switch (currentSort) {
-          case 'date_old':
-            return getDate(da) - getDate(db);
-          case 'year_new':
-            return getYear(db) - getYear(da);
-          case 'year_old':
-            return getYear(da) - getYear(db);
-          case 'price_high':
-            return getPrice(db) - getPrice(da);
-          case 'price_low':
-            return getPrice(da) - getPrice(db);
-          case 'mileage_high':
-            return getMileage(db) - getMileage(da);
-          case 'mileage_low':
-            return getMileage(da) - getMileage(db);
-          case 'date_new':
-          default:
-            return getDate(db) - getDate(da);
-        }
-      });
     }
 
         // Порядок видов: перед (1), зад (2), левый/правый бок, салон; приоритет — всегда показывать перед в превью
@@ -3155,7 +3458,7 @@
     // Отрисовка карточек
     function draw() {
       if (gridEl) gridEl.setAttribute('aria-busy', 'false');
-      if (!filteredCars.length) {
+      if (catalogTotal === 0) {
         var resetBtn = document.getElementById('resetFiltersBtn');
         var resetHtml = resetBtn ? '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'resetFiltersBtn\').click()">Сбросить фильтры</button>' : '';
         gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Ничего не найдено. Попробуйте изменить фильтры.</p>' + resetHtml + '</div>';
@@ -3165,11 +3468,8 @@
         return;
       }
 
-      const start = (page - 1) * PER_PAGE;
-      const slice = filteredCars.slice(start, start + PER_PAGE);
-
       gridEl.innerHTML = '';
-        slice.forEach(car => {
+        pageCars.forEach(car => {
         const d = car.data || car;
         const images = getPreviewImages(d);
 
@@ -3319,18 +3619,17 @@
       });
 
       drawPagination();
-      if (foundCounter) foundCounter.innerText = `${filteredCars.length.toLocaleString('ru-RU')} автомобилей`;
-      if (catalogAriaLive) catalogAriaLive.textContent = 'Показано ' + filteredCars.length.toLocaleString('ru-RU') + ' автомобилей';
+      if (foundCounter) foundCounter.innerText = `${catalogTotal.toLocaleString('ru-RU')} автомобилей`;
+      if (catalogAriaLive) catalogAriaLive.textContent = 'Показано ' + catalogTotal.toLocaleString('ru-RU') + ' автомобилей';
     }
 
     function drawPagination() {
-      const total = Math.ceil(filteredCars.length / PER_PAGE);
+      const total = catalogPages;
       paginationEl.innerHTML = '';
       if (total <= 1) return;
 
       const go = (p) => {
-        page = p;
-        draw();
+        void loadCarsPage(p);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
@@ -3394,36 +3693,26 @@
     const MONTHS = ['', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
     const MONTH_LABELS = ['', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
-    function buildFiltersFromData() {
-      // 1. Марки: по алфавиту по отображаемому названию
-      const marksSet = new Set(allCars.map(c => c.data?.mark).filter(Boolean));
-      const marks = [...marksSet].sort(function(a, b) {
-        return (filterOptionLabel(a, 'mark') || '').localeCompare(filterOptionLabel(b, 'mark') || '', 'ru');
-      });
-      if (markListEl) {
-        renderCheckboxesWithCounts(markListEl, marks, function(v) { return filterOptionLabel(v, 'mark'); }, function(v) {
-          return allCars.filter(c => (c.data && c.data.mark) === v).length;
-        }, 'mark');
-      }
-
-      // Год от/до: 1980..2030
+    function initCatalogFiltersUi() {
       const yearFromEl = document.getElementById('yearFrom');
       const yearToEl = document.getElementById('yearTo');
       const monthFromEl = document.getElementById('monthFrom');
       const monthToEl = document.getElementById('monthTo');
-      [yearFromEl, yearToEl].forEach(sel => {
+      [yearFromEl, yearToEl].forEach(function(sel) {
+        if (!sel) return;
         sel.innerHTML = '<option value="">' + (sel.id === 'yearFrom' ? 'Год от' : 'Год до') + '</option>';
-        for (let y = 2030; y >= 1980; y--) {
-          const o = document.createElement('option');
+        for (var y = 2030; y >= 1980; y--) {
+          var o = document.createElement('option');
           o.value = y;
           o.textContent = y;
           sel.appendChild(o);
         }
       });
-      [monthFromEl, monthToEl].forEach((sel, i) => {
+      [monthFromEl, monthToEl].forEach(function(sel, i) {
+        if (!sel) return;
         sel.innerHTML = '<option value="">' + (i === 0 ? 'Месяц от' : 'Месяц до') + '</option>';
-        for (let m = 1; m <= 12; m++) {
-          const o = document.createElement('option');
+        for (var m = 1; m <= 12; m++) {
+          var o = document.createElement('option');
           o.value = MONTHS[m];
           o.textContent = MONTH_LABELS[m];
           sel.appendChild(o);
@@ -3434,72 +3723,32 @@
       bindCustomSelectDropdown(yearToEl, yearToTrigger, yearToPanel, yearToOptions, 'Год до');
       bindCustomSelectDropdown(monthToEl, monthToTrigger, monthToPanel, monthToOptions, 'Месяц до');
 
-      // Тип кузова, топливо, коробка — чекбоксы (маппинг KO→EN)
-      const bodies = [...new Set(allCars.map(c => c.data?.body_type).filter(Boolean))].sort();
-      const fuels = [...new Set(allCars.map(c => c.data?.engine_type).filter(Boolean))].sort();
-      const transmissions = [...new Set(allCars.map(c => c.data?.transmission_type).filter(Boolean))].sort();
-      renderCheckboxes('bodyList', bodies, 'body', 'bodyType');
-      renderCheckboxes('fuelList', fuels, 'fuel', 'engineType');
-      renderCheckboxes('transmissionList', transmissions, 'transmission', 'transmission');
-
-      // Цвета: первые 4 в меню, остальные в модалке
-      const allColors = [...new Set(allCars.map(c => c.data?.color).filter(Boolean))].sort();
-      const colorListVisible = document.getElementById('colorListVisible');
-      const colorModalList = document.getElementById('colorModalList');
-      const showMoreColorsBtn = document.getElementById('showMoreColorsBtn');
-      colorListVisible.innerHTML = '';
-      colorModalList.innerHTML = '';
-      const visibleColors = allColors.slice(0, 4);
-      const restColors = allColors.slice(4);
-      visibleColors.forEach(val => {
-        const div = document.createElement('div');
-        div.className = 'checkbox-item';
-        const id = 'filter-color-' + val.replace(/\s/g, '_');
-        const labelText = filterOptionLabel(val, 'color');
-        div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText));
-        colorListVisible.appendChild(div);
-      });
-      allColors.forEach(val => {
-        const div = document.createElement('div');
-        div.className = 'checkbox-item';
-        const id = 'filter-color-modal-' + val.replace(/\s/g, '_');
-        const labelText = filterOptionLabel(val, 'color');
-        div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText));
-        colorModalList.appendChild(div);
-      });
-      syncCheckboxVisualStates(colorListVisible);
-      syncCheckboxVisualStates(colorModalList);
-      showMoreColorsBtn.style.display = restColors.length > 0 ? 'block' : 'none';
-
-      // Синхронизация чекбоксов цвета: модалка и видимые 4
-      function syncColorCheckboxes() {
-        const byValue = {};
-        document.querySelectorAll('input[data-filter="color"]').forEach(cb => {
-          byValue[cb.value] = byValue[cb.value] || cb.checked;
+      var filtersPanelEl = document.getElementById('filtersPanel');
+      if (filtersPanelEl && !filtersPanelEl.dataset.wraFilterDelegate) {
+        filtersPanelEl.dataset.wraFilterDelegate = '1';
+        filtersPanelEl.addEventListener('change', function(e) {
+          var t = e.target;
+          if (!t || t.type !== 'checkbox') return;
+          var df = t.getAttribute('data-filter');
+          if (df === 'mark' || df === 'model' || df === 'generation' || df === 'trim') return;
+          if (df === 'color') {
+            var byValue = {};
+            document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
+              byValue[cb.value] = byValue[cb.value] || cb.checked;
+            });
+            document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
+              cb.checked = !!byValue[cb.value];
+            });
+            syncCheckboxVisualStates(document);
+            scheduleDebouncedApplyFilters();
+            return;
+          }
+          if (t.closest('#bodyList') || t.closest('#fuelList') || t.closest('#transmissionList') || t.closest('.drive-checkbox-wrap')) {
+            scheduleDebouncedApplyFilters();
+          }
         });
-        document.querySelectorAll('input[data-filter="color"]').forEach(cb => {
-          cb.checked = !!byValue[cb.value];
-        });
-        syncCheckboxVisualStates(document);
-        applyFilters();
       }
-      colorListVisible.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', syncColorCheckboxes));
-      colorModalList.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', syncColorCheckboxes));
 
-      // Обработчики: все чекбоксы и диапазоны (кроме марка/модель/поколение/комплектация — у них свои)
-      document.querySelectorAll('#bodyList input[type=checkbox], #fuelList input[type=checkbox], #transmissionList input[type=checkbox], #colorListVisible input[type=checkbox], #colorModalList input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(cb => {
-        cb.addEventListener('change', applyFilters);
-      });
-      var filterDriveAwd = document.getElementById('filterDriveAwd');
-      var filterNoInsuranceCases = document.getElementById('filterNoInsuranceCases');
-      var filterNoInsurancePayouts = document.getElementById('filterNoInsurancePayouts');
-      var filterNoDamaged = document.getElementById('filterNoDamaged');
-      if (filterDriveAwd) filterDriveAwd.addEventListener('change', applyFilters);
-      if (filterNoInsuranceCases) filterNoInsuranceCases.addEventListener('change', applyFilters);
-      if (filterNoInsurancePayouts) filterNoInsurancePayouts.addEventListener('change', applyFilters);
-      if (filterNoDamaged) filterNoDamaged.addEventListener('change', applyFilters);
-
-      // Dropdown: клик по триггеру — открыть/закрыть панель
       [[markTrigger, markPanel], [modelTrigger, modelPanel], [generationTrigger, generationPanel], [trimTrigger, trimPanel]].forEach(function(pair) {
         var btn = pair[0], panel = pair[1];
         if (!btn || !panel) return;
@@ -3521,16 +3770,12 @@
         closeAllDropdowns();
       });
 
-      // Марка/модель/поколение/комплектация: при смене — обновить триггер и каскад
       if (markListEl) {
         markListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'mark') return;
           closeAllDropdowns();
           setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
-          rebuildModelList();
-          rebuildGenerationList();
-          rebuildTrimList();
-          applyFilters();
+          void runApplyFilters();
         });
       }
       if (modelListEl) {
@@ -3538,9 +3783,7 @@
           if (!e.target || e.target.getAttribute('data-filter') !== 'model') return;
           closeAllDropdowns();
           setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
-          rebuildGenerationList();
-          rebuildTrimList();
-          applyFilters();
+          void runApplyFilters();
         });
       }
       if (generationListEl) {
@@ -3548,8 +3791,7 @@
           if (!e.target || e.target.getAttribute('data-filter') !== 'generation') return;
           closeAllDropdowns();
           setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
-          rebuildTrimList();
-          applyFilters();
+          void runApplyFilters();
         });
       }
       if (trimListEl) {
@@ -3557,28 +3799,23 @@
           if (!e.target || e.target.getAttribute('data-filter') !== 'trim') return;
           closeAllDropdowns();
           setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
-          applyFilters();
+          void runApplyFilters();
         });
       }
 
       ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo',
        'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'].forEach(function(id) {
         var el = document.getElementById(id);
-        if (el) el.addEventListener('input', applyFilters);
+        if (el) el.addEventListener('input', scheduleDebouncedApplyFilters);
       });
-      [yearFromEl, yearToEl, monthFromEl, monthToEl].filter(Boolean).forEach(function(el) { el.addEventListener('change', applyFilters); });
+      [yearFromEl, yearToEl, monthFromEl, monthToEl].filter(Boolean).forEach(function(el) {
+        el.addEventListener('change', function() { void runApplyFilters(); });
+      });
       syncCheckboxVisualStates(document);
 
       initFilterSectionToggles();
 
-      if (markListEl) {
-        rebuildModelList();
-        rebuildGenerationList();
-        rebuildTrimList();
-        applyFilters();
-      } else {
-        syncCascadeSlotVisibility();
-      }
+      if (!markListEl) syncCascadeSlotVisibility();
     }
 
     function escapeHtml(s) {
@@ -3667,289 +3904,6 @@
       syncCheckboxVisualStates(container);
     }
 
-    function rebuildModelList() {
-      if (!modelListEl) return;
-      const selectedMarks = getSelectedValues(markListEl, 'mark');
-      const base = selectedMarks.size
-        ? allCars.filter(c => c && c.data && selectedMarks.has(c.data.mark))
-        : allCars.slice();
-
-      const modelValues = [...new Set(base.map(c => c.data?.model).filter(Boolean))].sort(function(a, b) {
-        return (filterOptionLabel(a, 'model') || '').localeCompare(filterOptionLabel(b, 'model') || '', 'ru');
-      });
-      // Группируем по отображаемому имени (KO→EN), чтобы понять, где будут «дубли» (E-Class x3)
-      const displayGroups = {};
-      modelValues.forEach(function(m) {
-        const disp = String(filterOptionLabel(m, 'model') || m);
-        (displayGroups[disp] = displayGroups[disp] || []).push(m);
-      });
-
-      function topGenerationForModel(modelRaw) {
-        const genCounts = {};
-        base.forEach(function(c) {
-          const d = c.data || {};
-          if (d.model !== modelRaw) return;
-          const g = d.generation || d.configuration || '';
-          if (!g) return;
-          genCounts[g] = (genCounts[g] || 0) + 1;
-        });
-        let best = '';
-        let bestN = 0;
-        Object.keys(genCounts).forEach(function(k) {
-          const n = genCounts[k];
-          if (n > bestN) { bestN = n; best = k; }
-        });
-        return best;
-      }
-
-      renderCheckboxesWithCounts(
-        modelListEl,
-        modelValues,
-        function(m) {
-          const disp = String(filterOptionLabel(m, 'model') || m);
-          if (displayGroups[disp] && displayGroups[disp].length > 1) {
-            const g = topGenerationForModel(m);
-            const gLabel = g ? filterOptionLabel(g, 'generation') : '';
-            return gLabel ? (disp + ' · ' + gLabel) : (disp + ' · ' + m);
-          }
-          return disp;
-        },
-        function(m) {
-          return base.filter(c => (c.data && c.data.model) === m).length;
-        },
-        'model'
-      );
-      if (modelTrigger) {
-        modelTrigger.disabled = selectedMarks.size === 0;
-        if (selectedMarks.size === 0) modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
-        else setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
-      }
-    }
-
-    function rebuildGenerationList() {
-      if (!generationListEl) return;
-      const selectedMarks = getSelectedValues(markListEl, 'mark');
-      const selectedModels = getSelectedValues(modelListEl, 'model');
-      const base = allCars.filter(function(c) {
-        const d = c && c.data;
-        if (!d) return false;
-        if (selectedMarks.size && !selectedMarks.has(d.mark)) return false;
-        if (selectedModels.size && !selectedModels.has(d.model)) return false;
-        return true;
-      });
-      const gens = [...new Set(base.map(c => c.data?.generation || c.data?.configuration).filter(Boolean))].sort(function(a, b) {
-        return (filterOptionLabel(a, 'generation') || '').localeCompare(filterOptionLabel(b, 'generation') || '', 'ru');
-      });
-      renderCheckboxesWithCounts(
-        generationListEl,
-        gens,
-        function(g) { return filterOptionLabel(g, 'generation'); },
-        function(g) { return base.filter(c => (c.data && ((c.data.generation || c.data.configuration) === g))).length; },
-        'generation'
-      );
-      if (generationTrigger) {
-        generationTrigger.disabled = selectedModels.size === 0;
-        if (selectedModels.size === 0) generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
-        else setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
-      }
-    }
-
-    function rebuildTrimList() {
-      if (!trimListEl) {
-        syncCascadeSlotVisibility();
-        return;
-      }
-      const selectedMarks = getSelectedValues(markListEl, 'mark');
-      const selectedModels = getSelectedValues(modelListEl, 'model');
-      const selectedGenerations = getSelectedValues(generationListEl, 'generation');
-      const base = allCars.filter(function(c) {
-        const d = c && c.data;
-        if (!d) return false;
-        if (selectedMarks.size && !selectedMarks.has(d.mark)) return false;
-        if (selectedModels.size && !selectedModels.has(d.model)) return false;
-        const gen = d.generation || d.configuration;
-        if (selectedGenerations.size && !selectedGenerations.has(gen)) return false;
-        return true;
-      });
-      const trims = [...new Set(base.map(c => c.data?.gradeName || c.data?.configuration || c.data?.generation).filter(Boolean))].sort(function(a, b) {
-        return (filterOptionLabel(a, 'trim') || '').localeCompare(filterOptionLabel(b, 'trim') || '', 'ru');
-      });
-      renderCheckboxesWithCounts(
-        trimListEl,
-        trims,
-        function(t) { return filterOptionLabel(t, 'trim'); },
-        function(t) { return base.filter(c => (c.data && ((c.data.gradeName || c.data.configuration || c.data.generation) === t))).length; },
-        'trim'
-      );
-      if (trimTrigger) {
-        trimTrigger.disabled = selectedGenerations.size === 0;
-        if (selectedGenerations.size === 0) trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-        else setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
-      }
-      syncCascadeSlotVisibility();
-    }
-
-    function renderCheckboxes(containerId, values, filterKey, labelCategory) {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      container.innerHTML = '';
-      values.forEach(val => {
-        const div = document.createElement('div');
-        div.className = 'checkbox-item';
-        const id = `filter-${filterKey}-${val.replace(/\s/g, '_')}`;
-        const labelText = labelCategory ? filterOptionLabel(val, labelCategory) : toDisplayRu(val);
-        div.innerHTML = checkboxTemplate(
-          id,
-          filterKey,
-          val.replace(/"/g, '&quot;'),
-          String(labelText).replace(/</g, '&lt;')
-        );
-        container.appendChild(div);
-      });
-      syncCheckboxVisualStates(container);
-    }
-
-    // Основная фильтрация
-    function applyFilters() {
-      const selectedMarks = getSelectedValues(markListEl, 'mark');
-      const selectedModels = getSelectedValues(modelListEl, 'model');
-      const selectedGenerations = getSelectedValues(generationListEl, 'generation');
-      const selectedTrims = getSelectedValues(trimListEl, 'trim');
-
-      const selectedBody = new Set();
-      const selectedFuel = new Set();
-      const selectedTrans = new Set();
-      const selectedColor = new Set();
-      document.querySelectorAll('#bodyList input[type=checkbox]:checked').forEach(cb => selectedBody.add(cb.value));
-      document.querySelectorAll('#fuelList input[type=checkbox]:checked').forEach(cb => selectedFuel.add(cb.value));
-      document.querySelectorAll('#transmissionList input[type=checkbox]:checked').forEach(cb => selectedTrans.add(cb.value));
-      document.querySelectorAll('input[data-filter="color"]:checked').forEach(cb => selectedColor.add(cb.value));
-
-      const powerFrom = document.getElementById('powerFrom').value ? parseInt(document.getElementById('powerFrom').value, 10) : null;
-      const powerTo = document.getElementById('powerTo').value ? parseInt(document.getElementById('powerTo').value, 10) : null;
-      const engineFrom = document.getElementById('engineFrom').value ? parseInt(document.getElementById('engineFrom').value, 10) : null;
-      const engineTo = document.getElementById('engineTo').value ? parseInt(document.getElementById('engineTo').value, 10) : null;
-      const priceFrom = document.getElementById('priceFrom').value ? parseFloat(document.getElementById('priceFrom').value) : null;
-      const priceTo = document.getElementById('priceTo').value ? parseFloat(document.getElementById('priceTo').value) : null;
-      const mileageFrom = document.getElementById('mileageFrom').value ? parseInt(document.getElementById('mileageFrom').value, 10) : null;
-      const mileageTo = document.getElementById('mileageTo').value ? parseInt(document.getElementById('mileageTo').value, 10) : null;
-
-      const yearFrom = document.getElementById('yearFrom').value ? parseInt(document.getElementById('yearFrom').value, 10) : null;
-      const monthFrom = document.getElementById('monthFrom').value || null;
-      const yearTo = document.getElementById('yearTo').value ? parseInt(document.getElementById('yearTo').value, 10) : null;
-      const monthTo = document.getElementById('monthTo').value || null;
-      const fromYm = (yearFrom && yearFrom > 0) ? yearFrom * 12 + (monthFrom ? parseInt(monthFrom, 10) - 1 : 0) : null;
-      const toYm = (yearTo && yearTo > 0) ? yearTo * 12 + (monthTo ? parseInt(monthTo, 10) - 1 : 11) : null;
-
-      const driveAwdOnly = document.getElementById('filterDriveAwd').checked;
-      const insuranceCasesFrom = document.getElementById('insuranceCasesFrom').value ? parseInt(document.getElementById('insuranceCasesFrom').value, 10) : null;
-      const insuranceCasesTo = document.getElementById('insuranceCasesTo').value ? parseInt(document.getElementById('insuranceCasesTo').value, 10) : null;
-      const noInsuranceCases = document.getElementById('filterNoInsuranceCases').checked;
-      const insurancePayoutsFrom = document.getElementById('insurancePayoutsFrom').value ? parseFloat(document.getElementById('insurancePayoutsFrom').value) : null;
-      const insurancePayoutsTo = document.getElementById('insurancePayoutsTo').value ? parseFloat(document.getElementById('insurancePayoutsTo').value) : null;
-      const noInsurancePayouts = document.getElementById('filterNoInsurancePayouts').checked;
-      const damagedFrom = document.getElementById('damagedFrom').value ? parseInt(document.getElementById('damagedFrom').value, 10) : null;
-      const damagedTo = document.getElementById('damagedTo').value ? parseInt(document.getElementById('damagedTo').value, 10) : null;
-      const noDamaged = document.getElementById('filterNoDamaged').checked;
-
-      filteredCars = allCars.filter(car => {
-        const d = car.data;
-        if (!d) return false;
-
-        if (selectedMarks.size > 0 && !selectedMarks.has(d.mark)) return false;
-        if (selectedModels.size > 0 && !selectedModels.has(d.model)) return false;
-        const gen = d.generation || d.configuration;
-        if (selectedGenerations.size > 0 && !selectedGenerations.has(gen)) return false;
-        const trim = d.gradeName || d.configuration || d.generation;
-        if (selectedTrims.size > 0 && !selectedTrims.has(trim)) return false;
-
-        if (selectedBody.size > 0 && !selectedBody.has(d.body_type)) return false;
-        if (selectedFuel.size > 0 && !selectedFuel.has(d.engine_type)) return false;
-        if (selectedTrans.size > 0 && !selectedTrans.has(d.transmission_type)) return false;
-
-        const powerNum = getPowerNum(car);
-        if (powerFrom !== null && (powerNum === null || powerNum < powerFrom)) return false;
-        if (powerTo !== null && (powerNum === null || powerNum > powerTo)) return false;
-
-        const engineNum = getEngineVolumeNum(car);
-        if (engineFrom !== null && (engineNum === null || engineNum < engineFrom)) return false;
-        if (engineTo !== null && (engineNum === null || engineNum > engineTo)) return false;
-
-        const price = d.price_won;
-        if (price !== undefined && price !== null) {
-          if (priceFrom !== null && price < priceFrom) return false;
-          if (priceTo !== null && price > priceTo) return false;
-        } else if (priceFrom !== null || priceTo !== null) return false;
-
-        const mileage = parseInt(String(d.km_age), 10);
-        if (!isNaN(mileage)) {
-          if (mileageFrom !== null && mileage < mileageFrom) return false;
-          if (mileageTo !== null && mileage > mileageTo) return false;
-        } else if (mileageFrom !== null || mileageTo !== null) return false;
-
-        const carYm = getYearMonthNum(car);
-        if (fromYm !== null && (carYm === null || carYm < fromYm)) return false;
-        if (toYm !== null && (carYm === null || carYm > toYm)) return false;
-
-        const driveVal = d.drive_type || d.prep_drive_type;
-        if (driveAwdOnly && driveVal !== 'AWD') return false;
-
-        const insCnt = getInsuranceCasesCount(car);
-        if (noInsuranceCases && insCnt > 0) return false;
-        if (insuranceCasesFrom !== null && insCnt < insuranceCasesFrom) return false;
-        if (insuranceCasesTo !== null && insCnt > insuranceCasesTo) return false;
-
-        const payouts = getInsurancePayoutsSum(car);
-        if (noInsurancePayouts && payouts > 0) return false;
-        if (insurancePayoutsFrom !== null && payouts < insurancePayoutsFrom) return false;
-        if (insurancePayoutsTo !== null && payouts > insurancePayoutsTo) return false;
-
-        const damagedCnt = getDamagedCount(car);
-        if (noDamaged && damagedCnt > 0) return false;
-        if (damagedFrom !== null && damagedCnt < damagedFrom) return false;
-        if (damagedTo !== null && damagedCnt > damagedTo) return false;
-
-        if (selectedColor.size > 0 && !selectedColor.has(d.color)) return false;
-
-        return true;
-      });
-
-      page = 1;
-      let activeCount = 0;
-      if (selectedMarks.size > 0) activeCount++;
-      if (selectedModels.size > 0) activeCount++;
-      if (selectedGenerations.size > 0) activeCount++;
-      if (selectedTrims.size > 0) activeCount++;
-      activeCount += selectedBody.size + selectedFuel.size + selectedTrans.size + selectedColor.size;
-      if (powerFrom !== null) activeCount++;
-      if (powerTo !== null) activeCount++;
-      if (engineFrom !== null) activeCount++;
-      if (engineTo !== null) activeCount++;
-      if (priceFrom !== null) activeCount++;
-      if (priceTo !== null) activeCount++;
-      if (mileageFrom !== null) activeCount++;
-      if (mileageTo !== null) activeCount++;
-      if (yearFrom !== null) activeCount++;
-      if (monthFrom) activeCount++;
-      if (yearTo !== null) activeCount++;
-      if (monthTo) activeCount++;
-      if (driveAwdOnly) activeCount++;
-      if (insuranceCasesFrom !== null) activeCount++;
-      if (insuranceCasesTo !== null) activeCount++;
-      if (noInsuranceCases) activeCount++;
-      if (insurancePayoutsFrom !== null) activeCount++;
-      if (insurancePayoutsTo !== null) activeCount++;
-      if (noInsurancePayouts) activeCount++;
-      if (damagedFrom !== null) activeCount++;
-      if (damagedTo !== null) activeCount++;
-      if (noDamaged) activeCount++;
-      if (filterCountEl) filterCountEl.innerText = activeCount;
-      if (filtersBadge) filtersBadge.textContent = String(activeCount);
-
-      sortFilteredCars();
-      draw();
-    }
-
     // Сброс всех фильтров
     function resetFilters() {
       closeAllDropdowns();
@@ -3970,110 +3924,25 @@
       chk = document.getElementById('filterNoInsurancePayouts'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoDamaged'); if (chk) chk.checked = false;
       syncCheckboxVisualStates(document);
-      rebuildModelList();
-      rebuildGenerationList();
-      rebuildTrimList();
-      applyFilters();
+      void runApplyFilters();
     }
 
     showSkeleton();
 
-    // Загрузка данных и маппинга KO→EN (data/encar_mapping.json от scripts/build_encar_mapping.py)
-    const mappingPromise = fetch('data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null);
-    const carsPromise = fetch('cars.json').then(function(r) {
-      if (!r.ok) throw new Error('cars.json HTTP ' + r.status);
-      return r.json();
-    });
-    Promise.all([ carsPromise, mappingPromise ])
-      .then(([data, mapping]) => {
+    const mappingPromise = fetch('data/encar_mapping.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+
+    (async function bootstrapCatalog() {
+      try {
+        var mapping = await mappingPromise;
         if (mapping && typeof mapping === 'object') {
-          ['mark','model','generation','type','trim'].forEach(cat => {
+          ['mark', 'model', 'generation', 'type', 'trim'].forEach(function(cat) {
             if (mapping[cat] && typeof mapping[cat] === 'object') {
               filterMappingKoEn[cat] = Object.assign({}, filterMappingKoEn[cat] || {}, mapping[cat]);
             }
           });
         }
-        const rawCars = data.result || [];
-        // Надежная дедупликация: сначала стабильные ID, затем резервный fingerprint
-        const seenPrimary = new Set();
-        const seenVins = new Set();
-        const seenFallback = new Set();
-        function asKey(v) {
-          if (v == null) return '';
-          const s = String(v).trim();
-          return s && s !== 'null' && s !== 'undefined' ? s : '';
-        }
-        function extractPrimaryKey(car) {
-          const d = (car && car.data) || {};
-          const candidates = [
-            car && car.id,
-            car && car.car_id,
-            car && car.inner_id,
-            d && d.id,
-            d && d.car_id,
-            d && d.inner_id,
-            d && d.vin
-          ];
-          for (let i = 0; i < candidates.length; i++) {
-            const key = asKey(candidates[i]);
-            if (key) return key;
-          }
-          return '';
-        }
-        function buildFallbackFingerprint(car) {
-          const d = (car && car.data) || {};
-          const parts = [
-            asKey(d.mark),
-            asKey(d.model),
-            asKey(d.generation || d.configuration),
-            asKey(d.year || d.yearMonth),
-            asKey(d.km_age),
-            asKey(d.price_won),
-            asKey(d.displacement),
-            asKey(d.power),
-            asKey(d.body_type)
-          ];
-          return parts.join('|');
-        }
-        allCars = rawCars.filter(car => {
-          if (!car) return false;
-          const d = (car && car.data) || {};
-          const vin = asKey(d.vin);
-          if (vin) {
-            if (seenVins.has(vin)) return false;
-            seenVins.add(vin);
-          }
-          const primary = extractPrimaryKey(car);
-          if (primary) {
-            if (seenPrimary.has(primary)) return false;
-            seenPrimary.add(primary);
-            return true;
-          }
-          const fp = buildFallbackFingerprint(car);
-          if (!fp) return true;
-          if (seenFallback.has(fp)) return false;
-          seenFallback.add(fp);
-          return true;
-        });
-        try {
-          const rawCount = Array.isArray(rawCars) ? rawCars.length : 0;
-          const dedupCount = allCars.length;
-          const removed = Math.max(0, rawCount - dedupCount);
-          console.info('[catalog] cars loaded:', rawCount, '| deduped:', dedupCount, '| removed duplicates:', removed);
-        } catch (e) {}
-        
-        filteredCars = [...allCars];
-        sortFilteredCars();
-        buildFiltersFromData();
-        var todayEl = document.getElementById('bannerTodayCount');
-        if (todayEl) {
-          var todayStr = new Date().toISOString().slice(0, 10);
-          var todayCount = allCars.filter(function(c) {
-            var d = (c.data && (c.data.offer_created || c.data.created_at)) || '';
-            return String(d).slice(0, 10) === todayStr;
-          }).length;
-          todayEl.textContent = todayCount > 0 ? '+' + todayCount.toLocaleString('ru-RU') : '+0';
-        }
+        initCatalogFiltersUi();
+
         var savedScroll = null;
         var savedPage = null;
         try {
@@ -4084,11 +3953,39 @@
             sessionStorage.removeItem('encar_catalog_page');
           }
         } catch (e) {}
+
+        var wantPage = 1;
         if (savedPage !== null) {
           var pageNum = Math.max(1, parseInt(savedPage, 10));
-          if (!isNaN(pageNum)) page = pageNum;
+          if (!isNaN(pageNum)) wantPage = pageNum;
         }
-        draw();
+
+        var reqId = ++catalogRequestId;
+        await refreshFacetBars(reqId);
+        if (reqId !== catalogRequestId) return;
+        await loadCarsPage(wantPage, reqId);
+        if (reqId !== catalogRequestId) return;
+        if (wantPage > catalogPages && catalogPages >= 1) {
+          reqId = ++catalogRequestId;
+          await loadCarsPage(catalogPages, reqId);
+        }
+
+        var todayEl = document.getElementById('bannerTodayCount');
+        if (todayEl) {
+          try {
+            var sr = await fetch(apiUrl('/api/stats'));
+            if (sr.ok) {
+              var st = await sr.json();
+              var n = (st && typeof st.listed_today === 'number') ? st.listed_today : 0;
+              todayEl.textContent = n > 0 ? ('+' + n.toLocaleString('ru-RU')) : '+0';
+            } else {
+              todayEl.textContent = '+0';
+            }
+          } catch (e2) {
+            todayEl.textContent = '+0';
+          }
+        }
+
         if (savedScroll !== null) {
           var scrollY = parseInt(savedScroll, 10);
           if (!isNaN(scrollY) && scrollY > 0) {
@@ -4097,15 +3994,14 @@
             });
           }
         }
-      if (gridEl) gridEl.setAttribute('aria-busy', 'false');
-      })
-      .catch(err => {
-        console.error('Ошибка загрузки cars.json', err);
+      } catch (err) {
+        console.error('Ошибка загрузки каталога', err);
         if (gridEl) {
           gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
+          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог. Проверьте, что API доступен по тому же домену (например /api/cars).</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
         }
-      });
+      }
+    })();
 
     // Кнопка сброса
     document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
@@ -4155,17 +4051,13 @@
           syncSortUi(value);
           closeAllDropdowns();
           currentSort = value;
-          page = 1;
-          sortFilteredCars();
-          draw();
+          void loadCarsPage(1);
         });
       }
       sortSelect.addEventListener('change', () => {
         currentSort = sortSelect.value || 'date_new';
         syncSortUi(currentSort);
-        page = 1;
-        sortFilteredCars();
-        draw();
+        void loadCarsPage(1);
       });
       syncSortUi(sortSelect.value || 'date_new');
     }

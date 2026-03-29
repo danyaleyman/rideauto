@@ -15,7 +15,7 @@ import os
 import secrets
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -299,6 +299,31 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
     return where, params
 
 
+def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
+    skip = frozenset({"page", "per_page", "sort"})
+    return {k: v for k, v in raw.items() if k not in skip and v not in (None, "")}
+
+
+def _facet_dimension(
+    conn: sqlite3.Connection,
+    query: Dict[str, str],
+    omit_keys: frozenset[str],
+    value_expr: str,
+) -> List[Dict[str, Any]]:
+    q2 = {k: v for k, v in query.items() if k not in omit_keys}
+    where, params = _build_filter_sql(q2)
+    sql = f"""
+        SELECT {value_expr} AS val, COUNT(*) AS c
+        FROM cars
+        {where}
+        GROUP BY 1
+        HAVING val IS NOT NULL AND CAST(val AS TEXT) <> ''
+        ORDER BY val COLLATE NOCASE
+    """
+    rows = conn.execute(sql, params).fetchall()
+    return [{"value": r["val"], "count": r["c"]} for r in rows]
+
+
 def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: int) -> List[sqlite3.Row]:
     d = current_car.get("data") if isinstance(current_car.get("data"), dict) else current_car
     if not isinstance(d, dict):
@@ -385,44 +410,45 @@ async def cars(request: web.Request) -> web.Response:
 
 
 async def facets(request: web.Request) -> web.Response:
-    app = request.app
-    conn: sqlite3.Connection = app["db"]
-    q = request.rel_url.query
-    q_for_facets = dict(q)
-    q_for_facets.pop("marks", None)
-    q_for_facets.pop("models", None)
-    where, params = _build_filter_sql(q_for_facets)
+    conn: sqlite3.Connection = request.app["db"]
+    q = _catalog_query_dict(dict(request.rel_url.query))
 
-    mark_rows = conn.execute(
-        f"""
-        SELECT json_extract(data_json, '$.data.mark') as mark, COUNT(*) as c
-        FROM cars
-        {where}
-        GROUP BY mark
-        HAVING mark IS NOT NULL AND mark <> ''
-        ORDER BY mark COLLATE NOCASE
-        """,
-        params,
-    ).fetchall()
-
-    model_rows = conn.execute(
-        f"""
-        SELECT json_extract(data_json, '$.data.model') as model, COUNT(*) as c
-        FROM cars
-        {where}
-        GROUP BY model
-        HAVING model IS NOT NULL AND model <> ''
-        ORDER BY model COLLATE NOCASE
-        """,
-        params,
-    ).fetchall()
+    mark_expr = "json_extract(data_json, '$.data.mark')"
+    model_expr = "json_extract(data_json, '$.data.model')"
+    generation_expr = "COALESCE(json_extract(data_json, '$.data.generation'), json_extract(data_json, '$.data.configuration'))"
+    trim_expr = "COALESCE(json_extract(data_json, '$.data.gradeName'), json_extract(data_json, '$.data.configuration'), json_extract(data_json, '$.data.generation'))"
+    body_expr = "json_extract(data_json, '$.data.body_type')"
+    fuel_expr = "json_extract(data_json, '$.data.engine_type')"
+    trans_expr = "json_extract(data_json, '$.data.transmission_type')"
+    color_expr = "json_extract(data_json, '$.data.color')"
 
     return web.json_response(
         {
-            "marks": [{"value": r["mark"], "count": r["c"]} for r in mark_rows],
-            "models": [{"value": r["model"], "count": r["c"]} for r in model_rows],
+            "marks": _facet_dimension(conn, q, frozenset({"marks"}), mark_expr),
+            "models": _facet_dimension(conn, q, frozenset({"models"}), model_expr),
+            "generations": _facet_dimension(conn, q, frozenset({"generations"}), generation_expr),
+            "trims": _facet_dimension(conn, q, frozenset({"trims"}), trim_expr),
+            "bodies": _facet_dimension(conn, q, frozenset({"body"}), body_expr),
+            "fuels": _facet_dimension(conn, q, frozenset({"fuel"}), fuel_expr),
+            "transmissions": _facet_dimension(conn, q, frozenset({"trans"}), trans_expr),
+            "colors": _facet_dimension(conn, q, frozenset({"color"}), color_expr),
         }
     )
+
+
+async def catalog_stats(request: web.Request) -> web.Response:
+    conn: sqlite3.Connection = request.app["db"]
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    date_expr = (
+        "substr(COALESCE(json_extract(data_json, '$.data.offer_created'), "
+        "json_extract(data_json, '$.data.created_at')), 1, 10)"
+    )
+    row = conn.execute(
+        f"SELECT COUNT(*) AS c FROM cars WHERE {date_expr} = ?",
+        [today_str],
+    ).fetchone()
+    n = int(row["c"]) if row else 0
+    return web.json_response({"listed_today": n, "date_utc": today_str})
 
 
 async def car_by_id(request: web.Request) -> web.Response:
@@ -935,6 +961,7 @@ def create_app(db_path: str) -> web.Application:
     app.router.add_get("/api/health", health)
     app.router.add_get("/api/cars", cars)
     app.router.add_get("/api/facets", facets)
+    app.router.add_get("/api/stats", catalog_stats)
     app.router.add_get("/api/car/{id}", car_by_id)
     app.router.add_get("/api/similar", similar)
     app.router.add_post("/api/auth/telegram", auth_telegram)
