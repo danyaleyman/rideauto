@@ -3292,6 +3292,20 @@
       syncCascadeSlotVisibility();
     }
 
+    /** Фасеты тяжёлые: не конкурируют с /api/cars за сеть/CPU в первый кадр (как отдельный «filters» у конкурента). */
+    function scheduleFacetRefresh(reqId) {
+      function run() {
+        refreshFacetBars(reqId).catch(function(e) {
+          if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
+        });
+      }
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(run, { timeout: 2500 });
+      } else {
+        setTimeout(run, 80);
+      }
+    }
+
     let debouncedApplyTimer = null;
     function scheduleDebouncedApplyFilters() {
       if (debouncedApplyTimer) clearTimeout(debouncedApplyTimer);
@@ -3337,9 +3351,7 @@
       const reqId = ++catalogRequestId;
       page = 1;
       try {
-        refreshFacetBars(reqId).catch(function(e) {
-          if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
-        });
+        scheduleFacetRefresh(reqId);
         await loadCarsPage(1, reqId);
       } catch (e) {
         if (reqId !== catalogRequestId) return;
@@ -3999,9 +4011,7 @@
         }
 
         var reqId = ++catalogRequestId;
-        refreshFacetBars(reqId).catch(function(e) {
-          if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
-        });
+        scheduleFacetRefresh(reqId);
         var todayEl = document.getElementById('bannerTodayCount');
         var statsPromise = todayEl
           ? fetch(apiUrl('/api/stats')).then(function(sr) {

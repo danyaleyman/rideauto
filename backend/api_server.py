@@ -304,6 +304,10 @@ def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
     return {k: v for k, v in raw.items() if k not in skip and v not in (None, "")}
 
 
+def _json_public_cache(data: Any, cache_control: str) -> web.Response:
+    return web.json_response(data, headers={"Cache-Control": cache_control})
+
+
 def _facet_dimension(
     conn: sqlite3.Connection,
     query: Dict[str, str],
@@ -395,18 +399,18 @@ async def cars(request: web.Request) -> web.Response:
         result.append(car)
 
     pages = max(1, (total + per_page - 1) // per_page)
-    return web.json_response(
-        {
-            "result": result,
-            "meta": {
-                "page": page,
-                "per_page": per_page,
-                "total": total,
-                "pages": pages,
-                "next_page": page + 1 if page < pages else None,
-            },
-        }
-    )
+    payload = {
+        "result": result,
+        "meta": {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "pages": pages,
+            "next_page": page + 1 if page < pages else None,
+        },
+    }
+    # Кэш по полному URL (все параметры фильтра в query) — повторные открытия из disk cache, как у CDN
+    return _json_public_cache(payload, "public, max-age=15, stale-while-revalidate=120")
 
 
 async def facets(request: web.Request) -> web.Response:
@@ -422,18 +426,17 @@ async def facets(request: web.Request) -> web.Response:
     trans_expr = "json_extract(data_json, '$.data.transmission_type')"
     color_expr = "json_extract(data_json, '$.data.color')"
 
-    return web.json_response(
-        {
-            "marks": _facet_dimension(conn, q, frozenset({"marks"}), mark_expr),
-            "models": _facet_dimension(conn, q, frozenset({"models"}), model_expr),
-            "generations": _facet_dimension(conn, q, frozenset({"generations"}), generation_expr),
-            "trims": _facet_dimension(conn, q, frozenset({"trims"}), trim_expr),
-            "bodies": _facet_dimension(conn, q, frozenset({"body"}), body_expr),
-            "fuels": _facet_dimension(conn, q, frozenset({"fuel"}), fuel_expr),
-            "transmissions": _facet_dimension(conn, q, frozenset({"trans"}), trans_expr),
-            "colors": _facet_dimension(conn, q, frozenset({"color"}), color_expr),
-        }
-    )
+    payload = {
+        "marks": _facet_dimension(conn, q, frozenset({"marks"}), mark_expr),
+        "models": _facet_dimension(conn, q, frozenset({"models"}), model_expr),
+        "generations": _facet_dimension(conn, q, frozenset({"generations"}), generation_expr),
+        "trims": _facet_dimension(conn, q, frozenset({"trims"}), trim_expr),
+        "bodies": _facet_dimension(conn, q, frozenset({"body"}), body_expr),
+        "fuels": _facet_dimension(conn, q, frozenset({"fuel"}), fuel_expr),
+        "transmissions": _facet_dimension(conn, q, frozenset({"trans"}), trans_expr),
+        "colors": _facet_dimension(conn, q, frozenset({"color"}), color_expr),
+    }
+    return _json_public_cache(payload, "public, max-age=20, stale-while-revalidate=120")
 
 
 async def catalog_stats(request: web.Request) -> web.Response:
@@ -448,7 +451,7 @@ async def catalog_stats(request: web.Request) -> web.Response:
         [today_str],
     ).fetchone()
     n = int(row["c"]) if row else 0
-    return web.json_response({"listed_today": n, "date_utc": today_str})
+    return _json_public_cache({"listed_today": n, "date_utc": today_str}, "public, max-age=30, stale-while-revalidate=300")
 
 
 async def car_by_id(request: web.Request) -> web.Response:
