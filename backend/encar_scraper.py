@@ -441,12 +441,18 @@ class AsyncEncarClient:
         return None, 0, last_error
 
     async def fetch_list_page(
-        self, offset: int, limit: int, car_type: str
+        self,
+        offset: int,
+        limit: int,
+        car_type: str,
+        q_suffix: str = "",
     ) -> Tuple[Optional[dict], int, Optional[str]]:
         car_type_flag = "N" if car_type == "for" else "Y"
+        base = f"(And.Hidden.N._.CarType.{car_type_flag}.)"
+        q = base[:-1] + q_suffix + ")" if q_suffix else base
         params = {
             "count": "true",
-            "q": f"(And.Hidden.N._.CarType.{car_type_flag}.)",
+            "q": q,
             "sr": f"|ModifiedDate|{offset}|{limit}",
         }
         return await self._request(
@@ -502,61 +508,111 @@ async def list_producer(
 ) -> None:
     http_cfg = config.get("http", {})
     page_size = http_cfg.get("list_page_size", 100)
-    max_offset = http_cfg.get("max_list_offset", 10000)
+    raw_max = http_cfg.get("max_list_offset", 10000)
+    hard_cap = int(http_cfg.get("list_offset_hard_cap", 10_000_000))
+    try:
+        max_offset = hard_cap if raw_max in (None, 0, "0") else int(raw_max)
+    except (TypeError, ValueError):
+        max_offset = hard_cap
     delay_min = http_cfg.get("list_page_delay_min", 0.5)
     delay_max = http_cfg.get("list_page_delay_max", 1.5)
+    stall_limit = int(http_cfg.get("list_stall_pages_limit", 50))
+    variants = http_cfg.get("list_q_suffixes")
+    if not isinstance(variants, list) or not variants:
+        variants = [""]
+
     for car_type in car_types:
         if max_cars > 0 and stats.get("saved", 0) >= max_cars:
             log.info("List producer stopping: max_cars=%s reached", max_cars)
             break
-        offset = checkpoint.get_last_offset(car_type)
         type_label = "import" if car_type == "for" else "domestic"
-        list_fail_streak = 0
-        while offset < max_offset:
+        for vidx, q_suffix in enumerate(variants):
             if max_cars > 0 and stats.get("saved", 0) >= max_cars:
-                log.info("List producer stopping: max_cars=%s (уже в БД/сессии)", max_cars)
                 break
-            # Не копим десятки тысяч pending, если нужно всего max_cars карточек
-            if max_cars > 0:
-                pend = checkpoint.pending_count()
-                if stats.get("saved", 0) + pend >= max_cars + 3 * page_size:
+            if isinstance(q_suffix, str) and q_suffix.strip() == "":
+                q_suffix = ""
+            ck_key = car_type if len(variants) == 1 else f"{car_type}_v{vidx}"
+            log.info(
+                "List phase type=%s (%s) variant %s/%s q_suffix=%r checkpoint_key=%s",
+                car_type,
+                type_label,
+                vidx + 1,
+                len(variants),
+                q_suffix or "(base)",
+                ck_key,
+            )
+            offset = checkpoint.get_last_offset(ck_key)
+            list_fail_streak = 0
+            stale_full_pages = 0
+            while offset < max_offset:
+                if max_cars > 0 and stats.get("saved", 0) >= max_cars:
+                    log.info("List producer stopping: max_cars=%s (уже в БД/сессии)", max_cars)
+                    break
+                if max_cars > 0:
+                    pend = checkpoint.pending_count()
+                    if stats.get("saved", 0) + pend >= max_cars + 3 * page_size:
+                        log.info(
+                            "List producer stopping: достаточно очереди (saved=%s pending=%s max_cars=%s)",
+                            stats.get("saved", 0), pend, max_cars,
+                        )
+                        break
+                data, status, err = await client.fetch_list_page(
+                    offset, page_size, car_type, q_suffix=q_suffix or ""
+                )
+                if status != 200 or not data:
+                    log.warning(
+                        "List page failed car_type=%s variant=%s offset=%s status=%s err=%s",
+                        car_type, ck_key, offset, status, err,
+                    )
+                    if status in (407, 429) or (status >= 500 and offset > 0):
+                        list_fail_streak += 1
+                        if list_fail_streak > 25:
+                            log.error(
+                                "List: too many failures at offset=%s, stopping list for %s variant=%s",
+                                offset, car_type, ck_key,
+                            )
+                            break
+                        await asyncio.sleep(5 if status == 407 else 60)
+                        continue
+                    break
+                list_fail_streak = 0
+                items = data.get("SearchResults") or []
+                api_count = data.get("Count") or data.get("TotalCount") or data.get("totalCount")
+                if not items:
                     log.info(
-                        "List producer stopping: достаточно очереди (saved=%s pending=%s max_cars=%s)",
-                        stats.get("saved", 0), pend, max_cars,
+                        "List exhausted car_type=%s variant=%s at offset=%s api_count=%s",
+                        car_type, ck_key, offset, api_count,
                     )
                     break
-            data, status, err = await client.fetch_list_page(offset, page_size, car_type)
-            if status != 200 or not data:
-                log.warning("List page failed car_type=%s offset=%s status=%s err=%s", car_type, offset, status, err)
-                if status in (407, 429) or (status >= 500 and offset > 0):
-                    list_fail_streak += 1
-                    if list_fail_streak > 25:
-                        log.error("List: too many failures at offset=%s, stopping list for %s", offset, car_type)
+                to_add = []
+                for item in items:
+                    car_id = str(item.get("Id", ""))
+                    if not car_id:
+                        continue
+                    if checkpoint.is_collected(car_id):
+                        continue
+                    to_add.append((car_id, car_type, item))
+                added = checkpoint.add_pending_batch(to_add)
+                if added == 0 and len(items) >= max(1, page_size - 5):
+                    stale_full_pages += 1
+                    if stale_full_pages >= stall_limit:
+                        log.error(
+                            "List stall: car_type=%s variant=%s offset=%s — %s full pages with nothing new queued; stop",
+                            car_type, ck_key, offset, stall_limit,
+                        )
                         break
-                    await asyncio.sleep(5 if status == 407 else 60)
-                    continue
-                break
-            list_fail_streak = 0
-            items = data.get("SearchResults") or []
-            if not items:
-                log.info("List exhausted car_type=%s at offset=%s", car_type, offset)
-                break
-            to_add = []
-            for item in items:
-                car_id = str(item.get("Id", ""))
-                if not car_id:
-                    continue
-                if checkpoint.is_collected(car_id):
-                    continue
-                to_add.append((car_id, car_type, item))
-            added = checkpoint.add_pending_batch(to_add)
-            stats["list_pages"] += 1
-            stats["ids_discovered"] += len(items)
-            stats["ids_queued"] += added
-            log.info("List car_type=%s offset=%s items=%s queued=%s", car_type, offset, len(items), added)
-            checkpoint.set_last_offset(car_type, offset + page_size)
-            offset += page_size
-            await asyncio.sleep(random.uniform(delay_min, delay_max))
+                else:
+                    stale_full_pages = 0
+                stats["list_pages"] += 1
+                stats["ids_discovered"] += len(items)
+                stats["ids_queued"] += added
+                log.info(
+                    "List car_type=%s variant=%s offset=%s items=%s queued=%s api_count=%s",
+                    car_type, ck_key, offset, len(items), added, api_count,
+                )
+                checkpoint.set_last_offset(ck_key, offset + page_size)
+                offset += page_size
+                await asyncio.sleep(random.uniform(delay_min, delay_max))
     log.info("List producer finished for car_types=%s", car_types)
 
 

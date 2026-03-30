@@ -4,6 +4,8 @@ Export cars from scraper SQLite DB to frontend JSON.
 - Full file: cars.json (legacy frontend format).
 - Optional chunked export: chunks + index file.
 - Optional gzip for better CDN/static delivery.
+- Atomic replace for published files (no half-written JSON on readers).
+- Writes price-enriched JSON back into SQLite so /api/cars matches cars.json.
 """
 import argparse
 import gzip
@@ -31,18 +33,39 @@ def _fill_power_from_external(data: dict) -> None:
         pass
 
 
-def _write_json(path: Path, payload: dict, gzip_enabled: bool = False) -> None:
+def _write_json_atomic(path: Path, payload: dict, gzip_enabled: bool = False) -> None:
+    """Write JSON then os.replace for atomic visibility to nginx readers."""
+    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        tmp.replace(path)
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
     if gzip_enabled:
-        with gzip.open(str(path) + ".gz", "wt", encoding="utf-8") as gz:
-            json.dump(payload, gz, ensure_ascii=False)
+        gz_path = Path(str(path) + ".gz")
+        gz_tmp = gz_path.with_name(gz_path.name + ".tmp")
+        try:
+            with gzip.open(gz_tmp, "wt", encoding="utf-8") as gz:
+                json.dump(payload, gz, ensure_ascii=False)
+            gz_tmp.replace(gz_path)
+        finally:
+            if gz_tmp.exists():
+                try:
+                    gz_tmp.unlink()
+                except OSError:
+                    pass
 
 
 def _iter_chunks(items, chunk_size: int):
     for i in range(0, len(items), chunk_size):
-        yield i // chunk_size + 1, items[i:i + chunk_size]
+        yield i // chunk_size + 1, items[i : i + chunk_size]
 
 
 def main():
@@ -56,70 +79,90 @@ def main():
     p.add_argument("--no-prices", action="store_true", help="Do not calculate prices (no API calls)")
     p.add_argument("--no-power-lookup", action="store_true", help="Do not fill power from power_lookup.json")
     p.add_argument(
+        "--no-sqlite-sync",
+        action="store_true",
+        help="Do not write priced records back into SQLite (catalog API stays without my_price)",
+    )
+    p.add_argument(
         "--learn-engine-map",
         action="store_true",
         help="После экспорта запустить auto_learn_engine_map.py (обновить engine_map.json по motorType)",
     )
     args = p.parse_args()
-    conn = sqlite3.connect(args.db)
-    rows = conn.execute("SELECT car_id, data_json FROM cars ORDER BY id").fetchall()
-    cars = []
-    for car_id, data_json in rows:
-        car = json.loads(data_json)
-        # Единый стабильный id для ссылок каталог → карточка (Encar car_id)
-        car["id"] = car_id
-        if isinstance(car.get("data"), dict):
-            car["data"]["id"] = str(car_id)
-            if not args.no_power_lookup:
-                _fill_power_from_external(car["data"])
-        cars.append(car)
-    conn.close()
 
-    if not args.no_prices and cars:
-        try:
-            sys.path.insert(0, str(Path(__file__).resolve().parent))
-            from price import PriceCalculator
-            calc = PriceCalculator()
-            price_ok = 0
-            price_failed = 0
-            failed_examples = []
-            for i, car in enumerate(cars):
-                data = car.get("data")
-                if data is None:
-                    data = car
-                try:
-                    calc.update_car_with_prices(data)
-                    if car.get("data") is not data:
-                        car["data"] = data
-                    if isinstance(data, dict):
-                        data.pop("price_calc_failed", None)
-                    price_ok += 1
-                except Exception as e:
-                    price_failed += 1
-                    if i == 0:
-                        print(f"Warning: price calc failed for first car: {e}", file=sys.stderr)
-                    if len(failed_examples) < 5:
-                        car_ref = car.get("id") or (data.get("id") if isinstance(data, dict) else None) or "unknown"
-                        failed_examples.append((str(car_ref), str(e)))
-                    if isinstance(data, dict):
-                        data["price_calc_failed"] = True
-                    if car.get("data") is not data:
-                        car["data"] = data
-            print(
-                f"Price calc summary: ok={price_ok} failed={price_failed} total={len(cars)}",
-                file=sys.stderr,
-            )
-            for car_ref, err in failed_examples:
-                print(f"Price calc failed: car_id={car_ref} error={err}", file=sys.stderr)
-        except ImportError as e:
-            print(f"Warning: price module not found, export without prices: {e}", file=sys.stderr)
+    db_path = Path(args.db).resolve()
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute("SELECT car_id, data_json FROM cars ORDER BY id").fetchall()
+        cars = []
+        for car_id, data_json in rows:
+            car = json.loads(data_json)
+            car["id"] = car_id
+            if isinstance(car.get("data"), dict):
+                car["data"]["id"] = str(car_id)
+                if not args.no_power_lookup:
+                    _fill_power_from_external(car["data"])
+            cars.append(car)
+
+        if not args.no_prices and cars:
+            try:
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                from price import PriceCalculator
+
+                calc = PriceCalculator()
+                price_ok = 0
+                price_failed = 0
+                failed_examples = []
+                for i, car in enumerate(cars):
+                    data = car.get("data")
+                    if data is None:
+                        data = car
+                    try:
+                        calc.update_car_with_prices(data)
+                        if car.get("data") is not data:
+                            car["data"] = data
+                        if isinstance(data, dict):
+                            data.pop("price_calc_failed", None)
+                        price_ok += 1
+                    except Exception as e:
+                        price_failed += 1
+                        if i == 0:
+                            print(f"Warning: price calc failed for first car: {e}", file=sys.stderr)
+                        if len(failed_examples) < 5:
+                            car_ref = car.get("id") or (data.get("id") if isinstance(data, dict) else None) or "unknown"
+                            failed_examples.append((str(car_ref), str(e)))
+                        if isinstance(data, dict):
+                            data["price_calc_failed"] = True
+                        if car.get("data") is not data:
+                            car["data"] = data
+                print(
+                    f"Price calc summary: ok={price_ok} failed={price_failed} total={len(cars)}",
+                    file=sys.stderr,
+                )
+                for car_ref, err in failed_examples:
+                    print(f"Price calc failed: car_id={car_ref} error={err}", file=sys.stderr)
+            except ImportError as e:
+                print(f"Warning: price module not found, export without prices: {e}", file=sys.stderr)
+
+        if not args.no_sqlite_sync and cars:
+            batch = []
+            for car in cars:
+                cid = car.get("id")
+                if not cid:
+                    continue
+                batch.append((json.dumps(car, ensure_ascii=False), str(cid)))
+            conn.executemany("UPDATE cars SET data_json = ? WHERE car_id = ?", batch)
+            conn.commit()
+            print(f"SQLite sync: updated data_json for {len(batch)} rows", file=sys.stderr)
+    finally:
+        conn.close()
 
     out = {
         "result": cars,
         "meta": {"page": 1, "next_page": 2, "limit": len(cars)},
     }
     out_path = Path(args.out).resolve()
-    _write_json(out_path, out, gzip_enabled=args.gzip)
+    _write_json_atomic(out_path, out, gzip_enabled=args.gzip)
 
     if args.chunk_size and args.chunk_size > 0:
         chunk_dir = Path(args.chunk_dir).resolve()
@@ -137,7 +180,7 @@ def main():
                 },
             }
             chunk_path = chunk_dir / name
-            _write_json(chunk_path, chunk_payload, gzip_enabled=args.gzip)
+            _write_json_atomic(chunk_path, chunk_payload, gzip_enabled=args.gzip)
             files.append({
                 "page": page_num,
                 "file": str(Path("data") / "chunks" / name).replace("\\", "/"),
@@ -149,7 +192,7 @@ def main():
             "pages": len(files),
             "files": files,
         }
-        _write_json(index_path, index_payload, gzip_enabled=args.gzip)
+        _write_json_atomic(index_path, index_payload, gzip_enabled=args.gzip)
         print(f"Chunked export: {len(files)} files to {chunk_dir}")
 
     print(f"Exported {len(cars)} cars to {out_path}")

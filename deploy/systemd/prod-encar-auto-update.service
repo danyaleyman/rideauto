@@ -8,6 +8,8 @@ User=prod-encar
 Group=prod-encar
 WorkingDirectory=/opt/prod-encar
 Environment=PYTHONUNBUFFERED=1
+# Ускорить ночной цикл: в /etc/default/prod-encar можно задать SKIP_LEARN_ENGINE_MAP=1 (см. encar_scraper._run_export_to_frontend).
+EnvironmentFile=-/etc/default/prod-encar
 ExecStart=/usr/bin/python3 /opt/prod-encar/backend/auto_update.py --config /opt/prod-encar/backend/config.json --type daily --workers 8
 NoNewPrivileges=true
 PrivateTmp=true

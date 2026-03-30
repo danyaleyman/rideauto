@@ -45,6 +45,10 @@ python backend/export_from_scraper_db.py \
 
 `auto_update.py` и `encar_scraper.py` выполняют такой экспорт автоматически после успешного обновления.
 
+**Ночное обновление каталога на VPS (SQLite + `api_server --db encar_cars.db`):** в [`backend/config.json`](backend/config.json) для `update_config` держите `"catalog_sync_sqlite": true` (по умолчанию в коде тоже включено). Тогда после успешного цикла PostgreSQL дополнительно выполняется `encar_daily_update --once`, который обновляет `encar_cars.db` и экспортирует `frontend/cars.json`. Иначе таймер мог бы писать только в Postgres, а сайт продолжал бы отдавать старый SQLite.
+
+Глубина списка Encar задаётся в [`scraper_config.yaml`](scraper_config.yaml): `max_list_offset: 0` означает проход до пустого ответа (с верхней границей `list_offset_hard_cap`). Дополнительные срезы запроса — `list_q_suffixes`.
+
 ## API для серверной пагинации/фильтров
 
 Для больших объёмов каталога (100k+) используйте API вместо полной загрузки всех карточек в браузер:
@@ -146,6 +150,8 @@ sudo systemctl status fail2ban --no-pager
 systemctl status prod-encar-api.service --no-pager
 systemctl status prod-encar-auto-update.timer --no-pager
 ```
+
+В `backend/config.json` проверьте `update_config.catalog_sync_sqlite: true`, чтобы ночной `auto_update` синхронизировал файловую БД каталога. Длинный пост-экспорт `auto_learn_engine_map` можно отключить переменной окружения `SKIP_LEARN_ENGINE_MAP=1` в `/etc/default/prod-encar` (см. комментарий в `deploy/systemd/prod-encar-auto-update.service`).
 
 ### 4) TLS (HTTPS) через certbot
 

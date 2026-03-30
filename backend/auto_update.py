@@ -67,7 +67,10 @@ class AutoUpdateManager:
             },
             'update_config': {
                 'max_workers': 5,
-                'update_type': 'daily'  # 'daily' or 'full'
+                'update_type': 'daily',  # 'daily' or 'full'
+                # После успешного PostgreSQL-цикла гоняет encar_daily_update (обновляет encar_cars.db + экспорт).
+                # Сайт на SQLite (api_server --db encar_cars.db) без этого не увидит ночное обновление.
+                'catalog_sync_sqlite': True,
             },
             'notification_config': {
                 'enabled': False,
@@ -369,6 +372,23 @@ class AutoUpdateManager:
                 self.send_notification(subject, body, is_error=False)
             
             logger.info("Автоматическое обновление завершено успешно!")
+
+            if self.config.get("update_config", {}).get("catalog_sync_sqlite", True):
+                backend_dir = Path(__file__).resolve().parent
+                repo_dir = backend_dir.parent
+                config_path = repo_dir / "scraper_config.yaml"
+                daily_update_path = backend_dir / "encar_daily_update.py"
+                logger.info("Синхронизация каталога SQLite (encar_daily_update --once) для совпадения с API…")
+                proc_sqlite = subprocess.run(
+                    [sys.executable, str(daily_update_path), "--once", "--config", str(config_path)],
+                    cwd=str(repo_dir),
+                )
+                if proc_sqlite.returncode != 0:
+                    raise RuntimeError(
+                        f"encar_daily_update завершился с кодом {proc_sqlite.returncode}; каталог encar_cars.db не обновлён"
+                    )
+                report["catalog_sqlite_sync"] = {"status": "ok", "returncode": 0}
+
             return report
             
         except Exception as e:

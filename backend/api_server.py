@@ -299,6 +299,15 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
     return where, params
 
 
+def _cars_dedup_where(where: str, params: List[str]) -> Tuple[str, List[str]]:
+    """Один ряд на car_id (максимальный id) — убирает исторические дубликаты в выдаче."""
+    dedup = "cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id)"
+    if not where:
+        return f"WHERE {dedup}", list(params)
+    inner = where[6:].strip() if where.startswith("WHERE ") else where
+    return f"WHERE {dedup} AND ({inner})", list(params)
+
+
 def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
     skip = frozenset({"page", "per_page", "sort"})
     return {k: v for k, v in raw.items() if k not in skip and v not in (None, "")}
@@ -316,15 +325,16 @@ def _facet_dimension(
 ) -> List[Dict[str, Any]]:
     q2 = {k: v for k, v in query.items() if k not in omit_keys}
     where, params = _build_filter_sql(q2)
+    where2, params2 = _cars_dedup_where(where, params)
     sql = f"""
         SELECT {value_expr} AS val, COUNT(*) AS c
         FROM cars
-        {where}
+        {where2}
         GROUP BY 1
         HAVING val IS NOT NULL AND CAST(val AS TEXT) <> ''
         ORDER BY val COLLATE NOCASE
     """
-    rows = conn.execute(sql, params).fetchall()
+    rows = conn.execute(sql, params2).fetchall()
     return [{"value": r["val"], "count": r["c"]} for r in rows]
 
 
@@ -346,7 +356,8 @@ def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: 
         """
         SELECT car_id, data_json
         FROM cars
-        WHERE json_extract(data_json, '$.data.mark') = ?
+        WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id)
+          AND json_extract(data_json, '$.data.mark') = ?
           AND CAST(json_extract(data_json, '$.data.price_won') AS REAL) BETWEEN ? AND ?
         ORDER BY ABS(CAST(json_extract(data_json, '$.data.price_won') AS REAL) - ?) ASC, id DESC
         LIMIT ?
@@ -369,6 +380,7 @@ async def cars(request: web.Request) -> web.Response:
     offset = (page - 1) * per_page
 
     where, params = _build_filter_sql(q)
+    where2, params2 = _cars_dedup_where(where, params)
     sort = (q.get("sort") or "date_new").strip()
     sort_map = {
         "date_new": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) DESC",
@@ -381,10 +393,10 @@ async def cars(request: web.Request) -> web.Response:
         "mileage_low": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) ASC",
     }
     order_sql = sort_map.get(sort, sort_map["date_new"])
-    total = conn.execute(f"SELECT COUNT(*) as c FROM cars {where}", params).fetchone()["c"]
+    total = conn.execute(f"SELECT COUNT(*) as c FROM cars {where2}", params2).fetchone()["c"]
     rows = conn.execute(
-        f"SELECT car_id, data_json FROM cars {where} ORDER BY {order_sql}, id DESC LIMIT ? OFFSET ?",
-        [*params, per_page, offset],
+        f"SELECT car_id, data_json FROM cars {where2} ORDER BY {order_sql}, id DESC LIMIT ? OFFSET ?",
+        [*params2, per_page, offset],
     ).fetchall()
 
     result = []
@@ -447,7 +459,7 @@ async def catalog_stats(request: web.Request) -> web.Response:
         "json_extract(data_json, '$.data.created_at')), 1, 10)"
     )
     row = conn.execute(
-        f"SELECT COUNT(*) AS c FROM cars WHERE {date_expr} = ?",
+        f"SELECT COUNT(*) AS c FROM cars WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id) AND {date_expr} = ?",
         [today_str],
     ).fetchone()
     n = int(row["c"]) if row else 0
@@ -908,15 +920,16 @@ async def run_subscription_notifications(request: web.Request) -> web.Response:
             filters = {}
         q = _subscription_filters_to_query(filters if isinstance(filters, dict) else {})
         where, params = _build_filter_sql(q)
+        w2, p2 = _cars_dedup_where(where, params)
         rows = conn.execute(
             f"""
             SELECT id, car_id, data_json
             FROM cars
-            {where} {'AND' if where else 'WHERE'} id > ?
+            {w2} AND id > ?
             ORDER BY id ASC
             LIMIT 5
             """,
-            [*params, int(row["last_notified_car_pk"] or 0)],
+            [*p2, int(row["last_notified_car_pk"] or 0)],
         ).fetchall()
         if not rows:
             continue

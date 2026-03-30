@@ -11,8 +11,16 @@ http:
   timeout_connect: 10
   # List page size (API limit is typically 50-100)
   list_page_size: 100
-  # Max offset for list API (if API returns error above this, use date-range strategy)
-  max_list_offset: 10000
+  # 0 = до пустого ответа или list_offset_hard_cap (глубокая выгрузка for/kor)
+  max_list_offset: 0
+  # Верхняя граница offset (защита от зацикливания при баге API)
+  list_offset_hard_cap: 10000000
+  # Подряд полных страниц без новых id в очереди — стоп (дубликаты листинга API)
+  list_stall_pages_limit: 50
+  # Доп. суффиксы к выражению q после CarType (для обхода потолка offset — см. документацию Encar facets)
+  # Пример: [ "", "_.(And.Manu.[현대].)" ] — только при необходимости; базовый проход обычно хватает
+  list_q_suffixes:
+    - ""
   # Delay between list page requests (seconds) - list is sequential to avoid offset issues
   list_page_delay_min: 0.5
   list_page_delay_max: 1.5

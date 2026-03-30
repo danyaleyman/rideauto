@@ -117,7 +117,7 @@ sudo nginx -t && sudo systemctl reload nginx
    ```
    Либо вручную: `.venv/bin/python backend/encar_scraper.py --config scraper_config.yaml`. В конце скрапер сам вызывает экспорт в `frontend/` (**`export_from_scraper_db.py`**, внутри — **`price.py`**, курсы Binance и поля `my_price` и т.д.).
 
-2. **Каждый день в 12:00 Asia/Yekaterinburg** срабатывает **`encar-update.timer`** → **`encar-update.service`** → **`auto_update.py --type daily`**. Цикл SQLite:
+2. **Каждый день в 12:00 Asia/Yekaterinburg** срабатывает **`encar-update.timer`** → **`encar-update.service`** → **`auto_update.py --type daily`**. В `backend/config.json` должно быть `"catalog_sync_sqlite": true` в `update_config`: после успешного обновления PostgreSQL (если он настроен) дополнительно выполняется тот же ночной цикл SQLite (`encar_daily_update --once`), иначе API продолжит отдавать устаревший `encar_cars.db`. Цикл SQLite:
    - новые объявления по свежим страницам списка **for/kor**;
    - выборка из БД → проверка «продан» (404 и т.п.) → удаление;
    - догрузка деталей по очереди `--only-pending`;

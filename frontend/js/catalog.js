@@ -347,14 +347,17 @@
       bodyType: {
         '세단': 'Sedan', 'SUV': 'SUV', '해치백': 'Hatchback', '왜건': 'Wagon', '쿠페': 'Coupe', '픽업': 'Pickup', '밴': 'Van',
         '중형차': 'Midsize', '대형차': 'Full-size', '소형차': 'Compact', '경차': 'Light car', '미니밴': 'Minivan', 'RV': 'RV',
-        '스포츠카': 'Sports car', '승합차': 'Minibus', '화물차': 'Commercial vehicle'
+        '스포츠카': 'Sports car', '승합차': 'Minibus', '화물차': 'Commercial vehicle',
+        '크로스오버': 'Crossover', '리무진': 'Limousine', '컨버터블': 'Convertible'
       },
       engineType: {
         '가솔린': 'Gasoline', '디젤': 'Diesel', 'LPG': 'LPG', 'LPG/가솔린': 'LPG/Gasoline', '하이브리드': 'Hybrid',
-        '가솔린+전기': 'Hybrid', '전기': 'Electric', '수소': 'Hydrogen', '디젤+전기': 'Diesel Hybrid'
+        '가솔린+전기': 'Hybrid', '전기': 'Electric', '수소': 'Hydrogen', '디젤+전기': 'Diesel Hybrid',
+        '바이퓨얼': 'Dual fuel', '친환경': 'Eco', '수소+전기': 'Hydrogen EV', '가솔린+전기+LPG': 'Hybrid LPG'
       },
       transmission: {
-        '자동': 'Automatic', '수동': 'Manual', '오토': 'Automatic', '세미자동': 'Semi-Auto', 'CVT': 'CVT', '듀얼 클러치': 'DCT'
+        '자동': 'Automatic', '수동': 'Manual', '오토': 'Automatic', '세미자동': 'Semi-Auto', 'CVT': 'CVT', '듀얼 클러치': 'DCT',
+        'ISG': 'ISG', '감속기': 'Reducer', '비전동': 'Non-powered'
       },
       color: {
         '검정': 'Black', '검정색': 'Black', '흰색': 'White', '은색': 'Silver', '회색': 'Gray', '빨간색': 'Red',
@@ -425,6 +428,7 @@
       'Gasoline': 'Бензин', 'Diesel': 'Дизель', 'Electric': 'Электро', 'Hybrid': 'Гибрид', 'Hydrogen': 'Водород', 'LPG/Gasoline': 'Газ/бензин', 'Diesel Hybrid': 'Дизель гибрид',
       '세단': 'Седан', 'SUV': 'Внедорожник', '해치백': 'Хэтчбек', '왜건': 'Универсал', '쿠페': 'Купе', '픽업': 'Пикап', '밴': 'Фургон', '중형차': 'Седан среднего класса', '대형차': 'Седан полноразмерный', '소형차': 'Компакт', '경차': 'Микролитражный', '미니밴': 'Минивэн', 'RV': 'Внедорожник', '스포츠카': 'Спорткар', '승합차': 'Микроавтобус', '화물차': 'Грузовой автомобиль',
       'Sedan': 'Седан', 'Hatchback': 'Хэтчбек', 'Wagon': 'Универсал', 'Coupe': 'Купе', 'Pickup': 'Пикап', 'Van': 'Фургон', 'Midsize': 'Седан среднего класса', 'Full-size': 'Седан полноразмерный', 'Compact': 'Компакт', 'Minivan': 'Минивэн', 'Light car': 'Микролитражный', 'Sports car': 'Спорткар', 'Minibus': 'Микроавтобус', 'Commercial vehicle': 'Грузовой автомобиль',
+      'Crossover': 'Кроссовер', 'Convertible': 'Кабриолет', 'Limousine': 'Лимузин', 'Dual fuel': 'Двухтопливный', 'Eco': 'Экологичный', 'Hydrogen EV': 'Водород + электро', 'Hybrid LPG': 'Гибрид LPG', 'ISG': 'ISG', 'Reducer': 'Редуктор', 'Non-powered': 'Без привода',
       '자동': 'Автоматическая', '수동': 'Механическая', '오토': 'Автоматическая', '세미자동': 'Роботизированная', 'CVT': 'Вариатор', '듀얼 클러치': 'Роботизированная',
       'Automatic': 'Автоматическая', 'Manual': 'Механическая', 'Semi-Auto': 'Роботизированная', 'DCT': 'Роботизированная',
       '검정': 'Чёрный', '흰색': 'Белый', '검정색': 'Чёрный', '은색': 'Серебристый', '회색': 'Серый', '빨간색': 'Красный', '파란색': 'Синий', '남색': 'Тёмно-синий', '베이지': 'Бежевый', '갈색': 'Коричневый', '녹색': 'Зелёный', '노란색': 'Жёлтый', '주황': 'Оранжевый', '골드': 'Золотой', '실버': 'Серебро', '블랙': 'Чёрный', '화이트': 'Белый', '레드': 'Красный', '블루': 'Синий', '그레이': 'Серый', '그린': 'Зелёный',
@@ -445,18 +449,26 @@
     }
     function filterOptionLabel(val, category) {
       const s = String(val || '').trim();
+      const raw = s;
       const ruCategories = ['bodyType', 'engineType', 'transmission', 'color'];
+      let out = '';
       if (ruCategories.indexOf(category) >= 0) {
         const en = toDisplayEn(s, category);
-        return sanitizeUiLabel(toDisplayRu(en || s) || en || s);
+        out = sanitizeUiLabel(toDisplayRu(en || s) || en || s);
+      } else {
+        let en = toDisplayEn(s, category);
+        if (en !== s) {
+          out = sanitizeUiLabel(en);
+        } else if (['model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
+          const fallback = applyKoreanPhraseFallback(s);
+          out = sanitizeUiLabel(fallback || s);
+        } else {
+          out = sanitizeUiLabel(toDisplayRu(s) || s);
+        }
       }
-      let en = toDisplayEn(s, category);
-      if (en !== s) return sanitizeUiLabel(en);
-      if (['model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
-        const fallback = applyKoreanPhraseFallback(s);
-        if (fallback !== s) return sanitizeUiLabel(fallback || s);
-      }
-      return sanitizeUiLabel(toDisplayRu(s) || s);
+      if (!out && raw) out = raw;
+      if (!out && val != null && String(val).length) out = String(val).trim();
+      return out || 'Прочее';
     }
     function buildCatalogFilterParams() {
       const p = new URLSearchParams();
@@ -799,6 +811,14 @@
       else if (data && Array.isArray(data.cars)) raw = data.cars;
       else if (data && Array.isArray(data.items)) raw = data.items;
       var list = Array.isArray(raw) ? raw : [];
+      var seenIds = new Set();
+      list = list.filter(function(c) {
+        var id = c && (c.id != null ? String(c.id) : (c.inner_id != null ? String(c.inner_id) : (c.data && c.data.inner_id != null ? String(c.data.inner_id) : '')));
+        if (!id) return true;
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
+      });
       var meta = data && data.meta && typeof data.meta === 'object' ? data.meta : {};
       var total = Number(meta.total);
       if (!Number.isFinite(total) || total < 0) total = 0;

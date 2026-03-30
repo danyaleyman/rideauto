@@ -8,7 +8,8 @@
   },
   "update_config": {
     "max_workers": 5,
-    "update_type": "daily"
+    "update_type": "daily",
+    "catalog_sync_sqlite": true
   },
   "notification_config": {
     "enabled": false,
