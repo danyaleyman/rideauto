@@ -109,7 +109,12 @@ def main():
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 from price import PriceCalculator
 
-                calc = PriceCalculator()
+                _bd = Path(__file__).resolve().parent
+                _cfg = next(
+                    (p for p in (_bd / "config.json", _bd.parent / "config.json") if p.is_file()),
+                    _bd / "config.json",
+                )
+                calc = PriceCalculator(config_path=str(_cfg))
                 price_ok = 0
                 price_failed = 0
                 failed_examples = []

@@ -403,15 +403,38 @@ class PriceCalculator:
         cfg = self._get_price_config()
         fallback = float(cfg.get("krw_per_usdt") or cfg.get("krw_per_usdt_fallback") or 1400.0)
         try:
-            r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=USDTKRW", timeout=8)
-            r.raise_for_status()
-            krw_per_usdt = float(r.json()["price"])
+            # На Binance споте пары USDTKRW часто нет (400) — сначала USD→KRW как прокси для USDT.
+            r = requests.get(
+                "https://api.binance.com/api/v3/ticker/price?symbol=USDTKRW", timeout=8
+            )
+            if r.ok:
+                krw_per_usdt = float(r.json()["price"])
+            else:
+                r.raise_for_status()
             self.exchange_rates[key] = krw_per_usdt
             self._touch_cache()
             logger.info("KRW/USDT (за 1 USDT): %.0f KRW", krw_per_usdt)
             return krw_per_usdt
-        except Exception as e:
-            logger.warning("KRW/USDT недоступен (%s), используем %.0f KRW", e, fallback)
+        except Exception as e_binance:
+            try:
+                r2 = requests.get(
+                    "https://api.frankfurter.app/latest?from=USD&to=KRW", timeout=8
+                )
+                r2.raise_for_status()
+                krw_per_usdt = float(r2.json().get("rates", {}).get("KRW") or 0)
+                if krw_per_usdt <= 0:
+                    raise ValueError("no KRW in frankfurter response")
+                self.exchange_rates[key] = krw_per_usdt
+                self._touch_cache()
+                logger.info("KRW/USDT (Frankfurter USD→KRW): %.0f KRW", krw_per_usdt)
+                return krw_per_usdt
+            except Exception as e2:
+                logger.warning(
+                    "KRW/USDT: Binance (%s), Frankfurter (%s); используем %.0f KRW",
+                    e_binance,
+                    e2,
+                    fallback,
+                )
             self.exchange_rates[key] = fallback
             self._touch_cache()
             return fallback
