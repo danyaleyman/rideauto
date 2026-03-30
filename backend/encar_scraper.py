@@ -517,6 +517,10 @@ async def list_producer(
     delay_min = http_cfg.get("list_page_delay_min", 0.5)
     delay_max = http_cfg.get("list_page_delay_max", 1.5)
     stall_limit = int(http_cfg.get("list_stall_pages_limit", 50))
+    # При серии страниц, где все id уже в БД, API часто всё равно отдаёт «полные» страницы.
+    # Вместо полного стопа — скачок offset (в страницах list_page_size), до list_stall_jump_max раз на фазу.
+    stall_jump_pages = max(1, int(http_cfg.get("list_stall_offset_jump_pages", 150)))
+    stall_jump_max = max(0, int(http_cfg.get("list_stall_jump_max", 40)))
     variants = http_cfg.get("list_q_suffixes")
     if not isinstance(variants, list) or not variants:
         variants = [""]
@@ -544,6 +548,7 @@ async def list_producer(
             offset = checkpoint.get_last_offset(ck_key)
             list_fail_streak = 0
             stale_full_pages = 0
+            stall_jumps_used = 0
             while offset < max_offset:
                 if max_cars > 0 and stats.get("saved", 0) >= max_cars:
                     log.info("List producer stopping: max_cars=%s (уже в БД/сессии)", max_cars)
@@ -593,9 +598,28 @@ async def list_producer(
                         continue
                     to_add.append((car_id, car_type, item))
                 added = checkpoint.add_pending_batch(to_add)
-                if added == 0 and len(items) >= max(1, page_size - 5):
+                if stall_limit > 0 and added == 0 and len(items) >= max(1, page_size - 5):
                     stale_full_pages += 1
                     if stale_full_pages >= stall_limit:
+                        if stall_jump_max > 0 and stall_jumps_used < stall_jump_max:
+                            skip = stall_jump_pages * page_size
+                            offset += skip
+                            checkpoint.set_last_offset(ck_key, offset)
+                            stale_full_pages = 0
+                            stall_jumps_used += 1
+                            log.warning(
+                                "List stall jump: type=%s variant=%s +%s results (~%s pages), "
+                                "offset now=%s (jump %s/%s); продолжаем обход",
+                                car_type,
+                                ck_key,
+                                skip,
+                                stall_jump_pages,
+                                offset,
+                                stall_jumps_used,
+                                stall_jump_max,
+                            )
+                            await asyncio.sleep(random.uniform(delay_min, delay_max))
+                            continue
                         log.error(
                             "List stall: car_type=%s variant=%s offset=%s — %s full pages with nothing new queued; stop",
                             car_type, ck_key, offset, stall_limit,
