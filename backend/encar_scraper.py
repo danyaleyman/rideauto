@@ -63,13 +63,24 @@ def load_config(config_path: str = "scraper_config.yaml") -> dict:
 # Logging
 # -----------------------------------------------------------------------------
 
+class _FlushingStreamHandler(logging.StreamHandler):
+    """Сразу сбрасывает буфер — иначе под systemd/journald строки могут появляться пачками или «зависнуть»."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        super().emit(record)
+        try:
+            self.flush()
+        except Exception:
+            pass
+
+
 def setup_logging(cfg: dict) -> logging.Logger:
     log_cfg = cfg.get("logging", {})
     level = getattr(logging, str(log_cfg.get("level", "INFO")).upper(), logging.INFO)
     fmt = log_cfg.get("format", "%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     handlers: List[logging.Handler] = []
     if log_cfg.get("console", True):
-        h = logging.StreamHandler()
+        h = _FlushingStreamHandler()
         h.setFormatter(logging.Formatter(fmt))
         handlers.append(h)
     log_file = log_cfg.get("file")
@@ -77,7 +88,7 @@ def setup_logging(cfg: dict) -> logging.Logger:
         fh = logging.FileHandler(log_file, encoding="utf-8")
         fh.setFormatter(logging.Formatter(fmt))
         handlers.append(fh)
-    logging.basicConfig(level=level, format=fmt, handlers=handlers or [logging.StreamHandler()])
+    logging.basicConfig(level=level, format=fmt, handlers=handlers or [_FlushingStreamHandler()])
     return logging.getLogger("encar_scraper")
 
 
@@ -92,7 +103,8 @@ class Checkpoint:
     conn: Optional[sqlite3.Connection] = field(default=None, repr=False)
 
     def connect(self) -> None:
-        self.conn = sqlite3.connect(self.path)
+        # timeout — ожидание при SQLITE_BUSY (параллельный экспорт / второй процесс)
+        self.conn = sqlite3.connect(self.path, timeout=120.0)
         self.conn.execute("PRAGMA journal_mode=WAL")
         self._init_schema()
 
@@ -240,7 +252,7 @@ class SQLiteStorage(StorageBase):
         self._seq = 0
 
     def connect(self) -> None:
-        self.conn = sqlite3.connect(self.path)
+        self.conn = sqlite3.connect(self.path, timeout=120.0)
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS cars (
@@ -848,6 +860,7 @@ async def run_scraper(
         except Exception:
             pass
     queue: asyncio.Queue = asyncio.Queue(maxsize=concurrency * 4)
+    log.info("Инициализация EncarFullParser (детали карточек, sync requests)…")
     parser = EncarFullParser()
     stats_lock = asyncio.Lock()
     start_time = time.time()
@@ -855,16 +868,23 @@ async def run_scraper(
 
     try:
         # Load pending from checkpoint into queue
+        log.info("Чтение pending из checkpoint (лимит %s)…", concurrency * 100)
         pending = checkpoint.pop_pending_batch(limit=concurrency * 100)
         for rec in pending:
             await queue.put(rec if len(rec) == 3 else (rec[0], rec[1], None))
         if pending:
             log.info("Resumed with %s pending IDs from checkpoint", len(pending))
+        else:
+            log.info("Checkpoint pending на старте: 0 (list producer заполнит очередь)")
 
         max_cars = int(max_cars_override if max_cars_override is not None else (config.get("max_cars", 0) or 0))
         if max_cars > 0:
             log.info("Run limited to max_cars=%s", max_cars)
 
+        log.info(
+            "Запуск HTTP-клиента (async list + workers); прокси async=%s URL",
+            len(config.get("proxy", {}).get("urls") or []) if config.get("proxy", {}).get("enabled") else 0,
+        )
         async with AsyncEncarClient(config, log) as client:
             if only_pending:
                 producer = asyncio.create_task(asyncio.sleep(0))
@@ -914,6 +934,7 @@ async def run_scraper(
                         stats["processed"], stats["saved"], stats["detail_fail"], stats["parse_fail"], p, queue.qsize(),
                     )
             stats_task = asyncio.create_task(log_stats())
+            log.info("Ожидание list producer (первая строка списка — «List phase» или ошибка HTTP)…")
             await producer
             # Keep refilling from pending until empty
             try:
