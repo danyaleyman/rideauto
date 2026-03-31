@@ -423,6 +423,7 @@ class AsyncEncarClient:
         h.setdefault("Origin", origin)
         h.setdefault("Referer", origin + "/")
         last_error: Optional[str] = None
+        last_http_status: int = 0
         for attempt in range(self.max_attempts):
             proxy = self._next_proxy()
             await self._jitter()
@@ -430,6 +431,7 @@ class AsyncEncarClient:
                 async with self._session.request(
                     method, url, headers=h, params=params, proxy=proxy
                 ) as resp:
+                    last_http_status = resp.status
                     retry_after = resp.headers.get("Retry-After")
                     if resp.status in self.retry_statuses:
                         last_error = f"status {resp.status}"
@@ -450,7 +452,9 @@ class AsyncEncarClient:
             except aiohttp.ClientError as e:
                 last_error = str(e)
                 await asyncio.sleep(min(self.backoff_base * (2 ** attempt), self.backoff_max))
-        return None, 0, last_error
+        # Важно: при retry_statuses (например 407) после исчерпания попыток раньше возвращался status=0,
+        # list_producer делал break и «слетал» весь обход. Отдаём последний реальный HTTP-код.
+        return None, last_http_status, last_error
 
     async def fetch_list_page(
         self,
@@ -589,7 +593,13 @@ async def list_producer(
                                 offset, car_type, ck_key,
                             )
                             break
-                        await asyncio.sleep(5 if status == 407 else 60)
+                        if status == 407:
+                            # Пауза нарастает при серии 407 (прокси/лимит) — меньше пороговых ответов.
+                            cool = min(180.0, 8.0 + 7.0 * min(list_fail_streak, 20))
+                            log.info("List: пауза %.0f с после 407 (серия %s)", cool, list_fail_streak)
+                            await asyncio.sleep(cool)
+                        else:
+                            await asyncio.sleep(60)
                         continue
                     break
                 list_fail_streak = 0
