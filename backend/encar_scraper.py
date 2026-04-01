@@ -986,17 +986,6 @@ async def run_scraper(
     refill_done = False
 
     try:
-        # Load pending from checkpoint into queue
-        log.info("Чтение pending из checkpoint (лимит %s)…", concurrency * 100)
-        async with checkpoint_lock:
-            pending = checkpoint.pop_pending_batch(limit=concurrency * 100)
-        for rec in pending:
-            await queue.put(rec if len(rec) == 3 else (rec[0], rec[1], None))
-        if pending:
-            log.info("Resumed with %s pending IDs from checkpoint", len(pending))
-        else:
-            log.info("Checkpoint pending на старте: 0 (list producer заполнит очередь)")
-
         max_cars = int(max_cars_override if max_cars_override is not None else (config.get("max_cars", 0) or 0))
         if max_cars > 0:
             log.info("Run limited to max_cars=%s", max_cars)
@@ -1006,22 +995,8 @@ async def run_scraper(
             len(config.get("proxy", {}).get("urls") or []) if config.get("proxy", {}).get("enabled") else 0,
         )
         async with AsyncEncarClient(config, log) as client:
-            if only_pending:
-                producer = asyncio.create_task(asyncio.sleep(0))
-            else:
-                producer = asyncio.create_task(
-                    list_producer(
-                        client,
-                        checkpoint,
-                        checkpoint_lock,
-                        config,
-                        car_types,
-                        stats,
-                        log,
-                        max_cars=max_cars,
-                        stats_lock=stats_lock if max_cars > 0 else None,
-                    )
-                )
+            # Воркеры должны быть запущены ДО заливки pending в очередь: maxsize=concurrency*4,
+            # а pop даёт до concurrency*100 — иначе первый await queue.put навсегда блокирует старт.
             workers = [
                 asyncio.create_task(
                     detail_worker(
@@ -1041,6 +1016,32 @@ async def run_scraper(
                 )
                 for i in range(concurrency)
             ]
+            log.info("Чтение pending из checkpoint (лимит %s)…", concurrency * 100)
+            async with checkpoint_lock:
+                pending = checkpoint.pop_pending_batch(limit=concurrency * 100)
+            for rec in pending:
+                await queue.put(rec if len(rec) == 3 else (rec[0], rec[1], None))
+            if pending:
+                log.info("Resumed with %s pending IDs from checkpoint", len(pending))
+            else:
+                log.info("Checkpoint pending на старте: 0 (list producer заполнит очередь)")
+
+            if only_pending:
+                producer = asyncio.create_task(asyncio.sleep(0))
+            else:
+                producer = asyncio.create_task(
+                    list_producer(
+                        client,
+                        checkpoint,
+                        checkpoint_lock,
+                        config,
+                        car_types,
+                        stats,
+                        log,
+                        max_cars=max_cars,
+                        stats_lock=stats_lock if max_cars > 0 else None,
+                    )
+                )
             # Feed queue from checkpoint periodically until no more pending or max_cars reached
             async def refill_queue():
                 nonlocal refill_done
