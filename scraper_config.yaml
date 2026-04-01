@@ -3,7 +3,8 @@
 
 http:
   # Concurrency for detail fetches (per car: detail + optional diagnosis/record/inspection/user)
-  concurrency: 8
+  # Для «быстрой докачки» за 1–2 дня: 12–20 при стабильных прокси; иначе начните с 10.
+  concurrency: 12
   # Max concurrent connections to the same host
   conn_limit_per_host: 10
   # Timeouts (seconds)
@@ -22,13 +23,31 @@ http:
   list_stall_offset_jump_pages: 200
   # Сколько таких скачков разрешить на одну фазу for/kor; исчерпали — стоп и смотрите лог
   list_stall_jump_max: 80
-  # Доп. суффиксы к выражению q после CarType (для обхода потолка offset — см. документацию Encar facets)
-  # Пример: [ "", "_.(And.Manu.[현대].)" ] — только при необходимости; базовый проход обычно хватает
+  # Доп. суффиксы к выражению q после CarType — параллельные «срезы» по бренду (дубликаты id отсекаются в checkpoint).
+  # Первый элемент "" обязателен для совместимости ключа чекпоинта for/kor.
   list_q_suffixes:
     - ""
+    - "_.(And.Manu.[현대].)"
+    - "_.(And.Manu.[기아].)"
+    - "_.(And.Manu.[제네시스].)"
+    - "_.(And.Manu.[BMW].)"
+    - "_.(And.Manu.[벤츠].)"
+    - "_.(And.Manu.[아우디].)"
+    - "_.(And.Manu.[테슬라].)"
+    - "_.(And.Manu.[렉서스].)"
+    - "_.(And.Manu.[토요타].)"
+    - "_.(And.Manu.[혼다].)"
+    - "_.(And.Manu.[랜드로버].)"
+    - "_.(And.Manu.[포드].)"
+    - "_.(And.Manu.[쉐보레].)"
+    - "_.(And.Manu.[KG모빌리티].)"
+    - "_.(And.Manu.[르노코리아].)"
+  # Параллельно обходить срезы list_q_suffixes; одновременных запросов к list API — list_max_parallel.
+  list_parallel_variants: true
+  list_max_parallel: 6
   # Delay between list page requests (seconds) - list is sequential to avoid offset issues
-  list_page_delay_min: 0.5
-  list_page_delay_max: 1.5
+  list_page_delay_min: 0.25
+  list_page_delay_max: 0.85
   # Jitter for detail requests (seconds) - added to random delay
   request_jitter_min: 0.1
   request_jitter_max: 0.5

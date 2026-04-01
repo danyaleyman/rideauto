@@ -510,17 +510,176 @@ class AsyncEncarClient:
 
 
 # -----------------------------------------------------------------------------
-# List producer (sequential)
+# List producer (sequential or parallel slices)
 # -----------------------------------------------------------------------------
+
+async def _list_one_variant(
+    client: AsyncEncarClient,
+    checkpoint: Checkpoint,
+    checkpoint_lock: asyncio.Lock,
+    list_fetch_sem: asyncio.Semaphore,
+    list_stats_lock: asyncio.Lock,
+    car_type: str,
+    type_label: str,
+    vidx: int,
+    n_variants: int,
+    q_suffix: str,
+    page_size: int,
+    max_offset: int,
+    delay_min: float,
+    delay_max: float,
+    stall_limit: int,
+    stall_jump_pages: int,
+    stall_jump_max: int,
+    stats: dict,
+    log: logging.Logger,
+    max_cars: int,
+    stats_lock: Optional[asyncio.Lock],
+) -> None:
+    if isinstance(q_suffix, str) and q_suffix.strip() == "":
+        q_suffix = ""
+    # Базовый срез (пустой q_suffix) всегда ключ for/kor — не ломает offset при добавлении брендов.
+    if n_variants == 1 or (vidx == 0 and not q_suffix):
+        ck_key = car_type
+    else:
+        ck_key = f"{car_type}_v{vidx}"
+    log.info(
+        "List phase type=%s (%s) variant %s/%s q_suffix=%r checkpoint_key=%s",
+        car_type,
+        type_label,
+        vidx + 1,
+        n_variants,
+        q_suffix or "(base)",
+        ck_key,
+    )
+    async with checkpoint_lock:
+        offset = int(checkpoint.get_last_offset(ck_key))
+    list_fail_streak = 0
+    stale_full_pages = 0
+    stall_jumps_used = 0
+    while offset < max_offset:
+        if max_cars > 0 and stats_lock is not None:
+            async with stats_lock:
+                saved_now = stats["saved"]
+            if saved_now >= max_cars:
+                log.info("List producer stopping: max_cars=%s (уже в БД/сессии)", max_cars)
+                break
+            async with checkpoint_lock:
+                pend = checkpoint.pending_count()
+            async with stats_lock:
+                saved2 = stats["saved"]
+            if saved2 + pend >= max_cars + 3 * page_size:
+                log.info(
+                    "List producer stopping: достаточно очереди (saved=%s pending=%s max_cars=%s)",
+                    saved2, pend, max_cars,
+                )
+                break
+        async with list_fetch_sem:
+            data, status, err = await client.fetch_list_page(
+                offset, page_size, car_type, q_suffix=q_suffix or ""
+            )
+        if status != 200 or not data:
+            log.warning(
+                "List page failed car_type=%s variant=%s offset=%s status=%s err=%s",
+                car_type, ck_key, offset, status, err,
+            )
+            if status in (407, 429) or (status >= 500 and offset > 0):
+                list_fail_streak += 1
+                if list_fail_streak > 25:
+                    log.error(
+                        "List: too many failures at offset=%s, stopping list for %s variant=%s",
+                        offset, car_type, ck_key,
+                    )
+                    break
+                if status == 407:
+                    cool = min(180.0, 8.0 + 7.0 * min(list_fail_streak, 20))
+                    log.info("List: пауза %.0f с после 407 (серия %s)", cool, list_fail_streak)
+                    await asyncio.sleep(cool)
+                else:
+                    await asyncio.sleep(60)
+                continue
+            break
+        list_fail_streak = 0
+        items = data.get("SearchResults") or []
+        api_count = data.get("Count") or data.get("TotalCount") or data.get("totalCount")
+        if not items:
+            log.info(
+                "List exhausted car_type=%s variant=%s at offset=%s api_count=%s",
+                car_type, ck_key, offset, api_count,
+            )
+            break
+        do_stall_jump = False
+        do_break_stall = False
+        log_offset = offset
+        n_items = len(items)
+        async with checkpoint_lock:
+            to_add: List[Tuple[str, str, Any]] = []
+            for item in items:
+                car_id = str(item.get("Id", ""))
+                if not car_id:
+                    continue
+                if checkpoint.is_collected(car_id):
+                    continue
+                to_add.append((car_id, car_type, item))
+            added = checkpoint.add_pending_batch(to_add)
+            if stall_limit > 0 and added == 0 and len(items) >= max(1, page_size - 5):
+                stale_full_pages += 1
+                if stale_full_pages >= stall_limit:
+                    if stall_jump_max > 0 and stall_jumps_used < stall_jump_max:
+                        skip = stall_jump_pages * page_size
+                        offset += skip
+                        checkpoint.set_last_offset(ck_key, offset)
+                        stale_full_pages = 0
+                        stall_jumps_used += 1
+                        do_stall_jump = True
+                    else:
+                        do_break_stall = True
+            else:
+                stale_full_pages = 0
+            if not do_stall_jump and not do_break_stall:
+                checkpoint.set_last_offset(ck_key, offset + page_size)
+                offset += page_size
+        if do_break_stall:
+            log.error(
+                "List stall: car_type=%s variant=%s offset=%s — %s full pages with nothing new queued; stop",
+                car_type, ck_key, log_offset, stall_limit,
+            )
+            break
+        if do_stall_jump:
+            log.warning(
+                "List stall jump: type=%s variant=%s +%s results (~%s pages), "
+                "offset now=%s (jump %s/%s); продолжаем обход",
+                car_type,
+                ck_key,
+                stall_jump_pages * page_size,
+                stall_jump_pages,
+                offset,
+                stall_jumps_used,
+                stall_jump_max,
+            )
+            await asyncio.sleep(random.uniform(delay_min, delay_max))
+            continue
+        async with list_stats_lock:
+            stats["list_pages"] += 1
+            stats["ids_discovered"] += n_items
+            stats["ids_queued"] += added
+        log.info(
+            "List car_type=%s variant=%s offset=%s items=%s queued=%s api_count=%s",
+            car_type, ck_key, log_offset, n_items, added, api_count,
+        )
+        await asyncio.sleep(random.uniform(delay_min, delay_max))
+
 
 async def list_producer(
     client: AsyncEncarClient,
     checkpoint: Checkpoint,
+    checkpoint_lock: asyncio.Lock,
     config: dict,
     car_types: List[str],
     stats: dict,
     log: logging.Logger,
     max_cars: int = 0,
+    stats_lock: Optional[asyncio.Lock] = None,
 ) -> None:
     http_cfg = config.get("http", {})
     page_size = http_cfg.get("list_page_size", 100)
@@ -530,135 +689,70 @@ async def list_producer(
         max_offset = hard_cap if raw_max in (None, 0, "0") else int(raw_max)
     except (TypeError, ValueError):
         max_offset = hard_cap
-    delay_min = http_cfg.get("list_page_delay_min", 0.5)
-    delay_max = http_cfg.get("list_page_delay_max", 1.5)
+    delay_min = float(http_cfg.get("list_page_delay_min", 0.5))
+    delay_max = float(http_cfg.get("list_page_delay_max", 1.5))
     stall_limit = int(http_cfg.get("list_stall_pages_limit", 50))
-    # При серии страниц, где все id уже в БД, API часто всё равно отдаёт «полные» страницы.
-    # Вместо полного стопа — скачок offset (в страницах list_page_size), до list_stall_jump_max раз на фазу.
     stall_jump_pages = max(1, int(http_cfg.get("list_stall_offset_jump_pages", 150)))
     stall_jump_max = max(0, int(http_cfg.get("list_stall_jump_max", 40)))
     variants = http_cfg.get("list_q_suffixes")
     if not isinstance(variants, list) or not variants:
         variants = [""]
+    parallel = bool(http_cfg.get("list_parallel_variants", False))
+    list_max_parallel = max(1, int(http_cfg.get("list_max_parallel", 4)))
+    list_fetch_sem = asyncio.Semaphore(list_max_parallel)
+    list_stats_lock = asyncio.Lock()
 
+    work: List[Tuple[str, str, int, str]] = []
     for car_type in car_types:
-        if max_cars > 0 and stats.get("saved", 0) >= max_cars:
-            log.info("List producer stopping: max_cars=%s reached", max_cars)
-            break
+        if max_cars > 0 and stats_lock is not None:
+            async with stats_lock:
+                if stats["saved"] >= max_cars:
+                    log.info("List producer stopping: max_cars=%s reached", max_cars)
+                    break
         type_label = "import" if car_type == "for" else "domestic"
         for vidx, q_suffix in enumerate(variants):
-            if max_cars > 0 and stats.get("saved", 0) >= max_cars:
-                break
-            if isinstance(q_suffix, str) and q_suffix.strip() == "":
-                q_suffix = ""
-            ck_key = car_type if len(variants) == 1 else f"{car_type}_v{vidx}"
-            log.info(
-                "List phase type=%s (%s) variant %s/%s q_suffix=%r checkpoint_key=%s",
-                car_type,
-                type_label,
-                vidx + 1,
-                len(variants),
-                q_suffix or "(base)",
-                ck_key,
-            )
-            offset = checkpoint.get_last_offset(ck_key)
-            list_fail_streak = 0
-            stale_full_pages = 0
-            stall_jumps_used = 0
-            while offset < max_offset:
-                if max_cars > 0 and stats.get("saved", 0) >= max_cars:
-                    log.info("List producer stopping: max_cars=%s (уже в БД/сессии)", max_cars)
-                    break
-                if max_cars > 0:
-                    pend = checkpoint.pending_count()
-                    if stats.get("saved", 0) + pend >= max_cars + 3 * page_size:
-                        log.info(
-                            "List producer stopping: достаточно очереди (saved=%s pending=%s max_cars=%s)",
-                            stats.get("saved", 0), pend, max_cars,
-                        )
+            if max_cars > 0 and stats_lock is not None:
+                async with stats_lock:
+                    if stats["saved"] >= max_cars:
                         break
-                data, status, err = await client.fetch_list_page(
-                    offset, page_size, car_type, q_suffix=q_suffix or ""
-                )
-                if status != 200 or not data:
-                    log.warning(
-                        "List page failed car_type=%s variant=%s offset=%s status=%s err=%s",
-                        car_type, ck_key, offset, status, err,
-                    )
-                    if status in (407, 429) or (status >= 500 and offset > 0):
-                        list_fail_streak += 1
-                        if list_fail_streak > 25:
-                            log.error(
-                                "List: too many failures at offset=%s, stopping list for %s variant=%s",
-                                offset, car_type, ck_key,
-                            )
-                            break
-                        if status == 407:
-                            # Пауза нарастает при серии 407 (прокси/лимит) — меньше пороговых ответов.
-                            cool = min(180.0, 8.0 + 7.0 * min(list_fail_streak, 20))
-                            log.info("List: пауза %.0f с после 407 (серия %s)", cool, list_fail_streak)
-                            await asyncio.sleep(cool)
-                        else:
-                            await asyncio.sleep(60)
-                        continue
-                    break
-                list_fail_streak = 0
-                items = data.get("SearchResults") or []
-                api_count = data.get("Count") or data.get("TotalCount") or data.get("totalCount")
-                if not items:
-                    log.info(
-                        "List exhausted car_type=%s variant=%s at offset=%s api_count=%s",
-                        car_type, ck_key, offset, api_count,
-                    )
-                    break
-                to_add = []
-                for item in items:
-                    car_id = str(item.get("Id", ""))
-                    if not car_id:
-                        continue
-                    if checkpoint.is_collected(car_id):
-                        continue
-                    to_add.append((car_id, car_type, item))
-                added = checkpoint.add_pending_batch(to_add)
-                if stall_limit > 0 and added == 0 and len(items) >= max(1, page_size - 5):
-                    stale_full_pages += 1
-                    if stale_full_pages >= stall_limit:
-                        if stall_jump_max > 0 and stall_jumps_used < stall_jump_max:
-                            skip = stall_jump_pages * page_size
-                            offset += skip
-                            checkpoint.set_last_offset(ck_key, offset)
-                            stale_full_pages = 0
-                            stall_jumps_used += 1
-                            log.warning(
-                                "List stall jump: type=%s variant=%s +%s results (~%s pages), "
-                                "offset now=%s (jump %s/%s); продолжаем обход",
-                                car_type,
-                                ck_key,
-                                skip,
-                                stall_jump_pages,
-                                offset,
-                                stall_jumps_used,
-                                stall_jump_max,
-                            )
-                            await asyncio.sleep(random.uniform(delay_min, delay_max))
-                            continue
-                        log.error(
-                            "List stall: car_type=%s variant=%s offset=%s — %s full pages with nothing new queued; stop",
-                            car_type, ck_key, offset, stall_limit,
-                        )
-                        break
-                else:
-                    stale_full_pages = 0
-                stats["list_pages"] += 1
-                stats["ids_discovered"] += len(items)
-                stats["ids_queued"] += added
-                log.info(
-                    "List car_type=%s variant=%s offset=%s items=%s queued=%s api_count=%s",
-                    car_type, ck_key, offset, len(items), added, api_count,
-                )
-                checkpoint.set_last_offset(ck_key, offset + page_size)
-                offset += page_size
-                await asyncio.sleep(random.uniform(delay_min, delay_max))
+            qs = q_suffix if isinstance(q_suffix, str) else ""
+            work.append((car_type, type_label, vidx, qs))
+
+    async def _run_slice(car_type: str, type_label: str, vidx: int, qs: str) -> None:
+        await _list_one_variant(
+            client,
+            checkpoint,
+            checkpoint_lock,
+            list_fetch_sem,
+            list_stats_lock,
+            car_type,
+            type_label,
+            vidx,
+            len(variants),
+            qs,
+            page_size,
+            max_offset,
+            delay_min,
+            delay_max,
+            stall_limit,
+            stall_jump_pages,
+            stall_jump_max,
+            stats,
+            log,
+            max_cars,
+            stats_lock,
+        )
+
+    if parallel and len(work) > 1:
+        log.info(
+            "List producer: параллельно %s срезов, до %s одновременных запросов к list API",
+            len(work),
+            list_max_parallel,
+        )
+        await asyncio.gather(*[_run_slice(ct, tl, vi, qs) for ct, tl, vi, qs in work])
+    else:
+        for ct, tl, vi, qs in work:
+            await _run_slice(ct, tl, vi, qs)
     log.info("List producer finished for car_types=%s", car_types)
 
 
@@ -700,6 +794,7 @@ async def detail_worker(
     worker_id: int,
     client: AsyncEncarClient,
     checkpoint: Checkpoint,
+    checkpoint_lock: asyncio.Lock,
     storage: StorageBase,
     parser: EncarFullParser,
     config: dict,
@@ -728,7 +823,9 @@ async def detail_worker(
             item_from_list = item[2] if len(item) > 2 else {}
         if not item_from_list:
             item_from_list = {"Id": car_id}
-        if checkpoint.is_collected(car_id):
+        async with checkpoint_lock:
+            collected = checkpoint.is_collected(car_id)
+        if collected:
             queue.task_done()
             continue
         if max_cars > 0 and stats_lock is not None:
@@ -790,9 +887,18 @@ async def detail_worker(
             inspection = (detail.get("condition") or {}).get("inspection")
         sellingpoint = results.get("sellingpoint")
         user_info = results.get("user")
+        # parse_one_car синхронный: EncarFullParser (requests.Session) нельзя дергать из нескольких потоков.
         car = parse_one_car(
-            parser, car_id, item_from_list or {"Id": car_id}, detail, diagnosis, record,
-            inspection, sellingpoint, user_info, stats["saved"] + 1,
+            parser,
+            car_id,
+            item_from_list or {"Id": car_id},
+            detail,
+            diagnosis,
+            record,
+            inspection,
+            sellingpoint,
+            user_info,
+            0,
         )
         if car:
             did_save = False
@@ -800,12 +906,14 @@ async def detail_worker(
                 async with stats_lock:
                     if stats["saved"] < max_cars:
                         storage.save_car(car, car_id)
-                        checkpoint.mark_collected(car_id)
+                        async with checkpoint_lock:
+                            checkpoint.mark_collected(car_id)
                         stats["saved"] += 1
                         did_save = True
             else:
                 storage.save_car(car, car_id)
-                checkpoint.mark_collected(car_id)
+                async with checkpoint_lock:
+                    checkpoint.mark_collected(car_id)
                 stats["saved"] += 1
                 did_save = True
             if did_save and stats["saved"] % 100 == 0:
@@ -873,13 +981,15 @@ async def run_scraper(
     log.info("Инициализация EncarFullParser (детали карточек, sync requests)…")
     parser = EncarFullParser()
     stats_lock = asyncio.Lock()
+    checkpoint_lock = asyncio.Lock()
     start_time = time.time()
     refill_done = False
 
     try:
         # Load pending from checkpoint into queue
         log.info("Чтение pending из checkpoint (лимит %s)…", concurrency * 100)
-        pending = checkpoint.pop_pending_batch(limit=concurrency * 100)
+        async with checkpoint_lock:
+            pending = checkpoint.pop_pending_batch(limit=concurrency * 100)
         for rec in pending:
             await queue.put(rec if len(rec) == 3 else (rec[0], rec[1], None))
         if pending:
@@ -900,12 +1010,31 @@ async def run_scraper(
                 producer = asyncio.create_task(asyncio.sleep(0))
             else:
                 producer = asyncio.create_task(
-                    list_producer(client, checkpoint, config, car_types, stats, log, max_cars=max_cars)
+                    list_producer(
+                        client,
+                        checkpoint,
+                        checkpoint_lock,
+                        config,
+                        car_types,
+                        stats,
+                        log,
+                        max_cars=max_cars,
+                        stats_lock=stats_lock if max_cars > 0 else None,
+                    )
                 )
             workers = [
                 asyncio.create_task(
                     detail_worker(
-                        i, client, checkpoint, storage, parser, config, queue, stats, log,
+                        i,
+                        client,
+                        checkpoint,
+                        checkpoint_lock,
+                        storage,
+                        parser,
+                        config,
+                        queue,
+                        stats,
+                        log,
                         max_cars=max_cars,
                         stats_lock=stats_lock if max_cars > 0 else None,
                     )
@@ -925,10 +1054,12 @@ async def run_scraper(
                         break
                     if queue.qsize() > concurrency * 3:
                         continue
-                    batch = checkpoint.pop_pending_batch(limit=100)
+                    async with checkpoint_lock:
+                        batch = checkpoint.pop_pending_batch(limit=100)
+                        pending_left = checkpoint.pending_count()
                     for it in batch:
                         await queue.put(it)
-                    if producer.done() and not batch and checkpoint.pending_count() == 0:
+                    if producer.done() and not batch and pending_left == 0:
                         refill_done = True
                         for _ in workers:
                             await queue.put(None)
@@ -938,7 +1069,8 @@ async def run_scraper(
             async def log_stats():
                 while not refill_done:
                     await asyncio.sleep(60)
-                    p = checkpoint.pending_count()
+                    async with checkpoint_lock:
+                        p = checkpoint.pending_count()
                     log.info(
                         "Stats: processed=%s saved=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
                         stats["processed"], stats["saved"], stats["detail_fail"], stats["parse_fail"], p, queue.qsize(),
@@ -949,10 +1081,12 @@ async def run_scraper(
             # Keep refilling from pending until empty
             try:
                 for refill_round in range(1000):
-                    batch = checkpoint.pop_pending_batch(limit=100)
+                    async with checkpoint_lock:
+                        batch = checkpoint.pop_pending_batch(limit=100)
+                        pending_left = checkpoint.pending_count()
                     for it in batch:
                         await queue.put(it)
-                    if not batch and checkpoint.pending_count() == 0:
+                    if not batch and pending_left == 0:
                         break
                     await asyncio.sleep(0.3)
                 await asyncio.gather(*workers)
@@ -1007,7 +1141,13 @@ async def run_scraper(
         pass
 
     if backend == "sqlite" and isinstance(storage, SQLiteStorage):
-        _run_export_to_frontend(storage.path, log)
+        if os.environ.get("SKIP_FRONTEND_EXPORT", "").strip().lower() in ("1", "true", "yes"):
+            log.info(
+                "Экспорт на frontend пропущен (SKIP_FRONTEND_EXPORT). "
+                "Запустите вручную: python backend/export_from_scraper_db.py … или ночной timer."
+            )
+        else:
+            _run_export_to_frontend(storage.path, log)
 
 
 def _run_export_to_frontend(db_path: str, log) -> None:
