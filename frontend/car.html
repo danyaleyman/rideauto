@@ -2437,6 +2437,48 @@
             width: auto;
             display: block;
         }
+        .header-burger {
+            display: none;
+            width: 44px;
+            height: 44px;
+            border: 1px solid var(--wra-border);
+            border-radius: var(--radius-md);
+            background: var(--wra-surface);
+            padding: 10px 9px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            transition: border-color var(--transition-fast), background var(--transition-fast);
+        }
+        .header-burger span {
+            width: 100%;
+            height: 2px;
+            border-radius: 2px;
+            background: var(--wra-gray-800);
+            transition: transform 0.24s ease, opacity 0.2s ease;
+        }
+        .header-wrapper.mobile-menu-open .header-burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .header-wrapper.mobile-menu-open .header-burger span:nth-child(2) { opacity: 0; }
+        .header-wrapper.mobile-menu-open .header-burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+        .mobile-header-menu {
+            display: none;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 10px 10px;
+            border-top: 1px solid var(--wra-border);
+            flex-direction: column;
+            gap: 2px;
+        }
+        .mobile-header-menu a {
+            text-decoration: none;
+            color: var(--wra-gray-800);
+            font-weight: 600;
+            padding: 12px 8px;
+            border-radius: var(--radius-sm);
+        }
+        .mobile-header-menu a:hover { background: var(--wra-gray-100); }
 
         /* === Compact unified style (catalog-aligned) === */
         .header-area {
@@ -2694,6 +2736,10 @@
             .gnb {
                 display: none;
             }
+            .header-burger {
+                display: inline-flex;
+                margin-left: auto;
+            }
             .util {
                 right: 10px;
             }
@@ -2706,6 +2752,8 @@
                 font-size: 0.75rem;
                 padding: 6px 8px;
             }
+            .header-wrapper.mobile-menu-open .util { display: none; }
+            .header-wrapper.mobile-menu-open .mobile-header-menu { display: flex; }
             .content-header {
                 position: static;
                 padding-bottom: 8px;
@@ -2754,6 +2802,11 @@
             #app {
                 padding-left: 8px !important;
                 padding-right: 8px !important;
+            }
+            .mobile-header-menu {
+                padding-left: max(8px, env(safe-area-inset-left));
+                padding-right: max(8px, env(safe-area-inset-right));
+                padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
             }
             .header-area .logo img {
                 height: 34px;
@@ -2831,6 +2884,9 @@
                 <img src="image/logo.svg" alt="World Ride Auto">
             </a>
         </h1>
+        <button type="button" class="header-burger" id="headerBurgerBtn" aria-expanded="false" aria-controls="mobileHeaderMenu" aria-label="Открыть меню">
+            <span></span><span></span><span></span>
+        </button>
         <ul class="gnb">
             <li><a href="#basic-info" class="on"><b>Основная информация</b></a></li>
             <li><a href="#options"><b>Опции</b></a></li>
@@ -2845,6 +2901,7 @@
             <li><button type="button" id="headerLoginBtn" class="btn-secondary">Войти</button></li>
         </ul>
     </header>
+    <nav class="mobile-header-menu" id="mobileHeaderMenu" aria-label="Мобильное меню"></nav>
 </div>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="app">
@@ -4756,6 +4813,7 @@
 
             // Динамическое обновление шапки навигации
             updateHeaderNavigation();
+            setupMobileHeaderMenu();
 
             // Фото диагностики: скелетон до загрузки, открытие в модалке
             document.querySelectorAll('.diag-photo').forEach(function(el) {
@@ -4989,6 +5047,49 @@
             if (firstLink) {
                 firstLink.classList.add('on');
             }
+        }
+
+        function setupMobileHeaderMenu() {
+            const headerWrap = document.querySelector('.header-wrapper');
+            const burgerBtn = document.getElementById('headerBurgerBtn');
+            const mobileMenu = document.getElementById('mobileHeaderMenu');
+            const gnb = document.querySelector('.gnb');
+            if (!headerWrap || !burgerBtn || !mobileMenu || !gnb) return;
+
+            function rebuildMenu() {
+                mobileMenu.innerHTML = '';
+                gnb.querySelectorAll('a[href]').forEach(function (a) {
+                    const href = (a.getAttribute('href') || '').trim();
+                    if (!href) return;
+                    const clone = document.createElement('a');
+                    clone.href = href;
+                    clone.textContent = (a.textContent || '').trim();
+                    if (a.classList.contains('on')) clone.classList.add('active');
+                    mobileMenu.appendChild(clone);
+                });
+            }
+
+            function closeMenu() {
+                headerWrap.classList.remove('mobile-menu-open');
+                burgerBtn.setAttribute('aria-expanded', 'false');
+            }
+
+            burgerBtn.addEventListener('click', function () {
+                rebuildMenu();
+                const willOpen = !headerWrap.classList.contains('mobile-menu-open');
+                headerWrap.classList.toggle('mobile-menu-open', willOpen);
+                burgerBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            });
+
+            mobileMenu.addEventListener('click', function (e) {
+                const a = e.target && e.target.closest('a');
+                if (!a) return;
+                closeMenu();
+            });
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 900) closeMenu();
+            });
         }
 
         // ---------- Анимации навигации ----------

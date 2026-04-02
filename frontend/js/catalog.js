@@ -5,6 +5,8 @@
     let catalogTotal = 0;
     let catalogPages = 1;
     let catalogRequestId = 0;
+    let useStaticCatalog = false;
+    let staticCatalogCache = null;
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
     function apiUrl(path) {
       return API_BASE + path;
@@ -299,6 +301,169 @@
       if (Number.isNaN(y)) return null;
       return y * 12 + (Number.isNaN(m) ? 0 : m - 1);
     }
+    function getInsurancePayoutRub(car) {
+      const won = getInsurancePayoutsSum(car);
+      if (!won) return 0;
+      const d = (car && car.data) || car || {};
+      const krw = Number(d.krw_per_usdt) || 1400;
+      const rubPerUsdt = Number(d.usdt_rub) || 91;
+      if (!krw) return 0;
+      return won * (rubPerUsdt / krw);
+    }
+    function getCarAgeYears(car) {
+      const d = (car && car.data) || car || {};
+      const y = parseInt(String(d.year || '').replace(/\.0$/, '').slice(0, 4), 10);
+      if (Number.isNaN(y)) return null;
+      return new Date().getFullYear() - y;
+    }
+    function paramsForFacet(omitKeys) {
+      const p = buildCatalogFilterParams();
+      (omitKeys || []).forEach(function(k) { p.delete(k); });
+      return p;
+    }
+    function carMatchesParamsUrl(car, p) {
+      const d = (car && car.data) || car || {};
+      function csv(key) {
+        var v = p.get(key);
+        if (!v) return null;
+        return v.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+      }
+      var marks = csv('marks');
+      if (marks && marks.length && marks.indexOf(d.mark) === -1) return false;
+      var models = csv('models');
+      if (models && models.length && models.indexOf(d.model) === -1) return false;
+      var gens = csv('generations');
+      var genVal = d.generation || d.configuration || '';
+      if (gens && gens.length && gens.indexOf(genVal) === -1) return false;
+      var trims = csv('trims');
+      var trimVal = d.gradeName || d.configuration || d.generation || '';
+      if (trims && trims.length && trims.indexOf(trimVal) === -1) return false;
+      var bodies = csv('body');
+      if (bodies && bodies.length && bodies.indexOf(d.body_type) === -1) return false;
+      var fuels = csv('fuel');
+      if (fuels && fuels.length && fuels.indexOf(d.engine_type) === -1) return false;
+      var trans = csv('trans');
+      if (trans && trans.length && trans.indexOf(d.transmission_type) === -1) return false;
+      var colors = csv('color');
+      if (colors && colors.length && colors.indexOf(d.color) === -1) return false;
+      var pf = p.get('power_from');
+      var pt = p.get('power_to');
+      var pw = getPowerNum(car);
+      if (pf && (pw == null || pw < parseInt(pf, 10))) return false;
+      if (pt && (pw == null || pw > parseInt(pt, 10))) return false;
+      var ef = p.get('engine_from');
+      var et = p.get('engine_to');
+      var ev = getEngineVolumeNum(car);
+      if (ef && (ev == null || ev < parseInt(ef, 10))) return false;
+      if (et && (ev == null || ev > parseInt(et, 10))) return false;
+      var prf = p.get('price_from');
+      var prt = p.get('price_to');
+      var myp = d.my_price != null && d.my_price !== '' ? parseFloat(d.my_price) : null;
+      if (prf && (myp == null || myp < parseFloat(prf))) return false;
+      if (prt && (myp == null || myp > parseFloat(prt))) return false;
+      var mf = p.get('mileage_from');
+      var mt = p.get('mileage_to');
+      var km = d.km_age != null && d.km_age !== '' ? parseInt(String(d.km_age).replace(/\D/g, ''), 10) : null;
+      if (mf && (km == null || km < parseInt(mf, 10))) return false;
+      if (mt && (km == null || km > parseInt(mt, 10))) return false;
+      var yf = p.get('ym_from');
+      var yt = p.get('ym_to');
+      var ym = getYearMonthNum(car);
+      if (yf && (ym == null || ym < parseInt(yf, 10))) return false;
+      if (yt && (ym == null || ym > parseInt(yt, 10))) return false;
+      var icf = p.get('ins_cases_from');
+      var ict = p.get('ins_cases_to');
+      var icn = getInsuranceCasesCount(car);
+      if (icf && icn < parseInt(icf, 10)) return false;
+      if (ict && icn > parseInt(ict, 10)) return false;
+      var ipf = p.get('ins_payout_from');
+      var ipt = p.get('ins_payout_to');
+      var ipr = getInsurancePayoutRub(car);
+      if (ipf && ipr < parseFloat(ipf)) return false;
+      if (ipt && ipr > parseFloat(ipt)) return false;
+      var df = p.get('damaged_from');
+      var dt = p.get('damaged_to');
+      var dc = getDamagedCount(car);
+      if (df && dc < parseInt(df, 10)) return false;
+      if (dt && dc > parseInt(dt, 10)) return false;
+      if (p.get('drive_awd') === '1') {
+        var drv = d.drive_type || d.prep_drive_type || '';
+        if (drv !== 'AWD') return false;
+      }
+      if (p.get('no_insurance_cases') === '1' && getInsuranceCasesCount(car) !== 0) return false;
+      if (p.get('no_insurance_payouts') === '1' && getInsurancePayoutsSum(car) !== 0) return false;
+      if (p.get('no_damaged') === '1' && getDamagedCount(car) !== 0) return false;
+      if (p.get('passage_cars') === '1') {
+        var age = getCarAgeYears(car);
+        if (age == null || age < 3 || age > 5) return false;
+      }
+      return true;
+    }
+    function sortCarsStatic(list, sortKey) {
+      var arr = list.slice();
+      function dateVal(c) {
+        var d = (c.data) || c;
+        var iso = d.offer_created || d.created_at || '';
+        var t = Date.parse(String(iso));
+        return Number.isNaN(t) ? 0 : t;
+      }
+      function yearNum(c) {
+        var d = (c.data) || c;
+        return parseInt(String(d.year || '').slice(0, 4), 10) || 0;
+      }
+      function priceNum(c) {
+        var d = (c.data) || c;
+        var v = d.my_price;
+        if (v == null || v === '') return null;
+        var n = parseFloat(v);
+        return Number.isNaN(n) ? null : n;
+      }
+      function kmNum(c) {
+        var d = (c.data) || c;
+        var v = d.km_age;
+        if (v == null || v === '') return null;
+        return parseInt(String(v).replace(/\D/g, ''), 10);
+      }
+      var sk = sortKey || 'date_new';
+      arr.sort(function(a, b) {
+        var da = a.data || a;
+        var db = b.data || b;
+        if (sk === 'date_new') return dateVal(b) - dateVal(a);
+        if (sk === 'date_old') return dateVal(a) - dateVal(b);
+        if (sk === 'year_new') return yearNum(b) - yearNum(a);
+        if (sk === 'year_old') return yearNum(a) - yearNum(b);
+        if (sk === 'price_high') {
+          var pa = priceNum(a); var pb = priceNum(b);
+          if (pa == null && pb == null) return 0;
+          if (pa == null) return 1;
+          if (pb == null) return -1;
+          return pb - pa;
+        }
+        if (sk === 'price_low') {
+          var pa2 = priceNum(a); var pb2 = priceNum(b);
+          if (pa2 == null && pb2 == null) return 0;
+          if (pa2 == null) return 1;
+          if (pb2 == null) return -1;
+          return pa2 - pb2;
+        }
+        if (sk === 'mileage_high') {
+          var ka = kmNum(a); var kb = kmNum(b);
+          if (ka == null && kb == null) return 0;
+          if (ka == null) return 1;
+          if (kb == null) return -1;
+          return kb - ka;
+        }
+        if (sk === 'mileage_low') {
+          var ka2 = kmNum(a); var kb2 = kmNum(b);
+          if (ka2 == null && kb2 == null) return 0;
+          if (ka2 == null) return 1;
+          if (kb2 == null) return -1;
+          return ka2 - kb2;
+        }
+        return dateVal(b) - dateVal(a);
+      });
+      return arr;
+    }
     const countInfoIcon = document.getElementById('countInfoIcon');
 
     function positionTooltip(tooltipEl, anchorRect) {
@@ -313,6 +478,62 @@
       else top = Math.min(top, window.innerHeight - h - pad);
       tooltipEl.style.left = left + 'px';
       tooltipEl.style.top = top + 'px';
+    }
+
+    function showCatalogTaxTooltip(tooltipEl, anchorRect) {
+      if (!tooltipEl) return;
+      tooltipEl.style.display = 'block';
+      tooltipEl.classList.remove('is-visible');
+      positionTooltip(tooltipEl, anchorRect);
+      void tooltipEl.offsetWidth;
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          tooltipEl.classList.add('is-visible');
+        });
+      });
+    }
+
+    function hideCatalogTaxTooltip(tooltipEl) {
+      if (!tooltipEl) return;
+      tooltipEl.classList.remove('is-visible');
+      function finish() {
+        tooltipEl.style.display = 'none';
+      }
+      if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        finish();
+        return;
+      }
+      var doneTimer = setTimeout(finish, 300);
+      function onEnd(ev) {
+        if (ev.target !== tooltipEl) return;
+        if (ev.propertyName !== 'opacity' && ev.propertyName !== 'transform') return;
+        clearTimeout(doneTimer);
+        tooltipEl.removeEventListener('transitionend', onEnd);
+        finish();
+      }
+      tooltipEl.addEventListener('transitionend', onEnd);
+    }
+
+    /** Лёгкий spring при pointerdown (как «Сбросить фильтры», но слабее) */
+    function bindCardIconPressSpring(el) {
+      if (!el || el.dataset.wraPressSpring === '1') return;
+      el.dataset.wraPressSpring = '1';
+      var current = null;
+      el.addEventListener('pointerdown', function() {
+        if (typeof el.animate !== 'function') return;
+        if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (current) try { current.cancel(); } catch (e) {}
+        current = el.animate(
+          [{ transform: 'scale(1)' }, { transform: 'scale(0.97)' }],
+          { duration: 55, easing: 'cubic-bezier(0.32, 0, 0.67, 0)' }
+        );
+        current.onfinish = function() {
+          el.animate(
+            [{ transform: 'scale(0.97)' }, { transform: 'scale(1)' }],
+            { duration: 300, easing: 'cubic-bezier(0.34, 1.22, 0.64, 1)' }
+          );
+        };
+      });
     }
 
     let currentSort = 'date_new';
@@ -542,6 +763,8 @@
       if (nip && nip.checked) p.set('no_insurance_payouts', '1');
       var nd = el('filterNoDamaged');
       if (nd && nd.checked) p.set('no_damaged', '1');
+      var pvc = el('filterPassageCars');
+      if (pvc && pvc.checked) p.set('passage_cars', '1');
 
       return p;
     }
@@ -602,6 +825,8 @@
       const damagedTo = numEl('damagedTo', parseInt);
       var nd = document.getElementById('filterNoDamaged');
       const noDamaged = !!(nd && nd.checked);
+      var pac = document.getElementById('filterPassageCars');
+      const passageCars = !!(pac && pac.checked);
 
       let activeCount = 0;
       if (selectedMarks.size > 0) activeCount++;
@@ -631,6 +856,7 @@
       if (damagedFrom !== null) activeCount++;
       if (damagedTo !== null) activeCount++;
       if (noDamaged) activeCount++;
+      if (passageCars) activeCount++;
       if (filterCountEl) filterCountEl.innerText = activeCount;
       if (filtersBadge) filtersBadge.textContent = String(activeCount);
     }
@@ -708,7 +934,91 @@
       if (showMoreColorsBtn) showMoreColorsBtn.style.display = restColors.length > 0 ? 'block' : 'none';
     }
 
+    function refreshFacetsFromStaticCache(reqId) {
+      if (reqId !== catalogRequestId || !staticCatalogCache || !staticCatalogCache.length) return;
+      function dim(omitKeys, pick) {
+        var p = paramsForFacet(omitKeys);
+        var map = {};
+        staticCatalogCache.forEach(function(car) {
+          if (!carMatchesParamsUrl(car, p)) return;
+          var v = pick(car);
+          if (v == null || v === '') return;
+          map[v] = (map[v] || 0) + 1;
+        });
+        return Object.keys(map).map(function(value) { return { value: value, count: map[value] }; });
+      }
+      function cascade(container, rows, filterKey, labelCat, trigger, allLabel) {
+        if (!container) return;
+        renderFacetCheckboxList(container, rows || [], filterKey, labelCat);
+        if (trigger) setDropdownTriggerText(trigger, container, filterKey, allLabel);
+      }
+      cascade(markListEl, dim(['marks'], function(c) { return (c.data || c).mark; }), 'mark', 'mark', markTrigger, 'Все марки');
+      var selMarks = getSelectedValues(markListEl, 'mark');
+      if (selMarks.size === 0) {
+        if (modelListEl) modelListEl.innerHTML = '';
+        if (generationListEl) generationListEl.innerHTML = '';
+        if (trimListEl) trimListEl.innerHTML = '';
+        if (modelTrigger) {
+          modelTrigger.disabled = true;
+          modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
+        }
+        if (generationTrigger) {
+          generationTrigger.disabled = true;
+          generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
+        }
+        if (trimTrigger) {
+          trimTrigger.disabled = true;
+          trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+        }
+      } else {
+        cascade(modelListEl, dim(['models'], function(c) { return (c.data || c).model; }), 'model', 'model', modelTrigger, 'Все модели');
+        if (modelTrigger) modelTrigger.disabled = false;
+        var selModels = getSelectedValues(modelListEl, 'model');
+        if (selModels.size === 0) {
+          if (generationListEl) generationListEl.innerHTML = '';
+          if (trimListEl) trimListEl.innerHTML = '';
+          if (generationTrigger) {
+            generationTrigger.disabled = true;
+            generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
+          }
+          if (trimTrigger) {
+            trimTrigger.disabled = true;
+            trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+          }
+        } else {
+          cascade(generationListEl, dim(['generations'], function(c) {
+            var d = c.data || c;
+            return d.generation || d.configuration || '';
+          }), 'generation', 'generation', generationTrigger, 'Все поколения');
+          if (generationTrigger) generationTrigger.disabled = false;
+          var selGen = getSelectedValues(generationListEl, 'generation');
+          if (selGen.size === 0) {
+            if (trimListEl) trimListEl.innerHTML = '';
+            if (trimTrigger) {
+              trimTrigger.disabled = true;
+              trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+            }
+          } else {
+            cascade(trimListEl, dim(['trims'], function(c) {
+              var d = c.data || c;
+              return d.gradeName || d.configuration || d.generation || '';
+            }), 'trim', 'trim', trimTrigger, 'Все комплектации');
+            if (trimTrigger) trimTrigger.disabled = false;
+          }
+        }
+      }
+      renderFacetCheckboxList(document.getElementById('bodyList'), dim(['body'], function(c) { return (c.data || c).body_type; }), 'body', 'bodyType');
+      renderFacetCheckboxList(document.getElementById('fuelList'), dim(['fuel'], function(c) { return (c.data || c).engine_type; }), 'fuel', 'engineType');
+      renderFacetCheckboxList(document.getElementById('transmissionList'), dim(['trans'], function(c) { return (c.data || c).transmission_type; }), 'transmission', 'transmission');
+      renderColorFilterFromFacets(dim(['color'], function(c) { return (c.data || c).color; }));
+      syncCascadeSlotVisibility();
+    }
+
     async function refreshFacetBars(reqId) {
+      if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
+        refreshFacetsFromStaticCache(reqId);
+        return;
+      }
       const params = buildCatalogFilterParams();
       const res = await fetch(apiUrl('/api/facets?' + params.toString()));
       if (!res.ok) throw new Error('facets HTTP ' + res.status);
@@ -822,18 +1132,44 @@
       var meta = data && data.meta && typeof data.meta === 'object' ? data.meta : {};
       var total = Number(meta.total);
       if (!Number.isFinite(total) || total < 0) total = 0;
-      var pages = Number(meta.pages);
       var perPage = Number(meta.per_page);
       if (!Number.isFinite(perPage) || perPage < 1) perPage = PER_PAGE;
+      if (total === 0 && list.length > 0) total = list.length;
+      var pages = Number(meta.pages);
       if (!Number.isFinite(pages) || pages < 1) {
         pages = total > 0 ? Math.max(1, Math.ceil(total / perPage)) : 1;
       }
       return { list: list, total: total, pages: pages };
     }
 
+    function loadCarsPageStatic(targetPage, reqId) {
+      if (!staticCatalogCache || !staticCatalogCache.length) return;
+      if (reqId !== catalogRequestId) return;
+      const params = buildCatalogFilterParams();
+      let filtered = staticCatalogCache.filter(function(c) { return carMatchesParamsUrl(c, params); });
+      filtered = sortCarsStatic(filtered, currentSort || 'date_new');
+      catalogTotal = filtered.length;
+      catalogPages = Math.max(1, Math.ceil(catalogTotal / PER_PAGE));
+      var tp = Math.max(1, Math.min(targetPage, catalogPages));
+      page = tp;
+      var start = (page - 1) * PER_PAGE;
+      pageCars = filtered.slice(start, start + PER_PAGE);
+      if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
+        page = 1;
+        start = 0;
+        pageCars = filtered.slice(0, PER_PAGE);
+      }
+      updateFilterCountBadge();
+      draw();
+    }
+
     async function loadCarsPage(targetPage, reqId) {
       if (reqId == null) reqId = ++catalogRequestId;
       showSkeleton();
+      if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
+        loadCarsPageStatic(targetPage, reqId);
+        return;
+      }
       try {
         const params = buildCatalogFilterParams();
         params.set('page', String(targetPage));
@@ -856,6 +1192,20 @@
         draw();
       } catch (err) {
         if (reqId !== catalogRequestId) return;
+        if (!staticCatalogCache) {
+          try {
+            var jr = await fetch('cars.json');
+            if (jr.ok) {
+              var raw = await jr.json();
+              var parsedInit = parseCarsApiPayload(raw);
+              staticCatalogCache = parsedInit.list;
+              useStaticCatalog = true;
+              loadCarsPageStatic(targetPage, reqId);
+              scheduleFacetRefresh(reqId);
+              return;
+            }
+          } catch (e2) { /* fall through */ }
+        }
         console.error(err);
         pageCars = [];
         catalogTotal = 0;
@@ -886,16 +1236,41 @@
 
     function taxClass(yearStr) {
       const carYear = parseInt(String(yearStr).slice(0, 4));
-      if (isNaN(carYear)) return { cls: 'high', text: 'Высокая ставка', tooltip: 'Не удалось определить возраст' };
+      if (isNaN(carYear)) {
+        return {
+          cls: 'high',
+          text: 'Высокая ставка',
+          tooltip:
+            '<strong>Возраст не определён</strong><br>' +
+            'Год в объявлении не распознан. Метка условная — пошлины и сумму «под ключ» уточняйте у менеджера по VIN.'
+        };
+      }
       const now = new Date();
       const age = now.getFullYear() - carYear;
       if (age >= 3 && age < 5) {
-        return { cls: 'pass', text: 'Проходной', tooltip: 'Возраст авто от 3 до 5 лет — самая низкая таможенная ставка' };
+        return {
+          cls: 'pass',
+          text: 'Проходной',
+          tooltip:
+            '<strong>Проходной возраст</strong><br>' +
+            'По году в объявлении — <strong>3–4 года</strong>. Часто применяется <strong>более низкая ЕТС</strong>, чем у машин младше 3 лет. Итог — в расчёте карточки или у менеджера.'
+        };
+      }
+      if (age < 3) {
+        return {
+          cls: 'high',
+          text: 'Высокая ставка',
+          tooltip:
+            '<strong>Моложе 3 лет</strong><br>' +
+            'По году модели <strong>меньше 3 лет</strong>. Нагрузка при ввозе обычно <strong>выше</strong>, чем у «проходных» 3–4 лет. Детали — в калькуляторе или у менеджера.'
+        };
       }
       return {
         cls: 'high',
         text: 'Высокая ставка',
-        tooltip: age < 3 ? 'Авто младше 3 лет — максимальная ставка' : 'Авто старше 5 лет — максимальная ставка'
+        tooltip:
+          '<strong>5+ лет по году</strong><br>' +
+          'Другие ставки и сборы — как правило <strong>менее выгодны</strong>, чем у 3–4 лет. Ориентир по объявлению; итог — у менеджера или в расчёте карточки.'
       };
     }
 
@@ -1069,8 +1444,8 @@
               <div class="car-info-header">
                 <h2>${fullTitle}</h2>
                 <div class="car-actions">
-                  <button type="button" class="icon-btn" aria-label="Поделиться" title="Поделиться"><img src="image/External_Link.svg" alt="" width="18" height="18"></button>
-                  <button type="button" class="icon-btn" aria-label="В избранное" title="В избранное"><img src="image/Heart_01.svg" alt="" width="18" height="18" class="fav-icon"></button>
+                  <button type="button" class="icon-btn icon-btn--share" aria-label="Поделиться" title="Поделиться"><img src="image/External_Link.svg" alt="" width="18" height="18"></button>
+                  <button type="button" class="icon-btn icon-btn--fav" aria-label="В избранное" title="В избранное"><img src="image/Heart_01.svg" alt="" width="18" height="18" class="fav-icon"></button>
                 </div>
               </div>
               <div class="meta meta-strong">
@@ -1087,7 +1462,7 @@
                 </span>
                 <span class="delivery-line">до Владивостока <span class="info-icon-wrap" title="Доставка до Владивостока"><img src="image/Info.svg" alt="i" width="12" height="12" class="info-icon-img"></span></span>
               </div>
-              <a href="${carUrl}" target="_blank" class="tax-btn ${tax.cls}">${tax.text}</a>
+              <a href="${carUrl}" target="_blank" rel="noopener noreferrer" class="tax-btn ${tax.cls}">${tax.text}</a>
             </div>
           </div>
         `;
@@ -1108,15 +1483,17 @@
           });
         }
 
-        // Тултип для кнопки ставки
+        // Тултип для кнопки ставки (тёмный полупрозрачный, плавное появление)
         const btn = card.querySelector('.tax-btn');
         if (btn) {
           const btnTooltip = document.createElement('div');
-          btnTooltip.className = 'tooltip';
+          btnTooltip.className = 'tooltip tooltip--catalog-tax';
           btnTooltip.innerHTML = tax.tooltip;
           document.body.appendChild(btnTooltip);
-          btn.addEventListener('mouseenter', () => { positionTooltip(btnTooltip, btn.getBoundingClientRect()); });
-          btn.addEventListener('mouseleave', () => { btnTooltip.style.display = 'none'; });
+          btn.addEventListener('mouseenter', function() { showCatalogTaxTooltip(btnTooltip, btn.getBoundingClientRect()); });
+          btn.addEventListener('mouseleave', function() { hideCatalogTaxTooltip(btnTooltip); });
+          btn.addEventListener('focus', function() { showCatalogTaxTooltip(btnTooltip, btn.getBoundingClientRect()); });
+          btn.addEventListener('blur', function() { hideCatalogTaxTooltip(btnTooltip); });
         }
 
         // Тултип для info-icon (иконка «i» у «до Владивостока»)
@@ -1131,7 +1508,8 @@
         }
 
         // Поделиться — копировать ссылку и показать «Ссылка скопирована»
-        const shareBtn = card.querySelector('.car-actions .icon-btn:first-child');
+        const shareBtn = card.querySelector('.car-actions .icon-btn--share');
+        bindCardIconPressSpring(shareBtn);
         if (shareBtn) shareBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(carUrl).then(() => {
@@ -1149,7 +1527,8 @@
           }).catch(() => { window.open(carUrl, '_blank'); });
         });
         // Избранное — переключение состояния
-        const favBtn = card.querySelector('.car-actions .icon-btn:last-child');
+        const favBtn = card.querySelector('.car-actions .icon-btn--fav');
+        bindCardIconPressSpring(favBtn);
         if (favBtn) {
           const sid = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (car.data && car.data.inner_id != null ? car.data.inner_id : null));
           if (window.WRAAuthFavorites && typeof window.WRAAuthFavorites.bindFavoriteButton === 'function' && sid != null) {
@@ -1205,94 +1584,156 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
-      const prevBtn = document.createElement('button');
-      prevBtn.className = 'pagination-prev';
-      prevBtn.title = 'Назад';
-      prevBtn.disabled = page <= 1;
-      prevBtn.onclick = () => { if (page > 1) go(page - 1); };
-      prevBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      paginationEl.appendChild(prevBtn);
+      const nav = document.createElement('nav');
+      nav.className = 'pagination';
+      nav.setAttribute('aria-label', 'Pagination navigation');
+      const list = document.createElement('ul');
+      list.className = 'pagination__list';
+      list.setAttribute('role', 'list');
+      nav.appendChild(list);
 
-      const maxVisible = 7;
-      let from = Math.max(1, page - 2);
+      const makeItem = () => {
+        const li = document.createElement('li');
+        li.className = 'pagination__item';
+        return li;
+      };
+      const makeArrow = (dir, disabled, targetPage) => {
+        const li = makeItem();
+        const a = document.createElement('a');
+        a.href = '#';
+        a.className = 'pagination__link pagination__link--arrow' + (disabled ? ' pagination__link--disabled' : '');
+        a.setAttribute('aria-label', dir === 'prev' ? 'Previous' : 'Next');
+        if (disabled) a.setAttribute('aria-disabled', 'true');
+        a.innerHTML = dir === 'prev'
+          ? '<svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7 11L2 6L7 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>'
+          : '<svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M1 1L6 6L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!disabled) go(targetPage);
+        });
+        li.appendChild(a);
+        return li;
+      };
+      const makePage = (p) => {
+        const li = makeItem();
+        const a = document.createElement('a');
+        a.href = '#';
+        a.className = 'pagination__link' + (p === page ? ' pagination__link--current' : '');
+        a.setAttribute('aria-label', `Page ${p}`);
+        if (p === page) a.setAttribute('aria-current', 'page');
+        a.textContent = String(p);
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (p !== page) go(p);
+        });
+        li.appendChild(a);
+        return li;
+      };
+      const makeGap = (mobileOnly) => {
+        const li = makeItem();
+        li.className += ' pagination__gap' + (mobileOnly ? ' pagination__item--mobile-only' : '');
+        const s = document.createElement('span');
+        s.className = 'pagination__link--gap';
+        s.setAttribute('aria-hidden', 'true');
+        s.textContent = '…';
+        li.appendChild(s);
+        return li;
+      };
+
+      list.appendChild(makeArrow('prev', page <= 1, Math.max(1, page - 1)));
+
+      const maxVisible = window.innerWidth <= 600 ? 5 : 7;
+      let from = Math.max(1, page - Math.floor((maxVisible - 1) / 2));
       let to = Math.min(total, from + maxVisible - 1);
       if (to - from + 1 < maxVisible) from = Math.max(1, to - maxVisible + 1);
+
       if (from > 1) {
-        const b1 = document.createElement('button');
-        b1.className = 'page-num';
-        b1.textContent = '1';
-        b1.onclick = () => go(1);
-        paginationEl.appendChild(b1);
-        if (from > 2) {
-          const ell = document.createElement('span');
-          ell.className = 'pagination-ellipsis';
-          ell.textContent = '…';
-          paginationEl.appendChild(ell);
-        }
+        list.appendChild(makePage(1));
+        if (from > 2) list.appendChild(makeGap(window.innerWidth <= 600));
       }
-      for (let i = from; i <= to; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'page-num';
-        btn.textContent = i;
-        if (i === page) btn.classList.add('active');
-        btn.onclick = () => go(i);
-        paginationEl.appendChild(btn);
-      }
+      for (let i = from; i <= to; i++) list.appendChild(makePage(i));
       if (to < total) {
-        if (to < total - 1) {
-          const ell = document.createElement('span');
-          ell.className = 'pagination-ellipsis';
-          ell.textContent = '…';
-          paginationEl.appendChild(ell);
-        }
-        const bN = document.createElement('button');
-        bN.className = 'page-num';
-        bN.textContent = total;
-        bN.onclick = () => go(total);
-        paginationEl.appendChild(bN);
+        if (to < total - 1) list.appendChild(makeGap(window.innerWidth <= 600));
+        list.appendChild(makePage(total));
       }
 
-      const nextBtn = document.createElement('button');
-      nextBtn.className = 'pagination-next';
-      nextBtn.title = 'Вперёд';
-      nextBtn.disabled = page >= total;
-      nextBtn.onclick = () => { if (page < total) go(page + 1); };
-      nextBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M9 5L16 12L9 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      paginationEl.appendChild(nextBtn);
+      list.appendChild(makeArrow('next', page >= total, Math.min(total, page + 1)));
+      paginationEl.appendChild(nav);
+
+      const updateActiveIndicator = () => {
+        const active = list.querySelector('.pagination__link[aria-current="page"]');
+        if (!active) {
+          list.classList.remove('has-active');
+          return;
+        }
+        const listRect = list.getBoundingClientRect();
+        const activeRect = active.getBoundingClientRect();
+        list.style.setProperty('--active-x', (activeRect.left - listRect.left) + 'px');
+        list.style.setProperty('--active-y', (activeRect.top - listRect.top) + 'px');
+        list.style.setProperty('--active-w', activeRect.width + 'px');
+        list.style.setProperty('--active-h', activeRect.height + 'px');
+        list.classList.add('has-active');
+      };
+      requestAnimationFrame(updateActiveIndicator);
     }
 
     // ---------- Построение фильтров на основе данных ----------
     const MONTHS = ['', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
     const MONTH_LABELS = ['', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
+    function syncYearMonthDropdowns() {
+      var yearFromEl = document.getElementById('yearFrom');
+      var yearToEl = document.getElementById('yearTo');
+      var monthFromEl = document.getElementById('monthFrom');
+      var monthToEl = document.getElementById('monthTo');
+      var cap = new Date();
+      var cy = cap.getFullYear();
+      var cm = cap.getMonth() + 1;
+      function refillMonths(sel, placeholder, yearVal) {
+        if (!sel) return;
+        var prev = sel.value;
+        var y = parseInt(yearVal, 10);
+        var maxM = 12;
+        if (!Number.isNaN(y) && y === cy) maxM = cm;
+        sel.innerHTML = '<option value="">' + placeholder + '</option>';
+        for (var m = 1; m <= maxM; m++) {
+          var o = document.createElement('option');
+          o.value = MONTHS[m];
+          o.textContent = MONTH_LABELS[m];
+          sel.appendChild(o);
+        }
+        if (prev) {
+          var pm = parseInt(prev, 10);
+          if (!Number.isNaN(pm) && pm >= 1 && pm <= maxM) sel.value = MONTHS[pm];
+          else sel.value = '';
+        } else sel.value = '';
+      }
+      refillMonths(monthFromEl, 'Месяц от', yearFromEl && yearFromEl.value);
+      refillMonths(monthToEl, 'Месяц до', yearToEl && yearToEl.value);
+      syncCustomSelectUi(monthFromEl, monthFromTrigger, monthFromOptions, 'Месяц от');
+      syncCustomSelectUi(monthToEl, monthToTrigger, monthToOptions, 'Месяц до');
+    }
+
     function initCatalogFiltersUi() {
       const yearFromEl = document.getElementById('yearFrom');
       const yearToEl = document.getElementById('yearTo');
       const monthFromEl = document.getElementById('monthFrom');
       const monthToEl = document.getElementById('monthTo');
+      var capY = new Date().getFullYear();
       [yearFromEl, yearToEl].forEach(function(sel) {
         if (!sel) return;
         sel.innerHTML = '<option value="">' + (sel.id === 'yearFrom' ? 'Год от' : 'Год до') + '</option>';
-        for (var y = 2030; y >= 1980; y--) {
+        for (var y = capY; y >= 1980; y--) {
           var o = document.createElement('option');
           o.value = y;
           o.textContent = y;
           sel.appendChild(o);
         }
       });
-      [monthFromEl, monthToEl].forEach(function(sel, i) {
-        if (!sel) return;
-        sel.innerHTML = '<option value="">' + (i === 0 ? 'Месяц от' : 'Месяц до') + '</option>';
-        for (var m = 1; m <= 12; m++) {
-          var o = document.createElement('option');
-          o.value = MONTHS[m];
-          o.textContent = MONTH_LABELS[m];
-          sel.appendChild(o);
-        }
-      });
       bindCustomSelectDropdown(yearFromEl, yearFromTrigger, yearFromPanel, yearFromOptions, 'Год от');
-      bindCustomSelectDropdown(monthFromEl, monthFromTrigger, monthFromPanel, monthFromOptions, 'Месяц от');
       bindCustomSelectDropdown(yearToEl, yearToTrigger, yearToPanel, yearToOptions, 'Год до');
+      syncYearMonthDropdowns();
+      bindCustomSelectDropdown(monthFromEl, monthFromTrigger, monthFromPanel, monthFromOptions, 'Месяц от');
       bindCustomSelectDropdown(monthToEl, monthToTrigger, monthToPanel, monthToOptions, 'Месяц до');
 
       var filtersPanelEl = document.getElementById('filtersPanel');
@@ -1312,6 +1753,10 @@
               cb.checked = !!byValue[cb.value];
             });
             syncCheckboxVisualStates(document);
+            scheduleDebouncedApplyFilters();
+            return;
+          }
+          if (t.id === 'filterPassageCars') {
             scheduleDebouncedApplyFilters();
             return;
           }
@@ -1380,7 +1825,13 @@
         var el = document.getElementById(id);
         if (el) el.addEventListener('input', scheduleDebouncedApplyFilters);
       });
-      [yearFromEl, yearToEl, monthFromEl, monthToEl].filter(Boolean).forEach(function(el) {
+      [yearFromEl, yearToEl].filter(Boolean).forEach(function(el) {
+        el.addEventListener('change', function() {
+          syncYearMonthDropdowns();
+          void runApplyFilters();
+        });
+      });
+      [monthFromEl, monthToEl].filter(Boolean).forEach(function(el) {
         el.addEventListener('change', function() { void runApplyFilters(); });
       });
       syncCheckboxVisualStates(document);
@@ -1495,6 +1946,7 @@
       chk = document.getElementById('filterNoInsuranceCases'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoInsurancePayouts'); if (chk) chk.checked = false;
       chk = document.getElementById('filterNoDamaged'); if (chk) chk.checked = false;
+      chk = document.getElementById('filterPassageCars'); if (chk) chk.checked = false;
       syncCheckboxVisualStates(document);
       void runApplyFilters();
     }
@@ -1594,7 +2046,25 @@
     })();
 
     var resetFiltersBtn = document.getElementById('resetFiltersBtn');
-    if (resetFiltersBtn) resetFiltersBtn.addEventListener('click', resetFilters);
+    if (resetFiltersBtn) {
+      resetFiltersBtn.addEventListener('click', resetFilters);
+      var pressResetSpring = null;
+      function playPressSpring() {
+        if (!resetFiltersBtn.animate) return;
+        if (pressResetSpring) try { pressResetSpring.cancel(); } catch (e1) {}
+        pressResetSpring = resetFiltersBtn.animate(
+          [{ transform: 'scale(1)' }, { transform: 'scale(0.94)' }],
+          { duration: 85, easing: 'cubic-bezier(0.32, 0, 0.67, 0)' }
+        );
+        pressResetSpring.onfinish = function() {
+          resetFiltersBtn.animate(
+            [{ transform: 'scale(0.94)' }, { transform: 'scale(1)' }],
+            { duration: 420, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
+          );
+        };
+      }
+      resetFiltersBtn.addEventListener('pointerdown', playPressSpring);
+    }
 
     // Модальное окно «Показать цвета ещё»
     const colorModalOverlay = document.getElementById('colorModalOverlay');
@@ -1603,6 +2073,16 @@
     if (showMoreColorsBtn) {
       showMoreColorsBtn.addEventListener('click', function() {
         if (colorModalOverlay) {
+          var panel = document.getElementById('filtersPanel');
+          var mx = 0;
+          var my = 0;
+          if (panel) {
+            var r = panel.getBoundingClientRect();
+            mx = (r.left + r.width / 2) - window.innerWidth / 2;
+            my = (r.top + r.height / 2) - window.innerHeight / 2;
+          }
+          colorModalOverlay.style.setProperty('--color-modal-dx', mx + 'px');
+          colorModalOverlay.style.setProperty('--color-modal-dy', my + 'px');
           colorModalOverlay.classList.add('is-open');
           document.querySelectorAll('#colorListVisible input[data-filter="color"]').forEach(function(visCb) {
             var v = visCb.value;

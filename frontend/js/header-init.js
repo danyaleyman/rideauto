@@ -14,4 +14,39 @@
       window.WRAAuthFavorites.saveCurrentSearchSubscription(name, filters);
     });
   }
+
+  var header = document.querySelector('.header');
+  var burgerBtn = document.getElementById('headerBurgerBtn');
+  var mobileMenu = document.getElementById('mobileHeaderMenu');
+  if (header && burgerBtn && mobileMenu) {
+    var desktopNav = header.querySelector('.nav-menu');
+    if (desktopNav) {
+      var links = desktopNav.querySelectorAll('a[href]');
+      mobileMenu.innerHTML = '';
+      links.forEach(function (a) {
+        var href = (a.getAttribute('href') || '').trim();
+        if (!href) return;
+        var clone = document.createElement('a');
+        clone.href = href;
+        clone.textContent = (a.textContent || '').trim() || href;
+        if (a.classList.contains('active')) clone.classList.add('active');
+        mobileMenu.appendChild(clone);
+      });
+    }
+    var closeMobileMenu = function () {
+      header.classList.remove('mobile-menu-open');
+      burgerBtn.setAttribute('aria-expanded', 'false');
+    };
+    burgerBtn.addEventListener('click', function () {
+      var willOpen = !header.classList.contains('mobile-menu-open');
+      header.classList.toggle('mobile-menu-open', willOpen);
+      burgerBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    mobileMenu.addEventListener('click', function (e) {
+      if (e.target && e.target.tagName === 'A') closeMobileMenu();
+    });
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 900) closeMobileMenu();
+    });
+  }
 })();

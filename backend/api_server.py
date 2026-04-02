@@ -252,7 +252,8 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
     color_expr = "json_extract(data_json, '$.data.color')"
     power_expr = "COALESCE(CAST(json_extract(data_json, '$.data.power') AS INTEGER), CAST(json_extract(data_json, '$.data.hp') AS INTEGER), CAST(json_extract(data_json, '$.power') AS INTEGER))"
     engine_expr = "CAST(json_extract(data_json, '$.data.displacement') AS INTEGER)"
-    price_expr = "CAST(json_extract(data_json, '$.data.price_won') AS REAL)"
+    # Фильтр «Цена» в интерфейсе задаётся в рублях (my_price под ключ)
+    price_expr = "CAST(json_extract(data_json, '$.data.my_price') AS REAL)"
     mileage_expr = "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER)"
     year_expr = "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER)"
     ym_expr = (
@@ -264,6 +265,11 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
     insurance_payout_expr = (
         "(SELECT COALESCE(SUM(CAST(json_extract(je.value, '$.insuranceBenefit') AS REAL)), 0) "
         "FROM json_each(COALESCE(json_extract(data_json, '$.data.extra.record_open.accidents'), '[]')) je)"
+    )
+    # Сумма выплат в строке инспекции — в вонах; сравнение с порогами в рублях по курсу из карточки
+    insurance_payout_rub_expr = (
+        f"(({insurance_payout_expr}) * (COALESCE(CAST(json_extract(data_json, '$.data.usdt_rub') AS REAL), 91.0) / "
+        "NULLIF(COALESCE(CAST(json_extract(data_json, '$.data.krw_per_usdt') AS REAL), 1400.0), 0)))"
     )
     damaged_expr = "(SELECT COUNT(*) FROM json_each(COALESCE(json_extract(data_json, '$.data.extra.inspection_structured.bodyChanged'), '{}')))"
 
@@ -283,7 +289,7 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
     _add_range_filter(clauses, params, year_expr, query.get("year_from"), query.get("year_to"))
     _add_range_filter(clauses, params, ym_expr, query.get("ym_from"), query.get("ym_to"))
     _add_range_filter(clauses, params, insurance_cases_expr, query.get("ins_cases_from"), query.get("ins_cases_to"))
-    _add_range_filter(clauses, params, insurance_payout_expr, query.get("ins_payout_from"), query.get("ins_payout_to"))
+    _add_range_filter(clauses, params, insurance_payout_rub_expr, query.get("ins_payout_from"), query.get("ins_payout_to"))
     _add_range_filter(clauses, params, damaged_expr, query.get("damaged_from"), query.get("damaged_to"))
 
     if query.get("drive_awd") == "1":
@@ -294,6 +300,12 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
         clauses.append(f"{insurance_payout_expr} = 0")
     if query.get("no_damaged") == "1":
         clauses.append(f"{damaged_expr} = 0")
+    if query.get("passage_cars") == "1":
+        age_expr = (
+            "(CAST(strftime('%Y', 'now') AS INTEGER) - "
+            "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER))"
+        )
+        clauses.append(f"{age_expr} BETWEEN 3 AND 5")
 
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     return where, params
@@ -387,8 +399,8 @@ async def cars(request: web.Request) -> web.Response:
         "date_old": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) ASC",
         "year_new": "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) DESC",
         "year_old": "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) ASC",
-        "price_high": "CAST(json_extract(data_json, '$.data.price_won') AS REAL) DESC",
-        "price_low": "CAST(json_extract(data_json, '$.data.price_won') AS REAL) ASC",
+        "price_high": "(CASE WHEN json_extract(data_json, '$.data.my_price') IS NULL OR json_extract(data_json, '$.data.my_price') = '' THEN 1 ELSE 0 END) ASC, CAST(json_extract(data_json, '$.data.my_price') AS REAL) DESC",
+        "price_low": "(CASE WHEN json_extract(data_json, '$.data.my_price') IS NULL OR json_extract(data_json, '$.data.my_price') = '' THEN 1 ELSE 0 END) ASC, CAST(json_extract(data_json, '$.data.my_price') AS REAL) ASC",
         "mileage_high": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) DESC",
         "mileage_low": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) ASC",
     }

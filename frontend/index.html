@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/auth-favorites.css">
     <link rel="stylesheet" href="css/cookie-consent.css">
-    <link rel="preload" href="/js/catalog.js" as="script">
+    <link rel="preload" href="js/catalog.js" as="script">
     <script defer src="/js/wra-site-config.js"></script>
     <script defer src="/js/auth-favorites.js"></script>
     <script defer src="/js/copy-protection.js"></script>
@@ -121,6 +121,47 @@
       align-items: center;
       flex-shrink: 0;
     }
+    .header-burger {
+      display: none;
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--wra-border);
+      border-radius: var(--radius-md);
+      background: var(--wra-surface);
+      padding: 10px 9px;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .header-burger span {
+      width: 100%;
+      height: 2px;
+      background: var(--wra-gray-800);
+      border-radius: 2px;
+      transition: transform 0.24s ease, opacity 0.2s ease;
+    }
+    .header.mobile-menu-open .header-burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .header.mobile-menu-open .header-burger span:nth-child(2) { opacity: 0; }
+    .header.mobile-menu-open .header-burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .mobile-header-menu {
+      display: none;
+      max-width: var(--container-max);
+      margin: 0 auto;
+      padding: 0 var(--space-5) var(--space-4);
+      border-top: 1px solid var(--wra-border);
+      flex-direction: column;
+      gap: 2px;
+    }
+    .mobile-header-menu a {
+      text-decoration: none;
+      color: var(--wra-gray-800);
+      font-weight: 600;
+      padding: 12px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .mobile-header-menu a:hover { background: var(--wra-gray-100); }
     .btn {
       padding: 10px 20px;
       border-radius: var(--radius-pill);
@@ -472,9 +513,18 @@
     @media (prefers-reduced-motion: reduce) {
       .filter-cascade-slot,
       .filter-section-toggle__body,
-      .filter-section-toggle__chev {
+      .filter-section-toggle__chev,
+      .color-modal,
+      .color-modal-overlay.is-open .color-modal {
         transition: none !important;
         animation: none !important;
+      }
+      .car-actions .icon-btn,
+      .car-actions .icon-btn img {
+        transition: none !important;
+      }
+      .tooltip.tooltip--catalog-tax {
+        transition: none !important;
       }
     }
     .filter-group h4 {
@@ -538,14 +588,9 @@
     }
     .year-range-row {
       display: grid;
-      grid-template-columns: 28px 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       align-items: center;
-      gap: 6px;
-    }
-    .year-range-label {
-      font-size: 0.75rem;
-      color: var(--wra-gray-600);
-      font-weight: var(--font-medium);
+      gap: 8px;
     }
     .year-range-row select {
       width: 100%;
@@ -687,6 +732,12 @@
       white-space: nowrap;
     }
     .checkbox {
+      --toggle: var(--wra-white);
+      --toggle-active: var(--wra-primary);
+      --toggle-border: var(--wra-gray-300);
+      --toggle-border-hover: var(--wra-gray-400);
+      --toggle-border-active: var(--wra-primary);
+      --toggle-inner: var(--wra-white);
       display: inline-flex;
       align-items: center;
       gap: 0.75rem;
@@ -713,26 +764,23 @@
       white-space: nowrap;
     }
     .checkbox__control {
-      width: 1rem;
-      height: 1rem;
-      border-radius: 0.25rem;
-      border: 1px solid var(--wra-gray-300);
-      background: var(--wra-white);
+      width: 1.1rem;
+      height: 1.1rem;
+      border-radius: 0.32rem;
+      border: 1px solid var(--toggle-border);
+      background: var(--toggle);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-                  border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-                  transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+      transition: background-color .24s ease, border-color .24s ease, transform .16s ease;
       box-shadow: var(--shadow-sm);
       flex: 0 0 auto;
+      position: relative;
     }
-    .checkbox:hover .checkbox__control {
-      border-color: var(--wra-gray-400);
-    }
+    .checkbox:hover .checkbox__control { border-color: var(--toggle-border-hover); }
     .checkbox[data-selected="true"] .checkbox__control {
-      background: var(--wra-primary);
-      border-color: var(--wra-primary);
+      background: var(--toggle-active);
+      border-color: var(--toggle-border-active);
     }
     .checkbox:focus-within .checkbox__control {
       outline: none;
@@ -744,7 +792,7 @@
       justify-content: center;
       width: 0.75rem;
       height: 0.75rem;
-      color: var(--wra-white);
+      color: var(--toggle-inner);
     }
     .checkbox__indicator svg {
       width: 100%;
@@ -758,11 +806,89 @@
     .checkbox__indicator svg polyline {
       stroke-dasharray: 22;
       stroke-dashoffset: 44;
-      transition: stroke-dashoffset 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: stroke-dashoffset .2s ease .05s;
     }
     .checkbox[data-selected="true"] .checkbox__indicator svg polyline {
       stroke-dashoffset: 0;
     }
+    .checkbox:active .checkbox__control {
+      transform: scale(0.94);
+    }
+
+    /* Радио и свитч (готово к подключению по той же схеме) */
+    .wra-radio {
+      --radio-border: var(--wra-gray-300);
+      --radio-border-hover: var(--wra-gray-400);
+      --radio-active: var(--wra-primary);
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .wra-radio input[type="radio"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--radio-border);
+      background: var(--wra-white);
+      margin: 0;
+      transition: border-color .2s ease, transform .16s ease;
+      position: relative;
+    }
+    .wra-radio input[type="radio"]::after {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: var(--radio-active);
+      transform: scale(0);
+      transition: transform .18s ease;
+    }
+    .wra-radio:hover input[type="radio"] { border-color: var(--radio-border-hover); }
+    .wra-radio input[type="radio"]:checked { border-color: var(--radio-active); }
+    .wra-radio input[type="radio"]:checked::after { transform: scale(1); }
+    .wra-radio input[type="radio"]:active { transform: scale(.94); }
+
+    .wra-switch {
+      --switch-bg: #d1d6ee;
+      --switch-bg-hover: #cacfe6;
+      --switch-active: var(--wra-primary);
+      --switch-dot: #fff;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .wra-switch input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 40px;
+      height: 22px;
+      border-radius: 999px;
+      border: none;
+      background: var(--switch-bg);
+      margin: 0;
+      transition: background .24s ease;
+      position: relative;
+    }
+    .wra-switch input[type="checkbox"]::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--switch-dot);
+      top: 2px;
+      left: 2px;
+      box-shadow: 0 .5px .5px rgba(0, 9, 61, .12);
+      transition: transform .24s ease;
+    }
+    .wra-switch:hover input[type="checkbox"] { background: var(--switch-bg-hover); }
+    .wra-switch input[type="checkbox"]:checked { background: var(--switch-active); }
+    .wra-switch input[type="checkbox"]:checked::after { transform: translateX(18px); }
     .checkbox__content {
       color: var(--wra-gray-900);
       font-size: 0.8125rem;
@@ -964,35 +1090,47 @@
     .range-inputs input::placeholder {
       color: var(--wra-text-muted);
     }
+    .range-inputs input[type="number"] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    .range-inputs input[type="number"]::-webkit-outer-spin-button,
+    .range-inputs input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
     .drive-checkbox-wrap .checkbox-item {
       margin-bottom: 4px;
     }
     .reset-btn {
-      background: var(--wra-gray-100);
-      border: 1px solid var(--wra-gray-300);
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--wra-border);
       border-radius: var(--radius-md);
-      padding: 9px 12px;
-      font-size: var(--filter-control-font);
+      background: linear-gradient(180deg, var(--wra-gray-50) 0%, var(--wra-white) 100%);
+      font: inherit;
       font-weight: 600;
-      min-height: var(--filter-control-height);
+      font-size: 0.8125rem;
       color: var(--wra-gray-800);
       cursor: pointer;
-      width: 100%;
-      transition: background var(--transition), border-color var(--transition), transform var(--transition-fast), box-shadow var(--transition);
+      min-height: var(--filter-control-height);
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: var(--shadow-sm);
       text-transform: none;
       letter-spacing: 0;
+      will-change: transform;
     }
     .reset-btn:hover {
-      background: var(--wra-gray-200);
-      border-color: var(--wra-gray-400);
-      transform: translateY(-1px);
+      border-color: var(--wra-gray-300);
+      background: var(--wra-gray-50);
     }
     .reset-btn:focus-visible {
       outline: none;
-      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
-    }
-    .reset-btn:active {
-      transform: translateY(0);
+      box-shadow: var(--shadow-focus);
     }
     .count-badge {
       background: var(--wra-gray-200);
@@ -1015,23 +1153,22 @@
     }
     .show-more-colors-btn {
       margin-top: var(--space-2);
-      padding: var(--space-2) var(--space-3);
-      font-size: var(--text-sm);
-      font-weight: var(--font-semibold);
-      color: var(--wra-primary);
+      padding: 10px 12px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--wra-gray-800);
       background: transparent;
-      border: 1px dashed var(--wra-gray-300);
-      border-radius: var(--radius-sm);
+      border: 1px dashed var(--wra-border);
+      border-radius: var(--radius-md);
       cursor: pointer;
-      transition: border-color var(--transition), background-color var(--transition), color var(--transition);
+      transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, border-style 0.2s ease;
       width: 100%;
-      font-weight: var(--font-medium);
-      transition: background var(--transition), border-color var(--transition);
     }
     .show-more-colors-btn:hover {
-      background: var(--wra-primary-light);
-      border-color: var(--wra-primary);
+      background: #3b82f6;
+      border-color: transparent;
       border-style: solid;
+      color: #fff;
     }
     .show-more-colors-btn:focus-visible {
       outline: none;
@@ -1039,6 +1176,8 @@
     }
     /* Модальное окно цветов */
     .color-modal-overlay {
+      --color-modal-dx: 0px;
+      --color-modal-dy: 0px;
       display: none;
       position: fixed;
       inset: 0;
@@ -1059,6 +1198,13 @@
       display: flex;
       flex-direction: column;
       box-shadow: var(--shadow-lg);
+      transform: translate(var(--color-modal-dx), var(--color-modal-dy)) scale(0.9);
+      opacity: 0;
+      transition: transform 0.48s cubic-bezier(0.33, 1, 0.68, 1), opacity 0.38s cubic-bezier(0.42, 0, 0.58, 1);
+    }
+    .color-modal-overlay.is-open .color-modal {
+      transform: translate(0, 0) scale(1);
+      opacity: 1;
     }
     .color-modal h4 {
       margin: 0;
@@ -1199,8 +1345,7 @@
     }
     .filter-group select:focus,
     .filter-dropdown-trigger:focus,
-    .range-inputs input:focus,
-    .reset-btn:focus-visible {
+    .range-inputs input:focus {
       border-color: var(--wra-gray-500);
       box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
     }
@@ -1329,25 +1474,43 @@
       flex-shrink: 0;
     }
     .car-actions .icon-btn {
-      width: 24px;
-      height: 24px;
-      min-width: 24px;
-      min-height: 24px;
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      min-height: 32px;
       padding: 0;
-      border: none;
-      background: var(--wra-gray-100);
-      border-radius: var(--radius-sm);
+      border: 1px solid rgba(15, 23, 42, 0.14);
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      border-radius: var(--radius-md);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: background var(--transition), opacity var(--transition);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      will-change: transform;
     }
-    .car-actions .icon-btn img { display: block; width: 14px; height: 14px; }
-    .car-actions .icon-btn:hover {
-      background: var(--wra-gray-200);
+    .car-actions .icon-btn:focus-visible {
+      outline: 2px solid var(--wra-primary);
+      outline-offset: 2px;
     }
-    .car-actions .icon-btn.fav-active img { opacity: 0.85; }
+    .car-actions .icon-btn img {
+      display: block;
+      width: 18px;
+      height: 18px;
+      opacity: 0.92;
+      filter: brightness(0) saturate(100%) invert(0.22);
+      pointer-events: none;
+    }
+    .car-actions .icon-btn.fav-active {
+      border-color: rgba(225, 29, 72, 0.55);
+      background: linear-gradient(180deg, #fff1f4 0%, #fecdd6 100%);
+      box-shadow: 0 1px 3px rgba(190, 24, 93, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    }
+    .car-actions .icon-btn.fav-active img {
+      opacity: 1;
+      filter: brightness(0) saturate(100%) invert(0.12);
+    }
     .car-main {
       display: flex;
       flex-direction: column;
@@ -1452,28 +1615,56 @@
       background: var(--wra-primary);
     }
     .info-icon-wrap:hover .info-icon-img { filter: brightness(0) invert(1); }
+    /* Метка возраста / таможни — в тон сайта (синий бренд + нейтральный серый) */
     .tax-btn {
-      display: inline-block;
-      padding: 5px 10px;
-      border-radius: var(--radius-pill);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px 6px 10px;
+      border-radius: 999px;
       font-size: 11px;
-      font-weight: var(--font-medium);
+      font-weight: var(--font-semibold);
+      letter-spacing: 0.02em;
+      line-height: 1.2;
       cursor: pointer;
       text-decoration: none;
-      transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+      transition: box-shadow var(--transition), border-color var(--transition), background var(--transition);
       white-space: nowrap;
-      background: var(--wra-gray-100);
-      color: var(--wra-gray-800);
+      border: 1px solid var(--wra-border);
+      box-shadow: var(--shadow-sm);
+    }
+    .tax-btn::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tax-btn.pass {
+      background: linear-gradient(180deg, var(--wra-primary-light) 0%, #dbeafe 100%);
+      color: var(--wra-primary-dark);
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+    .tax-btn.pass::before {
+      background: var(--wra-primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.22);
     }
     .tax-btn.pass:hover {
-      background: var(--wra-success);
-      color: var(--wra-white);
-      box-shadow: var(--shadow-md);
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.12);
+    }
+    .tax-btn.high {
+      background: linear-gradient(180deg, var(--wra-gray-50) 0%, var(--wra-gray-100) 100%);
+      color: var(--wra-gray-700);
+      border-color: var(--wra-gray-300);
+    }
+    .tax-btn.high::before {
+      background: var(--wra-gray-500);
+      box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.2);
     }
     .tax-btn.high:hover {
-      background: var(--wra-danger);
-      color: var(--wra-white);
-      box-shadow: var(--shadow-md);
+      border-color: var(--wra-gray-400);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     }
 
     /* тултипы */
@@ -1504,6 +1695,42 @@
       border-style: solid;
       border-color: var(--wra-gray-800) transparent transparent transparent;
     }
+
+    /* Тултип «Проходной / Высокая ставка» в карточке каталога */
+    .tooltip.tooltip--catalog-tax {
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition:
+        opacity 0.26s cubic-bezier(0.42, 0, 0.58, 1),
+        transform 0.26s cubic-bezier(0.42, 0, 0.58, 1);
+      background: rgba(17, 17, 17, 0.66);
+      color: #ffffff;
+      text-align: left;
+      width: min(400px, calc(100vw - 24px));
+      max-width: 400px;
+      padding: 10px 14px;
+      font-size: 0.8125rem;
+      line-height: 1.38;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+      border-radius: var(--radius-md);
+      pointer-events: none;
+    }
+    .tooltip.tooltip--catalog-tax strong {
+      display: block;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.8125rem;
+      margin-bottom: 5px;
+      line-height: 1.3;
+    }
+    .tooltip.tooltip--catalog-tax.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .tooltip.tooltip--catalog-tax::after {
+      border-color: rgba(17, 17, 17, 0.66) transparent transparent transparent;
+    }
     .toast-link-copied {
       position: fixed;
       bottom: 24px;
@@ -1523,79 +1750,99 @@
     .toast-link-copied.show { opacity: 1; }
 
     .pagination {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+      --size: 36px;
       margin: 18px 0 10px;
-      flex-wrap: wrap;
+      display: grid;
+      place-items: center;
     }
-    .pagination .pagination-prev,
-    .pagination .pagination-next {
-      border: 1px solid var(--wra-gray-300);
-      min-width: 34px;
-      min-height: 34px;
-      padding: 6px 10px;
-      background: var(--wra-surface);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      font-weight: var(--font-semibold);
+    .pagination__list {
+      display: flex;
+      list-style: none;
+      align-items: center;
+      gap: 4px;
+      padding: 0;
+      margin: 0;
+      position: relative;
+      --active-x: 0px;
+      --active-y: 0px;
+      --active-w: 0px;
+      --active-h: 0px;
+    }
+    .pagination__list::before {
+      content: '';
+      position: absolute;
+      left: var(--active-x);
+      top: var(--active-y);
+      width: var(--active-w);
+      height: var(--active-h);
+      background: var(--wra-gray-800);
+      border-radius: 10px;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 0;
+      transition: left 0.22s ease, top 0.22s ease, width 0.22s ease, height 0.22s ease, opacity 0.16s ease;
+    }
+    .pagination__list.has-active::before {
+      opacity: 1;
+    }
+    .pagination__item {
+      width: var(--size);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+    }
+    .pagination__link {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      text-decoration: none;
       color: var(--wra-gray-700);
-      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+      border: 1px solid var(--wra-gray-300);
+      border-radius: 10px;
+      background: var(--wra-surface);
+      font-weight: 600;
+      font-size: 0.8125rem;
+      transition: background var(--transition), border-color var(--transition), color var(--transition), transform var(--transition-fast);
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+      z-index: 1;
     }
-    .pagination .pagination-prev:hover:not(:disabled),
-    .pagination .pagination-next:hover:not(:disabled) {
+    .pagination__link:hover {
       background: var(--wra-gray-100);
       border-color: var(--wra-gray-400);
+      color: var(--wra-gray-900);
+      transform: translateY(-1px);
     }
-    .pagination .pagination-prev:disabled,
-    .pagination .pagination-next:disabled {
-      opacity: 0.4;
+    .pagination__link--current,
+    .pagination__link[aria-current="page"] {
+      background: var(--wra-gray-800);
+      border-color: var(--wra-gray-800);
+      color: var(--wra-white);
+    }
+    .pagination__link--arrow svg { display: block; }
+    .pagination__link--disabled,
+    .pagination__link[aria-disabled="true"] {
+      opacity: 0.35;
+      pointer-events: none;
       cursor: not-allowed;
     }
-    .pagination .pagination-prev img,
-    .pagination .pagination-next img {
-      display: block;
-      pointer-events: none;
-      filter: brightness(0) saturate(100%);
+    .pagination__gap {
+      width: auto;
+      min-width: 14px;
+      padding: 0 2px;
     }
-    .pagination .pagination-prev:disabled img,
-    .pagination .pagination-next:disabled img {
-      opacity: 0.6;
+    .pagination__link--gap {
+      color: var(--wra-gray-400);
+      font-weight: var(--font-semibold);
+      user-select: none;
+      line-height: 1;
+      font-size: 14px;
     }
-    .pagination button.page-num {
-      min-width: 34px;
-      min-height: 34px;
-      border: 1px solid var(--wra-gray-300);
-      padding: 6px 8px;
-      background: var(--wra-surface);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      font-weight: var(--font-medium);
-      font-size: 0.8125rem;
-      transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
-    }
-    .pagination button.page-num.active {
-      background: var(--wra-gray-800);
-      color: var(--wra-white);
-      border-color: var(--wra-gray-800);
-    }
-    .pagination button.page-num:hover:not(.active) {
-      background: var(--wra-gray-100);
-      border-color: var(--wra-gray-400);
-    }
-    .pagination button.page-num:focus-visible,
-    .pagination .pagination-prev:focus-visible,
-    .pagination .pagination-next:focus-visible {
+    .pagination__link:focus-visible {
       outline: none;
       border-color: var(--wra-gray-500);
       box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
-    }
-    .pagination .pagination-ellipsis {
-      padding: 0 var(--space-1);
-      color: var(--wra-gray-400);
-      font-weight: var(--font-medium);
-      user-select: none;
     }
 
     @media (max-width: 900px) {
@@ -2027,6 +2274,40 @@
 
     /* Mobile cleanup */
     @media (max-width: 900px) {
+      .header {
+        padding: 10px 12px;
+      }
+      .header-content {
+        width: 100%;
+        max-width: 100%;
+        gap: 8px;
+      }
+      .logo img { height: 34px; }
+      .header-burger {
+        display: inline-flex;
+        margin-left: auto;
+        order: 3;
+      }
+      .nav-menu { display: none; }
+      .header-buttons {
+        order: 2;
+        margin-left: auto;
+        gap: 8px;
+      }
+      .header-buttons #saveSearchSubBtn,
+      .header-buttons #headerFavoritesBtn,
+      .header-buttons #headerAccountBtn {
+        display: none !important;
+      }
+      .header-buttons .btn {
+        min-width: auto;
+        min-height: 38px;
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
+      .header.mobile-menu-open .header-buttons { display: none; }
+      .header.mobile-menu-open .mobile-header-menu { display: flex; }
       .main-layout {
         gap: 12px;
         padding: 10px;
@@ -2043,6 +2324,18 @@
       }
     }
     @media (max-width: 600px) {
+      .header {
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+      }
+      .mobile-header-menu {
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+      }
+      .header-buttons {
+        width: 100%;
+        justify-content: flex-end;
+      }
       .main-layout {
         padding: 8px;
       }
@@ -2113,14 +2406,11 @@
         gap: 4px;
         margin-top: 12px;
       }
-      .pagination button.page-num,
-      .pagination .pagination-prev,
-      .pagination .pagination-next {
-        min-width: 30px;
-        min-height: 30px;
+      .pagination { --size: 32px; }
+      .pagination__link {
         font-size: 0.75rem;
-        padding: 4px 6px;
       }
+      .pagination__item--mobile-only { display: grid; }
       .skeleton-card {
         border-radius: 12px;
       }
@@ -2141,6 +2431,9 @@
   <header class="header">
     <div class="header-content">
       <a href="index.html" class="logo"><img src="image/logo.svg" alt="World Ride Auto"></a>
+      <button type="button" class="header-burger" id="headerBurgerBtn" aria-expanded="false" aria-controls="mobileHeaderMenu" aria-label="Открыть меню">
+        <span></span><span></span><span></span>
+      </button>
       <nav class="nav-menu">
         <a href="#">О компании</a>
         <a href="#">Каталог</a>
@@ -2157,6 +2450,12 @@
         <button type="button" id="headerLoginBtn" class="btn btn-secondary">Войти</button>
       </div>
     </div>
+    <nav class="mobile-header-menu" id="mobileHeaderMenu" aria-label="Мобильное меню">
+      <a href="#">О компании</a>
+      <a href="index.html#catalog-main">Каталог</a>
+      <a href="howtobuy.html">Как купить</a>
+      <a href="#">Контакты</a>
+    </nav>
   </header>
 
   <!-- Баннер: бренд слева + 2 статичных карточки и 1 активный слайдер по центру -->
@@ -2309,10 +2608,10 @@
       </div>
       <!-- 9. Цена -->
       <div class="filter-group">
-        <h4>Цена (вон)</h4>
+        <h4>Цена (руб)</h4>
         <div class="range-inputs">
-          <input type="number" id="priceFrom" placeholder="От" min="0" step="100000">
-          <input type="number" id="priceTo" placeholder="До" min="0" step="100000">
+          <input type="number" id="priceFrom" placeholder="От, ₽" min="0" step="10000">
+          <input type="number" id="priceTo" placeholder="До, ₽" min="0" step="10000">
         </div>
       </div>
       <!-- 10. Пробег -->
@@ -2328,7 +2627,6 @@
         <h4>Год производства</h4>
         <div class="year-range-wrap">
           <div class="year-range-row">
-            <span class="year-range-label">От</span>
             <div class="filter-dropdown year-dropdown" id="yearFromDropdown">
               <button type="button" class="filter-dropdown-trigger" id="yearFromTrigger" aria-expanded="false">Год от</button>
               <div class="filter-dropdown-panel" id="yearFromPanel"><div class="sort-options" id="yearFromOptions"></div></div>
@@ -2341,7 +2639,6 @@
             <select id="monthFrom" class="year-native-select"><option value="">Месяц</option></select>
           </div>
           <div class="year-range-row">
-            <span class="year-range-label">До</span>
             <div class="filter-dropdown year-dropdown" id="yearToDropdown">
               <button type="button" class="filter-dropdown-trigger" id="yearToTrigger" aria-expanded="false">Год до</button>
               <div class="filter-dropdown-panel" id="yearToPanel"><div class="sort-options" id="yearToOptions"></div></div>
@@ -2352,6 +2649,15 @@
             </div>
             <select id="yearTo" class="year-native-select"><option value="">Год</option></select>
             <select id="monthTo" class="year-native-select"><option value="">Месяц</option></select>
+          </div>
+        </div>
+        <div class="drive-checkbox-wrap" style="margin-top: 10px;">
+          <div class="checkbox-item">
+            <label class="checkbox" data-selected="false">
+              <span class="checkbox__input-wrap"><input type="checkbox" id="filterPassageCars"></span>
+              <span class="checkbox__control"><span class="checkbox__indicator"><svg aria-hidden="true" viewBox="0 0 17 18" fill="none"><polyline points="1 9 7 14 15 4"/></svg></span></span>
+              <span class="checkbox__content"><span class="checkbox__label">Проходные авто (3–5 лет)</span></span>
+            </label>
           </div>
         </div>
       </div>
@@ -2393,7 +2699,7 @@
               </div>
             </div>
             <div class="filter-group">
-              <h4>Страховые выплаты (вон)</h4>
+              <h4>Страховые выплаты (руб)</h4>
               <div class="range-inputs">
                 <input type="number" id="insurancePayoutsFrom" placeholder="От" min="0">
                 <input type="number" id="insurancePayoutsTo" placeholder="До" min="0">
@@ -2435,7 +2741,7 @@
       </div>
     </div>
     <div class="filters-panel-footer">
-      <button class="reset-btn" id="resetFiltersBtn">Сбросить фильтр</button>
+      <button type="button" class="reset-btn" id="resetFiltersBtn">Сбросить фильтры</button>
     </div>
   </aside>
 
@@ -2519,9 +2825,9 @@
     </div>
   </footer>
 </div>
-<script src="/js/catalog.js" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не загрузился <code>/js/catalog.js</code>. На сервере выполните <code>git pull</code> в каталоге сайта и обновите страницу (Ctrl+Shift+R).</p><a href=&quot;/&quot; class=&quot;btn btn-primary&quot;>Обновить</a></div>';}"></script>
-<script src="/js/header-init.js" defer></script>
-<script src="/js/cookie-consent.js" defer></script>
+<script src="js/catalog.js" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/header-init.js" defer></script>
+<script src="js/cookie-consent.js" defer></script>
 
 </body>
 </html>
