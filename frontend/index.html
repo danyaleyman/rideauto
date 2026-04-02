@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World Ride Auto - Авто из Азии</title>
     <link rel="icon" type="image/svg+xml" href="image/logo%20no%20text.svg">
-    <link rel="stylesheet" href="css/common.css?v=20260402">
-    <link rel="stylesheet" href="css/auth-favorites.css?v=20260402">
-    <link rel="stylesheet" href="css/cookie-consent.css?v=20260402">
-    <link rel="preload" href="js/catalog.js?v=20260402" as="script">
-    <script defer src="/js/wra-site-config.js?v=20260402"></script>
-    <script defer src="/js/auth-favorites.js?v=20260402"></script>
-    <script defer src="/js/copy-protection.js?v=20260402"></script>
+    <link rel="stylesheet" href="css/common.css?v=20260407">
+    <link rel="stylesheet" href="css/auth-favorites.css?v=20260407">
+    <link rel="stylesheet" href="css/cookie-consent.css?v=20260407">
+    <link rel="preload" href="js/catalog.js?v=20260407" as="script">
+    <script defer src="/js/wra-site-config.js?v=20260407"></script>
+    <script defer src="/js/auth-favorites.js?v=20260407"></script>
+    <script defer src="/js/copy-protection.js?v=20260407"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -1262,76 +1262,165 @@
     }
     .catalog-header-controls {
       display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
+      min-width: 0;
+      flex: 1 1 auto;
+      justify-content: flex-end;
     }
-    .catalog-header-controls > .found-counter,
-    .catalog-header-controls > .sort-dropdown {
-      min-height: var(--filter-control-height);
-      height: var(--filter-control-height);
+    .catalog-result-chip {
       box-sizing: border-box;
-    }
-    .found-counter {
-      background: var(--wra-surface);
-      padding: 0 10px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--wra-gray-300);
-      font-weight: 500;
-      font-size: var(--filter-control-font);
-      line-height: 1.2;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
+      flex: 0 0 148px;
+      width: 148px;
+      min-width: 148px;
+      max-width: 148px;
+      padding: 0 8px 0 12px;
+      height: 28px;
+      min-height: 28px;
+      max-height: 28px;
+      border: 1px solid #D7D7D7;
+      border-radius: 21px;
+      background: var(--wra-surface);
+      color: var(--wra-text);
+      transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition), transform var(--transition-fast);
     }
-    .found-counter:hover {
+    .catalog-result-chip:hover {
       border-color: var(--wra-gray-400);
       background: var(--wra-gray-50);
     }
-    .sort-dropdown {
-      min-width: 270px;
-    }
-    .sort-dropdown .filter-dropdown-trigger {
-      width: 100%;
-      min-height: var(--filter-control-height);
-      height: var(--filter-control-height);
+    .catalog-result-chip__label {
+      display: block;
+      min-width: 0;
       font-size: var(--filter-control-font);
-      border-radius: var(--radius-md);
-      font-weight: 500;
-      line-height: 1.2;
+      line-height: 1.25;
+      font-weight: 400;
+      color: var(--wra-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .sort-dropdown-panel {
-      max-height: 280px;
+    .catalog-result-chip__count {
+      font-variant-numeric: tabular-nums;
+    }
+    .catalog-result-chip__unit {
+      font-weight: 400;
+      color: var(--wra-text-muted);
+    }
+    /* как share / like, компактно под высоту «таблетки» */
+    .catalog-result-chip .catalog-info-btn {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      min-height: 18px;
+      padding: 0;
+      margin: 0;
+      border: 1px solid rgba(15, 23, 42, 0.14);
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .catalog-result-chip .catalog-info-btn img {
+      display: block;
+      width: 12px;
+      height: 12px;
+      opacity: 0.92;
+      filter: brightness(0) saturate(100%) invert(0.22);
+      pointer-events: none;
+    }
+    .catalog-result-chip .catalog-info-btn:hover {
+      border-color: rgba(15, 23, 42, 0.22);
+      background: linear-gradient(180deg, #ffffff 0%, #e8eef5 100%);
+    }
+    .catalog-result-chip .catalog-info-btn:focus-visible {
+      outline: 2px solid var(--wra-primary);
+      outline-offset: 2px;
+    }
+    .sort-dropdown {
+      flex: 0 0 159px;
+      width: 159px;
+      min-width: 159px;
+      max-width: 159px;
+    }
+    .sort-dropdown .filter-dropdown-trigger.catalog-sort-trigger {
+      width: 100%;
+      height: 28px;
+      min-height: 28px;
+      max-height: 28px;
+      padding: 0 26px 0 14px;
+      border: 1px solid #D7D7D7;
+      border-radius: 21px;
+      background: var(--wra-surface);
+      align-items: center;
+    }
+    .sort-dropdown .sort-trigger-value {
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .sort-options {
-      padding: 6px;
+      padding: 8px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 0;
     }
     .sort-option {
       width: 100%;
-      border: 1px solid transparent;
+      margin-bottom: 4px;
+      padding: 6px 8px;
+      border: none;
       background: transparent;
       color: var(--wra-text);
       text-align: left;
       border-radius: var(--radius-sm);
-      padding: 8px 10px;
-      font-size: var(--filter-control-font);
-      line-height: 1.25;
       cursor: pointer;
-      transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+      font-size: var(--filter-control-font);
+      transition: background-color var(--transition), color var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+    .sort-option:last-child {
+      margin-bottom: 0;
+    }
+    .sort-option-title {
+      font-size: 0.9375rem;
+      font-weight: var(--font-medium);
+      line-height: 1.35;
+      color: inherit;
+    }
+    .sort-option-hint {
+      font-size: var(--filter-control-font);
+      font-weight: 400;
+      line-height: 1.25;
+      color: var(--wra-text-muted);
     }
     .sort-option:hover {
-      background: var(--wra-gray-50);
-      border-color: var(--wra-gray-200);
+      background-color: var(--wra-gray-50);
     }
     .sort-option.active {
-      background: var(--wra-gray-100);
-      border-color: var(--wra-gray-300);
+      background-color: var(--wra-primary-light);
       color: var(--wra-gray-900);
-      font-weight: 600;
+    }
+    .sort-option.active:hover {
+      background-color: rgba(59, 130, 246, 0.15);
+    }
+    .sort-option.active .sort-option-hint {
+      color: var(--wra-gray-600);
     }
     .sort-select-native {
       position: absolute !important;
@@ -1349,26 +1438,6 @@
       border-color: var(--wra-gray-500);
       box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
     }
-    .info-icon-wrap.count-info {
-      width: 18px;
-      height: 18px;
-      min-width: 18px;
-      min-height: 18px;
-      padding: 0;
-      font-size: 11px;
-      margin-left: 2px;
-      border-radius: 999px;
-      border: 1px solid var(--wra-gray-300);
-      background: var(--wra-surface);
-      transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
-    }
-    .info-icon-wrap.count-info:hover {
-      background: var(--wra-gray-100);
-      border-color: var(--wra-gray-400);
-      transform: translateY(-1px);
-    }
-    .info-icon-wrap.count-info .info-icon-img { width: 12px; height: 12px; }
-
     /* Список автомобилей — горизонтальные карточки, одна под другой */
     .car-grid {
       display: flex;
@@ -1684,6 +1753,11 @@
       z-index: 10000;
       box-shadow: var(--shadow-md);
       pointer-events: none;
+    }
+    .tooltip.tooltip--catalog-count {
+      text-align: left;
+      width: 280px;
+      max-width: min(280px, calc(100vw - 20px));
     }
     .tooltip::after {
       content: '';
@@ -2317,10 +2391,7 @@
       }
       .catalog-header-controls {
         width: 100%;
-      }
-      .found-counter,
-      .sort-dropdown {
-        min-height: 34px;
+        justify-content: flex-start;
       }
     }
     @media (max-width: 600px) {
@@ -2346,15 +2417,27 @@
         width: 100%;
         font-size: 1rem;
       }
-      .filters-open-btn,
-      .found-counter,
-      .sort-dropdown {
+      .filters-open-btn {
         width: 100%;
         justify-content: center;
       }
-      .sort-dropdown {
+      .catalog-header-controls {
+        flex-wrap: nowrap;
         width: 100%;
+        max-width: 100%;
+        justify-content: stretch;
+        gap: 6px;
+      }
+      .catalog-result-chip {
+        justify-content: space-between;
+        flex: 0 1 42%;
+        max-width: none;
         min-width: 0;
+      }
+      .sort-dropdown {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: none;
       }
       .filters-panel-desktop {
         max-width: 100%;
@@ -2762,37 +2845,41 @@
         Фильтры <span class="filters-badge" id="filtersBadge">0</span>
       </button>
       <div class="catalog-header-controls">
-        <span class="found-counter" id="foundCounterWrapper">
-          <span id="foundCounter">0</span>
-          <span class="info-icon-wrap count-info" id="countInfoIcon" title="Количество найденных автомобилей"><img src="image/Info.svg" alt="i" width="14" height="14" class="info-icon-img"></span>
-        </span>
-        <span id="catalogAriaLive" class="wra-sr-only" aria-live="polite" aria-atomic="true"></span>
+        <div class="catalog-result-chip" id="foundCounterWrapper">
+          <span class="catalog-result-chip__label"><span class="catalog-result-chip__count" id="foundCounter">0</span> <span class="catalog-result-chip__unit">объявлений</span></span>
+          <button type="button" class="catalog-info-btn" id="countInfoIcon" aria-label="Справка: откуда берётся число объявлений">
+            <img src="image/Info.svg" alt="" width="14" height="14" decoding="async">
+          </button>
+        </div>
         <div class="filter-dropdown sort-dropdown" id="sortDropdown">
-          <button type="button" class="filter-dropdown-trigger" id="sortTrigger" aria-expanded="false">По дате размещения — новее</button>
-          <div class="filter-dropdown-panel sort-dropdown-panel" id="sortPanel">
+          <button type="button" class="filter-dropdown-trigger catalog-sort-trigger" id="sortTrigger" aria-expanded="false" aria-haspopup="listbox">
+            <span class="sort-trigger-value" id="sortTriggerValue">Сначала новые</span>
+          </button>
+          <div class="filter-dropdown-panel" id="sortPanel" role="listbox" aria-labelledby="sortTrigger">
             <div class="sort-options" id="sortOptions">
-              <button type="button" class="sort-option active" data-value="date_new">По дате размещения — новее</button>
-              <button type="button" class="sort-option" data-value="date_old">По дате размещения — старше</button>
-              <button type="button" class="sort-option" data-value="year_new">По году — новее</button>
-              <button type="button" class="sort-option" data-value="year_old">По году — старше</button>
-              <button type="button" class="sort-option" data-value="price_high">По цене — дороже</button>
-              <button type="button" class="sort-option" data-value="price_low">По цене — дешевле</button>
-              <button type="button" class="sort-option" data-value="mileage_high">По пробегу — больше</button>
-              <button type="button" class="sort-option" data-value="mileage_low">По пробегу — меньше</button>
+              <button type="button" class="sort-option active" role="option" data-value="date_new"><span class="sort-option-title">Сначала новые</span><span class="sort-option-hint">по дате объявления на Encar</span></button>
+              <button type="button" class="sort-option" role="option" data-value="date_old"><span class="sort-option-title">Сначала старые</span><span class="sort-option-hint">по дате объявления</span></button>
+              <button type="button" class="sort-option" role="option" data-value="year_new"><span class="sort-option-title">По году выпуска</span><span class="sort-option-hint">сначала более новые</span></button>
+              <button type="button" class="sort-option" role="option" data-value="year_old"><span class="sort-option-title">По году выпуска</span><span class="sort-option-hint">сначала более ранние</span></button>
+              <button type="button" class="sort-option" role="option" data-value="price_high"><span class="sort-option-title">По цене</span><span class="sort-option-hint">от дорогих к дешёвым</span></button>
+              <button type="button" class="sort-option" role="option" data-value="price_low"><span class="sort-option-title">По цене</span><span class="sort-option-hint">от дешёвых к дорогим</span></button>
+              <button type="button" class="sort-option" role="option" data-value="mileage_high"><span class="sort-option-title">По пробегу</span><span class="sort-option-hint">сначала с большим пробегом</span></button>
+              <button type="button" class="sort-option" role="option" data-value="mileage_low"><span class="sort-option-title">По пробегу</span><span class="sort-option-hint">сначала с меньшим пробегом</span></button>
             </div>
           </div>
         </div>
         <select id="sortSelect" class="sort-select-native" aria-hidden="true" tabindex="-1">
-          <option value="date_new" selected>По дате размещения — новее</option>
-          <option value="date_old">По дате размещения — старше</option>
-          <option value="year_new">По году — новее</option>
-          <option value="year_old">По году — старше</option>
-          <option value="price_high">По цене — дороже</option>
-          <option value="price_low">По цене — дешевле</option>
-          <option value="mileage_high">По пробегу — больше</option>
-          <option value="mileage_low">По пробегу — меньше</option>
+          <option value="date_new" selected>Сначала новые по дате</option>
+          <option value="date_old">Сначала старые по дате</option>
+          <option value="year_new">По году: новее</option>
+          <option value="year_old">По году: старше</option>
+          <option value="price_high">По цене: дороже</option>
+          <option value="price_low">По цене: дешевле</option>
+          <option value="mileage_high">По пробегу: больше</option>
+          <option value="mileage_low">По пробегу: меньше</option>
         </select>
       </div>
+      <span id="catalogAriaLive" class="wra-sr-only" aria-live="polite" aria-atomic="true"></span>
     </div>
 
     <div class="car-grid" id="grid" aria-busy="true" aria-live="polite">
@@ -2825,9 +2912,9 @@
     </div>
   </footer>
 </div>
-<script src="js/catalog.js?v=20260402" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
-<script src="js/header-init.js?v=20260402" defer></script>
-<script src="js/cookie-consent.js?v=20260402" defer></script>
+<script src="js/catalog.js?v=20260407" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/header-init.js?v=20260407" defer></script>
+<script src="js/cookie-consent.js?v=20260407" defer></script>
 
 </body>
 </html>

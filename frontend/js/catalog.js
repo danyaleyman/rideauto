@@ -138,13 +138,21 @@
     }
     function syncSortUi(value) {
       if (!sortOptionsEl || !sortTrigger) return;
-      let selectedText = 'По дате размещения — новее';
+      const valueEl = document.getElementById('sortTriggerValue');
+      let selectedText = 'Сначала новые по дате';
       sortOptionsEl.querySelectorAll('.sort-option').forEach(function(btn) {
         const on = btn.getAttribute('data-value') === value;
         btn.classList.toggle('active', on);
-        if (on) selectedText = btn.textContent.trim();
+        if (on) {
+          const title = btn.querySelector('.sort-option-title');
+          selectedText = (title && title.textContent) ? title.textContent.trim() : btn.textContent.trim();
+        }
       });
-      sortTrigger.textContent = selectedText;
+      if (valueEl) {
+        valueEl.textContent = selectedText;
+      } else {
+        sortTrigger.textContent = selectedText;
+      }
     }
     function setDropdownTriggerText(trigger, listEl, filterKey, allLabel) {
       if (!trigger || !listEl) return;
@@ -1395,15 +1403,15 @@
         var resetHtml = resetBtn ? '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'resetFiltersBtn\').click()">Сбросить фильтры</button>' : '';
         gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Ничего не найдено. Попробуйте изменить фильтры.</p>' + resetHtml + '</div>';
         if (paginationEl) paginationEl.innerHTML = '';
-        if (foundCounter) foundCounter.innerText = '0';
-        if (catalogAriaLive) catalogAriaLive.textContent = 'Показано 0 автомобилей';
+        if (foundCounter) foundCounter.textContent = '0';
+        if (catalogAriaLive) catalogAriaLive.textContent = 'Найдено 0 объявлений';
         return;
       }
 
       if (!pageCars || pageCars.length === 0) {
         gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Список не загрузился (есть ' + totalN.toLocaleString('ru-RU') + ' объявлений в базе). Обновите страницу.</p><a href="index.html" class="btn btn-primary">Обновить</a></div>';
         if (paginationEl) paginationEl.innerHTML = '';
-        if (foundCounter) foundCounter.innerText = totalN.toLocaleString('ru-RU') + ' автомобилей';
+        if (foundCounter) foundCounter.textContent = totalN.toLocaleString('ru-RU');
         if (catalogAriaLive) catalogAriaLive.textContent = 'Каталог не отобразился';
         return;
       }
@@ -1569,8 +1577,8 @@
       });
 
       drawPagination();
-      if (foundCounter) foundCounter.innerText = `${totalN.toLocaleString('ru-RU')} автомобилей`;
-      if (catalogAriaLive) catalogAriaLive.textContent = 'Показано ' + totalN.toLocaleString('ru-RU') + ' автомобилей';
+      if (foundCounter) foundCounter.textContent = totalN.toLocaleString('ru-RU');
+      if (catalogAriaLive) catalogAriaLive.textContent = 'Найдено ' + totalN.toLocaleString('ru-RU') + ' объявлений';
     }
 
     function drawPagination() {
@@ -2132,18 +2140,25 @@
       syncSortUi(sortSelect.value || 'date_new');
     }
 
-    // Тултип для счётчика автомобилей
+    // Тултип для счётчика объявлений
     if (countInfoIcon) {
       const tooltip = document.createElement('div');
-      tooltip.className = 'tooltip';
-      tooltip.innerHTML = 'Мы удаляем дубликаты автомобилей,<br>' +
-        'не показываем электрокары и машины,<br>' +
-        'которые нельзя приобрести. Поэтому, общее<br>' +
-        'количество авто меньше, чем на источнике данных.';
+      tooltip.className = 'tooltip tooltip--catalog-count';
+      tooltip.innerHTML =
+        'Число — сколько объявлений проходит наши фильтры: ' +
+        'без дубликатов, без электрокаров и без позиций, которые нельзя купить. ' +
+        'Поэтому оно может быть меньше, чем на Encar.';
       document.body.appendChild(tooltip);
-
-      countInfoIcon.addEventListener('mouseenter', () => { positionTooltip(tooltip, countInfoIcon.getBoundingClientRect()); });
-      countInfoIcon.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+      function showCountTip() {
+        positionTooltip(tooltip, countInfoIcon.getBoundingClientRect());
+      }
+      function hideCountTip() {
+        tooltip.style.display = 'none';
+      }
+      countInfoIcon.addEventListener('mouseenter', showCountTip);
+      countInfoIcon.addEventListener('mouseleave', hideCountTip);
+      countInfoIcon.addEventListener('focus', showCountTip);
+      countInfoIcon.addEventListener('blur', hideCountTip);
     }
 
     // Инициализация Swiper баннера — не роняем каталог, если CDN недоступен
