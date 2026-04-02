@@ -836,8 +836,20 @@ async def detail_worker(
         async with sem:
             detail, d_status, _ = await client.fetch_vehicle_detail(car_id)
         if d_status != 200 or not detail:
-            log.warning("Worker %s car_id=%s detail failed status=%s", worker_id, car_id, d_status)
-            stats["detail_fail"] += 1
+            # 404/410 — объявление снято с Encar; иначе id снова попадёт в pending из листинга
+            if d_status in (404, 410):
+                async with checkpoint_lock:
+                    checkpoint.mark_collected(car_id)
+                stats["detail_gone"] += 1
+                log.info(
+                    "Worker %s car_id=%s detail %s — снято/продано, помечаем collected (не в БД)",
+                    worker_id,
+                    car_id,
+                    d_status,
+                )
+            else:
+                log.warning("Worker %s car_id=%s detail failed status=%s", worker_id, car_id, d_status)
+                stats["detail_fail"] += 1
             queue.task_done()
             continue
         plate = detail.get("vehicleNo") if detail else None
@@ -966,6 +978,7 @@ async def run_scraper(
         "processed": 0,
         "saved": 0,
         "detail_fail": 0,
+        "detail_gone": 0,
         "parse_fail": 0,
     }
     # Уже сохранённые в SQLite машины учитываем в max_cars (иначе при рестарте list заливает тысячи pending).
@@ -1073,8 +1086,14 @@ async def run_scraper(
                     async with checkpoint_lock:
                         p = checkpoint.pending_count()
                     log.info(
-                        "Stats: processed=%s saved=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
-                        stats["processed"], stats["saved"], stats["detail_fail"], stats["parse_fail"], p, queue.qsize(),
+                        "Stats: processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
+                        stats["processed"],
+                        stats["saved"],
+                        stats["detail_gone"],
+                        stats["detail_fail"],
+                        stats["parse_fail"],
+                        p,
+                        queue.qsize(),
                     )
             stats_task = asyncio.create_task(log_stats())
             log.info("Ожидание list producer (первая строка списка — «List phase» или ошибка HTTP)…")
@@ -1128,9 +1147,9 @@ async def run_scraper(
 
     elapsed = time.time() - start_time
     log.info(
-        "Scraper finished. list_pages=%s ids_discovered=%s ids_queued=%s processed=%s saved=%s detail_fail=%s parse_fail=%s elapsed=%.1fs",
+        "Scraper finished. list_pages=%s ids_discovered=%s ids_queued=%s processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s elapsed=%.1fs",
         stats["list_pages"], stats["ids_discovered"], stats["ids_queued"],
-        stats["processed"], stats["saved"], stats["detail_fail"], stats["parse_fail"], elapsed,
+        stats["processed"], stats["saved"], stats["detail_gone"], stats["detail_fail"], stats["parse_fail"], elapsed,
     )
     try:
         power_stats = parser.get_power_stats()
