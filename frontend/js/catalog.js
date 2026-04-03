@@ -66,6 +66,45 @@
     const filtersDrawerClose = document.getElementById('filtersDrawerClose');
     const filtersBadge = document.getElementById('filtersBadge');
 
+    const CASCADE_DROPDOWN_PAIRS = [
+      [markTrigger, markPanel],
+      [modelTrigger, modelPanel],
+      [generationTrigger, generationPanel],
+      [trimTrigger, trimPanel]
+    ];
+    var cascadeFloatRepositionTimer = null;
+    function undockAllCascadePanels() {
+      CASCADE_DROPDOWN_PAIRS.forEach(function(pair) {
+        var panel = pair[1];
+        if (!panel) return;
+        panel.classList.remove('filter-dropdown-panel--floating');
+        ['--wra-float-left', '--wra-float-top', '--wra-float-width', '--wra-float-max-height'].forEach(function(prop) {
+          panel.style.removeProperty(prop);
+        });
+      });
+    }
+    function dockOpenCascadePanel(trigger, panel) {
+      if (!trigger || !panel || !panel.classList.contains('is-open') || trigger.disabled) return;
+      var r = trigger.getBoundingClientRect();
+      var gap = 4;
+      var top = r.bottom + gap;
+      var maxH = Math.min(260, Math.max(120, window.innerHeight - top - 8));
+      panel.classList.add('filter-dropdown-panel--floating');
+      panel.style.setProperty('--wra-float-left', r.left + 'px');
+      panel.style.setProperty('--wra-float-top', top + 'px');
+      panel.style.setProperty('--wra-float-width', r.width + 'px');
+      panel.style.setProperty('--wra-float-max-height', maxH + 'px');
+    }
+    function scheduleRepositionOpenCascadePanels() {
+      if (cascadeFloatRepositionTimer) clearTimeout(cascadeFloatRepositionTimer);
+      cascadeFloatRepositionTimer = setTimeout(function() {
+        cascadeFloatRepositionTimer = null;
+        CASCADE_DROPDOWN_PAIRS.forEach(function(pair) {
+          if (pair[1] && pair[1].classList.contains('is-open')) dockOpenCascadePanel(pair[0], pair[1]);
+        });
+      }, 30);
+    }
+
     function showSkeleton() {
       if (!gridEl) return;
       gridEl.setAttribute('aria-busy', 'true');
@@ -93,6 +132,7 @@
     if (filtersDrawerClose) filtersDrawerClose.addEventListener('click', closeFiltersDrawer);
 
     function closeAllDropdowns() {
+      undockAllCascadePanels();
       [markPanel, modelPanel, generationPanel, trimPanel, sortPanel, yearFromPanel, monthFromPanel, yearToPanel, monthToPanel].forEach(function(p) {
         if (p) { p.classList.remove('is-open'); }
       });
@@ -1035,6 +1075,7 @@
       renderFacetCheckboxList(document.getElementById('transmissionList'), dim(['trans'], function(c) { return (c.data || c).transmission_type; }), 'transmission', 'transmission');
       renderColorFilterFromFacets(dim(['color'], function(c) { return (c.data || c).color; }));
       syncCascadeSlotVisibility();
+      scheduleRepositionOpenCascadePanels();
     }
 
     async function refreshFacetBars(reqId) {
@@ -1113,6 +1154,7 @@
       renderColorFilterFromFacets(data.colors || []);
 
       syncCascadeSlotVisibility();
+      scheduleRepositionOpenCascadePanels();
     }
 
     /** Фасеты тяжёлые: не конкурируют с /api/cars за сеть/CPU в первый кадр (как отдельный «filters» у конкурента). */
@@ -1146,10 +1188,13 @@
       var list = Array.isArray(raw) ? raw : [];
       var seenIds = new Set();
       list = list.filter(function(c) {
-        var id = c && (c.id != null ? String(c.id) : (c.inner_id != null ? String(c.inner_id) : (c.data && c.data.inner_id != null ? String(c.data.inner_id) : '')));
-        if (!id) return true;
-        if (seenIds.has(id)) return false;
-        seenIds.add(id);
+        var d = c && (c.data || c);
+        var enc = d && d.inner_id != null && String(d.inner_id).trim() !== '' ? String(d.inner_id).trim() : '';
+        var key = enc ? ('enc:' + enc) : '';
+        if (!key && c != null && c.id != null && String(c.id).trim() !== '') key = 'cid:' + String(c.id);
+        if (!key) return true;
+        if (seenIds.has(key)) return false;
+        seenIds.add(key);
         return true;
       });
       var meta = data && data.meta && typeof data.meta === 'object' ? data.meta : {};
@@ -1805,7 +1850,7 @@
         });
       }
 
-      [[markTrigger, markPanel], [modelTrigger, modelPanel], [generationTrigger, generationPanel], [trimTrigger, trimPanel]].forEach(function(pair) {
+      CASCADE_DROPDOWN_PAIRS.forEach(function(pair) {
         var btn = pair[0], panel = pair[1];
         if (!btn || !panel) return;
         btn.addEventListener('click', function(e) {
@@ -1818,9 +1863,14 @@
             panel.classList.add('is-open');
             btn.classList.add('active');
             btn.setAttribute('aria-expanded', 'true');
+            requestAnimationFrame(function() {
+              dockOpenCascadePanel(btn, panel);
+            });
           }
         });
       });
+      window.addEventListener('scroll', scheduleRepositionOpenCascadePanels, true);
+      window.addEventListener('resize', scheduleRepositionOpenCascadePanels);
       document.addEventListener('click', function(e) {
         if (e.target.closest('.filter-dropdown')) return;
         closeAllDropdowns();
@@ -1898,6 +1948,10 @@
     function closeFilterDropdownPair(trigger, panel) {
       if (!trigger || !panel) return;
       if (panel.classList.contains('is-open')) {
+        panel.classList.remove('filter-dropdown-panel--floating');
+        ['--wra-float-left', '--wra-float-top', '--wra-float-width', '--wra-float-max-height'].forEach(function(prop) {
+          panel.style.removeProperty(prop);
+        });
         panel.classList.remove('is-open');
         trigger.classList.remove('active');
         trigger.setAttribute('aria-expanded', 'false');

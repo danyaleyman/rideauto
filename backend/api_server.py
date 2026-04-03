@@ -383,6 +383,31 @@ def _cars_dedup_where(where: str, params: List[str]) -> Tuple[str, List[str]]:
     return f"WHERE {dedup} AND ({inner})", list(params)
 
 
+def _sql_listing_partition_key_bare() -> str:
+    """Одна строка каталога на объявление Encar: один inner id даже при разных car_id в БД."""
+    return (
+        "COALESCE("
+        "NULLIF(TRIM(json_extract(data_json, '$.data.inner_id')), ''), "
+        "NULLIF(TRIM(json_extract(data_json, '$.inner_id')), ''), "
+        "NULLIF(TRIM(json_extract(data_json, '$.data.id')), ''), "
+        "car_id)"
+    )
+
+
+def _catalog_rows_numbered_sql(where2: str) -> str:
+    """Подзапрос с _rn=1 для уникальных объявлений."""
+    pk = _sql_listing_partition_key_bare()
+    return (
+        f"SELECT car_id, data_json, id, "
+        f"ROW_NUMBER() OVER (PARTITION BY {pk} ORDER BY id DESC) AS _rn "
+        f"FROM cars {where2}"
+    )
+
+
+def _catalog_order_by_vis(order_sql: str) -> str:
+    return order_sql.replace("data_json", "vis.data_json") + ", vis.id DESC"
+
+
 def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
     skip = frozenset({"page", "per_page", "sort", "full"})
     return {k: v for k, v in raw.items() if k not in skip and v not in (None, "")}
@@ -411,9 +436,19 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
         where2, params2 = _cars_dedup_where(where, params)
         sort = (query.get("sort") or "date_new").strip()
         order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
-        total = conn.execute(f"SELECT COUNT(*) as c FROM cars {where2}", params2).fetchone()["c"]
+        inner_numbered = _catalog_rows_numbered_sql(where2)
+        total = conn.execute(
+            f"SELECT COUNT(*) AS c FROM ({inner_numbered}) AS _v WHERE _v._rn = 1",
+            params2,
+        ).fetchone()["c"]
+        order_vis = _catalog_order_by_vis(order_sql)
         rows = conn.execute(
-            f"SELECT car_id, data_json FROM cars {where2} ORDER BY {order_sql}, id DESC LIMIT ? OFFSET ?",
+            f"""
+            SELECT car_id, data_json FROM ({inner_numbered}) AS vis
+            WHERE vis._rn = 1
+            ORDER BY {order_vis}
+            LIMIT ? OFFSET ?
+            """,
             [*params2, per_page, offset],
         ).fetchall()
 
@@ -477,12 +512,17 @@ def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
     conn = _db_connect(db_path)
     try:
         today_str = datetime.now(timezone.utc).date().isoformat()
+        where2, _np = _cars_dedup_where("", [])
+        inner_numbered = _catalog_rows_numbered_sql(where2)
         date_expr = (
-            "substr(COALESCE(json_extract(data_json, '$.data.offer_created'), "
-            "json_extract(data_json, '$.data.created_at')), 1, 10)"
+            "substr(COALESCE(json_extract(v.data_json, '$.data.offer_created'), "
+            "json_extract(v.data_json, '$.data.created_at')), 1, 10)"
         )
         row = conn.execute(
-            f"SELECT COUNT(*) AS c FROM cars WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id) AND {date_expr} = ?",
+            f"""
+            SELECT COUNT(*) AS c FROM ({inner_numbered}) AS v
+            WHERE v._rn = 1 AND {date_expr} = ?
+            """,
             [today_str],
         ).fetchone()
         n = int(row["c"]) if row else 0
@@ -504,10 +544,12 @@ def _facet_dimension(
     q2 = {k: v for k, v in query.items() if k not in omit_keys}
     where, params = _build_filter_sql(q2)
     where2, params2 = _cars_dedup_where(where, params)
+    inner_numbered = _catalog_rows_numbered_sql(where2)
+    value_vis = value_expr.replace("data_json", "vis.data_json")
     sql = f"""
-        SELECT {value_expr} AS val, COUNT(*) AS c
-        FROM cars
-        {where2}
+        SELECT {value_vis} AS val, COUNT(*) AS c
+        FROM ({inner_numbered}) AS vis
+        WHERE vis._rn = 1
         GROUP BY 1
         HAVING val IS NOT NULL AND CAST(val AS TEXT) <> ''
         ORDER BY val COLLATE NOCASE
@@ -530,17 +572,23 @@ def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: 
         return []
     pmin = p * 0.8
     pmax = p * 1.2
+    pk = _sql_listing_partition_key_bare()
+    inner_num = (
+        f"SELECT car_id, data_json, id, "
+        f"ROW_NUMBER() OVER (PARTITION BY {pk} ORDER BY id DESC) AS _rn "
+        f"FROM cars "
+        f"WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id) "
+        f"AND json_extract(data_json, '$.data.mark') = ? "
+        f"AND CAST(json_extract(data_json, '$.data.price_won') AS REAL) BETWEEN ? AND ?"
+    )
     rows = conn.execute(
-        """
-        SELECT car_id, data_json
-        FROM cars
-        WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id)
-          AND json_extract(data_json, '$.data.mark') = ?
-          AND CAST(json_extract(data_json, '$.data.price_won') AS REAL) BETWEEN ? AND ?
-        ORDER BY ABS(CAST(json_extract(data_json, '$.data.price_won') AS REAL) - ?) ASC, id DESC
+        f"""
+        SELECT car_id, data_json FROM ({inner_num}) AS vis
+        WHERE vis._rn = 1
+        ORDER BY ABS(CAST(json_extract(vis.data_json, '$.data.price_won') AS REAL) - ?) ASC, vis.id DESC
         LIMIT ?
         """,
-        [mark, pmin, pmax, p, max(limit * 5, limit + 10)],
+        [mark, pmin, pmax, p, p, max(limit * 5, limit + 10)],
     ).fetchall()
     return rows
 
