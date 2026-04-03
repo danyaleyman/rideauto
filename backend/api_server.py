@@ -482,30 +482,14 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
         conn.close()
 
 
-def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
-    conn = _db_connect(db_path)
-    try:
-        mark_expr = "json_extract(data_json, '$.data.mark')"
-        model_expr = "json_extract(data_json, '$.data.model')"
-        generation_expr = "COALESCE(json_extract(data_json, '$.data.generation'), json_extract(data_json, '$.data.configuration'))"
-        trim_expr = "COALESCE(json_extract(data_json, '$.data.gradeName'), json_extract(data_json, '$.data.configuration'), json_extract(data_json, '$.data.generation'))"
-        body_expr = "json_extract(data_json, '$.data.body_type')"
-        fuel_expr = "json_extract(data_json, '$.data.engine_type')"
-        trans_expr = "json_extract(data_json, '$.data.transmission_type')"
-        color_expr = "json_extract(data_json, '$.data.color')"
-
-        return {
-            "marks": _facet_dimension(conn, q, frozenset({"marks"}), mark_expr),
-            "models": _facet_dimension(conn, q, frozenset({"models"}), model_expr),
-            "generations": _facet_dimension(conn, q, frozenset({"generations"}), generation_expr),
-            "trims": _facet_dimension(conn, q, frozenset({"trims"}), trim_expr),
-            "bodies": _facet_dimension(conn, q, frozenset({"body"}), body_expr),
-            "fuels": _facet_dimension(conn, q, frozenset({"fuel"}), fuel_expr),
-            "transmissions": _facet_dimension(conn, q, frozenset({"trans"}), trans_expr),
-            "colors": _facet_dimension(conn, q, frozenset({"color"}), color_expr),
-        }
-    finally:
-        conn.close()
+_FACET_MARK = "json_extract(data_json, '$.data.mark')"
+_FACET_MODEL = "json_extract(data_json, '$.data.model')"
+_FACET_GENERATION = "COALESCE(json_extract(data_json, '$.data.generation'), json_extract(data_json, '$.data.configuration'))"
+_FACET_TRIM = "COALESCE(json_extract(data_json, '$.data.gradeName'), json_extract(data_json, '$.data.configuration'), json_extract(data_json, '$.data.generation'))"
+_FACET_BODY = "json_extract(data_json, '$.data.body_type')"
+_FACET_FUEL = "json_extract(data_json, '$.data.engine_type')"
+_FACET_TRANS = "json_extract(data_json, '$.data.transmission_type')"
+_FACET_COLOR = "json_extract(data_json, '$.data.color')"
 
 
 def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
@@ -536,26 +520,41 @@ def _json_public_cache(data: Any, cache_control: str) -> web.Response:
 
 
 def _facet_dimension(
-    conn: sqlite3.Connection,
+    db_path: str,
     query: Dict[str, str],
     omit_keys: frozenset[str],
     value_expr: str,
 ) -> List[Dict[str, Any]]:
+    """Тот же дедуп, что и каталог, без ROW_NUMBER(): 8 измерений × оконный скан по 100k+ строк давали таймауты и пустые фильтры."""
     q2 = {k: v for k, v in query.items() if k not in omit_keys}
     where, params = _build_filter_sql(q2)
     where2, params2 = _cars_dedup_where(where, params)
-    inner_numbered = _catalog_rows_numbered_sql(where2)
-    value_vis = value_expr.replace("data_json", "vis.data_json")
+    pk = _sql_listing_partition_key_bare()
+    value_c = value_expr.replace("data_json", "c.data_json")
     sql = f"""
-        SELECT {value_vis} AS val, COUNT(*) AS c
-        FROM ({inner_numbered}) AS vis
-        WHERE vis._rn = 1
+        WITH cand AS (
+            SELECT cars.id AS id, cars.car_id AS car_id, cars.data_json AS data_json
+            FROM cars
+            {where2}
+        ),
+        dedup AS (
+            SELECT MAX(id) AS id
+            FROM cand
+            GROUP BY {pk}
+        )
+        SELECT {value_c} AS val, COUNT(*) AS c
+        FROM cand AS c
+        INNER JOIN dedup AS d ON c.id = d.id
         GROUP BY 1
         HAVING val IS NOT NULL AND CAST(val AS TEXT) <> ''
         ORDER BY val COLLATE NOCASE
     """
-    rows = conn.execute(sql, params2).fetchall()
-    return [{"value": r["val"], "count": r["c"]} for r in rows]
+    conn = _db_connect(db_path)
+    try:
+        rows = conn.execute(sql, params2).fetchall()
+        return [{"value": r["val"], "count": r["c"]} for r in rows]
+    finally:
+        conn.close()
 
 
 def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: int) -> List[sqlite3.Row]:
@@ -610,7 +609,35 @@ async def cars(request: web.Request) -> web.Response:
 async def facets(request: web.Request) -> web.Response:
     q = _catalog_query_dict({k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()})
     db_path: str = request.app["db_path"]
-    payload = await asyncio.to_thread(_facets_catalog_sync, db_path, q)
+    (
+        marks,
+        models,
+        generations,
+        trims,
+        bodies,
+        fuels,
+        transmissions,
+        colors,
+    ) = await asyncio.gather(
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"marks"}), _FACET_MARK),
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"models"}), _FACET_MODEL),
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"generations"}), _FACET_GENERATION),
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"trims"}), _FACET_TRIM),
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"body"}), _FACET_BODY),
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"fuel"}), _FACET_FUEL),
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"trans"}), _FACET_TRANS),
+        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"color"}), _FACET_COLOR),
+    )
+    payload = {
+        "marks": marks,
+        "models": models,
+        "generations": generations,
+        "trims": trims,
+        "bodies": bodies,
+        "fuels": fuels,
+        "transmissions": transmissions,
+        "colors": colors,
+    }
     return _json_public_cache(payload, "public, max-age=25, stale-while-revalidate=180")
 
 
