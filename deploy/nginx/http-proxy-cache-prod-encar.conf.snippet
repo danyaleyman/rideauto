@@ -1,0 +1,6 @@
+# Вставить ОДИН раз внутри блока http { } файла /etc/nginx/nginx.conf
+# (до include sites-enabled/*). Затем: sudo mkdir -p /var/cache/nginx/prod-encar
+# sudo chown -R www-data:www-data /var/cache/nginx/prod-encar
+# sudo nginx -t && sudo systemctl reload nginx
+
+proxy_cache_path /var/cache/nginx/prod-encar levels=1:2 keys_zone=prod_encar_api:20m max_size=2g inactive=30m use_temp_path=off;
