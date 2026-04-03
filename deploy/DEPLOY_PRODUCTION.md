@@ -83,14 +83,24 @@ sudo systemctl restart encar-api.service
 
 ## 4) nginx
 
-Используйте `deploy/nginx/encar.conf` или `deploy/nginx/prod-encar.conf` (оба настроены под `rideauto.ru` и `www.rideauto.ru`).
+Для продакшена с **micro-cache** публичного API (`/api/cars`, `/api/facets`, …) и **без кэша** для сессионных маршрутов (`/api/me`, `/api/favorites`, …) используйте **`deploy/nginx/prod-encar.conf`**. В нём отдельные префиксные `location`; nginx выбирает **самый длинный** совпадающий префикс, поэтому персональные пути объявлены явно.
 
-```bash
-sudo cp deploy/nginx/encar.conf /etc/nginx/sites-available/encar.conf
-sudo ln -sf /etc/nginx/sites-available/encar.conf /etc/nginx/sites-enabled/encar.conf
-sudo nginx -t
-sudo systemctl reload nginx
-```
+1. Один раз в **`http { }`** файла `/etc/nginx/nginx.conf` добавьте строку из комментария в `deploy/nginx/http_snippet_proxy_cache.conf` (`proxy_cache_path … keys_zone=prod_encar_api …`) и создайте каталог кэша:
+
+   ```bash
+   sudo mkdir -p /var/cache/nginx/prod-encar
+   sudo chown -R www-data:www-data /var/cache/nginx/prod-encar
+   ```
+
+2. Подключите сайт:
+
+   ```bash
+   sudo cp deploy/nginx/prod-encar.conf /etc/nginx/sites-available/prod-encar.conf
+   sudo ln -sf /etc/nginx/sites-available/prod-encar.conf /etc/nginx/sites-enabled/prod-encar.conf
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+Упрощённый вариант без proxy_cache: `deploy/nginx/encar.conf`.
 
 ### HTTPS (Let’s Encrypt)
 

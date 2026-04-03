@@ -1157,18 +1157,14 @@
       scheduleRepositionOpenCascadePanels();
     }
 
-    /** Фасеты тяжёлые: не конкурируют с /api/cars за сеть/CPU в первый кадр (как отдельный «filters» у конкурента). */
+    /** Фасеты: запуск сразу в следующей задаче (не requestIdleCallback — на тяжёлой отрисовке каталога idle откладывается и фильтры долго пустые). */
     function scheduleFacetRefresh(reqId) {
       function run() {
         refreshFacetBars(reqId).catch(function(e) {
           if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
         });
       }
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(run, { timeout: 2500 });
-      } else {
-        setTimeout(run, 80);
-      }
+      setTimeout(run, 0);
     }
 
     let debouncedApplyTimer = null;
@@ -1864,7 +1860,9 @@
             btn.classList.add('active');
             btn.setAttribute('aria-expanded', 'true');
             requestAnimationFrame(function() {
-              dockOpenCascadePanel(btn, panel);
+              requestAnimationFrame(function() {
+                dockOpenCascadePanel(btn, panel);
+              });
             });
           }
         });
