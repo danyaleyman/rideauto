@@ -1513,6 +1513,45 @@
         return [];
     }
 
+    function escapeImgAttr(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+    }
+
+    /** Encar CDN: второй вариант с увеличенными rh/cw/ch для DPR≈2 (как у pan-auto с impolicy). */
+    function encarCatalogImageVariants(url) {
+      try {
+        var base = typeof location !== 'undefined' && location.href ? location.href : 'https://rideauto.ru/';
+        var u = new URL(String(url || '').trim(), base);
+        var hn = u.hostname.toLowerCase();
+        if (!hn.endsWith('encar.com')) return null;
+        var rhRaw = u.searchParams.get('rh');
+        var cwRaw = u.searchParams.get('cw');
+        if (rhRaw == null || cwRaw == null || rhRaw === '' || cwRaw === '') return null;
+        var rhN = parseInt(rhRaw, 10);
+        var cwN = parseInt(cwRaw, 10);
+        if (!Number.isFinite(rhN) || !Number.isFinite(cwN) || cwN < 64) return null;
+        var chRaw = u.searchParams.get('ch');
+        var chN = chRaw != null && chRaw !== '' ? parseInt(chRaw, 10) : NaN;
+        var scale = 2;
+        var rh2 = Math.min(Math.round(rhN * scale), 960);
+        var cw2 = Math.min(Math.round(cwN * scale), 1200);
+        var ch2 = Number.isFinite(chN) ? Math.min(Math.round(chN * scale), 960) : null;
+        var u2 = new URL(u.toString());
+        u2.searchParams.set('rh', String(rh2));
+        u2.searchParams.set('cw', String(cw2));
+        if (ch2 != null) u2.searchParams.set('ch', String(ch2));
+        return {
+          srcset: escapeImgAttr(u.href) + ' ' + cwN + 'w, ' + escapeImgAttr(u2.href) + ' ' + cw2 + 'w',
+          sizes: '(max-width: 640px) min(96vw, 560px), (max-width: 1100px) 42vw, 290px',
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
     function guessImageType(url) {
         const u = String(url || '').toLowerCase();
         if (u.includes('front') || u.includes('перед') || u.includes('frontview') || u.includes('front_view')) return 'FRONT';
@@ -1582,7 +1621,10 @@
               var attrs = hero
                 ? 'fetchpriority="high" decoding="async"'
                 : 'loading="lazy" decoding="async"';
-              return '<img src="' + img + '" alt="" class="' + (i === 0 ? 'active' : '') + '" width="290" height="186" ' + attrs + '>';
+              var enc = encarCatalogImageVariants(img);
+              var srcEsc = escapeImgAttr(img);
+              var rw = enc ? (' srcset="' + enc.srcset + '" sizes="' + enc.sizes + '"') : '';
+              return '<img src="' + srcEsc + '"' + rw + ' alt="" class="' + (i === 0 ? 'active' : '') + '" width="290" height="186" ' + attrs + '>';
             }).join('')}
           </div>
           <div class="car-info">
