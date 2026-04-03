@@ -9,12 +9,13 @@
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/common.css">
-    <link rel="stylesheet" href="css/cookie-consent.css">
-    <link rel="stylesheet" href="css/auth-favorites.css">
-    <script src="js/wra-site-config.js?v=20260416"></script>
-    <script src="js/copy-protection.js"></script>
-    <script src="js/auth-favorites.js?v=20260416"></script>
+    <!-- Пути от корня: страница открывается как /detail/{id}, иначе css/js резолвятся в /detail/css/... -->
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/cookie-consent.css">
+    <link rel="stylesheet" href="/css/auth-favorites.css">
+    <script src="/js/wra-site-config.js?v=20260416"></script>
+    <script src="/js/copy-protection.js"></script>
+    <script src="/js/auth-favorites.js?v=20260416"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script>
@@ -2899,8 +2900,8 @@
 <div class="header-wrapper">
     <header class="header-area">
         <h1 class="logo">
-            <a href="index.html">
-                <img src="image/logo.svg" alt="World Ride Auto">
+            <a href="/index.html">
+                <img src="/image/logo.svg" alt="World Ride Auto">
             </a>
         </h1>
         <button type="button" class="header-burger" id="headerBurgerBtn" aria-expanded="false" aria-controls="mobileHeaderMenu" aria-label="Открыть меню">
@@ -2928,7 +2929,7 @@
     <div class="content-header">
         <div class="content-header-inner">
             <nav class="breadcrumbs" aria-label="Хлебные крошки">
-                <a href="index.html">Каталог</a>
+                <a href="/index.html">Каталог</a>
                 <span class="sep">›</span>
                 <span class="current" id="breadcrumb-title">Загрузка...</span>
                 <span class="sep">›</span>
@@ -2951,11 +2952,11 @@
 <!-- Модальное окно галереи -->
 <div id="galleryModal" class="modal">
     <div class="modal-content">
-        <button type="button" class="modal-close" id="modalClose" aria-label="Закрыть галерею"><img src="image/Close_LG.svg" alt="" width="24" height="24"></button>
+        <button type="button" class="modal-close" id="modalClose" aria-label="Закрыть галерею"><img src="/image/Close_LG.svg" alt="" width="24" height="24"></button>
         <div class="modal-main" id="modalMain">
             <div class="modal-main-img-wrap" id="modalMainImgWrap"></div>
-            <button type="button" class="modal-nav left" id="modalPrev" aria-label="Предыдущее фото"><img src="image/Chevron_Left.svg" alt="" width="28" height="28"></button>
-            <button type="button" class="modal-nav right" id="modalNext" aria-label="Следующее фото"><img src="image/Chevron_Right.svg" alt="" width="28" height="28"></button>
+            <button type="button" class="modal-nav left" id="modalPrev" aria-label="Предыдущее фото"><img src="/image/Chevron_Left.svg" alt="" width="28" height="28"></button>
+            <button type="button" class="modal-nav right" id="modalNext" aria-label="Следующее фото"><img src="/image/Chevron_Right.svg" alt="" width="28" height="28"></button>
         </div>
         <div class="modal-thumbs-row" id="modalThumbs"></div>
         <div class="modal-counter" id="modalCounter"></div>
@@ -3235,7 +3236,7 @@
             }
             return sanitizeUiLabel(toDisplayRu(s) || s);
         }
-        fetch('data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null).then(m => {
+        fetch('/data/encar_mapping.json').then(r => r.ok ? r.json() : null).catch(() => null).then(m => {
             if (m && typeof m === 'object') {
                 ['mark','model','generation','type','trim'].forEach(cat => {
                     if (m[cat] && typeof m[cat] === 'object') {
@@ -3557,7 +3558,7 @@
         };
 
         function getIconForStatus(statusKey) {
-            var icons = { replaced: 'image/exchange.svg', painted: 'image/painted.svg', scratch: 'image/Scratch.svg', unevenness: 'image/Unevenness.svg', damage: 'image/Damage.svg', corrosion: 'image/Corrosion.svg' };
+            var icons = { replaced: '/image/exchange.svg', painted: '/image/painted.svg', scratch: '/image/Scratch.svg', unevenness: '/image/Unevenness.svg', damage: '/image/Damage.svg', corrosion: '/image/Corrosion.svg' };
             return icons[statusKey] || '';
         }
 
@@ -3734,12 +3735,12 @@
             var exteriorZonesHtml = buildZonesHtml(conditionDiagramZones, exteriorStatus);
             var interiorZonesHtml = buildZonesHtml(interiorZones, interiorStatus);
             var legend = '<div class="condition-legend">' +
-                '<span class="legend-item" data-color="replaced"><img src="image/exchange.svg" alt="" class="legend-icon">Замена</span>' +
-                '<span class="legend-item" data-color="painted"><img src="image/painted.svg" alt="" class="legend-icon">Окрашивание</span>' +
-                '<span class="legend-item" data-color="scratch"><img src="image/Scratch.svg" alt="" class="legend-icon">Царапины</span>' +
-                '<span class="legend-item" data-color="unevenness"><img src="image/Unevenness.svg" alt="" class="legend-icon">Неровности</span>' +
-                '<span class="legend-item" data-color="damage"><img src="image/Damage.svg" alt="" class="legend-icon">Повреждение</span>' +
-                '<span class="legend-item" data-color="corrosion"><img src="image/Corrosion.svg" alt="" class="legend-icon">Коррозия</span>' +
+                '<span class="legend-item" data-color="replaced"><img src="/image/exchange.svg" alt="" class="legend-icon">Замена</span>' +
+                '<span class="legend-item" data-color="painted"><img src="/image/painted.svg" alt="" class="legend-icon">Окрашивание</span>' +
+                '<span class="legend-item" data-color="scratch"><img src="/image/Scratch.svg" alt="" class="legend-icon">Царапины</span>' +
+                '<span class="legend-item" data-color="unevenness"><img src="/image/Unevenness.svg" alt="" class="legend-icon">Неровности</span>' +
+                '<span class="legend-item" data-color="damage"><img src="/image/Damage.svg" alt="" class="legend-icon">Повреждение</span>' +
+                '<span class="legend-item" data-color="corrosion"><img src="/image/Corrosion.svg" alt="" class="legend-icon">Коррозия</span>' +
                 '</div>';
             var diagPhotos = (diagnosisPhotos || []).filter(function(url) { return typeof url === 'string' && url.trim() !== ''; }).slice(0, 5);
             var photoBlock = '';
@@ -3755,8 +3756,8 @@
             var diagramTooltip = 'На схеме отмечены данные, полученные из страховой истории автомобиля и указанные продавцом.<br><br>Для получения точной информации о состоянии автомобиля, необходим его осмотр специалистом Ride Auto';
             return '<div class="card"><h2 class="card-title condition-diagram-title has-tooltip"><span class="ml-0">' + diagramTitle + '</span><span class="tooltip-popup">' + diagramTooltip + '</span></h2>' +
                 '<div class="condition-diagrams-row">' +
-                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внешние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" loading="lazy" /><div class="condition-overlay">' + exteriorZonesHtml + '</div></div></div>' +
-                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внутренние элементы</p><div class="condition-diagram-wrap"><img src="image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" loading="lazy" /><div class="condition-overlay">' + interiorZonesHtml + '</div></div></div>' +
+                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внешние элементы</p><div class="condition-diagram-wrap"><img src="/image/details-condition-top@1x-HLRtauEL.png" alt="Внешние элементы" loading="lazy" /><div class="condition-overlay">' + exteriorZonesHtml + '</div></div></div>' +
+                '<div class="condition-diagram-item"><p class="condition-diagram-caption">Внутренние элементы</p><div class="condition-diagram-wrap"><img src="/image/details-condition-bottom@1x-CVCsf-6Y.png" alt="Внутренние элементы" loading="lazy" /><div class="condition-overlay">' + interiorZonesHtml + '</div></div></div>' +
                 '</div>' +
                 legend + photoBlock + '</div>';
         }
@@ -4095,27 +4096,27 @@
                         <span>Дата обновления ${updatedStr}</span>
                         <div class="order-card-actions">
                             <button type="button" class="order-icon-btn order-icon-copy" aria-label="Копировать" title="Копировать">
-                                <img src="image/copy static.svg" alt="" class="img-static">
-                                <img src="image/copy active.svg" alt="" class="img-active">
+                                <img src="/image/copy static.svg" alt="" class="img-static">
+                                <img src="/image/copy active.svg" alt="" class="img-active">
                             </button>
                             <a href="${originalUrl}" target="_blank" rel="noopener" class="order-icon-btn order-icon-original" title="Оригинал" aria-label="Оригинал">
-                                <img src="image/link static.svg" alt="" class="img-static">
-                                <img src="image/link active.svg" alt="" class="img-active">
+                                <img src="/image/link static.svg" alt="" class="img-static">
+                                <img src="/image/link active.svg" alt="" class="img-active">
                             </a>
                             <button type="button" class="order-icon-btn order-icon-favourite" aria-label="В избранное">
-                                <img src="image/saved static.svg" alt="" class="img-static">
-                                <img src="image/saved active.svg" alt="" class="img-active">
+                                <img src="/image/saved static.svg" alt="" class="img-static">
+                                <img src="/image/saved active.svg" alt="" class="img-active">
                             </button>
                         </div>
                     </div>
-                    ${showHighBadge ? '<div class="order-badge order-badge-high"><span>Высокая ставка</span><span class="info-icon-wrap" data-tooltip="Высокая доля таможенных расходов. Рекомендуем уточнить итоговую стоимость у менеджера."><img src="image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>' : ''}
-                    ${showOkBadge ? '<div class="order-badge order-badge-ok"><span>Проходной</span><span class="info-icon-wrap" data-tooltip="Возраст авто от 3 до 5 лет — самая низкая таможенная ставка."><img src="image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>' : ''}
+                    ${showHighBadge ? '<div class="order-badge order-badge-high"><span>Высокая ставка</span><span class="info-icon-wrap" data-tooltip="Высокая доля таможенных расходов. Рекомендуем уточнить итоговую стоимость у менеджера."><img src="/image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>' : ''}
+                    ${showOkBadge ? '<div class="order-badge order-badge-ok"><span>Проходной</span><span class="info-icon-wrap" data-tooltip="Возраст авто от 3 до 5 лет — самая низкая таможенная ставка."><img src="/image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>' : ''}
                     <div class="order-title-row">
                         <h3 class="order-title">${fullName}</h3>
                     </div>
                     <div class="order-price-block${priceUnavailable ? ' order-price-block--fallback' : ''}">
                         <div class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽')}</div>
-                        <div class="order-price-sub">под ключ до Владивостока <span class="info-icon-wrap" data-tooltip="Цена под ключ до Владивостока с учётом всех платежей"><img src="image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>
+                        <div class="order-price-sub">под ключ до Владивостока <span class="info-icon-wrap" data-tooltip="Цена под ключ до Владивостока с учётом всех платежей"><img src="/image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>
                     </div>
                     ${!priceUnavailable && totalForBar ? `
                     <div class="order-breakdown-wrap">
@@ -4145,7 +4146,7 @@
                         <div class="calc-modal-content-tpl">${modalCoursesHtml}${modalKoreaHtml}${modalRussiaHtml}</div>
                     </div>
                 </div>
-                <a href="howtobuy.html" class="order-howto-bar"><span>Как купить автомобиль?</span><span class="order-howto-bar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 7l5 5-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+                <a href="/howtobuy.html" class="order-howto-bar"><span>Как купить автомобиль?</span><span class="order-howto-bar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 7l5 5-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
             `;
         }
 
@@ -4171,12 +4172,12 @@
 
             if (!similarCars.length && currentPrice && currentMark) {
                 try {
-                    var jsonUrl = new URL('cars.json', window.location.href).href;
+                    var jsonUrl = new URL('/cars.json', window.location.origin).href;
                     var response = await fetch(jsonUrl);
                     if (!response.ok) throw new Error('Ошибка загрузки данных');
                     var data = await response.json();
                     if (!data || !data.result) {
-                        jsonUrl = new URL('../cars.json', window.location.href).href;
+                        jsonUrl = new URL('/cars.json', window.location.origin).href;
                         response = await fetch(jsonUrl);
                         if (!response.ok) throw new Error('Ошибка загрузки данных');
                         data = await response.json();
@@ -5251,7 +5252,7 @@
         const carId = wraGetCarIdFromUrl();
         if (!carId) {
             var el = document.getElementById('car-content');
-            if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не указан ID автомобиля.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }
+            if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не указан ID автомобиля.</p><a href="/index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }
             return;
         }
 
@@ -5279,8 +5280,8 @@
 
         /** Фолбэк для статики / без API (маленький cars.json). */
         function loadCarDataFromCarsJson(id) {
-            var urlSame = new URL('cars.json', window.location.href).href;
-            var urlParent = new URL('../cars.json', window.location.href).href;
+            var urlSame = new URL('/cars.json', window.location.origin).href;
+            var urlParent = new URL('/cars.json', window.location.origin).href;
             return tryFetch(urlSame).catch(function() { return tryFetch(urlParent); }).then(function(data) {
                 var cars = data.result || [];
                 if (!Array.isArray(cars)) cars = [];
@@ -5299,7 +5300,7 @@
             });
         }
 
-        var engineMapUrl = new URL('data/engine_map.json', window.location.href).href;
+        var engineMapUrl = new URL('/data/engine_map.json', window.location.origin).href;
         Promise.all([
             loadCarData(carId),
             fetch(engineMapUrl).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; })
@@ -5313,9 +5314,9 @@
                 if (el) {
                     el.setAttribute('aria-busy', 'false');
                     if (err && err.notFound) {
-                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Автомобиль с таким ID не найден.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
+                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Автомобиль с таким ID не найден.</p><a href="/index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
                     } else {
-                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не удалось загрузить данные. Проверьте подключение к интернету.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
+                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не удалось загрузить данные. Проверьте подключение к интернету.</p><a href="/index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
                     }
                 }
             });
@@ -5372,13 +5373,13 @@
 <div class="footer-wrap">
   <footer class="footer">
     <div class="footer-top">
-      <a href="index.html" class="footer-logo">
-        <img src="image/logo.svg" alt="World Ride Auto">
+      <a href="/index.html" class="footer-logo">
+        <img src="/image/logo.svg" alt="World Ride Auto">
       </a>
       <nav class="footer-nav">
-        <a href="privacy.html">Политика конфиденциальности</a>
-        <a href="cookies.html">Политика cookie</a>
-        <a href="agreement.html">Пользовательское соглашение</a>
+        <a href="/privacy.html">Политика конфиденциальности</a>
+        <a href="/cookies.html">Политика cookie</a>
+        <a href="/agreement.html">Пользовательское соглашение</a>
       </nav>
       <div class="footer-copy">
         <span class="copy-line">&copy; World Ride Auto 2026</span>
@@ -5391,6 +5392,6 @@
     </div>
   </footer>
 </div>
-<script src="js/cookie-consent.js" defer></script>
+<script src="/js/cookie-consent.js" defer></script>
 </body>
 </html>
