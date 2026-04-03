@@ -124,6 +124,9 @@
       if (filtersDrawerOverlay) filtersDrawerOverlay.classList.add('is-open');
       if (filtersOpenBtn) filtersOpenBtn.setAttribute('aria-expanded', 'true');
       document.body.classList.add('filters-drawer-open');
+      if (markListEl && !markListEl.querySelector('input[type=checkbox]')) {
+        scheduleFacetRefresh(catalogRequestId);
+      }
     }
     if (filtersOpenBtn && filtersDrawerOverlay) {
       filtersOpenBtn.addEventListener('click', openFiltersDrawer);
@@ -997,6 +1000,109 @@
       if (showMoreColorsBtn) showMoreColorsBtn.style.display = restColors.length > 0 ? 'block' : 'none';
     }
 
+    function applyFacetsApiPayload(data, reqId) {
+      if (reqId !== catalogRequestId) return;
+      if (!data || typeof data !== 'object') return;
+      function cascade(container, rows, filterKey, labelCat, trigger, allLabel) {
+        if (!container) return;
+        renderFacetCheckboxList(container, rows || [], filterKey, labelCat);
+        if (trigger) setDropdownTriggerText(trigger, container, filterKey, allLabel);
+      }
+
+      cascade(markListEl, data.marks, 'mark', 'mark', markTrigger, 'Все марки');
+
+      const selMarks = getSelectedValues(markListEl, 'mark');
+      if (selMarks.size === 0) {
+        if (modelListEl) modelListEl.innerHTML = '';
+        if (generationListEl) generationListEl.innerHTML = '';
+        if (trimListEl) trimListEl.innerHTML = '';
+        if (modelTrigger) {
+          modelTrigger.disabled = true;
+          modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
+        }
+        if (generationTrigger) {
+          generationTrigger.disabled = true;
+          generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
+        }
+        if (trimTrigger) {
+          trimTrigger.disabled = true;
+          trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+        }
+      } else {
+        cascade(modelListEl, data.models, 'model', 'model', modelTrigger, 'Все модели');
+        if (modelTrigger) modelTrigger.disabled = false;
+
+        const selModels = getSelectedValues(modelListEl, 'model');
+        if (selModels.size === 0) {
+          if (generationListEl) generationListEl.innerHTML = '';
+          if (trimListEl) trimListEl.innerHTML = '';
+          if (generationTrigger) {
+            generationTrigger.disabled = true;
+            generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
+          }
+          if (trimTrigger) {
+            trimTrigger.disabled = true;
+            trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+          }
+        } else {
+          cascade(generationListEl, data.generations, 'generation', 'generation', generationTrigger, 'Все поколения');
+          if (generationTrigger) generationTrigger.disabled = false;
+
+          const selGen = getSelectedValues(generationListEl, 'generation');
+          if (selGen.size === 0) {
+            if (trimListEl) trimListEl.innerHTML = '';
+            if (trimTrigger) {
+              trimTrigger.disabled = true;
+              trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+            }
+          } else {
+            cascade(trimListEl, data.trims, 'trim', 'trim', trimTrigger, 'Все комплектации');
+            if (trimTrigger) trimTrigger.disabled = false;
+          }
+        }
+      }
+
+      renderFacetCheckboxList(document.getElementById('bodyList'), data.bodies || [], 'body', 'bodyType');
+      renderFacetCheckboxList(document.getElementById('fuelList'), data.fuels || [], 'fuel', 'engineType');
+      renderFacetCheckboxList(document.getElementById('transmissionList'), data.transmissions || [], 'transmission', 'transmission');
+      renderColorFilterFromFacets(data.colors || []);
+
+      syncCascadeSlotVisibility();
+      scheduleRepositionOpenCascadePanels();
+    }
+
+    async function tryHydrateFacetsFromStatic(reqId) {
+      try {
+        var res = await fetch('data/catalog_facets.json');
+        if (!res.ok) return false;
+        var data = await res.json();
+        if (!data || typeof data !== 'object' || !Array.isArray(data.marks)) return false;
+        if (reqId !== catalogRequestId) return true;
+        applyFacetsApiPayload(data, reqId);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function revalidateFacetsFromApiIfStillDefault(bootToken) {
+      var rid = bootToken;
+      if (rid !== catalogRequestId) return;
+      if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) return;
+      try {
+        if (buildCatalogFilterParams().toString() !== '') return;
+        var params = buildCatalogFilterParams();
+        var res = await fetch(apiUrl('/api/facets?' + params.toString()));
+        if (!res.ok) return;
+        var data = await res.json();
+        if (rid !== catalogRequestId) return;
+        if (buildCatalogFilterParams().toString() !== '') return;
+        applyFacetsApiPayload(data, rid);
+      } catch (e) {
+        if (rid === catalogRequestId) console.warn('[catalog] facet revalidate failed', e);
+      }
+    }
+
     function refreshFacetsFromStaticCache(reqId) {
       if (reqId !== catalogRequestId || !staticCatalogCache || !staticCatalogCache.length) return;
       function dim(omitKeys, pick) {
@@ -1088,76 +1194,10 @@
       if (!res.ok) throw new Error('facets HTTP ' + res.status);
       const data = await res.json();
       if (reqId !== catalogRequestId) return;
-
-      function cascade(container, rows, filterKey, labelCat, trigger, allLabel) {
-        if (!container) return;
-        renderFacetCheckboxList(container, rows || [], filterKey, labelCat);
-        if (trigger) setDropdownTriggerText(trigger, container, filterKey, allLabel);
-      }
-
-      cascade(markListEl, data.marks, 'mark', 'mark', markTrigger, 'Все марки');
-
-      const selMarks = getSelectedValues(markListEl, 'mark');
-      if (selMarks.size === 0) {
-        if (modelListEl) modelListEl.innerHTML = '';
-        if (generationListEl) generationListEl.innerHTML = '';
-        if (trimListEl) trimListEl.innerHTML = '';
-        if (modelTrigger) {
-          modelTrigger.disabled = true;
-          modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
-        }
-        if (generationTrigger) {
-          generationTrigger.disabled = true;
-          generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
-        }
-        if (trimTrigger) {
-          trimTrigger.disabled = true;
-          trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-        }
-      } else {
-        cascade(modelListEl, data.models, 'model', 'model', modelTrigger, 'Все модели');
-        if (modelTrigger) modelTrigger.disabled = false;
-
-        const selModels = getSelectedValues(modelListEl, 'model');
-        if (selModels.size === 0) {
-          if (generationListEl) generationListEl.innerHTML = '';
-          if (trimListEl) trimListEl.innerHTML = '';
-          if (generationTrigger) {
-            generationTrigger.disabled = true;
-            generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
-          }
-          if (trimTrigger) {
-            trimTrigger.disabled = true;
-            trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-          }
-        } else {
-          cascade(generationListEl, data.generations, 'generation', 'generation', generationTrigger, 'Все поколения');
-          if (generationTrigger) generationTrigger.disabled = false;
-
-          const selGen = getSelectedValues(generationListEl, 'generation');
-          if (selGen.size === 0) {
-            if (trimListEl) trimListEl.innerHTML = '';
-            if (trimTrigger) {
-              trimTrigger.disabled = true;
-              trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-            }
-          } else {
-            cascade(trimListEl, data.trims, 'trim', 'trim', trimTrigger, 'Все комплектации');
-            if (trimTrigger) trimTrigger.disabled = false;
-          }
-        }
-      }
-
-      renderFacetCheckboxList(document.getElementById('bodyList'), data.bodies || [], 'body', 'bodyType');
-      renderFacetCheckboxList(document.getElementById('fuelList'), data.fuels || [], 'fuel', 'engineType');
-      renderFacetCheckboxList(document.getElementById('transmissionList'), data.transmissions || [], 'transmission', 'transmission');
-      renderColorFilterFromFacets(data.colors || []);
-
-      syncCascadeSlotVisibility();
-      scheduleRepositionOpenCascadePanels();
+      applyFacetsApiPayload(data, reqId);
     }
 
-    /** Фасеты: запуск сразу в следующей задаче (не requestIdleCallback — на тяжёлой отрисовке каталога idle откладывается и фильтры долго пустые). */
+    /** Фасеты НЕ опережают сетку: список грузится первым, затем статика или /api/facets. */
     function scheduleFacetRefresh(reqId) {
       function run() {
         refreshFacetBars(reqId).catch(function(e) {
@@ -1295,8 +1335,9 @@
       const reqId = ++catalogRequestId;
       page = 1;
       try {
-        scheduleFacetRefresh(reqId);
         await loadCarsPage(1, reqId);
+        if (reqId !== catalogRequestId) return;
+        scheduleFacetRefresh(reqId);
       } catch (e) {
         if (reqId !== catalogRequestId) return;
         console.error(e);
@@ -2093,7 +2134,6 @@
         }
 
         var reqId = ++catalogRequestId;
-        scheduleFacetRefresh(reqId);
         var todayEl = document.getElementById('bannerTodayCount');
         var statsPromise = todayEl
           ? fetch(apiUrl('/api/stats')).then(function(sr) {
@@ -2107,6 +2147,23 @@
         if (wantPage > catalogPages && catalogPages >= 1) {
           var reqClamp = ++catalogRequestId;
           await loadCarsPage(catalogPages, reqClamp);
+        }
+
+        var facetReq = catalogRequestId;
+        if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
+          scheduleFacetRefresh(facetReq);
+        } else if (buildCatalogFilterParams().toString() === '') {
+          tryHydrateFacetsFromStatic(facetReq).then(function(used) {
+            if (facetReq !== catalogRequestId) return;
+            if (!used) scheduleFacetRefresh(facetReq);
+            else {
+              setTimeout(function() {
+                void revalidateFacetsFromApiIfStillDefault(facetReq);
+              }, 3500);
+            }
+          });
+        } else {
+          scheduleFacetRefresh(facetReq);
         }
 
         if (todayEl) {

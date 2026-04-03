@@ -6,6 +6,7 @@ Export cars from scraper SQLite DB to frontend JSON.
 - Optional gzip for better CDN/static delivery.
 - Atomic replace for published files (no half-written JSON on readers).
 - Writes price-enriched JSON back into SQLite so /api/cars matches cars.json.
+- Writes frontend/data/catalog_facets.json (same shape as GET /api/facets with no filters) for fast catalog first paint.
 """
 import argparse
 import gzip
@@ -14,6 +15,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -68,6 +70,19 @@ def _iter_chunks(items, chunk_size: int):
         yield i // chunk_size + 1, items[i : i + chunk_size]
 
 
+def _write_catalog_facets_snapshot(db_path: Path, out_path: Path) -> None:
+    """Те же фасеты, что GET /api/facets без фильтров — статика для быстрого первого экрана."""
+    backend_dir = Path(__file__).resolve().parent
+    if str(backend_dir) not in sys.path:
+        sys.path.insert(0, str(backend_dir))
+    from api_server import _facets_catalog_sync
+
+    facets = _facets_catalog_sync(str(db_path.resolve()), {})
+    payload = dict(facets)
+    payload["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _write_json_atomic(Path(out_path), payload, gzip_enabled=False)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default="encar_cars.db", help="Scraper SQLite DB path")
@@ -87,6 +102,11 @@ def main():
         "--learn-engine-map",
         action="store_true",
         help="После экспорта запустить auto_learn_engine_map.py (обновить engine_map.json по motorType)",
+    )
+    p.add_argument(
+        "--no-facets-snapshot",
+        action="store_true",
+        help="Не писать frontend/data/catalog_facets.json (снимок фасетов для каталога)",
     )
     args = p.parse_args()
 
@@ -168,6 +188,15 @@ def main():
     }
     out_path = Path(args.out).resolve()
     _write_json_atomic(out_path, out, gzip_enabled=args.gzip)
+
+    if not args.no_facets_snapshot:
+        repo_front = Path(__file__).resolve().parent.parent / "frontend"
+        facets_path = repo_front / "data" / "catalog_facets.json"
+        try:
+            _write_catalog_facets_snapshot(db_path, facets_path)
+            print(f"Facets snapshot: {facets_path}", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: catalog facets snapshot failed: {e}", file=sys.stderr)
 
     if args.chunk_size and args.chunk_size > 0:
         chunk_dir = Path(args.chunk_dir).resolve()

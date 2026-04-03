@@ -1289,6 +1289,8 @@ def main() -> None:
 
     db_path = str(Path(args.db).resolve())
     app = create_app(db_path)
+    # Алиас как у конкурента; вынесено из create_app — сработает даже если в копии на сервере была «мертвая» строка после return.
+    app.router.add_get("/api/filters", facets)
     web.run_app(app, host=args.host, port=args.port)
 
 
