@@ -553,7 +553,7 @@ async def cars(request: web.Request) -> web.Response:
     q = {k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()}
     slim = (q.get("full") or "").strip() != "1"
     db_path: str = request.app["db_path"]
-    payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim)
+    payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
     # Slim-выдача сильно меньше → чуть дольше браузерный кэш; full=1 — как раньше
     cache = "public, max-age=30, stale-while-revalidate=180" if slim else "public, max-age=15, stale-while-revalidate=120"
     return _json_public_cache(payload, cache)
