@@ -10,4 +10,5 @@
   if (typeof window.WRA_API_BASE !== "string") {
     window.WRA_API_BASE = "";
   }
+  /* Статический каталог без API: перед catalog.js задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true (см. catalog allowCarsJsonFallback). */
 })();

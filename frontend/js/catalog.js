@@ -11,6 +11,21 @@
     function apiUrl(path) {
       return API_BASE + path;
     }
+    /**
+     * Фолбэк: скачать целиком cars.json в браузер. На проде при ~100k+ машин это гигабайты → OOM и «Aw Snap».
+     * По умолчанию разрешён только если API на другом origin (WRA_API_BASE не пустой): тогда локальный cars.json часто маленький снапшот.
+     * Чисто статический каталог без API: задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true до catalog.js (и держите выгрузку небольшой или задайте лимит).
+     */
+    function allowCarsJsonFallback() {
+      if (typeof window.WRA_ALLOW_CATALOG_JSON_FALLBACK === 'boolean') {
+        return window.WRA_ALLOW_CATALOG_JSON_FALLBACK;
+      }
+      return API_BASE !== '';
+    }
+    var CATALOG_JSON_FALLBACK_MAX_BYTES =
+      typeof window.WRA_CATALOG_JSON_FALLBACK_MAX_BYTES === 'number' && window.WRA_CATALOG_JSON_FALLBACK_MAX_BYTES > 0
+        ? window.WRA_CATALOG_JSON_FALLBACK_MAX_BYTES
+        : 40 * 1024 * 1024;
 
     // DOM элементы
     const gridEl = document.getElementById('grid');
@@ -1200,10 +1215,19 @@
         draw();
       } catch (err) {
         if (reqId !== catalogRequestId) return;
-        if (!staticCatalogCache) {
+        if (!staticCatalogCache && allowCarsJsonFallback()) {
           try {
             var jr = await fetch('cars.json');
             if (jr.ok) {
+              var clHdr = jr.headers.get('Content-Length');
+              if (clHdr) {
+                var clNum = parseInt(clHdr, 10);
+                if (clNum > CATALOG_JSON_FALLBACK_MAX_BYTES) {
+                  throw new Error('cars.json too large (' + clNum + ' bytes) for in-browser fallback');
+                }
+              } else {
+                throw new Error('cars.json: no Content-Length, skip parse (avoid tab OOM)');
+              }
               var raw = await jr.json();
               var parsedInit = parseCarsApiPayload(raw);
               staticCatalogCache = parsedInit.list;
