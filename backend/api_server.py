@@ -8,6 +8,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import hmac
 import json
@@ -23,9 +24,16 @@ from aiohttp import ClientSession, web
 
 
 def _db_connect(path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
+    """Отдельное соединение на запрос чтения — WAL позволяет параллельным читателям не блокировать друг друга."""
+    conn = sqlite3.connect(path, timeout=60.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA mmap_size=268435456")
+    # ~128 MiB page cache (отрицательное значение — в KiB)
+    conn.execute("PRAGMA cache_size=-131072")
     return conn
 
 
@@ -214,6 +222,61 @@ def _car_title(data: Dict[str, Any]) -> str:
     return " ".join([x for x in [mark, model, generation] if x]).strip()
 
 
+# Поля карточки каталога (см. frontend/js/catalog.js draw). Без inspection/extra — детали в GET /api/car/{id}.
+_SLIM_CATALOG_DATA_KEYS = frozenset(
+    {
+        "mark",
+        "model",
+        "generation",
+        "configuration",
+        "gradeName",
+        "year",
+        "yearMonth",
+        "displacement",
+        "engine_type",
+        "drive_type",
+        "prep_drive_type",
+        "body_type",
+        "transmission_type",
+        "km_age",
+        "offer_created",
+        "created_at",
+        "url",
+        "inner_id",
+        "my_price",
+        "price_won",
+        "price_calc_failed",
+        "power",
+        "hp",
+        "outputHorsepower",
+        "power_hp",
+        "images",
+        "h_images",
+        "color",
+        "krw_per_usdt",
+        "usdt_rub",
+    }
+)
+
+
+def _slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
+    raw = car.get("data") if isinstance(car.get("data"), dict) else None
+    if not isinstance(raw, dict):
+        raw = car if isinstance(car, dict) else {}
+    slim_data: Dict[str, Any] = {k: raw[k] for k in _SLIM_CATALOG_DATA_KEYS if k in raw}
+    inner = raw.get("inner_id") if raw.get("inner_id") not in (None, "") else car.get("inner_id")
+    if inner is not None and inner != "":
+        slim_data["inner_id"] = inner
+    out: Dict[str, Any] = {"id": car_id, "data": slim_data}
+    _tid = car.get("inner_id") or slim_data.get("inner_id")
+    if _tid is not None and _tid != "":
+        out["inner_id"] = _tid
+    out["title"] = _car_title(slim_data)
+    out["price"] = _extract_num(slim_data, "my_price")
+    out["year_num"] = int(str(slim_data.get("year") or 0)[:4] or 0)
+    return out
+
+
 def _csv_values(raw: str | None) -> List[str]:
     if not raw:
         return []
@@ -321,8 +384,111 @@ def _cars_dedup_where(where: str, params: List[str]) -> Tuple[str, List[str]]:
 
 
 def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
-    skip = frozenset({"page", "per_page", "sort"})
+    skip = frozenset({"page", "per_page", "sort", "full"})
     return {k: v for k, v in raw.items() if k not in skip and v not in (None, "")}
+
+
+_CATALOG_SORT_SQL = {
+    "date_new": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) DESC",
+    "date_old": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) ASC",
+    "year_new": "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) DESC",
+    "year_old": "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) ASC",
+    "price_high": "(CASE WHEN json_extract(data_json, '$.data.my_price') IS NULL OR json_extract(data_json, '$.data.my_price') = '' THEN 1 ELSE 0 END) ASC, CAST(json_extract(data_json, '$.data.my_price') AS REAL) DESC",
+    "price_low": "(CASE WHEN json_extract(data_json, '$.data.my_price') IS NULL OR json_extract(data_json, '$.data.my_price') = '' THEN 1 ELSE 0 END) ASC, CAST(json_extract(data_json, '$.data.my_price') AS REAL) ASC",
+    "mileage_high": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) DESC",
+    "mileage_low": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) ASC",
+}
+
+
+def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Dict[str, Any]:
+    conn = _db_connect(db_path)
+    try:
+        page = max(1, int(query.get("page", "1") or "1"))
+        per_page = min(100, max(1, int(query.get("per_page", "12") or "12")))
+        offset = (page - 1) * per_page
+
+        where, params = _build_filter_sql(query)
+        where2, params2 = _cars_dedup_where(where, params)
+        sort = (query.get("sort") or "date_new").strip()
+        order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
+        total = conn.execute(f"SELECT COUNT(*) as c FROM cars {where2}", params2).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT car_id, data_json FROM cars {where2} ORDER BY {order_sql}, id DESC LIMIT ? OFFSET ?",
+            [*params2, per_page, offset],
+        ).fetchall()
+
+        result: List[Dict[str, Any]] = []
+        for row in rows:
+            car = json.loads(row["data_json"])
+            car["id"] = row["car_id"]
+            if slim:
+                result.append(_slim_catalog_car(car, row["car_id"]))
+            else:
+                data = car.get("data") if isinstance(car.get("data"), dict) else car
+                if isinstance(data, dict):
+                    car["title"] = _car_title(data)
+                    car["price"] = _extract_num(data, "my_price")
+                    car["year_num"] = int(str(data.get("year") or 0)[:4] or 0)
+                result.append(car)
+
+        pages = max(1, (int(total) + per_page - 1) // per_page)
+        return {
+            "result": result,
+            "meta": {
+                "page": page,
+                "per_page": per_page,
+                "total": int(total),
+                "pages": pages,
+                "next_page": page + 1 if page < pages else None,
+                "list_mode": "slim" if slim else "full",
+            },
+        }
+    finally:
+        conn.close()
+
+
+def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
+    conn = _db_connect(db_path)
+    try:
+        mark_expr = "json_extract(data_json, '$.data.mark')"
+        model_expr = "json_extract(data_json, '$.data.model')"
+        generation_expr = "COALESCE(json_extract(data_json, '$.data.generation'), json_extract(data_json, '$.data.configuration'))"
+        trim_expr = "COALESCE(json_extract(data_json, '$.data.gradeName'), json_extract(data_json, '$.data.configuration'), json_extract(data_json, '$.data.generation'))"
+        body_expr = "json_extract(data_json, '$.data.body_type')"
+        fuel_expr = "json_extract(data_json, '$.data.engine_type')"
+        trans_expr = "json_extract(data_json, '$.data.transmission_type')"
+        color_expr = "json_extract(data_json, '$.data.color')"
+
+        return {
+            "marks": _facet_dimension(conn, q, frozenset({"marks"}), mark_expr),
+            "models": _facet_dimension(conn, q, frozenset({"models"}), model_expr),
+            "generations": _facet_dimension(conn, q, frozenset({"generations"}), generation_expr),
+            "trims": _facet_dimension(conn, q, frozenset({"trims"}), trim_expr),
+            "bodies": _facet_dimension(conn, q, frozenset({"body"}), body_expr),
+            "fuels": _facet_dimension(conn, q, frozenset({"fuel"}), fuel_expr),
+            "transmissions": _facet_dimension(conn, q, frozenset({"trans"}), trans_expr),
+            "colors": _facet_dimension(conn, q, frozenset({"color"}), color_expr),
+        }
+    finally:
+        conn.close()
+
+
+def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
+    conn = _db_connect(db_path)
+    try:
+        today_str = datetime.now(timezone.utc).date().isoformat()
+        date_expr = (
+            "substr(COALESCE(json_extract(data_json, '$.data.offer_created'), "
+            "json_extract(data_json, '$.data.created_at')), 1, 10)"
+        )
+        row = conn.execute(
+            f"SELECT COUNT(*) AS c FROM cars WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id) AND {date_expr} = ?",
+            [today_str],
+        ).fetchone()
+        n = int(row["c"]) if row else 0
+        return {"listed_today": n, "date_utc": today_str}
+    finally:
+        conn.close()
 
 
 def _json_public_cache(data: Any, cache_control: str) -> web.Response:
@@ -384,98 +550,26 @@ async def health(_: web.Request) -> web.Response:
 
 
 async def cars(request: web.Request) -> web.Response:
-    app = request.app
-    conn: sqlite3.Connection = app["db"]
-    q = request.rel_url.query
-    page = max(1, int(q.get("page", "1")))
-    per_page = min(100, max(1, int(q.get("per_page", "12"))))
-    offset = (page - 1) * per_page
-
-    where, params = _build_filter_sql(q)
-    where2, params2 = _cars_dedup_where(where, params)
-    sort = (q.get("sort") or "date_new").strip()
-    sort_map = {
-        "date_new": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) DESC",
-        "date_old": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) ASC",
-        "year_new": "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) DESC",
-        "year_old": "CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) ASC",
-        "price_high": "(CASE WHEN json_extract(data_json, '$.data.my_price') IS NULL OR json_extract(data_json, '$.data.my_price') = '' THEN 1 ELSE 0 END) ASC, CAST(json_extract(data_json, '$.data.my_price') AS REAL) DESC",
-        "price_low": "(CASE WHEN json_extract(data_json, '$.data.my_price') IS NULL OR json_extract(data_json, '$.data.my_price') = '' THEN 1 ELSE 0 END) ASC, CAST(json_extract(data_json, '$.data.my_price') AS REAL) ASC",
-        "mileage_high": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) DESC",
-        "mileage_low": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) ASC",
-    }
-    order_sql = sort_map.get(sort, sort_map["date_new"])
-    total = conn.execute(f"SELECT COUNT(*) as c FROM cars {where2}", params2).fetchone()["c"]
-    rows = conn.execute(
-        f"SELECT car_id, data_json FROM cars {where2} ORDER BY {order_sql}, id DESC LIMIT ? OFFSET ?",
-        [*params2, per_page, offset],
-    ).fetchall()
-
-    result = []
-    for row in rows:
-        car = json.loads(row["data_json"])
-        car["id"] = row["car_id"]
-        data = car.get("data") if isinstance(car.get("data"), dict) else car
-        if isinstance(data, dict):
-            car["title"] = _car_title(data)
-            car["price"] = _extract_num(data, "my_price")
-            car["year_num"] = int(str(data.get("year") or 0)[:4] or 0)
-        result.append(car)
-
-    pages = max(1, (total + per_page - 1) // per_page)
-    payload = {
-        "result": result,
-        "meta": {
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-            "pages": pages,
-            "next_page": page + 1 if page < pages else None,
-        },
-    }
-    # Кэш по полному URL (все параметры фильтра в query) — повторные открытия из disk cache, как у CDN
-    return _json_public_cache(payload, "public, max-age=15, stale-while-revalidate=120")
+    q = {k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()}
+    slim = (q.get("full") or "").strip() != "1"
+    db_path: str = request.app["db_path"]
+    payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim)
+    # Slim-выдача сильно меньше → чуть дольше браузерный кэш; full=1 — как раньше
+    cache = "public, max-age=30, stale-while-revalidate=180" if slim else "public, max-age=15, stale-while-revalidate=120"
+    return _json_public_cache(payload, cache)
 
 
 async def facets(request: web.Request) -> web.Response:
-    conn: sqlite3.Connection = request.app["db"]
-    q = _catalog_query_dict(dict(request.rel_url.query))
-
-    mark_expr = "json_extract(data_json, '$.data.mark')"
-    model_expr = "json_extract(data_json, '$.data.model')"
-    generation_expr = "COALESCE(json_extract(data_json, '$.data.generation'), json_extract(data_json, '$.data.configuration'))"
-    trim_expr = "COALESCE(json_extract(data_json, '$.data.gradeName'), json_extract(data_json, '$.data.configuration'), json_extract(data_json, '$.data.generation'))"
-    body_expr = "json_extract(data_json, '$.data.body_type')"
-    fuel_expr = "json_extract(data_json, '$.data.engine_type')"
-    trans_expr = "json_extract(data_json, '$.data.transmission_type')"
-    color_expr = "json_extract(data_json, '$.data.color')"
-
-    payload = {
-        "marks": _facet_dimension(conn, q, frozenset({"marks"}), mark_expr),
-        "models": _facet_dimension(conn, q, frozenset({"models"}), model_expr),
-        "generations": _facet_dimension(conn, q, frozenset({"generations"}), generation_expr),
-        "trims": _facet_dimension(conn, q, frozenset({"trims"}), trim_expr),
-        "bodies": _facet_dimension(conn, q, frozenset({"body"}), body_expr),
-        "fuels": _facet_dimension(conn, q, frozenset({"fuel"}), fuel_expr),
-        "transmissions": _facet_dimension(conn, q, frozenset({"trans"}), trans_expr),
-        "colors": _facet_dimension(conn, q, frozenset({"color"}), color_expr),
-    }
-    return _json_public_cache(payload, "public, max-age=20, stale-while-revalidate=120")
+    q = _catalog_query_dict({k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()})
+    db_path: str = request.app["db_path"]
+    payload = await asyncio.to_thread(_facets_catalog_sync, db_path, q)
+    return _json_public_cache(payload, "public, max-age=25, stale-while-revalidate=180")
 
 
 async def catalog_stats(request: web.Request) -> web.Response:
-    conn: sqlite3.Connection = request.app["db"]
-    today_str = datetime.now(timezone.utc).date().isoformat()
-    date_expr = (
-        "substr(COALESCE(json_extract(data_json, '$.data.offer_created'), "
-        "json_extract(data_json, '$.data.created_at')), 1, 10)"
-    )
-    row = conn.execute(
-        f"SELECT COUNT(*) AS c FROM cars WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id) AND {date_expr} = ?",
-        [today_str],
-    ).fetchone()
-    n = int(row["c"]) if row else 0
-    return _json_public_cache({"listed_today": n, "date_utc": today_str}, "public, max-age=30, stale-while-revalidate=300")
+    db_path: str = request.app["db_path"]
+    payload = await asyncio.to_thread(_catalog_stats_sync, db_path)
+    return _json_public_cache(payload, "public, max-age=30, stale-while-revalidate=300")
 
 
 async def car_by_id(request: web.Request) -> web.Response:
@@ -980,7 +1074,9 @@ def create_app(db_path: str) -> web.Application:
         return resp
 
     app = web.Application(middlewares=[cors_middleware])
-    conn = _db_connect(db_path)
+    resolved = str(Path(db_path).resolve())
+    app["db_path"] = resolved
+    conn = _db_connect(resolved)
     _init_app_tables(conn)
     app["db"] = conn
     app["telegram_bot_token"] = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
