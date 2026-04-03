@@ -72,7 +72,7 @@
       [generationTrigger, generationPanel],
       [trimTrigger, trimPanel]
     ];
-    var cascadeFloatRepositionTimer = null;
+    var cascadeFloatRepositionRaf = null;
     function undockAllCascadePanels() {
       CASCADE_DROPDOWN_PAIRS.forEach(function(pair) {
         var panel = pair[1];
@@ -90,19 +90,23 @@
       var top = r.bottom + gap;
       var maxH = Math.min(260, Math.max(120, window.innerHeight - top - 8));
       panel.classList.add('filter-dropdown-panel--floating');
-      panel.style.setProperty('--wra-float-left', r.left + 'px');
-      panel.style.setProperty('--wra-float-top', top + 'px');
-      panel.style.setProperty('--wra-float-width', r.width + 'px');
-      panel.style.setProperty('--wra-float-max-height', maxH + 'px');
+      /* Округление — меньше субпиксельного дрожания при частых пересчётах. */
+      panel.style.setProperty('--wra-float-left', Math.round(r.left) + 'px');
+      panel.style.setProperty('--wra-float-top', Math.round(top) + 'px');
+      panel.style.setProperty('--wra-float-width', Math.max(1, Math.round(r.width)) + 'px');
+      panel.style.setProperty('--wra-float-max-height', Math.round(maxH) + 'px');
     }
-    function scheduleRepositionOpenCascadePanels() {
-      if (cascadeFloatRepositionTimer) clearTimeout(cascadeFloatRepositionTimer);
-      cascadeFloatRepositionTimer = setTimeout(function() {
-        cascadeFloatRepositionTimer = null;
+    /** Один пересчёт на кадр + игнор скролла внутри открытой панели (не дергать fixed-блок без нужды). */
+    function scheduleRepositionOpenCascadePanels(ev) {
+      var t = ev && ev.target;
+      if (t && typeof t.closest === 'function' && t.closest('.filter-dropdown-panel')) return;
+      if (cascadeFloatRepositionRaf != null) return;
+      cascadeFloatRepositionRaf = requestAnimationFrame(function() {
+        cascadeFloatRepositionRaf = null;
         CASCADE_DROPDOWN_PAIRS.forEach(function(pair) {
           if (pair[1] && pair[1].classList.contains('is-open')) dockOpenCascadePanel(pair[0], pair[1]);
         });
-      }, 30);
+      });
     }
 
     function showSkeleton() {
@@ -746,7 +750,8 @@
         let en = toDisplayEn(s, category);
         if (en !== s) {
           out = sanitizeUiLabel(en);
-        } else if (['model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
+        } else if (['mark', 'model', 'generation', 'type', 'trim'].indexOf(category) >= 0) {
+          // Марка/модель и т.д. — не гонять через toDisplayRu (там словарь цветов и кузовов: «Pearl», «Gray» и т.п. ломали подписи).
           const fallback = applyKoreanPhraseFallback(s);
           out = sanitizeUiLabel(fallback || s);
         } else {
@@ -1071,18 +1076,37 @@
       scheduleRepositionOpenCascadePanels();
     }
 
-    async function tryHydrateFacetsFromStatic(reqId) {
+    /**
+     * Статика + API в духе pan-auto: json и фасеты стартуют параллельно с /api/cars (см. bootstrap prefetch).
+     * Если catalog_facets.json ок — отменяем лишний /api/facets; иначе ждём уже ушедший запрос к API.
+     */
+    async function tryHydrateFacetsWithWarmup(reqId, jsonPromise) {
+      if (reqId !== catalogRequestId) return false;
+      var ac = new AbortController();
+      var apiP = fetch(apiUrl('/api/facets?' + buildCatalogFilterParams().toString()), { signal: ac.signal })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; });
       try {
-        var res = await fetch('data/catalog_facets.json');
-        if (!res.ok) return false;
-        var data = await res.json();
-        if (!data || typeof data !== 'object' || !Array.isArray(data.marks)) return false;
+        var data = await jsonPromise;
+        if (reqId !== catalogRequestId) {
+          try { ac.abort(); } catch (eAbort) {}
+          return true;
+        }
+        if (data && typeof data === 'object' && Array.isArray(data.marks)) {
+          try { ac.abort(); } catch (eAbort2) {}
+          applyFacetsApiPayload(data, reqId);
+          return true;
+        }
+      } catch (e) {}
+      try {
+        var fromApi = await apiP;
         if (reqId !== catalogRequestId) return true;
-        applyFacetsApiPayload(data, reqId);
-        return true;
-      } catch (e) {
-        return false;
-      }
+        if (fromApi && typeof fromApi === 'object' && Array.isArray(fromApi.marks) && !fromApi.error) {
+          applyFacetsApiPayload(fromApi, reqId);
+          return true;
+        }
+      } catch (e2) {}
+      return false;
     }
 
     async function revalidateFacetsFromApiIfStillDefault(bootToken) {
@@ -1908,8 +1932,8 @@
           }
         });
       });
-      window.addEventListener('scroll', scheduleRepositionOpenCascadePanels, true);
-      window.addEventListener('resize', scheduleRepositionOpenCascadePanels);
+      window.addEventListener('scroll', scheduleRepositionOpenCascadePanels, { capture: true, passive: true });
+      window.addEventListener('resize', scheduleRepositionOpenCascadePanels, { passive: true });
       document.addEventListener('click', function(e) {
         if (e.target.closest('.filter-dropdown')) return;
         closeAllDropdowns();
@@ -2142,6 +2166,10 @@
             }).catch(function() { return null; })
           : Promise.resolve(null);
 
+        var facetsJsonPrefetch = fetch('data/catalog_facets.json', { cache: 'default' })
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .catch(function() { return null; });
+
         await loadCarsPage(wantPage, reqId);
         if (reqId !== catalogRequestId) return;
         if (wantPage > catalogPages && catalogPages >= 1) {
@@ -2153,7 +2181,7 @@
         if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
           scheduleFacetRefresh(facetReq);
         } else if (buildCatalogFilterParams().toString() === '') {
-          tryHydrateFacetsFromStatic(facetReq).then(function(used) {
+          tryHydrateFacetsWithWarmup(facetReq, facetsJsonPrefetch).then(function(used) {
             if (facetReq !== catalogRequestId) return;
             if (!used) scheduleFacetRefresh(facetReq);
             else {
