@@ -519,13 +519,13 @@ def _json_public_cache(data: Any, cache_control: str) -> web.Response:
     return web.json_response(data, headers={"Cache-Control": cache_control})
 
 
-def _facet_dimension(
-    db_path: str,
+def _facet_dimension_conn(
+    conn: sqlite3.Connection,
     query: Dict[str, str],
     omit_keys: frozenset[str],
     value_expr: str,
 ) -> List[Dict[str, Any]]:
-    """Тот же дедуп, что и каталог, без ROW_NUMBER(): 8 измерений × оконный скан по 100k+ строк давали таймауты и пустые фильтры."""
+    """Дедуп как в каталоге (CTE + MAX(id) по объявлению), без ROW_NUMBER()."""
     q2 = {k: v for k, v in query.items() if k not in omit_keys}
     where, params = _build_filter_sql(q2)
     where2, params2 = _cars_dedup_where(where, params)
@@ -549,10 +549,24 @@ def _facet_dimension(
         HAVING val IS NOT NULL AND CAST(val AS TEXT) <> ''
         ORDER BY val COLLATE NOCASE
     """
+    rows = conn.execute(sql, params2).fetchall()
+    return [{"value": r["val"], "count": r["c"]} for r in rows]
+
+
+def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
+    """Все фасеты в одном соединении и последовательно: 8 параллельных читателей SQLite давали пики RAM/обрыв и net::ERR_EMPTY_RESPONSE."""
     conn = _db_connect(db_path)
     try:
-        rows = conn.execute(sql, params2).fetchall()
-        return [{"value": r["val"], "count": r["c"]} for r in rows]
+        return {
+            "marks": _facet_dimension_conn(conn, q, frozenset({"marks"}), _FACET_MARK),
+            "models": _facet_dimension_conn(conn, q, frozenset({"models"}), _FACET_MODEL),
+            "generations": _facet_dimension_conn(conn, q, frozenset({"generations"}), _FACET_GENERATION),
+            "trims": _facet_dimension_conn(conn, q, frozenset({"trims"}), _FACET_TRIM),
+            "bodies": _facet_dimension_conn(conn, q, frozenset({"body"}), _FACET_BODY),
+            "fuels": _facet_dimension_conn(conn, q, frozenset({"fuel"}), _FACET_FUEL),
+            "transmissions": _facet_dimension_conn(conn, q, frozenset({"trans"}), _FACET_TRANS),
+            "colors": _facet_dimension_conn(conn, q, frozenset({"color"}), _FACET_COLOR),
+        }
     finally:
         conn.close()
 
@@ -609,35 +623,14 @@ async def cars(request: web.Request) -> web.Response:
 async def facets(request: web.Request) -> web.Response:
     q = _catalog_query_dict({k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()})
     db_path: str = request.app["db_path"]
-    (
-        marks,
-        models,
-        generations,
-        trims,
-        bodies,
-        fuels,
-        transmissions,
-        colors,
-    ) = await asyncio.gather(
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"marks"}), _FACET_MARK),
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"models"}), _FACET_MODEL),
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"generations"}), _FACET_GENERATION),
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"trims"}), _FACET_TRIM),
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"body"}), _FACET_BODY),
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"fuel"}), _FACET_FUEL),
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"trans"}), _FACET_TRANS),
-        asyncio.to_thread(_facet_dimension, db_path, q, frozenset({"color"}), _FACET_COLOR),
-    )
-    payload = {
-        "marks": marks,
-        "models": models,
-        "generations": generations,
-        "trims": trims,
-        "bodies": bodies,
-        "fuels": fuels,
-        "transmissions": transmissions,
-        "colors": colors,
-    }
+    try:
+        payload = await asyncio.to_thread(_facets_catalog_sync, db_path, q)
+    except Exception as e:
+        return web.json_response(
+            {"error": "facets_unavailable", "detail": str(e)[:500]},
+            status=503,
+            headers={"Cache-Control": "no-store"},
+        )
     return _json_public_cache(payload, "public, max-age=25, stale-while-revalidate=180")
 
 
