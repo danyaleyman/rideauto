@@ -260,11 +260,36 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
 )
 
 
+def _trim_slim_list_field(slim_data: Dict[str, Any], key: str, max_items: int) -> None:
+    """В каталоге нужно ≤4 превью; уменьшаем JSON (~модель конкурента: только компактные превью в списке)."""
+    if max_items < 1 or key not in slim_data:
+        return
+    v = slim_data[key]
+    parsed: Any = None
+    as_string = False
+    if isinstance(v, str):
+        as_string = True
+        try:
+            parsed = json.loads(v)
+        except Exception:
+            return
+    elif isinstance(v, list):
+        parsed = v
+    else:
+        return
+    if not isinstance(parsed, list) or len(parsed) <= max_items:
+        return
+    cut = parsed[:max_items]
+    slim_data[key] = json.dumps(cut, ensure_ascii=False) if as_string else cut
+
+
 def _slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     raw = car.get("data") if isinstance(car.get("data"), dict) else None
     if not isinstance(raw, dict):
         raw = car if isinstance(car, dict) else {}
     slim_data: Dict[str, Any] = {k: raw[k] for k in _SLIM_CATALOG_DATA_KEYS if k in raw}
+    _trim_slim_list_field(slim_data, "images", 8)
+    _trim_slim_list_field(slim_data, "h_images", 40)
     inner = raw.get("inner_id") if raw.get("inner_id") not in (None, "") else car.get("inner_id")
     if inner is not None and inner != "":
         slim_data["inner_id"] = inner
