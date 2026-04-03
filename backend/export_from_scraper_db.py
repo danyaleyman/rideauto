@@ -21,7 +21,7 @@ from pathlib import Path
 _BACKEND_DIR = Path(__file__).resolve().parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
-from api_server import _facets_catalog_sync, _sort_encar_image_url_list, _sort_h_images_list_entries
+from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
 
 
 def _fill_power_from_external(data: dict) -> None:
@@ -118,6 +118,14 @@ def _normalize_car_media_fields(car: dict) -> None:
 
 def _write_catalog_facets_snapshot(db_path: Path, out_path: Path) -> None:
     """Те же фасеты, что GET /api/facets без фильтров — статика для быстрого первого экрана."""
+    try:
+        from api_server import _facets_catalog_sync
+    except ImportError as e:
+        print(
+            f"Warning: catalog facets snapshot skipped (api_server import failed, e.g. missing aiohttp): {e}",
+            file=sys.stderr,
+        )
+        return
     facets = _facets_catalog_sync(str(db_path.resolve()), {})
     payload = dict(facets)
     payload["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
