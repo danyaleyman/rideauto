@@ -935,6 +935,11 @@
             padding-bottom: var(--space-4);
             border-bottom: 1px solid var(--wra-gray-100);
         }
+        .order-price-block.order-price-block--fallback {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
         .order-price-block .order-price-main {
             font-size: clamp(1.25rem, 4vw, 1.5rem);
             font-weight: var(--font-bold);
@@ -943,11 +948,23 @@
             line-height: 1.25;
             flex-shrink: 0;
         }
+        .order-price-block.order-price-block--fallback .order-price-main {
+            flex-shrink: 1;
+            min-width: 0;
+            font-size: clamp(0.875rem, 2.5vw, 1.125rem);
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            line-height: 1.35;
+        }
         .order-price-block .order-price-sub {
             font-size: var(--text-sm);
             font-weight: var(--font-medium);
             color: var(--wra-gray-600);
             text-align: right;
+        }
+        .order-price-block.order-price-block--fallback .order-price-sub {
+            text-align: left;
         }
         .order-price-line {
             display: flex; align-items: baseline; width: 100%;
@@ -4094,7 +4111,7 @@
                     <div class="order-title-row">
                         <h3 class="order-title">${fullName}</h3>
                     </div>
-                    <div class="order-price-block">
+                    <div class="order-price-block${priceUnavailable ? ' order-price-block--fallback' : ''}">
                         <div class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽')}</div>
                         <div class="order-price-sub">под ключ до Владивостока <span class="info-icon-wrap" data-tooltip="Цена под ключ до Владивостока с учётом всех платежей"><img src="image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>
                     </div>

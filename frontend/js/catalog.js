@@ -156,6 +156,7 @@
       optionsEl.innerHTML = '';
       let selectedText = fallbackText || '';
       opts.forEach(function(opt) {
+        if (opt.value === '') return;
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'sort-option';
@@ -1934,6 +1935,11 @@
       });
       window.addEventListener('scroll', scheduleRepositionOpenCascadePanels, { capture: true, passive: true });
       window.addEventListener('resize', scheduleRepositionOpenCascadePanels, { passive: true });
+      var filtersScroll = document.querySelector('.filters-panel-scroll');
+      if (filtersScroll && !filtersScroll.dataset.wraCascadeScrollBound) {
+        filtersScroll.dataset.wraCascadeScrollBound = '1';
+        filtersScroll.addEventListener('scroll', scheduleRepositionOpenCascadePanels, { passive: true });
+      }
       document.addEventListener('click', function(e) {
         if (e.target.closest('.filter-dropdown')) return;
         closeAllDropdowns();

@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/auth-favorites.css?v=20260410">
     <link rel="stylesheet" href="css/cookie-consent.css?v=20260410">
     <link rel="preload" href="data/catalog_facets.json" as="fetch" crossorigin>
-    <link rel="preload" href="js/catalog.js?v=20260412" as="script">
+    <link rel="preload" href="js/catalog.js?v=20260413" as="script">
     <script defer src="/js/wra-site-config.js?v=20260411"></script>
     <script defer src="/js/auth-favorites.js?v=20260410"></script>
     <script defer src="/js/copy-protection.js?v=20260410"></script>
@@ -383,7 +383,7 @@
       overflow-x: hidden;
       padding: 14px 14px 0;
       min-height: 0;
-      scroll-behavior: smooth;
+      scroll-behavior: auto;
       scrollbar-width: none; /* Firefox: скрыть полосу, прокрутка сохраняется */
       -ms-overflow-style: none; /* legacy Edge */
     }
@@ -407,6 +407,9 @@
       border-bottom: none;
       margin-bottom: 0;
       padding-bottom: 0;
+    }
+    .filters-panel-scroll > .filter-group.filter-group--colors {
+      padding-bottom: 14px;
     }
     .filter-section-toggle__inner > .filter-group:last-child {
       border-bottom: none;
@@ -1073,6 +1076,10 @@
       z-index: 10050;
       transform: translateY(0) scale(1);
     }
+    /* Не анимировать transform у fixed-панели при скролле — иначе «дёрганье» вместе с transition из .is-open */
+    .filter-dropdown-panel.filter-dropdown-panel--floating.is-open {
+      transition: opacity var(--transition), visibility 0s;
+    }
     .filter-dropdown-list {
       padding: 8px;
     }
@@ -1167,7 +1174,8 @@
       font-weight: var(--font-medium);
     }
     .show-more-colors-btn {
-      margin-top: var(--space-2);
+      margin-top: 14px;
+      margin-bottom: 6px;
       padding: 10px 12px;
       font-size: 0.8125rem;
       font-weight: 600;
@@ -2839,7 +2847,7 @@
         </div>
       </div>
       <!-- 16. Цвет: 4 в меню + кнопка «Показать ещё» -->
-      <div class="filter-group">
+      <div class="filter-group filter-group--colors">
         <h4>Цвет кузова</h4>
         <div class="checkbox-list" id="colorListVisible"></div>
         <button type="button" class="show-more-colors-btn" id="showMoreColorsBtn" style="display: none;">Показать цвета ещё</button>
@@ -2934,7 +2942,7 @@
     </div>
   </footer>
 </div>
-<script src="js/catalog.js?v=20260412" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/catalog.js?v=20260413" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
 <script src="js/header-init.js?v=20260410" defer></script>
 <script src="js/cookie-consent.js?v=20260410" defer></script>
 
