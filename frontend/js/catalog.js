@@ -1441,7 +1441,8 @@
       }
 
       gridEl.innerHTML = '';
-        pageCars.forEach(car => {
+        const eagerHeroImage = page === 1;
+        pageCars.forEach(function(car, cardIdx) {
         const d = car.data || car;
         const images = getPreviewImages(d);
 
@@ -1469,7 +1470,13 @@
         card.innerHTML = `
           <div class="preview">
             ${isToday ? '<span class="card-badge card-badge-today">Добавлен сегодня</span>' : ''}
-            ${images.map((img, i) => `<img src="${img}" alt="" class="${i === 0 ? 'active' : ''}" width="290" height="186" ${i === 0 ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"'}>`).join('')}
+            ${images.map(function(img, i) {
+              var hero = eagerHeroImage && cardIdx === 0 && i === 0;
+              var attrs = hero
+                ? 'fetchpriority="high" decoding="async"'
+                : 'loading="lazy" decoding="async"';
+              return '<img src="' + img + '" alt="" class="' + (i === 0 ? 'active' : '') + '" width="290" height="186" ' + attrs + '>';
+            }).join('')}
           </div>
           <div class="car-info">
             <div class="car-main">
