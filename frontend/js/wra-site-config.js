@@ -11,4 +11,19 @@
     window.WRA_API_BASE = "";
   }
   /* Статический каталог без API: перед catalog.js задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true (см. catalog allowCarsJsonFallback). */
+
+  (function preconnectApiOrigin() {
+    var raw = window.WRA_API_BASE;
+    if (typeof raw !== "string" || !raw.trim()) return;
+    try {
+      var u = new URL(raw, window.location.href);
+      if (u.origin === window.location.origin) return;
+      if (document.querySelector('link[rel="preconnect"][href="' + u.origin + '"]')) return;
+      var l = document.createElement("link");
+      l.rel = "preconnect";
+      l.href = u.origin;
+      l.crossOrigin = "anonymous";
+      document.head.appendChild(l);
+    } catch (e) {}
+  })();
 })();

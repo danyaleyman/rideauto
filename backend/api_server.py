@@ -261,7 +261,7 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
 
 
 def _trim_slim_list_field(slim_data: Dict[str, Any], key: str, max_items: int) -> None:
-    """В каталоге нужно ≤4 превью; уменьшаем JSON (~модель конкурента: только компактные превью в списке)."""
+    """Урезаем списки URL/метаданных в slim-выдаче (карточка использует до 4 превью)."""
     if max_items < 1 or key not in slim_data:
         return
     v = slim_data[key]
@@ -288,8 +288,8 @@ def _slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         raw = car if isinstance(car, dict) else {}
     slim_data: Dict[str, Any] = {k: raw[k] for k in _SLIM_CATALOG_DATA_KEYS if k in raw}
-    _trim_slim_list_field(slim_data, "images", 8)
-    _trim_slim_list_field(slim_data, "h_images", 40)
+    _trim_slim_list_field(slim_data, "images", 6)
+    _trim_slim_list_field(slim_data, "h_images", 18)
     inner = raw.get("inner_id") if raw.get("inner_id") not in (None, "") else car.get("inner_id")
     if inner is not None and inner != "":
         slim_data["inner_id"] = inner
@@ -450,6 +450,18 @@ _CATALOG_SORT_SQL = {
     "mileage_low": "CAST(json_extract(data_json, '$.data.km_age') AS INTEGER) ASC",
 }
 
+# Мини-эндпоинт /api/sort (кэшируемый JSON) — UI по умолчанию из index.html; API для SPA/CDN.
+_CATALOG_SORT_META: Tuple[Tuple[str, str, str], ...] = (
+    ("date_new", "Сначала новые", "по дате объявления на Encar"),
+    ("date_old", "Сначала старые", "по дате объявления"),
+    ("year_new", "По году выпуска", "сначала более новые"),
+    ("year_old", "По году выпуска", "сначала более ранние"),
+    ("price_high", "По цене", "от дорогих к дешёвым"),
+    ("price_low", "По цене", "от дешёвых к дорогим"),
+    ("mileage_high", "По пробегу", "сначала с большим пробегом"),
+    ("mileage_low", "По пробегу", "сначала с меньшим пробегом"),
+)
+
 
 def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Dict[str, Any]:
     conn = _db_connect(db_path)
@@ -550,15 +562,20 @@ def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
             "substr(COALESCE(json_extract(v.data_json, '$.data.offer_created'), "
             "json_extract(v.data_json, '$.data.created_at')), 1, 10)"
         )
-        row = conn.execute(
+        row_today = conn.execute(
             f"""
             SELECT COUNT(*) AS c FROM ({inner_numbered}) AS v
             WHERE v._rn = 1 AND {date_expr} = ?
             """,
             [today_str],
         ).fetchone()
-        n = int(row["c"]) if row else 0
-        return {"listed_today": n, "date_utc": today_str}
+        n = int(row_today["c"]) if row_today else 0
+        row_total = conn.execute(
+            f"SELECT COUNT(*) AS c FROM ({inner_numbered}) AS v WHERE v._rn = 1",
+            [],
+        ).fetchone()
+        n_total = int(row_total["c"]) if row_total else 0
+        return {"listed_today": n, "date_utc": today_str, "total": n_total}
     finally:
         conn.close()
 
@@ -722,7 +739,7 @@ async def cars(request: web.Request) -> web.Response:
     db_path: str = request.app["db_path"]
     payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
     # Slim-выдача сильно меньше → чуть дольше браузерный кэш; full=1 — как раньше
-    cache = "public, max-age=30, stale-while-revalidate=180" if slim else "public, max-age=15, stale-while-revalidate=120"
+    cache = "public, max-age=60, stale-while-revalidate=180" if slim else "public, max-age=20, stale-while-revalidate=120"
     return _json_public_cache(payload, cache)
 
 
@@ -737,13 +754,26 @@ async def facets(request: web.Request) -> web.Response:
             status=503,
             headers={"Cache-Control": "no-store"},
         )
-    return _json_public_cache(payload, "public, max-age=25, stale-while-revalidate=180")
+    return _json_public_cache(payload, "public, max-age=60, stale-while-revalidate=180")
 
 
 async def catalog_stats(request: web.Request) -> web.Response:
     db_path: str = request.app["db_path"]
     payload = await asyncio.to_thread(_catalog_stats_sync, db_path)
-    return _json_public_cache(payload, "public, max-age=30, stale-while-revalidate=300")
+    return _json_public_cache(payload, "public, max-age=60, stale-while-revalidate=300")
+
+
+async def catalog_counts(request: web.Request) -> web.Response:
+    """Как у конкурента: тот же payload, что /api/stats (+ total), отдельный URL для micro-cache."""
+    return await catalog_stats(request)
+
+
+async def catalog_sort_meta(_: web.Request) -> web.Response:
+    opts = [{"value": v, "title": t, "hint": h} for v, t, h in _CATALOG_SORT_META]
+    return _json_public_cache(
+        {"options": opts},
+        "public, max-age=3600, stale-while-revalidate=86400",
+    )
 
 
 async def car_by_id(request: web.Request) -> web.Response:
@@ -1260,6 +1290,8 @@ def create_app(db_path: str) -> web.Application:
     app.router.add_get("/api/cars", cars)
     app.router.add_get("/api/facets", facets)
     app.router.add_get("/api/stats", catalog_stats)
+    app.router.add_get("/api/counts", catalog_counts)
+    app.router.add_get("/api/sort", catalog_sort_meta)
     app.router.add_get("/api/car/{id}", car_by_id)
     app.router.add_get("/api/similar", similar)
     app.router.add_post("/api/auth/telegram", auth_telegram)

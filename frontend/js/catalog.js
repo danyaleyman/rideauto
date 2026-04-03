@@ -1578,7 +1578,7 @@
           <div class="preview">
             ${isToday ? '<span class="card-badge card-badge-today">Добавлен сегодня</span>' : ''}
             ${images.map(function(img, i) {
-              var hero = eagerHeroImage && cardIdx === 0 && i === 0;
+              var hero = eagerHeroImage && cardIdx < 2 && i === 0;
               var attrs = hero
                 ? 'fetchpriority="high" decoding="async"'
                 : 'loading="lazy" decoding="async"';
@@ -2166,10 +2166,19 @@
         var reqId = ++catalogRequestId;
         var todayEl = document.getElementById('bannerTodayCount');
         var statsPromise = todayEl
-          ? fetch(apiUrl('/api/stats')).then(function(sr) {
-              if (!sr.ok) throw new Error('stats HTTP ' + sr.status);
-              return sr.json();
-            }).catch(function() { return null; })
+          ? fetch(apiUrl('/api/counts'), { cache: 'default' })
+              .then(function(cr) {
+                if (cr.ok) return cr.json();
+                return fetch(apiUrl('/api/stats'), { cache: 'default' }).then(function(sr) {
+                  if (!sr.ok) throw new Error('stats HTTP ' + sr.status);
+                  return sr.json();
+                });
+              })
+              .catch(function() {
+                return fetch(apiUrl('/api/stats'), { cache: 'default' })
+                  .then(function(sr) { return sr.ok ? sr.json() : null; })
+                  .catch(function() { return null; });
+              })
           : Promise.resolve(null);
 
         var facetsJsonPrefetch = fetch('data/catalog_facets.json', { cache: 'default' })
@@ -2335,71 +2344,128 @@
       countInfoIcon.addEventListener('blur', hideCountTip);
     }
 
-    // Инициализация Swiper баннера — не роняем каталог, если CDN недоступен
+    // Hero: Swiper + Splitting + Anime подгружаются после первого экрана (меньше конкуренции с /api/cars и JSON).
     var heroSwiper = null;
-    try {
-      if (typeof Swiper !== 'undefined') {
-        heroSwiper = new Swiper('.hero-banner-slider', {
-          speed: 400,
-          loop: true,
-          slidesPerView: 1,
-          autoplay: { delay: 6000, disableOnInteraction: false },
-          pagination: {
-            el: '.hero-banner-pagination',
-            clickable: true,
-          },
-          spaceBetween: 0,
-          observer: true,
-          observeParents: true,
-        });
-      }
-    } catch (eHero) {
-      console.warn('[catalog] Swiper init skipped', eHero);
-    }
-
-    // Анимация .brand-name по строкам (Splitting.js + Anime.js)
-    const brandEl = document.querySelector('.hero-banner-brand .brand-name');
-    if (brandEl && typeof Splitting !== 'undefined' && typeof anime !== 'undefined') {
-      document.fonts.ready.then(function() {
-        var result;
-        try {
-          result = Splitting({ target: brandEl, by: 'lines' })[0];
-        } catch (eSp) {
-          console.warn('[catalog] Splitting skipped', eSp);
-          return;
-        }
-        if (!result || !result.lines) return;
-        const flagEl = brandEl.querySelector('.flag');
-        const lines = result.lines;
-        var allWords = typeof lines.flat === 'function' ? lines.flat() : [].concat.apply([], lines);
-        allWords.forEach(function(el) {
-          el.style.opacity = '0';
-          el.style.transform = 'translateY(0.6em)';
-        });
-        if (flagEl) {
-          flagEl.style.opacity = '0';
-          flagEl.style.transform = 'scale(0.85)';
-        }
-        anime({
-          targets: allWords,
-          opacity: 1,
-          translateY: 0,
-          duration: 650,
-          easing: 'easeOutCubic',
-          delay: anime.stagger(60, { start: 100 }),
-        });
-        if (flagEl) {
-          anime({
-            targets: flagEl,
-            opacity: 1,
-            scale: 1,
-            duration: 500,
-            easing: 'easeOutCubic',
-            delay: 400,
-          });
-        }
+    function loadStylesheetOnce(href) {
+      return new Promise(function(res) {
+        if (document.querySelector('link[href="' + href + '"]')) { res(); return; }
+        var l = document.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = href;
+        l.onload = function() { res(); };
+        l.onerror = function() { res(); };
+        document.head.appendChild(l);
       });
     }
+    function loadScriptOnce(src) {
+      return new Promise(function(res) {
+        if (document.querySelector('script[src="' + src + '"]')) { res(); return; }
+        var s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.onload = function() { res(); };
+        s.onerror = function() { res(); };
+        document.head.appendChild(s);
+      });
+    }
+    function loadHeroVendorAssets() {
+      if (window.__wraHeroLibsP) return window.__wraHeroLibsP;
+      window.__wraHeroLibsP = loadStylesheetOnce('https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css')
+        .then(function() { return loadStylesheetOnce('https://unpkg.com/splitting/dist/splitting.css'); })
+        .then(function() { return loadScriptOnce('https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js'); })
+        .then(function() { return loadScriptOnce('https://unpkg.com/splitting/dist/splitting.min.js'); })
+        .then(function() { return loadScriptOnce('https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js'); });
+      return window.__wraHeroLibsP;
+    }
+    function initHeroBannerFromLibs() {
+      try {
+        if (typeof Swiper !== 'undefined' && document.querySelector('.hero-banner-slider')) {
+          heroSwiper = new Swiper('.hero-banner-slider', {
+            speed: 400,
+            loop: true,
+            slidesPerView: 1,
+            autoplay: { delay: 6000, disableOnInteraction: false },
+            pagination: { el: '.hero-banner-pagination', clickable: true },
+            spaceBetween: 0,
+            observer: true,
+            observeParents: true,
+          });
+        }
+      } catch (eHero) {
+        console.warn('[catalog] Swiper init skipped', eHero);
+      }
+      var brandEl = document.querySelector('.hero-banner-brand .brand-name');
+      if (brandEl && typeof Splitting !== 'undefined' && typeof anime !== 'undefined') {
+        document.fonts.ready.then(function() {
+          var result;
+          try {
+            result = Splitting({ target: brandEl, by: 'lines' })[0];
+          } catch (eSp) {
+            console.warn('[catalog] Splitting skipped', eSp);
+            return;
+          }
+          if (!result || !result.lines) return;
+          var flagEl = brandEl.querySelector('.flag');
+          var lines = result.lines;
+          var allWords = typeof lines.flat === 'function' ? lines.flat() : [].concat.apply([], lines);
+          allWords.forEach(function(el) {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(0.6em)';
+          });
+          if (flagEl) {
+            flagEl.style.opacity = '0';
+            flagEl.style.transform = 'scale(0.85)';
+          }
+          anime({
+            targets: allWords,
+            opacity: 1,
+            translateY: 0,
+            duration: 650,
+            easing: 'easeOutCubic',
+            delay: anime.stagger(60, { start: 100 }),
+          });
+          if (flagEl) {
+            anime({
+              targets: flagEl,
+              opacity: 1,
+              scale: 1,
+              duration: 500,
+              easing: 'easeOutCubic',
+              delay: 400,
+            });
+          }
+        });
+      }
+    }
+    function scheduleHeroBannerLibs() {
+      var ran = false;
+      function run() {
+        if (ran) return;
+        ran = true;
+        loadHeroVendorAssets()
+          .then(function() { initHeroBannerFromLibs(); })
+          .catch(function() {});
+      }
+      var heroWrap = document.querySelector('.hero-banner-wrap');
+      if (heroWrap && 'IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function(entries) {
+          if (entries.some(function(en) { return en.isIntersecting; })) {
+            try { io.disconnect(); } catch (e1) {}
+            run();
+          }
+        }, { rootMargin: '240px 0px' });
+        io.observe(heroWrap);
+        setTimeout(function() {
+          try { io.disconnect(); } catch (e2) {}
+          run();
+        }, 5000);
+      } else if (window.requestIdleCallback) {
+        requestIdleCallback(function() { run(); }, { timeout: 2800 });
+      } else {
+        setTimeout(run, 400);
+      }
+    }
+    scheduleHeroBannerLibs();
 
     var _resizeTick = null;
     function _onHeroResize() {
@@ -2411,5 +2477,5 @@
       if (_resizeTick) clearTimeout(_resizeTick);
       _resizeTick = setTimeout(_onHeroResize, 200);
     });
-    setTimeout(_onHeroResize, 600);
+    setTimeout(_onHeroResize, 900);
   })();
