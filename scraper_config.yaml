@@ -92,11 +92,13 @@ max_cars: 0
 # Параметры ежедневного цикла encar_daily_update.py (systemd обычно запускает его через auto_update.py --type daily)
 daily_update:
   timezone: Asia/Yekaterinburg
-  run_at_hour: 12
+  # Используется если encar_daily_update запущен без --once (встроенный цикл). Systemd обычно даёт --once в 00:00.
+  run_at_hour: 0
   run_at_minute: 0
   # Сколько страниц списка на тип (for/kor) опросить за ночь для поиска новых id
   new_list_pages_per_run: 30
-  sold_check_sample: 500
+  # Случайная выборка car_id на проданные (404 / salesStatus). Больше — медленнее, но лучше «покрытие» каталога.
+  sold_check_sample: 2000
 
 # Checkpoint and state
 checkpoint:

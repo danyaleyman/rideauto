@@ -2,8 +2,8 @@
 Description=Run Prod Encar update daily
 
 [Timer]
-# 12:00 Asia/Yekaterinburg (ежедневное обновление: новые/проданные → цены → фронт)
-OnCalendar=*-*-* 12:00:00 Asia/Yekaterinburg
+# Полночь Asia/Yekaterinburg — см. encar_daily_update.py + export_from_scraper_db (цены, chunks, catalog_facets.json)
+OnCalendar=*-*-* 00:00:00 Asia/Yekaterinburg
 Persistent=true
 Unit=encar-update.service
 

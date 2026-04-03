@@ -127,15 +127,18 @@ sudo nginx -t && sudo systemctl reload nginx
    ```
    Либо вручную: `.venv/bin/python backend/encar_scraper.py --config scraper_config.yaml`. В конце скрапер сам вызывает экспорт в `frontend/` (**`export_from_scraper_db.py`**, внутри — **`price.py`**, курсы Binance и поля `my_price` и т.д.).
 
-2. **Каждый день в 12:00 Asia/Yekaterinburg** срабатывает **`encar-update.timer`** → **`encar-update.service`** → **`auto_update.py --type daily`**. В `backend/config.json` должно быть `"catalog_sync_sqlite": true` в `update_config`: после успешного обновления PostgreSQL (если он настроен) дополнительно выполняется тот же ночной цикл SQLite (`encar_daily_update --once`), иначе API продолжит отдавать устаревший `encar_cars.db`. Цикл SQLite:
+2. **Каждый день в 00:00 (полночь) Asia/Yekaterinburg** срабатывает таймер обновления:
+   - в репозитории: **`encar-update.timer`** → **`encar-update.service`** *или* **`prod-encar-auto-update.timer`** → **`prod-encar-auto-update.service`** (не включайте **оба**, будет двойной прогон);
+   - **`auto_update.py --type daily`** → без PostgreSQL сразу **`encar_daily_update.py --once`**, с PostgreSQL — после PG-цикла при **`catalog_sync_sqlite: true`** тот же SQLite-цикл.
+   В `backend/config.json` в `update_config` держите **`"catalog_sync_sqlite": true`**, если каталог на `encar_cars.db` должен совпадать с сайтом. Цикл SQLite:
    - новые объявления по свежим страницам списка **for/kor**;
-   - выборка из БД → проверка «продан» (404 и т.п.) → удаление;
-   - догрузка деталей по очереди `--only-pending`;
-   - снова **экспорт + расчёт цен** (тот же `export_from_scraper_db`, отдельно **`price.py`** не вызывать). Экспорт по умолчанию пишет **`frontend/data/catalog_facets.json`** — снимок фасетов без фильтров для быстрого первого экрана каталога (отключение: `--no-facets-snapshot`).
+   - случайная выборка `sold_check_sample` из БД → деталь Encar → **404 / sold** → удаление из SQLite и чекпоинта;
+   - догрузка деталей **`encar_scraper.py --only-pending`**;
+   - **`export_from_scraper_db`** ( **`price.py`** внутри экспорта, `my_price` обратно в SQLite + `cars.json`, chunks, `catalog_facets.json`).
 
-3. **Сайт** отдаёт статику из `frontend/`; **API** (`encar-api`) читает ту же БД — каталог и карточки с актуальными ценами после шага 2.
+3. **Сайт** отдаёт статику из `frontend/`; **API** читает **`encar_cars.db`** — после шага 2 данные в БД уже новые. Микрокэш nginx для **`/api/cars`** и фасетов может отдавать ответ до **~60 s** после записи; при необходимости очистите зону **`proxy_cache_path`** или дождитесь TTL.
 
-Если ваш systemd старый и не понимает `Asia/Yekaterinburg` в `OnCalendar`, задайте эквивалент в UTC (**07:00 UTC** = 12:00 Екатеринбург зимой) или включите нужный timezone на хосте и упростите запись таймера.
+Если systemd не знает `Asia/Yekaterinburg` в `OnCalendar`, либо обновите systemd, либо задайте UTC-эквивалент: **00:00 Екатеринбурга (UTC+5) = 19:00 UTC предыдущего календарного дня** (запись вида `OnCalendar=*-*-* 19:00:00` в **UTC** требует сдвига при переходе ЛО‑времени — предпочтительно починить timezone в таймере).
 
 ## 5) Права на файлы
 

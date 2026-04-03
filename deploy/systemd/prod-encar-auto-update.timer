@@ -2,7 +2,8 @@
 Description=Run Prod Encar auto update daily
 
 [Timer]
-OnCalendar=*-*-* 12:00:00 Asia/Yekaterinburg
+# Полночь по Екатеринбургу: новые объявления, выборочная проверка проданных, докачка деталей, export + цены → фронт
+OnCalendar=*-*-* 00:00:00 Asia/Yekaterinburg
 Persistent=true
 Unit=prod-encar-auto-update.service
 

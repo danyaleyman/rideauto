@@ -278,11 +278,11 @@ class SQLiteStorage(StorageBase):
         self.conn.commit()
 
     def get_car_ids_sample(self, limit: int = 500) -> List[str]:
-        """Return up to `limit` car_id values (for sold check / refresh)."""
+        """Return up to `limit` car_id values (for sold check). Random spread — не только первые строки таблицы."""
         if not self.conn:
             return []
         rows = self.conn.execute(
-            "SELECT car_id FROM cars ORDER BY id LIMIT ?", (limit,)
+            "SELECT car_id FROM cars ORDER BY RANDOM() LIMIT ?", (limit,)
         ).fetchall()
         return [r[0] for r in rows]
 
