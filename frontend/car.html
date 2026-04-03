@@ -6,13 +6,15 @@
     <title>ENCAR · Детальная карточка авто</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://ci.encar.com" crossorigin>
+    <link rel="dns-prefetch" href="https://ci.encar.com">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/cookie-consent.css">
     <link rel="stylesheet" href="css/auth-favorites.css">
-    <script src="js/wra-site-config.js"></script>
+    <script src="js/wra-site-config.js?v=20260416"></script>
     <script src="js/copy-protection.js"></script>
-    <script src="js/auth-favorites.js"></script>
+    <script src="js/auth-favorites.js?v=20260416"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script>
@@ -4233,7 +4235,7 @@
 
                 html += `
                         <div class="similar-car-card">
-                            <a href="car.html?id=${encodeURIComponent(linkId)}" class="similar-car-link">
+                            <a href="/detail/${encodeURIComponent(linkId)}" class="similar-car-link">
                                 <div class="similar-car-image">
                                     <img src="${mainImg}" alt="${title}" loading="lazy" decoding="async">
                                 </div>
@@ -4456,7 +4458,8 @@
             if (!id) return '';
             if (base) return base.replace(/\/?$/, '/') + id;
             try {
-                return new URL('car.html?id=' + encodeURIComponent(id), window.location.href).href;
+                if (typeof window.wraCarDetailUrl === 'function') return window.wraCarDetailUrl(id);
+                return new URL('/detail/' + encodeURIComponent(id), window.location.href).href;
             } catch (e2) { return ''; }
         }
         function buildChannelExportText(raw) {
@@ -5233,8 +5236,19 @@
         });
 
         // ---------- Загрузка данных ----------
-        const urlParams = new URLSearchParams(window.location.search);
-        const carId = urlParams.get('id');
+        function wraGetCarIdFromUrl() {
+            try {
+                var q = new URLSearchParams(window.location.search || '').get('id');
+                if (q && String(q).trim()) return String(q).trim();
+            } catch (e0) {}
+            try {
+                var path = window.location.pathname || '';
+                var m = path.match(/\/detail\/([^/]+)\/?$/);
+                if (m && m[1]) return decodeURIComponent(m[1]);
+            } catch (e1) {}
+            return null;
+        }
+        const carId = wraGetCarIdFromUrl();
         if (!carId) {
             var el = document.getElementById('car-content');
             if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не указан ID автомобиля.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }

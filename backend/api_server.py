@@ -1252,7 +1252,7 @@ async def run_subscription_notifications(request: web.Request) -> web.Response:
             title = _car_title(d) or f"Авто {cid}"
             price = d.get("my_price")
             price_text = f"{round(float(price)):,} ₽".replace(",", " ") if price not in (None, "") else "Цена по запросу"
-            link = f"{site_url}/car.html?id={cid}" if site_url else f"id={cid}"
+            link = f"{site_url.rstrip('/')}/detail/{cid}" if site_url else f"id={cid}"
             lines.append(f"• {title} — {price_text}\n{link}")
         ok = await _send_tg_message(bot_token, str(row["tg_id"]), "\n".join(lines))
         conn.execute("UPDATE user_subscriptions SET last_notified_car_pk = ?, updated_at = ? WHERE id = ?", [max_pk, _now_iso(), row["id"]])

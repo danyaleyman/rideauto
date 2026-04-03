@@ -358,7 +358,11 @@
         var note = state.favoriteNotes[String(id)] || "";
         var price = d.my_price ? (Math.round(Number(d.my_price)).toLocaleString("ru-RU") + " ₽") : "Цена по запросу";
         return '<div style="padding:8px 0;border-bottom:1px solid #e5e7eb;">' +
-          '<a class="auth-link-btn" href="car.html?id=' + encodeURIComponent(linkId) + '">' + titleOfCar(car) + "</a>" +
+          '<a class="auth-link-btn" href="' +
+            (typeof window.wraCarDetailPath === "function" ? window.wraCarDetailPath(linkId) : "/detail/" + encodeURIComponent(linkId)) +
+            '">' +
+            titleOfCar(car) +
+            "</a>" +
           '<div style="font-size:13px;color:#6b7280;margin-top:4px;">' + price + "</div>" +
           '<div style="font-size:12px;color:#4b5563;margin-top:4px;">' + (note ? ("Заметка: " + note) : "Без заметки") + '</div>' +
           '<button type="button" class="auth-fav-btn js-note-btn" data-car-id="' + String(id).replace(/"/g, "&quot;") + '" style="margin-top:6px;padding:6px 10px;font-size:12px;">Заметка</button>' +
@@ -434,7 +438,11 @@
           var d = carDataOf(car);
           var price = d.my_price ? (Math.round(Number(d.my_price)).toLocaleString("ru-RU") + " ₽") : "Цена по запросу";
           return '<div style="padding:8px 0;border-bottom:1px solid #e5e7eb;">' +
-            '<a class="auth-link-btn" href="car.html?id=' + encodeURIComponent(carIdOf(car)) + '">' + titleOfCar(car) + '</a>' +
+            '<a class="auth-link-btn" href="' +
+              (typeof window.wraCarDetailPath === "function" ? window.wraCarDetailPath(carIdOf(car)) : "/detail/" + encodeURIComponent(carIdOf(car))) +
+              '">' +
+              titleOfCar(car) +
+              "</a>" +
             '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + price + '</div>' +
             "</div>";
         }).filter(Boolean).join("");
@@ -448,7 +456,11 @@
         if (!rows.length) return "<p>История пуста.</p>";
         return rows.map(function (r) {
           return '<div style="padding:8px 0;border-bottom:1px solid #e5e7eb;">' +
-            '<a class="auth-link-btn" href="car.html?id=' + encodeURIComponent(r.car_id) + '">Авто #' + r.car_id + '</a>' +
+            '<a class="auth-link-btn" href="' +
+              (typeof window.wraCarDetailPath === "function" ? window.wraCarDetailPath(r.car_id) : "/detail/" + encodeURIComponent(r.car_id)) +
+              '">Авто #' +
+              r.car_id +
+              "</a>" +
             '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + (r.viewed_at || "") + '</div>' +
             "</div>";
         }).join("");
@@ -549,7 +561,11 @@
       body.innerHTML = rows.map(function (r) {
         var when = r.viewed_at || "";
         return '<div style="padding:8px 0;border-bottom:1px solid #e5e7eb;">' +
-          '<a class="auth-link-btn" href="car.html?id=' + encodeURIComponent(r.car_id) + '">Авто #' + r.car_id + '</a>' +
+          '<a class="auth-link-btn" href="' +
+            (typeof window.wraCarDetailPath === "function" ? window.wraCarDetailPath(r.car_id) : "/detail/" + encodeURIComponent(r.car_id)) +
+            '">Авто #' +
+            r.car_id +
+            "</a>" +
           '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + when + '</div>' +
           "</div>";
       }).join("");

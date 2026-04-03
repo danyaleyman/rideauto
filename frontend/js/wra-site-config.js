@@ -12,6 +12,29 @@
   }
   /* Статический каталог без API: перед catalog.js задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true (см. catalog allowCarsJsonFallback). */
 
+  /** Публичный URL карточки: /detail/{id} (nginx отдаёт car.html). Фолбэк для старых ссылок — 301 на сервере. */
+  window.wraCarDetailPath = function (id) {
+    if (id == null || id === "") return "index.html";
+    var s = String(id).trim();
+    if (!s) return "index.html";
+    return "/detail/" + encodeURIComponent(s);
+  };
+  window.wraCarDetailUrl = function (id) {
+    var p = window.wraCarDetailPath(id);
+    if (p === "index.html") {
+      try {
+        return new URL("index.html", window.location.href).href;
+      } catch (e) {
+        return "index.html";
+      }
+    }
+    try {
+      return new URL(p, window.location.origin + "/").href;
+    } catch (e2) {
+      return p;
+    }
+  };
+
   (function preconnectApiOrigin() {
     var raw = window.WRA_API_BASE;
     if (typeof raw !== "string" || !raw.trim()) return;

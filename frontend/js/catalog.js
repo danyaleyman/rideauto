@@ -1442,7 +1442,7 @@
         return 50;
     }
 
-    // Выбор картинок только с кузовом (OUTER) с запасным вариантом; порядок как в галерее car.html
+    // Выбор картинок только с кузовом (OUTER) с запасным вариантом; порядок как в галерее страницы авто
     function getPreviewImages(d) {
         let images = [];
         try { images = JSON.parse(d.images || '[]'); } catch { images = []; }
@@ -1611,8 +1611,6 @@
         const drivePart = filterOptionLabel(d.drive_type || d.prep_drive_type, 'type') || '';
         const bodyRu = filterOptionLabel(d.body_type, 'bodyType') || '';
         const carUrl = (d.url || '#');
-        const detailUrl = car.id != null ? 'car.html?id=' + encodeURIComponent(car.id) : (car.inner_id != null ? 'car.html?id=' + encodeURIComponent(car.inner_id) : (d.inner_id != null ? 'car.html?id=' + encodeURIComponent(d.inner_id) : '#'));
-
         card.innerHTML = `
           <div class="preview">
             ${isToday ? '<span class="card-badge card-badge-today">Добавлен сегодня</span>' : ''}
@@ -1737,7 +1735,9 @@
                 sessionStorage.setItem('encar_catalog_scroll', String(window.scrollY || document.documentElement.scrollTop));
                 sessionStorage.setItem('encar_catalog_page', String(page));
             } catch (e) {}
-            window.location.href = 'car.html?id=' + encodeURIComponent(linkId);
+            window.location.href = typeof window.wraCarDetailUrl === 'function'
+              ? window.wraCarDetailUrl(linkId)
+              : ('/detail/' + encodeURIComponent(linkId));
         }
         card.addEventListener('click', (e) => {
             if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.info-icon-wrap') || e.target.closest('.car-actions')) return;
