@@ -2982,6 +2982,10 @@
 <script>
     (function() {
         var wraLastCarRawForExport = null;
+        var API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
+        function apiUrl(path) {
+            return API_BASE + path;
+        }
 
         if (window.WRAAuthFavorites) {
             window.WRAAuthFavorites.initHeader({
@@ -4131,67 +4135,86 @@
             const d = currentCar.data || {};
             const currentPrice = d.price_won; // цена в единицах по 10 000 вон
             const currentMark = d.mark || '';
-            if (!currentPrice || !currentMark) return '';
+            const currentId = currentCar.id != null ? String(currentCar.id) : (currentCar.inner_id != null ? String(currentCar.inner_id) : (d.inner_id != null ? String(d.inner_id) : ''));
 
-                try {
-                var jsonUrl = new URL('cars.json', window.location.href).href;
-                var response = await fetch(jsonUrl);
-                if (!response.ok) throw new Error('Ошибка загрузки данных');
-                var data = await response.json();
-                if (!data || !data.result) {
-                    jsonUrl = new URL('../cars.json', window.location.href).href;
-                    response = await fetch(jsonUrl);
-                    if (!response.ok) throw new Error('Ошибка загрузки данных');
-                    data = await response.json();
+            var similarCars = [];
+            try {
+                if (currentId) {
+                    var apiSim = await fetch(apiUrl('/api/similar?car_id=' + encodeURIComponent(currentId) + '&limit=8'));
+                    if (apiSim.ok) {
+                        var apiSimJson = await apiSim.json();
+                        if (apiSimJson && Array.isArray(apiSimJson.result) && apiSimJson.result.length) {
+                            similarCars = apiSimJson.result;
+                        }
+                    }
                 }
-                var allCars = data.result || [];
-                
-                // Фильтруем по марке и цене (±20%), исключаем текущий авто, убираем дубликаты по id и по «марка+модель+год+пробег+цена»
-                const priceMin = currentPrice * 0.8;
-                const priceMax = currentPrice * 1.2;
-                const currentId = currentCar.id != null ? String(currentCar.id) : (currentCar.inner_id != null ? String(currentCar.inner_id) : '');
-                const seenIds = new Set();
-                const seenKeys = new Set();
-                const similarCars = allCars
-                    .filter(car => {
-                        const id = car.id != null ? String(car.id) : (car.inner_id != null ? String(car.inner_id) : (car.data && car.data.inner_id != null ? String(car.data.inner_id) : null));
-                        if (id == null || id === currentId || seenIds.has(id)) return false;
-                        const cd = car.data || {};
-                        if (cd.mark !== currentMark || !cd.price_won || cd.price_won < priceMin || cd.price_won > priceMax) return false;
-                        const dedupeKey = [cd.mark, cd.model, cd.year, cd.km_age, cd.price_won].join('|');
-                        if (seenKeys.has(dedupeKey)) return false;
-                        seenIds.add(id);
-                        seenKeys.add(dedupeKey);
-                        return true;
-                    })
-                    .sort((a, b) => Math.abs((a.data || {}).price_won - currentPrice) - Math.abs((b.data || {}).price_won - currentPrice))
-                    .slice(0, 8); // берем максимум 8 похожих
+            } catch (e) { /* ниже — cars.json */ }
 
-                if (similarCars.length === 0) return '';
+            if (!similarCars.length && currentPrice && currentMark) {
+                try {
+                    var jsonUrl = new URL('cars.json', window.location.href).href;
+                    var response = await fetch(jsonUrl);
+                    if (!response.ok) throw new Error('Ошибка загрузки данных');
+                    var data = await response.json();
+                    if (!data || !data.result) {
+                        jsonUrl = new URL('../cars.json', window.location.href).href;
+                        response = await fetch(jsonUrl);
+                        if (!response.ok) throw new Error('Ошибка загрузки данных');
+                        data = await response.json();
+                    }
+                    var allCars = data.result || [];
+                    if (!Array.isArray(allCars)) allCars = [];
 
-                let html = `
+                    const priceMin = currentPrice * 0.8;
+                    const priceMax = currentPrice * 1.2;
+                    const seenIds = new Set();
+                    const seenKeys = new Set();
+                    similarCars = allCars
+                        .filter(function(car) {
+                            const id = car.id != null ? String(car.id) : (car.inner_id != null ? String(car.inner_id) : (car.data && car.data.inner_id != null ? String(car.data.inner_id) : null));
+                            if (id == null || id === currentId || seenIds.has(id)) return false;
+                            const cd = car.data || {};
+                            if (cd.mark !== currentMark || !cd.price_won || cd.price_won < priceMin || cd.price_won > priceMax) return false;
+                            const dedupeKey = [cd.mark, cd.model, cd.year, cd.km_age, cd.price_won].join('|');
+                            if (seenKeys.has(dedupeKey)) return false;
+                            seenIds.add(id);
+                            seenKeys.add(dedupeKey);
+                            return true;
+                        })
+                        .sort(function(a, b) { return Math.abs((a.data || {}).price_won - currentPrice) - Math.abs((b.data || {}).price_won - currentPrice); })
+                        .slice(0, 8);
+                } catch (err) {
+                    console.error('Ошибка загрузки похожих автомобилей:', err);
+                    return '';
+                }
+            }
+
+            if (similarCars.length === 0) return '';
+
+            var titleMark = currentMark || ((similarCars[0] && similarCars[0].data) ? similarCars[0].data.mark : '') || '';
+            let html = `
                     <div class="similar-cars-section">
                         <div class="similar-cars-header">
-                            <h2 class="similar-cars-title">Похожие по цене ${currentMark}</h2>
+                            <h2 class="similar-cars-title">Похожие по цене ${titleMark}</h2>
                         </div>
                         <div class="similar-cars-grid" id="similar-cars-grid">
                 `;
 
-                similarCars.forEach(function(car) {
-                    var cd = car.data || {};
-                    var images = getPreviewImages(cd);
-                    var mainImg = images[0] || '';
-                    var title = [filterOptionLabel(cd.mark, 'mark'), filterOptionLabel(cd.model, 'model'), filterOptionLabel(cd.generation || cd.configuration, 'generation')].filter(Boolean).join(' ').trim();
-                    if (!title) title = (cd.mark || '') + ' ' + (cd.model || '');
-                    var model = filterOptionLabel(cd.model, 'model') || cd.model || '';
-                    var year = cd.year ? String(cd.year).slice(0, 4) : '';
-                    var km = formatKm(cd.km_age);
-            var hasEncarPrice = cd.price_won != null && Number(cd.price_won) > 0;
-            var priceUnav = !hasEncarPrice || cd.price_calc_failed || (cd.my_price == null || cd.my_price === '');
-            var price = priceUnav ? 'Мало данных для расчёта цены' : (Math.round(Number(cd.my_price)).toLocaleString() + ' ₽');
-                    var linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (cd.inner_id != null ? cd.inner_id : ''));
+            similarCars.forEach(function(car) {
+                var cd = car.data || {};
+                var images = getPreviewImages(cd);
+                var mainImg = images[0] || '';
+                var title = [filterOptionLabel(cd.mark, 'mark'), filterOptionLabel(cd.model, 'model'), filterOptionLabel(cd.generation || cd.configuration, 'generation')].filter(Boolean).join(' ').trim();
+                if (!title) title = (cd.mark || '') + ' ' + (cd.model || '');
+                var model = filterOptionLabel(cd.model, 'model') || cd.model || '';
+                var year = cd.year ? String(cd.year).slice(0, 4) : '';
+                var km = formatKm(cd.km_age);
+                var hasEncarPrice = cd.price_won != null && Number(cd.price_won) > 0;
+                var priceUnav = !hasEncarPrice || cd.price_calc_failed || (cd.my_price == null || cd.my_price === '');
+                var price = priceUnav ? 'Мало данных для расчёта цены' : (Math.round(Number(cd.my_price)).toLocaleString() + ' ₽');
+                var linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (cd.inner_id != null ? cd.inner_id : ''));
 
-                    html += `
+                html += `
                         <div class="similar-car-card">
                             <a href="car.html?id=${encodeURIComponent(linkId)}" class="similar-car-link">
                                 <div class="similar-car-image">
@@ -4208,24 +4231,20 @@
                             </a>
                         </div>
                     `;
-                });
+            });
 
-                html += `
+            html += `
                         </div>
                     </div>
                 `;
 
-                if (!options || !options.lazy) {
-                    const container = document.getElementById('car-content');
-                    if (container) {
-                        container.insertAdjacentHTML('beforeend', html);
-                    }
+            if (!options || !options.lazy) {
+                const container = document.getElementById('car-content');
+                if (container) {
+                    container.insertAdjacentHTML('beforeend', html);
                 }
-                return html;
-            } catch (err) {
-                console.error('Ошибка загрузки похожих автомобилей:', err);
-                return '';
             }
+            return html;
         }
 
         function setupSimilarCarsImageSkeleton(scope) {
@@ -5211,30 +5230,63 @@
                 return response.json();
             });
         }
-        var urlSame = new URL('cars.json', window.location.href).href;
-        var urlParent = new URL('../cars.json', window.location.href).href;
+
+        /** Один автомобиль с бэкенда (без скачивания полного cars.json — при ~180k строк браузер не справляется). */
+        function loadCarDataFromApi(id) {
+            return fetch(apiUrl('/api/car/' + encodeURIComponent(id))).then(function(response) {
+                if (response.status === 404) {
+                    return Promise.reject({ notFound: true });
+                }
+                if (!response.ok) throw new Error('Ошибка загрузки данных');
+                return response.json();
+            }).then(function(data) {
+                var r = data && data.result;
+                if (r && typeof r === 'object' && !Array.isArray(r)) return r;
+                throw new Error('unexpected shape');
+            });
+        }
+
+        /** Фолбэк для статики / без API (маленький cars.json). */
+        function loadCarDataFromCarsJson(id) {
+            var urlSame = new URL('cars.json', window.location.href).href;
+            var urlParent = new URL('../cars.json', window.location.href).href;
+            return tryFetch(urlSame).catch(function() { return tryFetch(urlParent); }).then(function(data) {
+                var cars = data.result || [];
+                if (!Array.isArray(cars)) cars = [];
+                var carData = cars.find(function(item) {
+                    return String(item.id) === String(id) || String(item.inner_id) === String(id) || String((item.data && item.data.inner_id) || '') === String(id);
+                });
+                if (!carData) return Promise.reject({ notFound: true });
+                return carData;
+            });
+        }
+
+        function loadCarData(id) {
+            return loadCarDataFromApi(id).catch(function(err) {
+                if (err && err.notFound) return Promise.reject(err);
+                return loadCarDataFromCarsJson(id);
+            });
+        }
+
         var engineMapUrl = new URL('data/engine_map.json', window.location.href).href;
         Promise.all([
-            tryFetch(urlSame).catch(function() { return tryFetch(urlParent); }),
+            loadCarData(carId),
             fetch(engineMapUrl).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; })
         ]).then(function(results) {
-                var data = results[0];
                 buildMotorHpIndexCar(results[1]);
-                var cars = data.result || [];
-                var carData = cars.find(function(item) {
-                    return String(item.id) === String(carId) || String(item.inner_id) === String(carId) || String((item.data && item.data.inner_id) || '') === String(carId);
-                });
-                if (!carData) {
-                    var el = document.getElementById('car-content');
-                    if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Автомобиль с таким ID не найден.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }
-                    return;
-                }
-                renderCar(carData);
+                renderCar(results[0]);
             })
             .catch(function(err) {
                 console.error(err);
                 var el = document.getElementById('car-content');
-                if (el) { el.setAttribute('aria-busy', 'false'); el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не удалось загрузить данные. Проверьте подключение к интернету.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>'; }
+                if (el) {
+                    el.setAttribute('aria-busy', 'false');
+                    if (err && err.notFound) {
+                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Автомобиль с таким ID не найден.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
+                    } else {
+                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не удалось загрузить данные. Проверьте подключение к интернету.</p><a href="index.html" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
+                    }
+                }
             });
 
         // Обработчики модалки
