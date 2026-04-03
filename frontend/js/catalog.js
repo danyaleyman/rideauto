@@ -1276,6 +1276,7 @@
       if (reqId !== catalogRequestId) return;
       const params = buildCatalogFilterParams();
       let filtered = staticCatalogCache.filter(function(c) { return carMatchesParamsUrl(c, params); });
+      filtered = dedupeCatalogCars(filtered);
       filtered = sortCarsStatic(filtered, currentSort || 'date_new');
       catalogTotal = filtered.length;
       catalogPages = Math.max(1, Math.ceil(catalogTotal / PER_PAGE));
@@ -1336,7 +1337,7 @@
               }
               var raw = await jr.json();
               var parsedInit = parseCarsApiPayload(raw);
-              staticCatalogCache = parsedInit.list;
+              staticCatalogCache = dedupeCatalogCars(parsedInit.list);
               useStaticCatalog = true;
               loadCarsPageStatic(targetPage, reqId);
               scheduleFacetRefresh(reqId);
@@ -1413,104 +1414,68 @@
       };
     }
 
-        // Порядок видов: перед (1), зад (2), левый/правый бок, салон; приоритет — всегда показывать перед в превью
-    function getPhotoViewOrder(path, code) {
-        const c = String(code || '').toUpperCase().trim();
-        if (c === 'FRONT' || c === 'FRONTVIEW' || c === 'PHOTOFRONT' || c === '앞' || c === '정면') return 1;
-        if (c === 'REAR' || c === 'BACK' || c === 'REARVIEW' || c === 'PHOTOBACK' || c === 'PHOTOREAR' || c === '뒤' || c === '후면') return 2;
-        if (c === 'LEFT' || c === 'PHOTOLEFT' || c === 'LEFTVIEW' || c === '좌') return 3;
-        if (c === 'RIGHT' || c === 'PHOTORIGHT' || c === 'RIGHTVIEW' || c === '우') return 4;
-        if (c === 'SIDE' || c === 'SIDEVIEW') return 5;
-        if (c === 'INTERIOR' || c === 'INNER' || c === 'INSPECTION') return 6;
-        const numCode = /^\d+$/.test(c) ? parseInt(c, 10) : null;
-        if (numCode !== null) {
-            if (numCode === 0 || numCode === 1) return 1;
-            if (numCode === 2) return 2;
-            if (numCode === 3) return 3;
-            if (numCode === 4) return 4;
-            return 100 + numCode;
-        }
-        const p = String(path || '').toLowerCase();
-        if (p.includes('photofront') || p.includes('photo_front') || p.includes('front.jpg') || p.includes('frontview') || p.includes('_front_') || p.includes('/front') || p.includes('정면') || p.includes('앞')) return 1;
-        if (p.includes('photorear') || p.includes('photo_rear') || p.includes('photoback') || p.includes('photo_back') || p.includes('back.jpg') || p.includes('rearview') || p.includes('_rear_') || p.includes('/rear') || p.includes('/back') || p.includes('후면') || p.includes('뒤')) return 2;
-        if (p.includes('photoleft') || p.includes('photo_left') || p.includes('left.jpg') || p.includes('leftview') || p.includes('_left_') || p.includes('(좌)') || p.includes('좌측')) return 3;
-        if (p.includes('photoright') || p.includes('photo_right') || p.includes('right.jpg') || p.includes('rightview') || p.includes('_right_') || p.includes('(우)') || p.includes('우측')) return 4;
-        if (p.includes('side') || p.includes('бок') || p.includes('profile')) return 5;
-        if (p.includes('interior') || p.includes('inner') || p.includes('salon') || p.includes('inside') || p.includes('cabin') || p.includes('inspection')) return 6;
-        const numMatch = p.match(/_(\d{2,})\./);
-        if (numMatch) return 100 + parseInt(numMatch[1], 10);
-        return 50;
+    function listingDedupeKeyForCatalog(car) {
+      var d = car.data || car;
+      var inner = d.inner_id != null && String(d.inner_id).trim() !== '' ? String(d.inner_id).trim() : '';
+      if (inner) return 'i:' + inner;
+      var cid = car.id != null ? String(car.id) : '';
+      if (cid) return 'c:' + cid;
+      return '';
     }
 
-    // Выбор картинок только с кузовом (OUTER) с запасным вариантом; порядок как в галерее страницы авто
+    /** Одна карточка на объявление Encar: в cars.json без дедупа могли быть дубликаты строк БД. */
+    function dedupeCatalogCars(cars) {
+      if (!Array.isArray(cars) || cars.length < 2) return cars;
+      var seen = Object.create(null);
+      var out = [];
+      for (var i = 0; i < cars.length; i++) {
+        var car = cars[i];
+        var k = listingDedupeKeyForCatalog(car);
+        if (!k) {
+          out.push(car);
+          continue;
+        }
+        if (seen[k]) continue;
+        seen[k] = 1;
+        out.push(car);
+      }
+      return out;
+    }
+
+    /** Номер кадра в URL Encar (…_012.jpg) — как на сайте источника; slim API раньше резал [:6] без сортировки. */
+    function encarImageSeqFromUrl(url) {
+      try {
+        var base = typeof location !== 'undefined' && location.href ? location.href : 'https://rideauto.ru/';
+        var u = new URL(String(url).trim(), base);
+        var m = (u.pathname || '').match(/_(\d+)\.(?:jpe?g|png|webp)$/i);
+        if (m) return parseInt(m[1], 10);
+      } catch (e) {}
+      var s = String(url || '');
+      var m2 = s.match(/_(\d+)\.(?:jpe?g|png|webp)/i);
+      return m2 ? parseInt(m2[1], 10) : 1e9;
+    }
+
+    function catalogThumbPenalty(url) {
+      var u = String(url || '').toLowerCase();
+      if (u.includes('wheel') || u.includes('tire') || u.includes('rim') || u.includes('диск')) return 1;
+      if (u.includes('타이어') || u.includes('휠')) return 1;
+      return 0;
+    }
+
     function getPreviewImages(d) {
-        let images = [];
-        try { images = JSON.parse(d.images || '[]'); } catch { images = []; }
-
-        let hImages = [];
-        try { hImages = JSON.parse(d.h_images || '[]'); } catch { hImages = []; }
-
-        if (Array.isArray(images) && images.length && Array.isArray(hImages) && hImages.length) {
-            const outerItems = hImages.filter(h => h && h.type === 'OUTER' && h.code);
-            const pairs = [];
-            outerItems.forEach(h => {
-                const code = String(h.code);
-                const suffix = `_${code}.`;
-                const found = images.find(url => typeof url === 'string' && url.includes(suffix));
-                if (found && !pairs.some(p => p.url === found)) {
-                    pairs.push({ url: found, code: code });
-                }
-            });
-
-            if (pairs.length) {
-                pairs.sort((a, b) => {
-                    const orderA = getPhotoViewOrder(a.url, a.code);
-                    const orderB = getPhotoViewOrder(b.url, b.code);
-                    if (orderA !== orderB) return orderA - orderB;
-                    return String(a.url).localeCompare(b.url);
-                });
-                let result = pairs.map(p => p.url).slice(0, 4);
-                const frontPair = pairs.find(p => getPhotoViewOrder(p.url, p.code) === 1);
-                if (frontPair && result[0] !== frontPair.url) {
-                    result = result.filter(u => u !== frontPair.url);
-                    result.unshift(frontPair.url);
-                } else {
-                    const firstOrder = result.length ? getPhotoViewOrder(result[0], pairs.find(p => p.url === result[0])?.code) : 0;
-                    if (firstOrder === 2) {
-                        const notRear = pairs.find(p => getPhotoViewOrder(p.url, p.code) !== 2 && result.includes(p.url));
-                        if (notRear && result[0] !== notRear.url) {
-                            result = result.filter(u => u !== notRear.url);
-                            result.unshift(notRear.url);
-                        }
-                    }
-                }
-                return result;
-            }
-        }
-
-        // Фолбэк: первые 4 фото, сортировка по тому же порядку видов
-        if (Array.isArray(images) && images.length) {
-            const sorted = images.slice().sort((a, b) => {
-                const orderA = getPhotoViewOrder(a, null);
-                const orderB = getPhotoViewOrder(b, null);
-                if (orderA !== orderB) return orderA - orderB;
-                return String(a).localeCompare(b);
-            });
-            let result = sorted.slice(0, 4);
-            const frontUrl = result.find(u => getPhotoViewOrder(u, null) === 1);
-            if (frontUrl && result[0] !== frontUrl) {
-                result = result.filter(u => u !== frontUrl);
-                result.unshift(frontUrl);
-            } else if (result.length && getPhotoViewOrder(result[0], null) === 2) {
-                const notRear = result.find(u => getPhotoViewOrder(u, null) !== 2);
-                if (notRear && result[0] !== notRear) {
-                    result = result.filter(u => u !== notRear);
-                    result.unshift(notRear);
-                }
-            }
-            return result;
-        }
-        return [];
+      var images = [];
+      try { images = JSON.parse(d.images || '[]'); } catch (e) { images = []; }
+      if (!Array.isArray(images) || !images.length) return [];
+      var urls = images.filter(function(u) { return typeof u === 'string' && u.trim(); });
+      var scored = urls.map(function(u) {
+        return { u: u, seq: encarImageSeqFromUrl(u), pen: catalogThumbPenalty(u) };
+      });
+      scored.sort(function(a, b) {
+        if (a.pen !== b.pen) return a.pen - b.pen;
+        if (a.seq !== b.seq) return a.seq - b.seq;
+        return a.u.localeCompare(b.u);
+      });
+      return scored.slice(0, 4).map(function(x) { return x.u; });
     }
 
     function escapeImgAttr(s) {
@@ -1550,16 +1515,6 @@
       } catch (e) {
         return null;
       }
-    }
-
-    function guessImageType(url) {
-        const u = String(url || '').toLowerCase();
-        if (u.includes('front') || u.includes('перед') || u.includes('frontview') || u.includes('front_view')) return 'FRONT';
-        if (u.includes('rear') || u.includes('зад') || u.includes('back') || u.includes('rearview') || u.includes('rear_view')) return 'REAR';
-        if (u.includes('side') || u.includes('бок') || u.includes('profile') || u.includes('sideview') || u.includes('side_view')) return 'SIDE';
-        if (u.includes('interior') || u.includes('салон') || u.includes('inside') || u.includes('cabin') || u.includes('interiorview') || u.includes('interior_view')) return 'INTERIOR';
-        if (u.includes('wheel') || u.includes('tire') || u.includes('rim') || u.includes('диск')) return 'WHEEL';
-        return 'SIDE';
     }
 
     // Отрисовка карточек

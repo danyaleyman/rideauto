@@ -18,6 +18,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+_BACKEND_DIR = Path(__file__).resolve().parent
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+from api_server import _facets_catalog_sync, _sort_encar_image_url_list, _sort_h_images_list_entries
+
 
 def _fill_power_from_external(data: dict) -> None:
     """Подставить мощность из data/power_lookup.json (марка/модель/год/объём), если в данных пусто."""
@@ -70,13 +75,49 @@ def _iter_chunks(items, chunk_size: int):
         yield i // chunk_size + 1, items[i : i + chunk_size]
 
 
+def _listing_key_for_export(car_id: str, payload: dict) -> str:
+    """Как в API: одна карточка на объявление Encar (inner_id), иначе car_id."""
+    raw = payload.get("data") if isinstance(payload.get("data"), dict) else None
+    d = raw if isinstance(raw, dict) else payload
+    inner = str((d or {}).get("inner_id") or "").strip()
+    if inner:
+        return f"i:{inner}"
+    return f"c:{car_id}"
+
+
+def _normalize_car_media_fields(car: dict) -> None:
+    """Порядок кадров как на Encar — превью/thumbnails берут _001, а не случайные 6 URL."""
+    data = car.get("data")
+    if not isinstance(data, dict):
+        return
+    raw_im = data.get("images")
+    if isinstance(raw_im, str):
+        try:
+            arr = json.loads(raw_im)
+        except Exception:
+            arr = None
+        if isinstance(arr, list):
+            s = _sort_encar_image_url_list([x for x in arr if isinstance(x, str)])
+            data["images"] = json.dumps(s, ensure_ascii=False)
+    elif isinstance(raw_im, list):
+        s = _sort_encar_image_url_list([x for x in raw_im if isinstance(x, str)])
+        data["images"] = s
+    raw_h = data.get("h_images")
+    if isinstance(raw_h, str):
+        try:
+            arr = json.loads(raw_h)
+        except Exception:
+            arr = None
+        if isinstance(arr, list):
+            s = _sort_h_images_list_entries([x for x in arr if isinstance(x, dict)])
+            data["h_images"] = json.dumps(s, ensure_ascii=False)
+    elif isinstance(raw_h, list):
+        s = _sort_h_images_list_entries([x for x in raw_h if isinstance(x, dict)])
+        data["h_images"] = s
+
+
 def _write_catalog_facets_snapshot(db_path: Path, out_path: Path) -> None:
     """Те же фасеты, что GET /api/facets без фильтров — статика для быстрого первого экрана."""
-    backend_dir = Path(__file__).resolve().parent
-    if str(backend_dir) not in sys.path:
-        sys.path.insert(0, str(backend_dir))
-    from api_server import _facets_catalog_sync
-
     facets = _facets_catalog_sync(str(db_path.resolve()), {})
     payload = dict(facets)
     payload["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -113,13 +154,24 @@ def main():
     db_path = Path(args.db).resolve()
     conn = sqlite3.connect(str(db_path))
     try:
-        rows = conn.execute("SELECT car_id, data_json FROM cars ORDER BY id").fetchall()
+        rows = conn.execute("SELECT id, car_id, data_json FROM cars ORDER BY id").fetchall()
+        best: dict[str, tuple] = {}
+        for row_id, car_id, data_json in rows:
+            try:
+                payload = json.loads(data_json)
+            except Exception:
+                continue
+            lk = _listing_key_for_export(str(car_id), payload)
+            prev = best.get(lk)
+            if prev is None or row_id > prev[0]:
+                best[lk] = (row_id, car_id, data_json)
         cars = []
-        for car_id, data_json in rows:
+        for row_id, car_id, data_json in sorted(best.values(), key=lambda t: t[0]):
             car = json.loads(data_json)
             car["id"] = car_id
             if isinstance(car.get("data"), dict):
                 car["data"]["id"] = str(car_id)
+                _normalize_car_media_fields(car)
                 if not args.no_power_lookup:
                     _fill_power_from_external(car["data"])
             cars.append(car)

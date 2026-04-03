@@ -3789,33 +3789,11 @@
         }
 
         // ---------- Функции для галереи ----------
-        // Порядок видов: перед (1), зад (2), левый/правый бок, салон; приоритет — всегда показывать перед в превью
-        function getPhotoViewOrder(path, code) {
-            const c = String(code || '').toUpperCase().trim();
-            if (c === 'FRONT' || c === 'FRONTVIEW' || c === 'PHOTOFRONT' || c === '앞' || c === '정면') return 1;
-            if (c === 'REAR' || c === 'BACK' || c === 'REARVIEW' || c === 'PHOTOBACK' || c === 'PHOTOREAR' || c === '뒤' || c === '후면') return 2;
-            if (c === 'LEFT' || c === 'PHOTOLEFT' || c === 'LEFTVIEW' || c === '좌') return 3;
-            if (c === 'RIGHT' || c === 'PHOTORIGHT' || c === 'RIGHTVIEW' || c === '우') return 4;
-            if (c === 'SIDE' || c === 'SIDEVIEW') return 5;
-            if (c === 'INTERIOR' || c === 'INNER' || c === 'INSPECTION') return 6;
-            const numCode = /^\d+$/.test(c) ? parseInt(c, 10) : null;
-            if (numCode !== null) {
-                if (numCode === 0 || numCode === 1) return 1;
-                if (numCode === 2) return 2;
-                if (numCode === 3) return 3;
-                if (numCode === 4) return 4;
-                return 100 + numCode;
-            }
-            const p = String(path || '').toLowerCase();
-            if (p.includes('photofront') || p.includes('photo_front') || p.includes('front.jpg') || p.includes('frontview') || p.includes('_front_') || p.includes('/front') || p.includes('정면') || p.includes('앞')) return 1;
-            if (p.includes('photorear') || p.includes('photo_rear') || p.includes('photoback') || p.includes('photo_back') || p.includes('back.jpg') || p.includes('rearview') || p.includes('_rear_') || p.includes('/rear') || p.includes('/back') || p.includes('후면') || p.includes('뒤')) return 2;
-            if (p.includes('photoleft') || p.includes('photo_left') || p.includes('left.jpg') || p.includes('leftview') || p.includes('_left_') || p.includes('(좌)') || p.includes('좌측')) return 3;
-            if (p.includes('photoright') || p.includes('photo_right') || p.includes('right.jpg') || p.includes('rightview') || p.includes('_right_') || p.includes('(우)') || p.includes('우측')) return 4;
-            if (p.includes('side') || p.includes('бок') || p.includes('profile')) return 5;
-            if (p.includes('interior') || p.includes('inner') || p.includes('salon') || p.includes('inside') || p.includes('cabin') || p.includes('inspection')) return 6;
-            const numMatch = p.match(/_(\d{2,})\./);
-            if (numMatch) return 100 + parseInt(numMatch[1], 10);
-            return 50;
+        /** Номер кадра в пути Encar (/…/id_NNN.jpg) — порядок как на encar.com (коды 001/002 не «углы кузова»). */
+        function encarPathSeq(pathOrUrl) {
+            var s = String(pathOrUrl || '');
+            var m = s.match(/_(\d+)\.(?:jpe?g|png|webp)/i);
+            return m ? parseInt(m[1], 10) : 1e9;
         }
         function preparePhotos(hImages) {
             const typePriority = { OUTER:1, INNER:2, OPTION:3, THUMBNAIL:4 };
@@ -3828,25 +3806,11 @@
             let list = Array.from(map.values());
             list.sort(function(a, b) {
                 if (a.priority !== b.priority) return a.priority - b.priority;
-                const orderA = getPhotoViewOrder(a.path, a.code);
-                const orderB = getPhotoViewOrder(b.path, b.code);
-                if (orderA !== orderB) return orderA - orderB;
+                var sA = encarPathSeq(a.path);
+                var sB = encarPathSeq(b.path);
+                if (sA !== sB) return sA - sB;
                 return String(a.path).localeCompare(b.path);
             });
-            var firstOrder = list.length ? getPhotoViewOrder(list[0].path, list[0].code) : 0;
-            if (firstOrder === 2) {
-                var notRear = list.find(function(item) { return getPhotoViewOrder(item.path, item.code) !== 2; });
-                if (notRear) {
-                    list = list.filter(function(item) { return item !== notRear; });
-                    list.unshift(notRear);
-                }
-            } else if (firstOrder !== 1 && list.length > 1) {
-                var frontItem = list.find(function(item) { return getPhotoViewOrder(item.path, item.code) === 1; });
-                if (frontItem) {
-                    list = list.filter(function(item) { return item !== frontItem; });
-                    list.unshift(frontItem);
-                }
-            }
             return list;
         }
 
@@ -4282,75 +4246,35 @@
             });
         }
 
-        // ---------- Функция для получения превью фото (та же логика, что в каталоге index.html: приоритет вида «перед») ----------
+        // ---------- Превью в «Похожие» — порядок кадров по номеру в URL Encar (см. catalog.js) ----------
         function getPreviewImages(d) {
-            let images = [];
-            try { images = JSON.parse(d.images || '[]'); } catch { images = []; }
-
-            let hImages = [];
-            try { hImages = JSON.parse(d.h_images || '[]'); } catch { hImages = []; }
-
-            if (Array.isArray(images) && images.length && Array.isArray(hImages) && hImages.length) {
-                const outerItems = hImages.filter(h => h && h.type === 'OUTER' && h.code);
-                const pairs = [];
-                outerItems.forEach(h => {
-                    const code = String(h.code);
-                    const suffix = `_${code}.`;
-                    const found = images.find(url => typeof url === 'string' && url.includes(suffix));
-                    if (found && !pairs.some(p => p.url === found)) {
-                        pairs.push({ url: found, code: code });
-                    }
-                });
-
-                if (pairs.length) {
-                    pairs.sort((a, b) => {
-                        const orderA = getPhotoViewOrder(a.url, a.code);
-                        const orderB = getPhotoViewOrder(b.url, b.code);
-                        if (orderA !== orderB) return orderA - orderB;
-                        return String(a.url).localeCompare(b.url);
-                    });
-                    var result = pairs.map(p => p.url).slice(0, 4);
-                    var frontPair = pairs.find(p => getPhotoViewOrder(p.url, p.code) === 1);
-                    if (frontPair && result[0] !== frontPair.url) {
-                        result = result.filter(u => u !== frontPair.url);
-                        result.unshift(frontPair.url);
-                    } else if (result.length) {
-                        var firstOrder = getPhotoViewOrder(result[0], pairs.find(p => p.url === result[0]) && pairs.find(p => p.url === result[0]).code);
-                        if (firstOrder === 2) {
-                            var notRear = pairs.find(p => getPhotoViewOrder(p.url, p.code) !== 2 && result.includes(p.url));
-                            if (notRear && result[0] !== notRear.url) {
-                                result = result.filter(u => u !== notRear.url);
-                                result.unshift(notRear.url);
-                            }
-                        }
-                    }
-                    return result;
-                }
+            var images = [];
+            try { images = JSON.parse(d.images || '[]'); } catch (e) { images = []; }
+            if (!Array.isArray(images) || !images.length) return [];
+            var base = (typeof window !== 'undefined' && window.location && window.location.href) ? window.location.href : 'https://rideauto.ru/';
+            var urls = images.filter(function(u) { return typeof u === 'string' && u.trim(); });
+            function seqFrom(u) {
+                try {
+                    var x = new URL(String(u).trim(), base);
+                    var m = (x.pathname || '').match(/_(\d+)\.(?:jpe?g|png|webp)$/i);
+                    if (m) return parseInt(m[1], 10);
+                } catch (e2) {}
+                var m2 = String(u || '').match(/_(\d+)\.(?:jpe?g|png|webp)/i);
+                return m2 ? parseInt(m2[1], 10) : 1e9;
             }
-
-            // Фолбэк: первые 4 фото, сортировка по тому же порядку видов; приоритет «перед», не ставить «зад» первым
-            if (Array.isArray(images) && images.length) {
-                var sorted = images.slice().sort((a, b) => {
-                    const orderA = getPhotoViewOrder(a, null);
-                    const orderB = getPhotoViewOrder(b, null);
-                    if (orderA !== orderB) return orderA - orderB;
-                    return String(a).localeCompare(b);
-                });
-                var result = sorted.slice(0, 4);
-                var frontUrl = result.find(u => getPhotoViewOrder(u, null) === 1);
-                if (frontUrl && result[0] !== frontUrl) {
-                    result = result.filter(u => u !== frontUrl);
-                    result.unshift(frontUrl);
-                } else if (result.length && getPhotoViewOrder(result[0], null) === 2) {
-                    var notRear = result.find(u => getPhotoViewOrder(u, null) !== 2);
-                    if (notRear && result[0] !== notRear) {
-                        result = result.filter(u => u !== notRear);
-                        result.unshift(notRear);
-                    }
-                }
-                return result;
+            function pen(u) {
+                var s = String(u || '').toLowerCase();
+                if (s.includes('wheel') || s.includes('tire') || s.includes('rim') || s.includes('диск')) return 1;
+                if (s.includes('타이어') || s.includes('휠')) return 1;
+                return 0;
             }
-            return [];
+            var scored = urls.map(function(u) { return { u: u, seq: seqFrom(u), p: pen(u) }; });
+            scored.sort(function(a, b) {
+                if (a.p !== b.p) return a.p - b.p;
+                if (a.seq !== b.seq) return a.seq - b.seq;
+                return a.u.localeCompare(b.u);
+            });
+            return scored.slice(0, 4).map(function(x) { return x.u; });
         }
 
         function guessImageType(url) {
