@@ -17,8 +17,9 @@ import secrets
 import sqlite3
 import time
 from datetime import datetime, timezone
+from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 from aiohttp import ClientSession, web
 
@@ -491,6 +492,28 @@ _FACET_FUEL = "json_extract(data_json, '$.data.engine_type')"
 _FACET_TRANS = "json_extract(data_json, '$.data.transmission_type')"
 _FACET_COLOR = "json_extract(data_json, '$.data.color')"
 
+# (ключ ответа API, omit keys, SQL-выражение для одиночного запроса; колонки TEMP — _FACET_TEMP_COL)
+_FACET_SPECS: Tuple[Tuple[str, frozenset[str], str], ...] = (
+    ("marks", frozenset({"marks"}), _FACET_MARK),
+    ("models", frozenset({"models"}), _FACET_MODEL),
+    ("generations", frozenset({"generations"}), _FACET_GENERATION),
+    ("trims", frozenset({"trims"}), _FACET_TRIM),
+    ("bodies", frozenset({"body"}), _FACET_BODY),
+    ("fuels", frozenset({"fuel"}), _FACET_FUEL),
+    ("transmissions", frozenset({"trans"}), _FACET_TRANS),
+    ("colors", frozenset({"color"}), _FACET_COLOR),
+)
+_FACET_TEMP_COL: Dict[str, str] = {
+    "marks": "v_mark",
+    "models": "v_model",
+    "generations": "v_generation",
+    "trims": "v_trim",
+    "bodies": "v_body",
+    "fuels": "v_fuel",
+    "transmissions": "v_trans",
+    "colors": "v_color",
+}
+
 
 def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
     conn = _db_connect(db_path)
@@ -519,16 +542,13 @@ def _json_public_cache(data: Any, cache_control: str) -> web.Response:
     return web.json_response(data, headers={"Cache-Control": cache_control})
 
 
-def _facet_dimension_conn(
+def _facet_dimension_direct(
     conn: sqlite3.Connection,
-    query: Dict[str, str],
-    omit_keys: frozenset[str],
+    where2: str,
+    params2: List[str],
     value_expr: str,
 ) -> List[Dict[str, Any]]:
-    """Дедуп как в каталоге (CTE + MAX(id) по объявлению), без ROW_NUMBER()."""
-    q2 = {k: v for k, v in query.items() if k not in omit_keys}
-    where, params = _build_filter_sql(q2)
-    where2, params2 = _cars_dedup_where(where, params)
+    """Один фасет: полный CTE (дорого по CPU, если вызывать 8 раз подряд)."""
     pk = _sql_listing_partition_key_bare()
     value_c = value_expr.replace("data_json", "c.data_json")
     sql = f"""
@@ -553,20 +573,81 @@ def _facet_dimension_conn(
     return [{"value": r["val"], "count": r["c"]} for r in rows]
 
 
+def _materialize_facet_narrow_temp(conn: sqlite3.Connection, where2: str, params2: List[str]) -> None:
+    """Один проход по cars → TEMP из 8 узких полей (без хранения целого data_json на каждую строку — иначе гигабайты RAM/диска)."""
+    conn.execute("DROP TABLE IF EXISTS _wra_facet_cand")
+    pk = _sql_listing_partition_key_bare()
+    sql = f"""
+        CREATE TEMP TABLE _wra_facet_cand AS
+        WITH cand AS (
+            SELECT cars.id AS id, cars.car_id AS car_id, cars.data_json AS data_json
+            FROM cars
+            {where2}
+        ),
+        dedup AS (
+            SELECT MAX(id) AS id
+            FROM cand
+            GROUP BY {pk}
+        )
+        SELECT
+            json_extract(c.data_json, '$.data.mark') AS v_mark,
+            json_extract(c.data_json, '$.data.model') AS v_model,
+            COALESCE(
+                json_extract(c.data_json, '$.data.generation'),
+                json_extract(c.data_json, '$.data.configuration')
+            ) AS v_generation,
+            COALESCE(
+                json_extract(c.data_json, '$.data.gradeName'),
+                json_extract(c.data_json, '$.data.configuration'),
+                json_extract(c.data_json, '$.data.generation')
+            ) AS v_trim,
+            json_extract(c.data_json, '$.data.body_type') AS v_body,
+            json_extract(c.data_json, '$.data.engine_type') AS v_fuel,
+            json_extract(c.data_json, '$.data.transmission_type') AS v_trans,
+            json_extract(c.data_json, '$.data.color') AS v_color
+        FROM cand AS c
+        INNER JOIN dedup AS d ON c.id = d.id
+    """
+    conn.execute(sql, params2)
+
+
+def _facet_from_narrow_temp(conn: sqlite3.Connection, facet_key: str) -> List[Dict[str, Any]]:
+    col = _FACET_TEMP_COL[facet_key]
+    sql = f"""
+        SELECT {col} AS val, COUNT(*) AS c
+        FROM _wra_facet_cand
+        GROUP BY 1
+        HAVING val IS NOT NULL AND CAST(val AS TEXT) <> ''
+        ORDER BY val COLLATE NOCASE
+    """
+    rows = conn.execute(sql).fetchall()
+    return [{"value": r["val"], "count": r["c"]} for r in rows]
+
+
 def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
-    """Все фасеты в одном соединении и последовательно: 8 параллельных читателей SQLite давали пики RAM/обрыв и net::ERR_EMPTY_RESPONSE."""
+    """Одинаковый SQL-фильтр у нескольких измерений → 1 scan + узкий TEMP + несколько дешёвых GROUP BY."""
+    groups: DefaultDict[Tuple[str, Tuple[str, ...]], List[str]] = defaultdict(list)
+    for name, omit_keys, _expr in _FACET_SPECS:
+        q2 = {k: v for k, v in q.items() if k not in omit_keys}
+        where, params = _build_filter_sql(q2)
+        where2, params2 = _cars_dedup_where(where, params)
+        groups[(where2, tuple(params2))].append(name)
+
     conn = _db_connect(db_path)
     try:
-        return {
-            "marks": _facet_dimension_conn(conn, q, frozenset({"marks"}), _FACET_MARK),
-            "models": _facet_dimension_conn(conn, q, frozenset({"models"}), _FACET_MODEL),
-            "generations": _facet_dimension_conn(conn, q, frozenset({"generations"}), _FACET_GENERATION),
-            "trims": _facet_dimension_conn(conn, q, frozenset({"trims"}), _FACET_TRIM),
-            "bodies": _facet_dimension_conn(conn, q, frozenset({"body"}), _FACET_BODY),
-            "fuels": _facet_dimension_conn(conn, q, frozenset({"fuel"}), _FACET_FUEL),
-            "transmissions": _facet_dimension_conn(conn, q, frozenset({"trans"}), _FACET_TRANS),
-            "colors": _facet_dimension_conn(conn, q, frozenset({"color"}), _FACET_COLOR),
-        }
+        acc: Dict[str, List[Dict[str, Any]]] = {}
+        for (where2, params_t), names in groups.items():
+            params2 = list(params_t)
+            if len(names) >= 2:
+                _materialize_facet_narrow_temp(conn, where2, params2)
+                for facet_key in names:
+                    acc[facet_key] = _facet_from_narrow_temp(conn, facet_key)
+                conn.execute("DROP TABLE IF EXISTS _wra_facet_cand")
+            else:
+                only = names[0]
+                _expr = next(e for n, _o, e in _FACET_SPECS if n == only)
+                acc[only] = _facet_dimension_direct(conn, where2, params2, _expr)
+        return {name: acc[name] for name, _, _ in _FACET_SPECS}
     finally:
         conn.close()
 
