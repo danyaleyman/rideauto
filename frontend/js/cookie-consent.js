@@ -53,7 +53,7 @@
       '    <img class="cookie-consent__icon" src="image/Cookie.png" alt="" width="30" height="30" loading="lazy" decoding="async">' +
       '    <div class="cookie-consent__copy">' +
       '      <p class="cookie-consent__headline">Мы используем файлы cookie</p>' +
-      '      <p class="cookie-consent__text">Мы используем файлы cookie, чтобы улучшить ваш опыт. Продолжая использовать наш сайт, вы соглашаетесь с нашей <a class="cookie-consent__link" href="privacy.html">Политикой конфиденциальности</a>, <a class="cookie-consent__link" href="cookies.html">Политикой cookie</a> и <a class="cookie-consent__link" href="agreement.html">Пользовательским соглашением</a>.</p>' +
+      '      <p class="cookie-consent__text">Мы используем файлы cookie, чтобы улучшить ваш опыт. Продолжая использовать наш сайт, вы соглашаетесь с нашей <a class="cookie-consent__link" href="/privacy">Политикой конфиденциальности</a>, <a class="cookie-consent__link" href="/cookies">Политикой cookie</a> и <a class="cookie-consent__link" href="/agreement">Пользовательским соглашением</a>.</p>' +
       "    </div>" +
       "  </div>" +
       '  <div class="cookie-consent__footer">' +

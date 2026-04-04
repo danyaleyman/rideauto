@@ -1470,7 +1470,7 @@
         catalogPages = 1;
         if (gridEl) {
           gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
+          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог.</p><a href="/" class="btn btn-primary">Обновить страницу</a></div>';
         }
         if (paginationEl) paginationEl.innerHTML = '';
       }
@@ -1488,7 +1488,7 @@
         console.error(e);
         if (gridEl) {
           gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось обновить каталог.</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
+          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось обновить каталог.</p><a href="/" class="btn btn-primary">Обновить страницу</a></div>';
         }
       }
     }
@@ -1653,7 +1653,7 @@
       }
 
       if (!pageCars || pageCars.length === 0) {
-        gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Список не загрузился (есть ' + totalN.toLocaleString('ru-RU') + ' объявлений в базе). Обновите страницу.</p><a href="index.html" class="btn btn-primary">Обновить</a></div>';
+        gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Список не загрузился (есть ' + totalN.toLocaleString('ru-RU') + ' объявлений в базе). Обновите страницу.</p><a href="/" class="btn btn-primary">Обновить</a></div>';
         if (paginationEl) paginationEl.innerHTML = '';
         if (foundCounter) foundCounter.textContent = totalN.toLocaleString('ru-RU');
         if (catalogAriaLive) catalogAriaLive.textContent = 'Каталог не отобразился';
@@ -2355,7 +2355,7 @@
         console.error('Ошибка загрузки каталога', err);
         if (gridEl) {
           gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог. Проверьте, что API доступен по тому же домену (например /api/cars).</p><a href="index.html" class="btn btn-primary">Обновить страницу</a></div>';
+          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог. Проверьте, что API доступен по тому же домену (например /api/cars).</p><a href="/" class="btn btn-primary">Обновить страницу</a></div>';
         }
       }
     })();

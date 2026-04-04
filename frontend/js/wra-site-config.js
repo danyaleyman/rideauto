@@ -14,18 +14,18 @@
 
   /** Публичный URL карточки: /detail/{id} (nginx отдаёт car.html). Фолбэк для старых ссылок — 301 на сервере. */
   window.wraCarDetailPath = function (id) {
-    if (id == null || id === "") return "index.html";
+    if (id == null || id === "") return "/";
     var s = String(id).trim();
-    if (!s) return "index.html";
+    if (!s) return "/";
     return "/detail/" + encodeURIComponent(s);
   };
   window.wraCarDetailUrl = function (id) {
     var p = window.wraCarDetailPath(id);
-    if (p === "index.html") {
+    if (p === "/") {
       try {
-        return new URL("index.html", window.location.href).href;
+        return new URL("/", window.location.origin).href;
       } catch (e) {
-        return "index.html";
+        return "/";
       }
     }
     try {
