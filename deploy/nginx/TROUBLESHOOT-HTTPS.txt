@@ -1,0 +1,42 @@
+Сайт «не открывается» в браузере, а curl на 127.0.0.1:80 с Host даёт 200
+============================================================================
+
+1) Слушает ли nginx порт 443
+   sudo ss -tlnp | grep ':443'
+   Если пусто — в конфиге нет listen 443 ssl (часто certbot в отдельном файле, который отключили).
+
+2) Есть ли server на 443 для rideauto.ru
+   sudo nginx -T 2>/dev/null | grep -nE "listen 443|ssl_certificate|server_name.*rideauto"
+
+3) Проверка TLS с самого сервера
+   curl -sI -H "Host: rideauto.ru" https://127.0.0.1/ -k | head -15
+   -k отключает проверку имени в сертификате (для 127.0.0.1 это нормально).
+
+4) Сертификаты certbot
+   sudo certbot certificates
+   Смотрите Domains и Expiry. Продление:
+   sudo certbot renew --dry-run
+
+5) Срок и цепочка сертификата для домена (с сервера)
+   echo | openssl s_client -servername rideauto.ru -connect 127.0.0.1:443 2>/dev/null | openssl x509 -noout -dates -subject
+
+6) Файрвол
+   sudo ufw status
+   При активном ufw нужно: sudo ufw allow 'Nginx Full'   или allow 80,443/tcp
+
+7) DNS (с сервера или с ПК)
+   dig +short rideauto.ru A
+   Должен быть публичный IP вашего VPS.
+
+8) Браузер
+   Попробуйте окно инкогнито или другой браузер; отключите VPN.
+   Ошибка NET::ERR_CERT_* — смотреть п.4–5.
+
+Восстановление HTTPS после «слёта» сертификата (типовой путь)
+-------------------------------------------------------------
+sudo certbot --nginx -d rideauto.ru -d www.rideauto.ru
+sudo nginx -t && sudo systemctl reload nginx
+
+Важно: deploy/nginx/prod-encar.conf в репо описывает только listen 80.
+Если вы копируете его поверх sites-available и затираете блок certbot с 443 —
+HTTPS пропадёт. Тогда снова certbot --nginx или вручную объедините ssl в один server{}.
