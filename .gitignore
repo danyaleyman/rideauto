@@ -25,3 +25,6 @@ frontend/data/chunks/*.tmp
 .venv/
 venv/
 ENV/
+
+# Node (tailwind и др.; артефакты вроде car-tailwind.css коммитим отдельно)
+node_modules/

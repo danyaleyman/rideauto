@@ -8,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
-    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <script>
     (function () {
@@ -36,10 +35,10 @@
     <link rel="stylesheet" href="/css/common.css">
     <link rel="stylesheet" href="/css/cookie-consent.css">
     <link rel="stylesheet" href="/css/auth-favorites.css">
+    <link rel="stylesheet" href="/css/car-tailwind.css?v=20260403tw">
     <script src="/js/wra-site-config.js?v=20260416"></script>
     <script src="/js/copy-protection.js"></script>
     <script src="/js/auth-favorites.js?v=20260416"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin></noscript>
     <script>
@@ -5155,15 +5154,15 @@
             var inspHeader = e.target.closest('.inspection-group-header');
             if (inspHeader) {
                 e.preventDefault();
-                var block = inspHeader.closest('.inspection-block');
-                if (!block) return;
+                var inspBlock = inspHeader.closest('.inspection-block');
+                if (!inspBlock) return;
                 var index = inspHeader.getAttribute('data-inspection-index');
                 if (index == null) return;
-                block.querySelectorAll('.inspection-group-header').forEach(function(h) { h.classList.remove('is-active'); h.setAttribute('aria-expanded', 'false'); });
-                block.querySelectorAll('.inspection-group-body').forEach(function(b) { b.classList.remove('is-visible'); });
+                inspBlock.querySelectorAll('.inspection-group-header').forEach(function(h) { h.classList.remove('is-active'); h.setAttribute('aria-expanded', 'false'); });
+                inspBlock.querySelectorAll('.inspection-group-body').forEach(function(b) { b.classList.remove('is-visible'); });
                 inspHeader.classList.add('is-active');
                 inspHeader.setAttribute('aria-expanded', 'true');
-                var bodies = block.querySelectorAll('.inspection-group-body');
+                var bodies = inspBlock.querySelectorAll('.inspection-group-body');
                 var body = bodies[parseInt(index, 10)];
                 if (body) body.classList.add('is-visible');
                 return;

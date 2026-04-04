@@ -1,5 +1,11 @@
 {
   "dependencies": {
     "swiper": "^12.1.2"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "build:car-tailwind": "tailwindcss -i ./frontend/css/tailwind-car.input.css -o ./frontend/css/car-tailwind.css --minify"
   }
 }
