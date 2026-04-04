@@ -36,6 +36,7 @@ def load_config(config_path: str = "scraper_config.yaml") -> dict:
         raise FileNotFoundError(f"Config not found: {config_path}")
     with open(path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
+    config["_resolved_config_path"] = str(path.resolve())
     # Env override: SCRAPER_HTTP_CONCURRENCY=10 etc.
     for key, value in os.environ.items():
         if not key.startswith("SCRAPER_"):
@@ -85,9 +86,18 @@ def setup_logging(cfg: dict) -> logging.Logger:
         handlers.append(h)
     log_file = log_cfg.get("file")
     if log_file:
-        fh = logging.FileHandler(log_file, encoding="utf-8")
-        fh.setFormatter(logging.Formatter(fmt))
-        handlers.append(fh)
+        raw_cfg = cfg.get("_resolved_config_path")
+        cfg_base = Path(str(raw_cfg)).resolve().parent if raw_cfg else Path.cwd()
+        lp = Path(log_file)
+        if not lp.is_absolute():
+            lp = cfg_base / lp
+        try:
+            lp.parent.mkdir(parents=True, exist_ok=True)
+            fh = logging.FileHandler(lp, encoding="utf-8")
+            fh.setFormatter(logging.Formatter(fmt))
+            handlers.append(fh)
+        except OSError as e:
+            sys.stderr.write(f"encar_scraper: cannot open log file {lp}: {e}; using console only\n")
     logging.basicConfig(level=level, format=fmt, handlers=handlers or [_FlushingStreamHandler()])
     return logging.getLogger("encar_scraper")
 

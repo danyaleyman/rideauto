@@ -119,9 +119,9 @@ storage:
   # Store raw API responses for reprocessing (in SQLite as blob or separate table)
   store_raw_responses: false
 
-# Logging
+# Logging (путь от корня репозитория; systemd User=www-data должен иметь запись в logs/)
 logging:
   level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-  file: "scraper.log"
+  file: "logs/scraper.log"
   console: true
   format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"

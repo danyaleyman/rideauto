@@ -21,16 +21,21 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from main_system import EncarSystem
 from postgresql_database import PostgreSQLDatabase
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('auto_update.log'),
-        logging.StreamHandler()
-    ]
-)
 logger = logging.getLogger(__name__)
+
+
+def _init_auto_update_logging() -> None:
+    """Файл в logs/ от корня репо; при отказе в записи (www-data) — только stderr + journald."""
+    repo_root = Path(__file__).resolve().parent.parent
+    log_dir = repo_root / "logs"
+    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    handlers: List[logging.Handler] = [logging.StreamHandler()]
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(log_dir / "auto_update.log", encoding="utf-8"))
+    except OSError as e:
+        print(f"auto_update: cannot open logs/auto_update.log: {e}; logging to stderr only", file=sys.stderr)
+    logging.basicConfig(level=logging.INFO, format=fmt, handlers=handlers, force=True)
 
 
 class AutoUpdateManager:
@@ -430,7 +435,9 @@ class AutoUpdateManager:
 def main():
     """Основная функция для запуска из командной строки"""
     import argparse
-    
+
+    _init_auto_update_logging()
+
     parser = argparse.ArgumentParser(description='Автоматическое обновление Encar')
     parser.add_argument('--config', help='Путь к файлу конфигурации')
     parser.add_argument('--type', choices=['daily', 'full'], default='daily', help='Тип обновления')
