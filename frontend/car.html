@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <script>
     (function () {
       try {
@@ -28,7 +30,8 @@
       } catch (e) {}
     })();
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap"></noscript>
     <!-- Пути от корня: страница открывается как /detail/{id}, иначе css/js резолвятся в /detail/css/... -->
     <link rel="stylesheet" href="/css/common.css">
     <link rel="stylesheet" href="/css/cookie-consent.css">
@@ -37,7 +40,8 @@
     <script src="/js/copy-protection.js"></script>
     <script src="/js/auth-favorites.js?v=20260416"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin></noscript>
     <script>
     /* Кнопка экспорта в Telegram на car.html: только для авторизованных Telegram-аккаунтов из списка (ID — числовой Telegram user id, не id в БД сайта). */
     window.WRA_ADMIN_TELEGRAM_IDS = window.WRA_ADMIN_TELEGRAM_IDS || [377261863];

@@ -1293,6 +1293,34 @@
       draw();
     }
 
+    function scheduleIdlePrefetchCatalogPage2() {
+      if (useStaticCatalog || catalogPages < 2) return;
+      try {
+        if (buildCatalogFilterParams().toString() !== '') return;
+      } catch (e) {
+        return;
+      }
+      function run() {
+        try {
+          var params = buildCatalogFilterParams();
+          params.set('page', '2');
+          params.set('per_page', String(PER_PAGE));
+          params.set('sort', currentSort || 'date_new');
+          var url = apiUrl('/api/cars?' + params.toString());
+          var init = {};
+          try {
+            init.priority = 'low';
+          } catch (e2) {}
+          fetch(url, init).catch(function() {});
+        } catch (e3) {}
+      }
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(run, { timeout: 5000 });
+      } else {
+        setTimeout(run, 2500);
+      }
+    }
+
     async function loadCarsPage(targetPage, reqId) {
       if (reqId == null) reqId = ++catalogRequestId;
       showSkeleton();
@@ -1320,6 +1348,7 @@
         }
         updateFilterCountBadge();
         draw();
+        if (targetPage === 1) scheduleIdlePrefetchCatalogPage2();
       } catch (err) {
         if (reqId !== catalogRequestId) return;
         if (!staticCatalogCache && allowCarsJsonFallback()) {
