@@ -27,9 +27,14 @@ server_name rideauto.ru. Nginx использует ПЕРВЫЙ такой бл
 
 4) Оставить ОДИН источник правды для rideauto.ru на :80 (и при необходимости :443).
    Типичный лишний файл после certbot: отдельный sites-enabled/rideauto.ru рядом с
-   prod-encar.conf. Отключите дубликат:
+   prod-encar.conf. Отключите дубликат (подставьте РЕАЛЬНОЕ имя из шага 2, не буквально):
 
-   sudo rm /etc/nginx/sites-enabled/ИМЯ_ЛИШНЕГО_ФАЙЛА
+   sudo rm /etc/nginx/sites-enabled/rideauto.ru
+
+   Если в sites-enabled только prod-encar.conf — ищите второй server{} в другом месте:
+
+   sudo nginx -T 2>/dev/null | grep -nE "server_name|listen 80"
+   sudo grep -r "rideauto.ru" /etc/nginx/ --include="*.conf"
 
    (или перенесите listen/ssl в один общий server, как рекомендует комментарий в
    deploy/nginx/prod-encar.conf)
