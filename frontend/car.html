@@ -5227,9 +5227,8 @@
 
         /** Фолбэк для статики / без API (маленький cars.json). */
         function loadCarDataFromCarsJson(id) {
-            var urlSame = new URL('/cars.json', window.location.origin).href;
-            var urlParent = new URL('/cars.json', window.location.origin).href;
-            return tryFetch(urlSame).catch(function() { return tryFetch(urlParent); }).then(function(data) {
+            var carsJsonHref = new URL('/cars.json', window.location.origin).href;
+            return tryFetch(carsJsonHref).then(function(data) {
                 var cars = data.result || [];
                 if (!Array.isArray(cars)) cars = [];
                 var carData = cars.find(function(item) {
