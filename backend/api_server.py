@@ -43,59 +43,61 @@ def _ensure_catalog_indexes(db_path: str) -> None:
         rp = str(Path(db_path).resolve())
     except Exception:
         rp = db_path
+    # Важно: держим lock на всё создание индексов. Иначе preload+catalog одновременно
+    # запускают несколько CREATE INDEX — SQLite блокируется на десятки секунд, event loop
+    # и пул потоков замирают (counts/cars/stats «pending», car page тоже).
     with _CATALOG_INDEX_LOCK:
         if _CATALOG_INDEX_STATE.get(rp, 0) >= _CATALOG_INDEX_VERSION:
             return
-    try:
-        conn = sqlite3.connect(db_path, timeout=120.0)
         try:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.executescript(
-                """
-                CREATE INDEX IF NOT EXISTS idx_wra_cars_car_id_id ON cars(car_id, id DESC);
-                CREATE INDEX IF NOT EXISTS idx_wra_data_mark ON cars(json_extract(data_json, '$.data.mark'));
-                CREATE INDEX IF NOT EXISTS idx_wra_data_model ON cars(json_extract(data_json, '$.data.model'));
-                CREATE INDEX IF NOT EXISTS idx_wra_data_mark_model ON cars(
-                    json_extract(data_json, '$.data.mark'),
-                    json_extract(data_json, '$.data.model')
-                );
-                CREATE INDEX IF NOT EXISTS idx_wra_data_color ON cars(json_extract(data_json, '$.data.color'));
-                CREATE INDEX IF NOT EXISTS idx_wra_data_my_price ON cars(
-                    CAST(json_extract(data_json, '$.data.my_price') AS REAL)
-                );
-                CREATE INDEX IF NOT EXISTS idx_wra_data_km_age ON cars(
-                    CAST(json_extract(data_json, '$.data.km_age') AS INTEGER)
-                );
-                CREATE INDEX IF NOT EXISTS idx_wra_data_year ON cars(
-                    CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER)
-                );
-                CREATE INDEX IF NOT EXISTS idx_wra_data_ym ON cars(
-                    (CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.yearMonth'), json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) * 12 +
-                    CASE WHEN LENGTH(COALESCE(json_extract(data_json, '$.data.yearMonth'), '')) >= 6
-                    THEN CAST(SUBSTR(json_extract(data_json, '$.data.yearMonth'), 5, 2) AS INTEGER) - 1 ELSE 0 END)
-                );
-                CREATE INDEX IF NOT EXISTS idx_wra_data_power ON cars(
-                    COALESCE(
-                        CAST(json_extract(data_json, '$.data.power') AS INTEGER),
-                        CAST(json_extract(data_json, '$.data.hp') AS INTEGER),
-                        CAST(json_extract(data_json, '$.power') AS INTEGER)
-                    )
-                );
-                CREATE INDEX IF NOT EXISTS idx_wra_data_displacement ON cars(
-                    CAST(json_extract(data_json, '$.data.displacement') AS INTEGER)
-                );
-                CREATE INDEX IF NOT EXISTS idx_wra_ins_cases ON cars(
-                    COALESCE(json_array_length(json_extract(data_json, '$.data.extra.record_open.accidents')), 0)
-                );
-                """
-            )
-            conn.commit()
-        finally:
-            conn.close()
-        with _CATALOG_INDEX_LOCK:
+            conn = sqlite3.connect(db_path, timeout=120.0)
+            try:
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.executescript(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_wra_cars_car_id_id ON cars(car_id, id DESC);
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_mark ON cars(json_extract(data_json, '$.data.mark'));
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_model ON cars(json_extract(data_json, '$.data.model'));
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_mark_model ON cars(
+                        json_extract(data_json, '$.data.mark'),
+                        json_extract(data_json, '$.data.model')
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_color ON cars(json_extract(data_json, '$.data.color'));
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_my_price ON cars(
+                        CAST(json_extract(data_json, '$.data.my_price') AS REAL)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_km_age ON cars(
+                        CAST(json_extract(data_json, '$.data.km_age') AS INTEGER)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_year ON cars(
+                        CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_ym ON cars(
+                        (CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.yearMonth'), json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) * 12 +
+                        CASE WHEN LENGTH(COALESCE(json_extract(data_json, '$.data.yearMonth'), '')) >= 6
+                        THEN CAST(SUBSTR(json_extract(data_json, '$.data.yearMonth'), 5, 2) AS INTEGER) - 1 ELSE 0 END)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_power ON cars(
+                        COALESCE(
+                            CAST(json_extract(data_json, '$.data.power') AS INTEGER),
+                            CAST(json_extract(data_json, '$.data.hp') AS INTEGER),
+                            CAST(json_extract(data_json, '$.power') AS INTEGER)
+                        )
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_displacement ON cars(
+                        CAST(json_extract(data_json, '$.data.displacement') AS INTEGER)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_wra_ins_cases ON cars(
+                        COALESCE(json_array_length(json_extract(data_json, '$.data.extra.record_open.accidents')), 0)
+                    );
+                    """
+                )
+                conn.commit()
+            finally:
+                conn.close()
             _CATALOG_INDEX_STATE[rp] = _CATALOG_INDEX_VERSION
-    except Exception:
-        pass
+        except Exception:
+            pass
 
 
 def _db_connect(path: str) -> sqlite3.Connection:
@@ -817,7 +819,7 @@ def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: 
         ORDER BY ABS(CAST(json_extract(vis.data_json, '$.data.price_won') AS REAL) - ?) ASC, vis.id DESC
         LIMIT ?
         """,
-        [mark, pmin, pmax, p, p, max(limit * 5, limit + 10)],
+        [mark, pmin, pmax, p, max(limit * 5, limit + 10)],
     ).fetchall()
     return rows
 
@@ -874,85 +876,6 @@ async def catalog_sort_meta(_: web.Request) -> web.Response:
     )
 
 
-async def car_by_id(request: web.Request) -> web.Response:
-    app = request.app
-    conn: sqlite3.Connection = app["db"]
-    car_id = request.match_info.get("id", "").strip()
-    if not car_id:
-        return web.json_response({"error": "id is required"}, status=400)
-
-    row = conn.execute(
-        """
-        SELECT car_id, data_json
-        FROM cars
-        WHERE car_id = ?
-           OR json_extract(data_json, '$.id') = ?
-           OR json_extract(data_json, '$.inner_id') = ?
-           OR json_extract(data_json, '$.data.inner_id') = ?
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        [car_id, car_id, car_id, car_id],
-    ).fetchone()
-    if not row:
-        return web.json_response({"error": "not found"}, status=404)
-
-    car = json.loads(row["data_json"])
-    car["id"] = row["car_id"]
-    return _json_public_cache(
-        {"result": car},
-        "public, max-age=45, stale-while-revalidate=300",
-    )
-
-
-async def similar(request: web.Request) -> web.Response:
-    app = request.app
-    conn: sqlite3.Connection = app["db"]
-    car_id = (request.rel_url.query.get("car_id") or "").strip()
-    limit = min(20, max(1, int(request.rel_url.query.get("limit", "8"))))
-    if not car_id:
-        return web.json_response({"result": [], "meta": {"limit": limit}})
-
-    row = conn.execute(
-        """
-        SELECT car_id, data_json
-        FROM cars
-        WHERE car_id = ?
-           OR json_extract(data_json, '$.id') = ?
-           OR json_extract(data_json, '$.inner_id') = ?
-           OR json_extract(data_json, '$.data.inner_id') = ?
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        [car_id, car_id, car_id, car_id],
-    ).fetchone()
-    if not row:
-        return web.json_response({"result": [], "meta": {"limit": limit}})
-
-    current = json.loads(row["data_json"])
-    current_id = str(row["car_id"])
-    rows = _similar_rows(conn, current, limit)
-    result = []
-    seen_ids = set()
-    seen_keys = set()
-    for r in rows:
-        cid = str(r["car_id"])
-        if cid == current_id or cid in seen_ids:
-            continue
-        car = json.loads(r["data_json"])
-        car["id"] = cid
-        d = car.get("data") if isinstance(car.get("data"), dict) else {}
-        key = f"{d.get('mark','')}|{d.get('model','')}|{d.get('year','')}|{d.get('km_age','')}|{d.get('price_won','')}"
-        if key in seen_keys:
-            continue
-        seen_ids.add(cid)
-        seen_keys.add(key)
-        result.append(car)
-        if len(result) >= limit:
-            break
-    return web.json_response({"result": result, "meta": {"limit": limit, "count": len(result)}})
-
-
 def _car_row_by_any_id(conn: sqlite3.Connection, car_id: str) -> Optional[sqlite3.Row]:
     return conn.execute(
         """
@@ -967,6 +890,75 @@ def _car_row_by_any_id(conn: sqlite3.Connection, car_id: str) -> Optional[sqlite
         """,
         [car_id, car_id, car_id, car_id],
     ).fetchone()
+
+
+def _car_by_id_sync(db_path: str, car_id: str) -> Tuple[int, Dict[str, Any]]:
+    if not car_id:
+        return 400, {"error": "id is required"}
+    conn = _db_connect(db_path)
+    try:
+        row = _car_row_by_any_id(conn, car_id)
+        if not row:
+            return 404, {"error": "not found"}
+        car = json.loads(row["data_json"])
+        car["id"] = row["car_id"]
+        return 200, {"result": car}
+    finally:
+        conn.close()
+
+
+def _similar_sync(db_path: str, car_id: str, limit: int) -> Dict[str, Any]:
+    if not car_id:
+        return {"result": [], "meta": {"limit": limit}}
+    conn = _db_connect(db_path)
+    try:
+        row = _car_row_by_any_id(conn, car_id)
+        if not row:
+            return {"result": [], "meta": {"limit": limit}}
+        current = json.loads(row["data_json"])
+        current_id = str(row["car_id"])
+        rows = _similar_rows(conn, current, limit)
+        result: List[Dict[str, Any]] = []
+        seen_ids: set[str] = set()
+        seen_keys: set[str] = set()
+        for r in rows:
+            cid = str(r["car_id"])
+            if cid == current_id or cid in seen_ids:
+                continue
+            car = json.loads(r["data_json"])
+            car["id"] = cid
+            d = car.get("data") if isinstance(car.get("data"), dict) else {}
+            key = f"{d.get('mark','')}|{d.get('model','')}|{d.get('year','')}|{d.get('km_age','')}|{d.get('price_won','')}"
+            if key in seen_keys:
+                continue
+            seen_ids.add(cid)
+            seen_keys.add(key)
+            result.append(car)
+            if len(result) >= limit:
+                break
+        return {"result": result, "meta": {"limit": limit, "count": len(result)}}
+    finally:
+        conn.close()
+
+
+async def car_by_id(request: web.Request) -> web.Response:
+    car_id = request.match_info.get("id", "").strip()
+    db_path: str = request.app["db_path"]
+    status, body = await asyncio.to_thread(_car_by_id_sync, db_path, car_id)
+    if status == 200:
+        return _json_public_cache(body, "public, max-age=45, stale-while-revalidate=300")
+    return web.json_response(body, status=status)
+
+
+async def similar(request: web.Request) -> web.Response:
+    car_id = (request.rel_url.query.get("car_id") or "").strip()
+    try:
+        limit = min(20, max(1, int(request.rel_url.query.get("limit", "8"))))
+    except (TypeError, ValueError):
+        limit = 8
+    db_path: str = request.app["db_path"]
+    payload = await asyncio.to_thread(_similar_sync, db_path, car_id, limit)
+    return web.json_response(payload)
 
 
 async def auth_telegram(request: web.Request) -> web.Response:
