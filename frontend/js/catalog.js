@@ -1135,23 +1135,69 @@
     function refreshFacetsFromStaticCache(expectedParamSnap) {
       if (expectedParamSnap != null && expectedParamSnap !== buildCatalogFilterParams().toString()) return;
       if (!staticCatalogCache || !staticCatalogCache.length) return;
-      function dim(omitKeys, pick) {
-        var p = paramsForFacet(omitKeys);
-        var map = {};
-        staticCatalogCache.forEach(function(car) {
-          if (!carMatchesParamsUrl(car, p)) return;
-          var v = pick(car);
-          if (v == null || v === '') return;
-          map[v] = (map[v] || 0) + 1;
-        });
-        return Object.keys(map).map(function(value) { return { value: value, count: map[value] }; });
+      var pMarks = paramsForFacet(['marks']);
+      var pModels = paramsForFacet(['models']);
+      var pGens = paramsForFacet(['generations']);
+      var pTrims = paramsForFacet(['trims']);
+      var pBody = paramsForFacet(['body']);
+      var pFuel = paramsForFacet(['fuel']);
+      var pTrans = paramsForFacet(['trans']);
+      var pColor = paramsForFacet(['color']);
+      var maps = {
+        marks: Object.create(null),
+        models: Object.create(null),
+        generations: Object.create(null),
+        trims: Object.create(null),
+        body: Object.create(null),
+        fuel: Object.create(null),
+        trans: Object.create(null),
+        color: Object.create(null),
+      };
+      for (var i = 0, n = staticCatalogCache.length; i < n; i++) {
+        var car = staticCatalogCache[i];
+        var d = car.data || car;
+        if (carMatchesParamsUrl(car, pMarks)) {
+          var mk = d.mark;
+          if (mk != null && mk !== '') maps.marks[mk] = (maps.marks[mk] || 0) + 1;
+        }
+        if (carMatchesParamsUrl(car, pModels)) {
+          var mo = d.model;
+          if (mo != null && mo !== '') maps.models[mo] = (maps.models[mo] || 0) + 1;
+        }
+        if (carMatchesParamsUrl(car, pGens)) {
+          var g = d.generation || d.configuration || '';
+          if (g !== '') maps.generations[g] = (maps.generations[g] || 0) + 1;
+        }
+        if (carMatchesParamsUrl(car, pTrims)) {
+          var tr = d.gradeName || d.configuration || d.generation || '';
+          if (tr !== '') maps.trims[tr] = (maps.trims[tr] || 0) + 1;
+        }
+        if (carMatchesParamsUrl(car, pBody)) {
+          var b = d.body_type;
+          if (b != null && b !== '') maps.body[b] = (maps.body[b] || 0) + 1;
+        }
+        if (carMatchesParamsUrl(car, pFuel)) {
+          var f = d.engine_type;
+          if (f != null && f !== '') maps.fuel[f] = (maps.fuel[f] || 0) + 1;
+        }
+        if (carMatchesParamsUrl(car, pTrans)) {
+          var tx = d.transmission_type;
+          if (tx != null && tx !== '') maps.trans[tx] = (maps.trans[tx] || 0) + 1;
+        }
+        if (carMatchesParamsUrl(car, pColor)) {
+          var col = d.color;
+          if (col != null && col !== '') maps.color[col] = (maps.color[col] || 0) + 1;
+        }
+      }
+      function facetMapToRows(m) {
+        return Object.keys(m).map(function(value) { return { value: value, count: m[value] }; });
       }
       function cascade(container, rows, filterKey, labelCat, trigger, allLabel) {
         if (!container) return;
         renderFacetCheckboxList(container, rows || [], filterKey, labelCat);
         if (trigger) setDropdownTriggerText(trigger, container, filterKey, allLabel);
       }
-      cascade(markListEl, dim(['marks'], function(c) { return (c.data || c).mark; }), 'mark', 'mark', markTrigger, 'Все марки');
+      cascade(markListEl, facetMapToRows(maps.marks), 'mark', 'mark', markTrigger, 'Все марки');
       var selMarks = getSelectedValues(markListEl, 'mark');
       if (selMarks.size === 0) {
         if (modelListEl) modelListEl.innerHTML = '';
@@ -1170,7 +1216,7 @@
           trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
         }
       } else {
-        cascade(modelListEl, dim(['models'], function(c) { return (c.data || c).model; }), 'model', 'model', modelTrigger, 'Все модели');
+        cascade(modelListEl, facetMapToRows(maps.models), 'model', 'model', modelTrigger, 'Все модели');
         if (modelTrigger) modelTrigger.disabled = false;
         var selModels = getSelectedValues(modelListEl, 'model');
         if (selModels.size === 0) {
@@ -1185,10 +1231,7 @@
             trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
           }
         } else {
-          cascade(generationListEl, dim(['generations'], function(c) {
-            var d = c.data || c;
-            return d.generation || d.configuration || '';
-          }), 'generation', 'generation', generationTrigger, 'Все поколения');
+          cascade(generationListEl, facetMapToRows(maps.generations), 'generation', 'generation', generationTrigger, 'Все поколения');
           if (generationTrigger) generationTrigger.disabled = false;
           var selGen = getSelectedValues(generationListEl, 'generation');
           if (selGen.size === 0) {
@@ -1198,18 +1241,15 @@
               trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
             }
           } else {
-            cascade(trimListEl, dim(['trims'], function(c) {
-              var d = c.data || c;
-              return d.gradeName || d.configuration || d.generation || '';
-            }), 'trim', 'trim', trimTrigger, 'Все комплектации');
+            cascade(trimListEl, facetMapToRows(maps.trims), 'trim', 'trim', trimTrigger, 'Все комплектации');
             if (trimTrigger) trimTrigger.disabled = false;
           }
         }
       }
-      renderFacetCheckboxList(document.getElementById('bodyList'), dim(['body'], function(c) { return (c.data || c).body_type; }), 'body', 'bodyType');
-      renderFacetCheckboxList(document.getElementById('fuelList'), dim(['fuel'], function(c) { return (c.data || c).engine_type; }), 'fuel', 'engineType');
-      renderFacetCheckboxList(document.getElementById('transmissionList'), dim(['trans'], function(c) { return (c.data || c).transmission_type; }), 'transmission', 'transmission');
-      renderColorFilterFromFacets(dim(['color'], function(c) { return (c.data || c).color; }));
+      renderFacetCheckboxList(document.getElementById('bodyList'), facetMapToRows(maps.body), 'body', 'bodyType');
+      renderFacetCheckboxList(document.getElementById('fuelList'), facetMapToRows(maps.fuel), 'fuel', 'engineType');
+      renderFacetCheckboxList(document.getElementById('transmissionList'), facetMapToRows(maps.trans), 'transmission', 'transmission');
+      renderColorFilterFromFacets(facetMapToRows(maps.color));
       syncCascadeSlotVisibility();
       scheduleRepositionOpenCascadePanels();
     }
@@ -1252,8 +1292,8 @@
       else setTimeout(run, 0);
     }
 
-    /** Короче 320ms: цена/пробег и т.д. ощущаются отзывчивее; «дребезг» сглаживается abort fetch. */
-    const APPLY_DEBOUNCE_MS = 160;
+    /** Короче ввод цены/пробега и т.д.; на change — немедленный apply; abort снимает гонки. */
+    const APPLY_DEBOUNCE_MS = 120;
     let debouncedApplyTimer = null;
     function scheduleDebouncedApplyFilters() {
       if (debouncedApplyTimer) clearTimeout(debouncedApplyTimer);
@@ -1975,7 +2015,7 @@
               cb.checked = !!byValue[cb.value];
             });
             syncCheckboxVisualStates(document);
-            scheduleDebouncedApplyFilters();
+            void runApplyFilters();
             return;
           }
           if (t.id === 'filterPassageCars') {

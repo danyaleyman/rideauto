@@ -15,6 +15,7 @@ import json
 import os
 import secrets
 import sqlite3
+import threading
 import time
 from datetime import datetime, timezone
 from collections import defaultdict
@@ -24,6 +25,77 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 from aiohttp import ClientSession, web
 
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
+
+
+_CATALOG_INDEX_LOCK = threading.Lock()
+# Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
+_CATALOG_INDEX_VERSION = 2
+_CATALOG_INDEX_STATE: dict[str, int] = {}
+
+
+def _ensure_catalog_indexes(db_path: str) -> None:
+    """Выраженные индексы под фильтры каталога (mark/model/цена/пробег/год/цвет/мощность/ДТП…).
+
+    SQLite не позволяет индексировать подзапросы — сумма страховых выплат в ₽ и «повреждения»
+    остаются без индекса (только страховые *случаи* как json_array_length можно).
+    """
+    try:
+        rp = str(Path(db_path).resolve())
+    except Exception:
+        rp = db_path
+    with _CATALOG_INDEX_LOCK:
+        if _CATALOG_INDEX_STATE.get(rp, 0) >= _CATALOG_INDEX_VERSION:
+            return
+    try:
+        conn = sqlite3.connect(db_path, timeout=120.0)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.executescript(
+                """
+                CREATE INDEX IF NOT EXISTS idx_wra_cars_car_id_id ON cars(car_id, id DESC);
+                CREATE INDEX IF NOT EXISTS idx_wra_data_mark ON cars(json_extract(data_json, '$.data.mark'));
+                CREATE INDEX IF NOT EXISTS idx_wra_data_model ON cars(json_extract(data_json, '$.data.model'));
+                CREATE INDEX IF NOT EXISTS idx_wra_data_mark_model ON cars(
+                    json_extract(data_json, '$.data.mark'),
+                    json_extract(data_json, '$.data.model')
+                );
+                CREATE INDEX IF NOT EXISTS idx_wra_data_color ON cars(json_extract(data_json, '$.data.color'));
+                CREATE INDEX IF NOT EXISTS idx_wra_data_my_price ON cars(
+                    CAST(json_extract(data_json, '$.data.my_price') AS REAL)
+                );
+                CREATE INDEX IF NOT EXISTS idx_wra_data_km_age ON cars(
+                    CAST(json_extract(data_json, '$.data.km_age') AS INTEGER)
+                );
+                CREATE INDEX IF NOT EXISTS idx_wra_data_year ON cars(
+                    CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER)
+                );
+                CREATE INDEX IF NOT EXISTS idx_wra_data_ym ON cars(
+                    (CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.yearMonth'), json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) * 12 +
+                    CASE WHEN LENGTH(COALESCE(json_extract(data_json, '$.data.yearMonth'), '')) >= 6
+                    THEN CAST(SUBSTR(json_extract(data_json, '$.data.yearMonth'), 5, 2) AS INTEGER) - 1 ELSE 0 END)
+                );
+                CREATE INDEX IF NOT EXISTS idx_wra_data_power ON cars(
+                    COALESCE(
+                        CAST(json_extract(data_json, '$.data.power') AS INTEGER),
+                        CAST(json_extract(data_json, '$.data.hp') AS INTEGER),
+                        CAST(json_extract(data_json, '$.power') AS INTEGER)
+                    )
+                );
+                CREATE INDEX IF NOT EXISTS idx_wra_data_displacement ON cars(
+                    CAST(json_extract(data_json, '$.data.displacement') AS INTEGER)
+                );
+                CREATE INDEX IF NOT EXISTS idx_wra_ins_cases ON cars(
+                    COALESCE(json_array_length(json_extract(data_json, '$.data.extra.record_open.accidents')), 0)
+                );
+                """
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        with _CATALOG_INDEX_LOCK:
+            _CATALOG_INDEX_STATE[rp] = _CATALOG_INDEX_VERSION
+    except Exception:
+        pass
 
 
 def _db_connect(path: str) -> sqlite3.Connection:
@@ -483,6 +555,7 @@ _CATALOG_SORT_META: Tuple[Tuple[str, str, str], ...] = (
 
 
 def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Dict[str, Any]:
+    _ensure_catalog_indexes(db_path)
     conn = _db_connect(db_path)
     try:
         page = max(1, int(query.get("page", "1") or "1"))
@@ -687,6 +760,7 @@ def _facet_from_narrow_temp(conn: sqlite3.Connection, facet_key: str) -> List[Di
 
 def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
     """Одинаковый SQL-фильтр у нескольких измерений → 1 scan + узкий TEMP + несколько дешёвых GROUP BY."""
+    _ensure_catalog_indexes(db_path)
     groups: DefaultDict[Tuple[str, Tuple[str, ...]], List[str]] = defaultdict(list)
     for name, omit_keys, _expr in _FACET_SPECS:
         q2 = {k: v for k, v in q.items() if k not in omit_keys}

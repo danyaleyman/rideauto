@@ -273,6 +273,46 @@ class SQLiteStorage(StorageBase):
                 created_at TEXT
             )
         """)
+        # Ускорение каталога /api/facets (json_extract без индекса = полный скан таблицы).
+        self.conn.executescript(
+            """
+            CREATE INDEX IF NOT EXISTS idx_wra_cars_car_id_id ON cars(car_id, id DESC);
+            CREATE INDEX IF NOT EXISTS idx_wra_data_mark ON cars(json_extract(data_json, '$.data.mark'));
+            CREATE INDEX IF NOT EXISTS idx_wra_data_model ON cars(json_extract(data_json, '$.data.model'));
+            CREATE INDEX IF NOT EXISTS idx_wra_data_mark_model ON cars(
+                json_extract(data_json, '$.data.mark'),
+                json_extract(data_json, '$.data.model')
+            );
+            CREATE INDEX IF NOT EXISTS idx_wra_data_color ON cars(json_extract(data_json, '$.data.color'));
+            CREATE INDEX IF NOT EXISTS idx_wra_data_my_price ON cars(
+                CAST(json_extract(data_json, '$.data.my_price') AS REAL)
+            );
+            CREATE INDEX IF NOT EXISTS idx_wra_data_km_age ON cars(
+                CAST(json_extract(data_json, '$.data.km_age') AS INTEGER)
+            );
+            CREATE INDEX IF NOT EXISTS idx_wra_data_year ON cars(
+                CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER)
+            );
+            CREATE INDEX IF NOT EXISTS idx_wra_data_ym ON cars(
+                (CAST(SUBSTR(COALESCE(json_extract(data_json, '$.data.yearMonth'), json_extract(data_json, '$.data.year'), ''), 1, 4) AS INTEGER) * 12 +
+                CASE WHEN LENGTH(COALESCE(json_extract(data_json, '$.data.yearMonth'), '')) >= 6
+                THEN CAST(SUBSTR(json_extract(data_json, '$.data.yearMonth'), 5, 2) AS INTEGER) - 1 ELSE 0 END)
+            );
+            CREATE INDEX IF NOT EXISTS idx_wra_data_power ON cars(
+                COALESCE(
+                    CAST(json_extract(data_json, '$.data.power') AS INTEGER),
+                    CAST(json_extract(data_json, '$.data.hp') AS INTEGER),
+                    CAST(json_extract(data_json, '$.power') AS INTEGER)
+                )
+            );
+            CREATE INDEX IF NOT EXISTS idx_wra_data_displacement ON cars(
+                CAST(json_extract(data_json, '$.data.displacement') AS INTEGER)
+            );
+            CREATE INDEX IF NOT EXISTS idx_wra_ins_cases ON cars(
+                COALESCE(json_array_length(json_extract(data_json, '$.data.extra.record_open.accidents')), 0)
+            );
+            """
+        )
         self.conn.commit()
 
     def save_car(self, car: dict, car_id: str) -> None:
