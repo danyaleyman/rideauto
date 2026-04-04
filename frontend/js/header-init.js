@@ -29,6 +29,10 @@
         var clone = document.createElement('a');
         clone.href = href;
         clone.textContent = (a.textContent || '').trim() || href;
+        var t = (a.getAttribute('target') || '').trim();
+        if (t) clone.target = t;
+        var rel = (a.getAttribute('rel') || '').trim();
+        if (rel) clone.rel = rel;
         if (a.classList.contains('active')) clone.classList.add('active');
         mobileMenu.appendChild(clone);
       });

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>О компании — World Ride Auto</title>
+    <link rel="icon" type="image/svg+xml" href="image/logo%20no%20text.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap"></noscript>
+    <link rel="stylesheet" href="css/common.css?v=20260410">
+    <link rel="stylesheet" href="css/auth-favorites.css?v=20260410">
+    <link rel="stylesheet" href="css/cookie-consent.css?v=20260410">
+    <script src="js/wra-site-config.js?v=20260416"></script>
+    <script src="js/copy-protection.js?v=20260410"></script>
+    <script src="js/auth-favorites.js?v=20260416"></script>
+    <script defer src="https://kit.fontawesome.com/767a85f1ee.js" crossorigin="anonymous"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: var(--font-sans);
+            color: var(--wra-text);
+            line-height: 1.55;
+            overflow-x: clip;
+            padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+        }
+
+        #aboutBgCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .about-wrap {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--wra-surface);
+            border-bottom: 1px solid var(--wra-border);
+            box-shadow: var(--shadow-sm);
+            padding: var(--space-4) var(--space-5);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .header-content {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0;
+        }
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            color: var(--wra-text);
+            text-decoration: none;
+        }
+        .logo img { height: 40px; width: auto; display: block; }
+        .nav-menu {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            flex: 1;
+            justify-content: center;
+        }
+        .nav-menu a {
+            color: var(--wra-gray-700);
+            text-decoration: none;
+            font-weight: var(--font-medium);
+            font-size: var(--text-sm);
+            transition: color var(--transition);
+            position: relative;
+        }
+        .nav-menu a:hover { color: var(--wra-primary); }
+        .nav-menu a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--wra-primary);
+            transition: width var(--transition-smooth);
+        }
+        .nav-menu a:hover::after,
+        .nav-menu a.active::after { width: 100%; }
+        .nav-menu a.active {
+            color: var(--wra-primary);
+            font-weight: var(--font-semibold);
+        }
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .header-burger {
+            display: none;
+            width: 44px;
+            height: 44px;
+            border: 1px solid var(--wra-border);
+            border-radius: var(--radius-md);
+            background: var(--wra-surface);
+            padding: 10px 9px;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .header-burger span {
+            width: 100%;
+            height: 2px;
+            border-radius: 2px;
+            background: var(--wra-text);
+            transition: transform 0.24s ease, opacity 0.2s ease;
+        }
+        .header.mobile-menu-open .header-burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .header.mobile-menu-open .header-burger span:nth-child(2) { opacity: 0; }
+        .header.mobile-menu-open .header-burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+        .mobile-header-menu {
+            display: none;
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: 0 var(--space-4) var(--space-3);
+            border-top: 1px solid var(--wra-border);
+            flex-direction: column;
+            gap: 2px;
+        }
+        .mobile-header-menu a {
+            text-decoration: none;
+            color: var(--wra-text);
+            font-weight: var(--font-semibold);
+            padding: 12px 8px;
+            border-radius: var(--radius-sm);
+        }
+        .mobile-header-menu a:hover { background: var(--wra-gray-100); }
+        .mobile-header-menu a.active { color: var(--wra-primary); }
+
+        .about-main {
+            flex: 1;
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: var(--space-8) var(--space-5) var(--space-10);
+            width: 100%;
+        }
+        .about-hero {
+            text-align: center;
+            margin-bottom: var(--space-10);
+        }
+        .about-hero h1 {
+            font-size: clamp(1.75rem, 4vw, 2.25rem);
+            font-weight: var(--font-bold);
+            margin: 0 0 var(--space-3);
+            letter-spacing: -0.02em;
+        }
+        .about-hero p {
+            margin: 0 auto;
+            max-width: 36rem;
+            color: var(--wra-text-muted);
+            font-size: var(--text-lg);
+        }
+        .about-hero .flag { margin-left: 0.25em; }
+
+        .about-grid {
+            display: grid;
+            gap: var(--space-6);
+        }
+        @media (min-width: 768px) {
+            .about-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .about-card {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(229, 231, 235, 0.95);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+        }
+        .about-card h2 {
+            font-size: var(--text-xl);
+            font-weight: var(--font-semibold);
+            margin: 0 0 var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            color: var(--wra-gray-900);
+        }
+        .about-card h2 i {
+            color: var(--wra-primary);
+            font-size: 1.25rem;
+        }
+        .about-card p {
+            margin: 0 0 var(--space-3);
+            color: var(--wra-gray-700);
+            font-size: var(--text-sm);
+        }
+        .about-card p:last-child { margin-bottom: 0; }
+        .about-card ul {
+            margin: 0;
+            padding-left: 1.25rem;
+            color: var(--wra-gray-700);
+            font-size: var(--text-sm);
+        }
+        .about-card li { margin-bottom: var(--space-2); }
+
+        .about-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-4);
+            margin-top: var(--space-4);
+        }
+        @media (min-width: 600px) {
+            .about-stats { grid-template-columns: repeat(4, 1fr); }
+        }
+        .about-stat {
+            text-align: center;
+            padding: var(--space-4);
+            background: var(--wra-primary-light);
+            border-radius: var(--radius-lg);
+        }
+        .about-stat strong {
+            display: block;
+            font-size: var(--text-2xl);
+            font-weight: var(--font-bold);
+            color: var(--wra-primary-dark);
+        }
+        .about-stat span {
+            font-size: var(--text-xs);
+            color: var(--wra-text-muted);
+        }
+
+        .about-cta {
+            margin-top: var(--space-10);
+            text-align: center;
+            padding: var(--space-8);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--wra-border);
+        }
+        .about-cta p { margin: 0 0 var(--space-4); color: var(--wra-text-muted); }
+        .about-cta .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-3);
+            justify-content: center;
+        }
+
+        .skip-link {
+            position: absolute;
+            left: -9999px;
+            z-index: 10000;
+            padding: 8px 16px;
+            background: var(--wra-primary);
+            color: #fff;
+            border-radius: var(--radius-sm);
+        }
+        .skip-link:focus { left: 8px; top: 8px; }
+
+        @media (max-width: 900px) {
+            .nav-menu { display: none; }
+            .header-burger {
+                display: inline-flex;
+                margin-left: auto;
+                order: 3;
+            }
+            .header-buttons {
+                order: 2;
+                margin-left: auto;
+                gap: 8px;
+            }
+            .header-buttons .btn { min-height: 40px; padding: 9px 14px; font-size: var(--text-xs); }
+            .header.mobile-menu-open .header-buttons { display: none; }
+            .header.mobile-menu-open .mobile-header-menu { display: flex; }
+            .header { padding: var(--space-3) var(--space-4); }
+        }
+    </style>
+</head>
+<body>
+    <a href="#about-main" class="skip-link">К основному содержимому</a>
+    <canvas id="aboutBgCanvas" width="800" height="600" aria-hidden="true"></canvas>
+
+    <div class="about-wrap">
+        <header class="header">
+            <div class="header-content">
+                <a href="index.html" class="logo"><img src="image/logo.svg" alt="World Ride Auto"></a>
+                <button type="button" class="header-burger" id="headerBurgerBtn" aria-expanded="false" aria-controls="mobileHeaderMenu" aria-label="Открыть меню">
+                    <span></span><span></span><span></span>
+                </button>
+                <nav class="nav-menu" aria-label="Основная навигация">
+                    <a href="about.html" class="active">О компании</a>
+                    <a href="index.html#catalog-main">Каталог</a>
+                    <a href="howtobuy.html">Как купить</a>
+                    <a href="https://t.me/nikits15" target="_blank" rel="noopener">Контакты</a>
+                </nav>
+                <div class="header-buttons">
+                    <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank" rel="noopener">Связаться с менеджером</a>
+                    <button type="button" id="headerFavoritesBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Избранные автомобили">
+                        Избранное <span class="auth-fav-count">0</span>
+                    </button>
+                    <button type="button" id="headerAccountBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Личный кабинет">Кабинет</button>
+                    <button type="button" id="headerLoginBtn" class="btn btn-secondary">Войти</button>
+                </div>
+            </div>
+            <nav class="mobile-header-menu" id="mobileHeaderMenu" aria-label="Мобильное меню"></nav>
+        </header>
+
+        <main class="about-main" id="about-main">
+            <header class="about-hero">
+                <h1>World Ride Auto <span class="flag" aria-hidden="true">🇰🇷</span></h1>
+                <p>Импорт автомобилей из Южной Кореи: подбор, проверка, логистика и сопровождение до ключей. Ниже — черновик разделов: замените тексты на свои.</p>
+            </header>
+
+            <div class="about-grid">
+                <article class="about-card" id="section-who">
+                    <h2><i class="fas fa-users" aria-hidden="true"></i> Кто мы</h2>
+                    <p><strong>[Заготовка]</strong> Кратко опишите компанию: когда создана, где зарегистрирована, кто стоит за брендом. Например: команда в России и партнёры в Корее, фокус на прозрачности сделки.</p>
+                    <p>Добавьте 2–3 предложения о том, чем вы отличаетесь от «обычного перекупа» или брокера без офиса.</p>
+                </article>
+
+                <article class="about-card" id="section-mission">
+                    <h2><i class="fas fa-bullseye" aria-hidden="true"></i> Миссия и ценности</h2>
+                    <p><strong>[Заготовка]</strong> Зачем вы это делаете для клиента (экономия времени, честный расчёт, безопасная сделка).</p>
+                    <ul>
+                        <li>Прозрачность расчёта и этапов</li>
+                        <li>Реальные осмотры и отчёты</li>
+                        <li>Сопровождение до постановки на учёт — <em>отредактируйте под себя</em></li>
+                    </ul>
+                </article>
+
+                <article class="about-card" id="section-process">
+                    <h2><i class="fas fa-route" aria-hidden="true"></i> Как мы работаем</h2>
+                    <p><strong>[Заготовка]</strong> Короткая цепочка: подбор → залог/осмотр → выкуп → море → Владивосток → таможня → доставка в город.</p>
+                    <p>Можно вставить ссылку на подробную страницу <a href="howtobuy.html">«Как купить»</a> с интерактивными шагами.</p>
+                </article>
+
+                <article class="about-card" id="section-trust">
+                    <h2><i class="fas fa-shield-halved" aria-hidden="true"></i> Надёжность</h2>
+                    <p><strong>[Заготовка]</strong> Договор, чеки, возвратный залог (если актуально), работа с проверенными брокерами и перевозчиками. Без конкретных обещаний, если не готовы их юридически подкрепить.</p>
+                </article>
+            </div>
+
+            <article class="about-card" id="section-stats" style="margin-top: var(--space-6);">
+                <h2><i class="fas fa-chart-line" aria-hidden="true"></i> В цифрах</h2>
+                <p>Замените цифры на реальные или удалите блок.</p>
+                <div class="about-stats">
+                    <div class="about-stat"><strong>—</strong><span>лет на рынке</span></div>
+                    <div class="about-stat"><strong>—</strong><span>авто привезено</span></div>
+                    <div class="about-stat"><strong>—</strong><span>городов доставки</span></div>
+                    <div class="about-stat"><strong>24/7</strong><span>связь в мессенджере</span></div>
+                </div>
+            </article>
+
+            <section class="about-cta" id="section-cta">
+                <p>Готовы подобрать авто или обсудить условия? Напишите в Telegram — ответим с актуальными сроками и ориентиром по бюджету.</p>
+                <div class="btn-row">
+                    <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank" rel="noopener"><i class="fab fa-telegram" aria-hidden="true"></i> Telegram</a>
+                    <a href="index.html#catalog-main" class="btn btn-secondary">Перейти в каталог</a>
+                </div>
+            </section>
+        </main>
+
+        <div class="footer-wrap" style="position: relative; z-index: 1;">
+            <footer class="footer">
+                <div class="footer-top">
+                    <a href="index.html" class="footer-logo">
+                        <img src="image/logo.svg" alt="World Ride Auto">
+                    </a>
+                    <nav class="footer-nav">
+                        <a href="privacy.html">Политика конфиденциальности</a>
+                        <a href="cookies.html">Политика cookie</a>
+                        <a href="agreement.html">Пользовательское соглашение</a>
+                    </nav>
+                    <div class="footer-copy">
+                        <span class="copy-line">&copy; World Ride Auto 2026</span>
+                        <span class="copy-made">сделано в World Ride Auto</span>
+                    </div>
+                </div>
+                <div class="footer-legal">
+                    <p>Информация на странице носит ознакомительный характер и не является публичной офертой.</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script src="js/about-bg.js" defer></script>
+    <script src="js/header-init.js?v=20260410" defer></script>
+    <script src="js/cookie-consent.js?v=20260410" defer></script>
+</body>
+</html>
