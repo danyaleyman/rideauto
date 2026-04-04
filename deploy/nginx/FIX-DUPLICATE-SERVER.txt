@@ -1,0 +1,51 @@
+Сайт «лежит», при этом `sudo nginx -t` успешен
+================================================
+
+В логе nginx часто есть:
+
+  conflicting server name "rideauto.ru" on 0.0.0.0:80, ignored
+
+Это значит: на порту 80 объявлено ДВА (или больше) блока server { } с одним и тем же
+server_name rideauto.ru. Nginx использует ПЕРВЫЙ такой блок, остальные ПОЛНОСТЬЮ
+игнорирует. Если первый — старый/пустой конфиг, а актуальный prod-encar.conf оказался
+вторым, сайт перестаёт открываться.
+
+Что сделать на сервере
+----------------------
+
+1) Список включённых сайтов:
+
+   ls -la /etc/nginx/sites-enabled/
+
+2) Найти все файлы, где фигурирует rideauto.ru:
+
+   grep -l "rideauto.ru" /etc/nginx/sites-enabled/*
+
+3) Посмотреть полный конфиг, как его видит nginx (и порядок server):
+
+   sudo nginx -T 2>/dev/null | grep -E "server_name|listen 80|listen 443" | head -80
+
+4) Оставить ОДИН источник правды для rideauto.ru на :80 (и при необходимости :443).
+   Типичный лишний файл после certbot: отдельный sites-enabled/rideauto.ru рядом с
+   prod-encar.conf. Отключите дубликат:
+
+   sudo rm /etc/nginx/sites-enabled/ИМЯ_ЛИШНЕГО_ФАЙЛА
+
+   (или перенесите listen/ssl в один общий server, как рекомендует комментарий в
+   deploy/nginx/prod-encar.conf)
+
+5) Проверка и перезагрузка:
+
+   sudo nginx -t && sudo systemctl reload nginx
+
+6) Быстрая проверка ответа:
+
+   curl -sI -H "Host: rideauto.ru" http://127.0.0.1/ | head -5
+
+Дубликат MIME type "text/html"
+------------------------------
+
+Предупреждение указывает на строку в вашем prod-encar.conf на сервере. Часто это
+дважды указанный text/html в gzip_types или в types { }. В актуальном шаблоне из репо
+gzip_types не содержит text/html (см. комментарий в файле). Сравните серверный файл с
+git: `git diff deploy/nginx/prod-encar.conf` после pull.
