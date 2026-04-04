@@ -5,6 +5,10 @@
     let catalogTotal = 0;
     let catalogPages = 1;
     let catalogRequestId = 0;
+    /** Отмена предыдущего запроса списка при быстрой смене фильтров/страницы. */
+    let carsListAbort = null;
+    /** Отмена предыдущего /api/facets, чтобы не ждать ответ по устаревшим параметрам. */
+    let facetsListAbort = null;
     let useStaticCatalog = false;
     let staticCatalogCache = null;
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
@@ -1007,7 +1011,7 @@
     }
 
     function applyFacetsApiPayload(data, reqId) {
-      if (reqId !== catalogRequestId) return;
+      if (reqId != null && reqId !== catalogRequestId) return;
       if (!data || typeof data !== 'object') return;
       function cascade(container, rows, filterKey, labelCat, trigger, allLabel) {
         if (!container) return;
@@ -1128,8 +1132,9 @@
       }
     }
 
-    function refreshFacetsFromStaticCache(reqId) {
-      if (reqId !== catalogRequestId || !staticCatalogCache || !staticCatalogCache.length) return;
+    function refreshFacetsFromStaticCache(expectedParamSnap) {
+      if (expectedParamSnap != null && expectedParamSnap !== buildCatalogFilterParams().toString()) return;
+      if (!staticCatalogCache || !staticCatalogCache.length) return;
       function dim(omitKeys, pick) {
         var p = paramsForFacet(omitKeys);
         var map = {};
@@ -1210,35 +1215,67 @@
     }
 
     async function refreshFacetBars(reqId) {
+      const paramSnap = buildCatalogFilterParams().toString();
       if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
-        refreshFacetsFromStaticCache(reqId);
+        refreshFacetsFromStaticCache(paramSnap);
         return;
       }
-      const params = buildCatalogFilterParams();
-      const res = await fetch(apiUrl('/api/facets?' + params.toString()));
+      if (facetsListAbort) {
+        try {
+          facetsListAbort.abort();
+        } catch (eAb) {}
+      }
+      facetsListAbort = new AbortController();
+      var sig = facetsListAbort.signal;
+      var res;
+      try {
+        res = await fetch(apiUrl('/api/facets?' + paramSnap), { signal: sig });
+      } catch (eFetch) {
+        if (eFetch && eFetch.name === 'AbortError') return;
+        throw eFetch;
+      }
       if (!res.ok) throw new Error('facets HTTP ' + res.status);
       const data = await res.json();
-      if (reqId !== catalogRequestId) return;
-      applyFacetsApiPayload(data, reqId);
+      if (paramSnap !== buildCatalogFilterParams().toString()) return;
+      applyFacetsApiPayload(data, null);
     }
 
     /** Фасеты НЕ опережают сетку: список грузится первым, затем статика или /api/facets. */
     function scheduleFacetRefresh(reqId) {
       function run() {
         refreshFacetBars(reqId).catch(function(e) {
+          if (e && e.name === 'AbortError') return;
           if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
         });
       }
-      setTimeout(run, 0);
+      if (typeof queueMicrotask === 'function') queueMicrotask(run);
+      else setTimeout(run, 0);
     }
 
+    /** Короче 320ms: цена/пробег и т.д. ощущаются отзывчивее; «дребезг» сглаживается abort fetch. */
+    const APPLY_DEBOUNCE_MS = 160;
     let debouncedApplyTimer = null;
     function scheduleDebouncedApplyFilters() {
       if (debouncedApplyTimer) clearTimeout(debouncedApplyTimer);
       debouncedApplyTimer = setTimeout(function() {
         debouncedApplyTimer = null;
         void runApplyFilters();
-      }, 320);
+      }, APPLY_DEBOUNCE_MS);
+    }
+
+    function flushDebouncedApplyAndRun() {
+      if (debouncedApplyTimer) {
+        clearTimeout(debouncedApplyTimer);
+        debouncedApplyTimer = null;
+      }
+      void runApplyFilters();
+    }
+
+    function bindDebouncedNumericFilter(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', scheduleDebouncedApplyFilters);
+      el.addEventListener('change', flushDebouncedApplyAndRun);
     }
 
     function parseCarsApiPayload(data) {
@@ -1333,7 +1370,19 @@
         params.set('page', String(targetPage));
         params.set('per_page', String(PER_PAGE));
         params.set('sort', currentSort || 'date_new');
-        const res = await fetch(apiUrl('/api/cars?' + params.toString()));
+        if (carsListAbort) {
+          try {
+            carsListAbort.abort();
+          } catch (eCa) {}
+        }
+        carsListAbort = new AbortController();
+        var res;
+        try {
+          res = await fetch(apiUrl('/api/cars?' + params.toString()), { signal: carsListAbort.signal });
+        } catch (eF) {
+          if (eF && eF.name === 'AbortError') return;
+          throw eF;
+        }
         if (!res.ok) throw new Error('cars HTTP ' + res.status);
         const data = await res.json();
         if (reqId !== catalogRequestId) return;
@@ -1351,6 +1400,7 @@
         if (targetPage === 1) scheduleIdlePrefetchCatalogPage2();
       } catch (err) {
         if (reqId !== catalogRequestId) return;
+        if (err && err.name === 'AbortError') return;
         if (!staticCatalogCache && allowCarsJsonFallback()) {
           try {
             var jr = await fetch('cars.json');
@@ -1389,10 +1439,10 @@
     async function runApplyFilters() {
       const reqId = ++catalogRequestId;
       page = 1;
+      scheduleFacetRefresh(reqId);
       try {
         await loadCarsPage(1, reqId);
         if (reqId !== catalogRequestId) return;
-        scheduleFacetRefresh(reqId);
       } catch (e) {
         if (reqId !== catalogRequestId) return;
         console.error(e);
@@ -1929,11 +1979,22 @@
             return;
           }
           if (t.id === 'filterPassageCars') {
-            scheduleDebouncedApplyFilters();
+            void runApplyFilters();
+            return;
+          }
+          if (
+            df === 'noInsuranceCases' ||
+            df === 'noInsurancePayouts' ||
+            df === 'noDamaged' ||
+            t.id === 'filterNoInsuranceCases' ||
+            t.id === 'filterNoInsurancePayouts' ||
+            t.id === 'filterNoDamaged'
+          ) {
+            void runApplyFilters();
             return;
           }
           if (t.closest('#bodyList') || t.closest('#fuelList') || t.closest('#transmissionList') || t.closest('.drive-checkbox-wrap')) {
-            scheduleDebouncedApplyFilters();
+            void runApplyFilters();
           }
         });
       }
@@ -2005,10 +2066,7 @@
       }
 
       ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo',
-       'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) el.addEventListener('input', scheduleDebouncedApplyFilters);
-      });
+        'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'].forEach(bindDebouncedNumericFilter);
       [yearFromEl, yearToEl].filter(Boolean).forEach(function(el) {
         el.addEventListener('change', function() {
           syncYearMonthDropdowns();
