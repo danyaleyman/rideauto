@@ -446,6 +446,18 @@ def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
     return {k: v for k, v in raw.items() if k not in skip and v not in (None, "")}
 
 
+def _is_default_first_catalog_page(q: Dict[str, str]) -> bool:
+    """Как preload на главной: нет фильтров, page=1, per_page=12, sort=date_new, не full=1."""
+    if (q.get("full") or "").strip() == "1":
+        return False
+    if _catalog_query_dict(q):
+        return False
+    page = (q.get("page") or "1").strip() or "1"
+    per = (q.get("per_page") or "12").strip() or "12"
+    sort = (q.get("sort") or "date_new").strip() or "date_new"
+    return page == "1" and per == "12" and sort == "date_new"
+
+
 _CATALOG_SORT_SQL = {
     "date_new": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) DESC",
     "date_old": "COALESCE(json_extract(data_json, '$.data.offer_created'), json_extract(data_json, '$.data.created_at')) ASC",
@@ -745,8 +757,13 @@ async def cars(request: web.Request) -> web.Response:
     slim = (q.get("full") or "").strip() != "1"
     db_path: str = request.app["db_path"]
     payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
-    # Slim-выдача сильно меньше → чуть дольше браузерный кэш; full=1 — как раньше
-    cache = "public, max-age=60, stale-while-revalidate=180" if slim else "public, max-age=20, stale-while-revalidate=120"
+    # Первая страница без фильтров (как у конкурента с «мгновенным» списком после preload) — дольше SWR у клиента.
+    if slim and _is_default_first_catalog_page(q):
+        cache = "public, max-age=120, stale-while-revalidate=600"
+    elif slim:
+        cache = "public, max-age=60, stale-while-revalidate=180"
+    else:
+        cache = "public, max-age=20, stale-while-revalidate=120"
     return _json_public_cache(payload, cache)
 
 
@@ -808,7 +825,10 @@ async def car_by_id(request: web.Request) -> web.Response:
 
     car = json.loads(row["data_json"])
     car["id"] = row["car_id"]
-    return web.json_response({"result": car})
+    return _json_public_cache(
+        {"result": car},
+        "public, max-age=45, stale-while-revalidate=300",
+    )
 
 
 async def similar(request: web.Request) -> web.Response:

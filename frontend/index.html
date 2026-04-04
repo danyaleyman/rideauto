@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="css/auth-favorites.css?v=20260410">
     <link rel="stylesheet" href="css/cookie-consent.css?v=20260410">
     <link rel="preload" href="data/catalog_facets.json" as="fetch" crossorigin>
+    <!-- Параллельно с catalog.js: тот же URL, что первый fetch (PER_PAGE=12, sort=date_new). Только same-origin API (WRA_API_BASE пустой). -->
+    <link rel="preload" href="/api/cars?page=1&amp;per_page=12&amp;sort=date_new" as="fetch" crossorigin>
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
     <link rel="preload" href="js/catalog.js?v=20260416" as="script">
