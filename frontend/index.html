@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Автомобили из Кореи и Азии с доставкой во Владивосток. Каталог, фильтры, цены и оформление через World Ride Auto.">
+    <meta property="og:title" content="World Ride Auto — авто из Азии">
+    <meta property="og:description" content="Каталог автомобилей с Кореи: цены, комплектации, доставка.">
+    <meta property="og:type" content="website">
     <title>World Ride Auto - Авто из Азии</title>
     <link rel="icon" type="image/svg+xml" href="image/logo%20no%20text.svg">
     <link rel="stylesheet" href="css/common.css?v=20260410">
@@ -10,11 +14,32 @@
     <link rel="stylesheet" href="css/cookie-consent.css?v=20260410">
     <link rel="preload" href="data/catalog_facets.json" as="fetch" crossorigin>
     <!-- Параллельно с catalog.js: тот же URL, что первый fetch (PER_PAGE=12, sort=date_new). Только same-origin API (WRA_API_BASE пустой). -->
-    <link rel="preload" href="/api/cars?page=1&amp;per_page=12&amp;sort=date_new" as="fetch" crossorigin>
+    <link rel="preload" href="/api/cars?page=1&amp;per_page=12&amp;sort=date_new&amp;source=encar" as="fetch" crossorigin id="wraPreloadCarsApi">
     <link rel="preload" href="/api/counts" as="fetch" crossorigin>
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
-    <link rel="preload" href="js/catalog.js?v=20260422" as="script">
+    <link rel="preload" href="js/catalog.js?v=20260424" as="script">
+    <script>
+      (function () {
+        try {
+          var p = new URLSearchParams(window.location.search || '');
+          var src0 = (p.get('source') || '').toLowerCase();
+          var china =
+            (p.get('region') || '').toLowerCase() === 'china' ||
+            src0 === 'che168' ||
+            src0 === 'dongchedi';
+          document.documentElement.classList.add(china ? 'wra-catalog-china' : 'wra-catalog-korea');
+          var pre = document.getElementById('wraPreloadCarsApi');
+          if (pre)
+            pre.setAttribute(
+              'href',
+              '/api/cars?page=1&per_page=12&sort=date_new&source=' + (china ? 'dongchedi' : 'encar')
+            );
+        } catch (e) {
+          document.documentElement.classList.add('wra-catalog-korea');
+        }
+      })();
+    </script>
     <script defer src="/js/wra-site-config.js?v=20260421"></script>
     <script defer src="/js/auth-favorites.js?v=20260416"></script>
     <script defer src="/js/copy-protection.js?v=20260410"></script>
@@ -1837,6 +1862,67 @@
       color: var(--wra-primary);
       margin: 0 0 0 60px;
     }
+    html.wra-catalog-korea .wra-hero-brand-china,
+    html.wra-catalog-korea .wra-hero-tagline-china {
+      display: none !important;
+    }
+    html.wra-catalog-china .wra-hero-brand-korea,
+    html.wra-catalog-china .wra-hero-tagline-korea {
+      display: none !important;
+    }
+    .hero-banner-brand .brand-name .wra-hero-brand-korea,
+    .hero-banner-brand .brand-name .wra-hero-brand-china {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .hero-region-switch {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0 0 60px;
+    }
+    .hero-region-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--wra-border);
+      background: var(--wra-surface);
+      color: var(--wra-gray-900);
+      box-shadow: var(--shadow);
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+    }
+    .hero-region-btn:hover {
+      border-color: var(--wra-gray-400);
+      transform: translateY(-1px);
+    }
+    .hero-region-btn:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+    html.wra-catalog-korea .hero-region-btn[data-wra-region='korea'],
+    html.wra-catalog-china .hero-region-btn[data-wra-region='china'] {
+      background: var(--wra-primary);
+      border-color: var(--wra-primary);
+      color: var(--wra-white);
+    }
+    html.wra-catalog-china .wra-filters-region--korea {
+      display: none !important;
+    }
+    html.wra-catalog-korea .wra-filters-region--china {
+      display: none !important;
+    }
+    .wra-china-filters-hint {
+      margin: 0;
+      font-size: 0.8125rem;
+      line-height: 1.45;
+      color: var(--wra-text-muted);
+    }
     .hero-banner-cards {
       flex: 1;
       display: flex;
@@ -2034,6 +2120,7 @@
         max-width: 100%;
       }
       .hero-banner-brand .tagline { margin-left: 0; margin-right: 0; max-width: 100%; }
+      .hero-region-switch { margin-left: 0; margin-right: 0; justify-content: center; }
       .hero-banner-cards { flex-direction: column; max-width: 100%; min-width: 0; }
       .hero-banner-card-static { flex: 1 1 auto; max-width: none; }
       .hero-banner-slider-wrap {
@@ -2332,6 +2419,7 @@
       <nav class="nav-menu">
         <a href="/about">О компании</a>
         <a href="/catalog">Каталог</a>
+        <a href="?region=china">Китай (懂车帝)</a>
         <a href="/buy">Как купить</a>
         <a href="/contacts">Контакты</a>
       </nav>
@@ -2348,6 +2436,7 @@
     <nav class="mobile-header-menu" id="mobileHeaderMenu" aria-label="Мобильное меню">
       <a href="/about">О компании</a>
       <a href="/catalog">Каталог</a>
+      <a href="?region=china">Китай (懂车帝)</a>
       <a href="/buy">Как купить</a>
       <a href="/contacts">Контакты</a>
     </nav>
@@ -2357,8 +2446,16 @@
   <div class="hero-banner-wrap">
     <section class="hero-banner">
       <div class="hero-banner-brand">
-        <h2 class="brand-name">World Ride Auto <span class="flag" aria-hidden="true">🇰🇷</span></h2>
-        <p class="tagline">Авто из Южной Кореи без посредников</p>
+        <h2 class="brand-name">
+          <span class="wra-hero-brand-korea">World Ride Auto <span class="flag" aria-hidden="true">🇰🇷</span></span>
+          <span class="wra-hero-brand-china">World Ride Auto <span class="flag" aria-hidden="true">🇨🇳</span></span>
+        </h2>
+        <p class="tagline wra-hero-tagline-korea">Авто из Южной Кореи без посредников</p>
+        <p class="tagline wra-hero-tagline-china">Подбор с китайской площадки 懂车帝 (Dongchedi)</p>
+        <div class="hero-region-switch" role="navigation" aria-label="Выбор рынка каталога">
+          <a class="hero-region-btn" href="?region=korea" data-wra-region="korea"><span aria-hidden="true">🇰🇷</span> Корея (Encar)</a>
+          <a class="hero-region-btn" href="?region=china" data-wra-region="china"><span aria-hidden="true">🇨🇳</span> Китай (懂车帝)</a>
+        </div>
       </div>
       <div class="hero-banner-cards">
         <div class="hero-banner-card-static">
@@ -2436,6 +2533,13 @@
           </div>
         </div>
       </div>
+      <div class="wra-filters-region wra-filters-region--china filter-group">
+        <h4>Каталог Китая</h4>
+        <p class="wra-china-filters-hint">
+          Доступны марка, модель, цена (₽, ориентир), пробег и год. Фильтры расширяем по мере наполнения базы 懂车帝.
+        </p>
+      </div>
+      <div class="wra-filters-region wra-filters-region--korea">
       <!-- 3. Поколение -->
       <div class="filter-cascade-slot" id="cascadeSlotGeneration" aria-hidden="true">
         <div class="filter-cascade-slot__inner">
@@ -2501,6 +2605,7 @@
           </div>
         </div>
       </div>
+      </div>
       <!-- 9. Цена -->
       <div class="filter-group">
         <h4>Цена (руб)</h4>
@@ -2546,6 +2651,7 @@
             <select id="monthTo" class="year-native-select"><option value="">Месяц</option></select>
           </div>
         </div>
+        <div class="wra-filters-region wra-filters-region--korea">
         <div class="drive-checkbox-wrap" style="margin-top: 10px;">
           <div class="checkbox-item">
             <label class="checkbox" data-selected="false">
@@ -2555,8 +2661,10 @@
             </label>
           </div>
         </div>
+        </div>
       </div>
       <!-- 12. Тип привода: только полный -->
+      <div class="wra-filters-region wra-filters-region--korea">
       <div class="filter-group">
         <h4>Тип привода</h4>
         <div class="drive-checkbox-wrap">
@@ -2569,7 +2677,9 @@
           </div>
         </div>
       </div>
+      </div>
       <!-- Страховка и повреждения (сворачиваемый блок) -->
+      <div class="wra-filters-region wra-filters-region--korea">
       <div class="filter-section-toggle" id="filterSectionHistory">
         <button type="button" class="filter-section-toggle__btn" id="filterSectionHistoryBtn" aria-expanded="false" aria-controls="filterSectionHistoryBody">
           <span>Страховка и повреждения</span>
@@ -2628,11 +2738,14 @@
           </div>
         </div>
       </div>
+      </div>
       <!-- 16. Цвет: 4 в меню + кнопка «Показать ещё» -->
+      <div class="wra-filters-region wra-filters-region--korea">
       <div class="filter-group filter-group--colors">
         <h4>Цвет кузова</h4>
         <div class="checkbox-list" id="colorListVisible"></div>
         <button type="button" class="show-more-colors-btn" id="showMoreColorsBtn" style="display: none;">Показать цвета ещё</button>
+      </div>
       </div>
     </div>
     <div class="filters-panel-footer">
@@ -2737,7 +2850,7 @@
   else scrollToCatalogIfPath();
 })();
 </script>
-<script src="js/catalog.js?v=20260422" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/catalog.js?v=20260424" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
 <script src="js/header-init.js?v=20260410" defer></script>
 <script src="js/cookie-consent.js?v=20260421" defer></script>
 

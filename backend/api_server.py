@@ -12,7 +12,9 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import os
+import re
 import secrets
 import sqlite3
 import threading
@@ -31,6 +33,11 @@ APP_DB = web.AppKey("db", sqlite3.Connection)
 APP_TELEGRAM_BOT_TOKEN = web.AppKey("telegram_bot_token", str)
 APP_SUBSCRIPTIONS_ADMIN_KEY = web.AppKey("subscriptions_admin_key", str)
 APP_PUBLIC_SITE_URL = web.AppKey("public_site_url", str)
+
+_LOG = logging.getLogger("wra.api")
+_RATE_BUCKETS: DefaultDict[str, List[float]] = defaultdict(list)
+_RATE_LOCK = threading.Lock()
+_RATE_WINDOW_SEC = 60.0
 
 _CATALOG_INDEX_LOCK = threading.Lock()
 # Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
@@ -120,7 +127,7 @@ def _db_connect(path: str) -> sqlite3.Connection:
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _init_app_tables(conn: sqlite3.Connection) -> None:
@@ -337,6 +344,7 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "color",
         "krw_per_usdt",
         "usdt_rub",
+        "source",
     }
 )
 
@@ -482,6 +490,22 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
         )
         clauses.append(f"{age_expr} BETWEEN 3 AND 5")
 
+    src = (query.get("source") or "").strip().lower()
+    if src == "che168":
+        clauses.append("json_extract(data_json, '$.data.source') = ?")
+        params.append("che168")
+    elif src == "dongchedi":
+        clauses.append("json_extract(data_json, '$.data.source') = ?")
+        params.append("dongchedi")
+    elif src == "encar":
+        clauses.append(
+            "("
+            "json_extract(data_json, '$.data.source') IS NULL "
+            "OR TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')) = '' "
+            "OR json_extract(data_json, '$.data.source') = 'encar'"
+            ")"
+        )
+
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     return where, params
 
@@ -529,7 +553,13 @@ def _is_default_first_catalog_page(q: Dict[str, str]) -> bool:
     """Как preload на главной: нет фильтров, page=1, per_page=12, sort=date_new, не full=1."""
     if (q.get("full") or "").strip() == "1":
         return False
-    if _catalog_query_dict(q):
+    qd = dict(_catalog_query_dict(q))
+    src_low = (qd.get("source") or "").strip().lower()
+    if src_low == "encar":
+        qd.pop("source", None)
+    if src_low == "dongchedi":
+        qd.pop("source", None)
+    if qd:
         return False
     page = (q.get("page") or "1").strip() or "1"
     per = (q.get("per_page") or "12").strip() or "12"
@@ -1023,7 +1053,12 @@ async def auth_telegram(request: web.Request) -> web.Response:
     )
     user = conn.execute("SELECT * FROM users WHERE tg_id = ? LIMIT 1", [tg_id]).fetchone()
     token = secrets.token_urlsafe(40)
-    expires_at = datetime.utcfromtimestamp(int(time.time()) + 60 * 60 * 24 * 30).replace(microsecond=0).isoformat() + "Z"
+    expires_at = (
+        datetime.fromtimestamp(int(time.time()) + 60 * 60 * 24 * 30, tz=timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
     conn.execute(
         "INSERT INTO user_sessions (token, user_id, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?)",
         [token, user["id"], now, expires_at, now],
@@ -1379,7 +1414,57 @@ async def run_subscription_notifications(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "checked": checked, "sent": sent})
 
 
+def _request_id_header(request: web.Request) -> str:
+    raw = (request.headers.get("X-Request-Id") or "").strip()
+    if raw and re.fullmatch(r"[a-zA-Z0-9-]{8,64}", raw):
+        return raw
+    return secrets.token_hex(8)
+
+
+def _client_ip_for_rate_limit(request: web.Request) -> str:
+    fwd = (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+    if fwd:
+        return fwd
+    return request.remote or "unknown"
+
+
+def _env_int(name: str, default: int = 0) -> int:
+    try:
+        return max(0, int((os.environ.get(name) or "").strip() or str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _rate_limit_take(key: str, limit: int) -> bool:
+    """True if allowed, False if over limit."""
+    if limit <= 0:
+        return True
+    now = time.monotonic()
+    with _RATE_LOCK:
+        bucket = _RATE_BUCKETS[key]
+        bucket[:] = [t for t in bucket if now - t < _RATE_WINDOW_SEC]
+        if len(bucket) >= limit:
+            return False
+        bucket.append(now)
+        return True
+
+
 def create_app(db_path: str) -> web.Application:
+    @web.middleware
+    async def access_log_middleware(request, handler):
+        rid = _request_id_header(request)
+        t0 = time.monotonic()
+        try:
+            resp = await handler(request)
+        except Exception:
+            dt_ms = int((time.monotonic() - t0) * 1000)
+            _LOG.info("%s %s -> error %dms rid=%s", request.method, request.path_qs, dt_ms, rid)
+            raise
+        dt_ms = int((time.monotonic() - t0) * 1000)
+        resp.headers["X-Request-Id"] = rid
+        _LOG.info("%s %s -> %s %dms rid=%s", request.method, request.path_qs, resp.status, dt_ms, rid)
+        return resp
+
     @web.middleware
     async def cors_middleware(request, handler):
         if request.method == "OPTIONS":
@@ -1394,7 +1479,31 @@ def create_app(db_path: str) -> web.Application:
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         return resp
 
-    app = web.Application(middlewares=[cors_middleware])
+    @web.middleware
+    async def rate_limit_middleware(request, handler):
+        if request.method != "POST":
+            return await handler(request)
+        ip = _client_ip_for_rate_limit(request)
+        path = request.path
+        auth_limit = _env_int("WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE", 0)
+        if path == "/api/auth/telegram" and auth_limit > 0:
+            if not _rate_limit_take(f"auth_tg:{ip}", auth_limit):
+                return web.json_response(
+                    {"error": "rate_limit"},
+                    status=429,
+                    headers={"Retry-After": "60", "Cache-Control": "no-store"},
+                )
+            return await handler(request)
+        post_limit = _env_int("WRA_RATE_LIMIT_POST_PER_MINUTE", 0)
+        if post_limit > 0 and not _rate_limit_take(f"post:{ip}", post_limit):
+            return web.json_response(
+                {"error": "rate_limit"},
+                status=429,
+                headers={"Retry-After": "60", "Cache-Control": "no-store"},
+            )
+        return await handler(request)
+
+    app = web.Application(middlewares=[access_log_middleware, cors_middleware, rate_limit_middleware])
     resolved = str(Path(db_path).resolve())
     app[APP_DB_PATH] = resolved
     conn = _db_connect(resolved)
@@ -1437,6 +1546,12 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1", help="Host")
     parser.add_argument("--port", type=int, default=8080, help="Port")
     args = parser.parse_args()
+
+    if not logging.root.handlers:
+        logging.basicConfig(
+            level=getattr(logging, (os.environ.get("LOG_LEVEL") or "INFO").upper(), logging.INFO),
+            format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        )
 
     db_path = str(Path(args.db).resolve())
     app = create_app(db_path)

@@ -12,6 +12,49 @@
     let useStaticCatalog = false;
     let staticCatalogCache = null;
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
+    /**
+     * Рынок: Корея → API `source=encar`, Китай → `source=dongchedi` (или устар. `che168` для старых данных).
+     * URL: `?region=korea|china` или `?source=dongchedi|che168`. Переопределение: `window.WRA_CATALOG_SOURCE`.
+     */
+    var CATALOG_REGION = 'korea';
+    let CATALOG_SOURCE = 'encar';
+    (function initCatalogSource() {
+      try {
+        var w = typeof window !== 'undefined' && window.WRA_CATALOG_SOURCE ? String(window.WRA_CATALOG_SOURCE).trim() : '';
+        if (w) {
+          CATALOG_SOURCE = w;
+          var wl = w.toLowerCase();
+          CATALOG_REGION = wl === 'che168' || wl === 'dongchedi' ? 'china' : 'korea';
+          return;
+        }
+        var sp = new URLSearchParams(window.location.search || '');
+        var srcQ = (sp.get('source') || '').toLowerCase();
+        var regionChina = (sp.get('region') || '').toLowerCase() === 'china';
+        if (regionChina || srcQ === 'che168' || srcQ === 'dongchedi') {
+          CATALOG_REGION = 'china';
+          CATALOG_SOURCE = srcQ === 'che168' ? 'che168' : 'dongchedi';
+          return;
+        }
+        CATALOG_REGION = 'korea';
+        CATALOG_SOURCE = 'encar';
+      } catch (e) {
+        CATALOG_REGION = 'korea';
+        CATALOG_SOURCE = 'encar';
+      }
+    })();
+    (function applyCatalogRegionUi() {
+      try {
+        var h1 = document.querySelector('.catalog-header h1');
+        if (h1) {
+          h1.textContent =
+            CATALOG_REGION === 'china' ? 'Автомобили из Китая (懂车帝)' : 'Автомобили из Кореи (Encar)';
+        }
+        var hintNew = document.querySelector('.sort-option[data-value="date_new"] .sort-option-hint');
+        if (hintNew && CATALOG_REGION === 'china') {
+          hintNew.textContent = 'по дате в каталоге';
+        }
+      } catch (e) { /* ignore */ }
+    })();
     /** Таймаут ответа списка (мс); при медленном API не держим браузер в вечном pending. */
     var CATALOG_CARS_TIMEOUT_MS =
       typeof window.WRA_CATALOG_CARS_TIMEOUT_MS === 'number' && window.WRA_CATALOG_CARS_TIMEOUT_MS > 5000
@@ -66,6 +109,7 @@
      * Чисто статический каталог без API: задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true до catalog.js (и держите выгрузку небольшой или задайте лимит).
      */
     function allowCarsJsonFallback() {
+      if (CATALOG_SOURCE === 'che168' || CATALOG_SOURCE === 'dongchedi') return false;
       if (typeof window.WRA_ALLOW_CATALOG_JSON_FALLBACK === 'boolean') {
         return window.WRA_ALLOW_CATALOG_JSON_FALLBACK;
       }
@@ -887,6 +931,20 @@
       var pvc = el('filterPassageCars');
       if (pvc && pvc.checked) p.set('passage_cars', '1');
 
+      if (CATALOG_SOURCE) p.set('source', CATALOG_SOURCE);
+
+      return p;
+    }
+
+    /** «Пустые фильтры» для прогрева фасетов: режим Кореи (`source=encar`) не считается фильтром. */
+    function buildCatalogFilterParamsSansDefaultSource() {
+      var p = buildCatalogFilterParams();
+      if (CATALOG_REGION === 'korea' && p.get('source') === 'encar') {
+        p.delete('source');
+      }
+      if (CATALOG_REGION === 'china' && p.get('source') === 'dongchedi') {
+        p.delete('source');
+      }
       return p;
     }
 
@@ -1164,13 +1222,13 @@
       if (rid !== catalogRequestId) return;
       if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) return;
       try {
-        if (buildCatalogFilterParams().toString() !== '') return;
+        if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
         var params = buildCatalogFilterParams();
         var res = await fetch(apiUrl('/api/facets?' + params.toString()));
         if (!res.ok) return;
         var data = await res.json();
         if (rid !== catalogRequestId) return;
-        if (buildCatalogFilterParams().toString() !== '') return;
+        if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
         applyFacetsApiPayload(data, rid);
       } catch (e) {
         if (rid === catalogRequestId) console.warn('[catalog] facet revalidate failed', e);
@@ -1418,7 +1476,7 @@
     function scheduleIdlePrefetchCatalogPage2() {
       if (useStaticCatalog || catalogPages < 2) return;
       try {
-        if (buildCatalogFilterParams().toString() !== '') return;
+        if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
       } catch (e) {
         return;
       }
@@ -2381,7 +2439,7 @@
         var facetReq = catalogRequestId;
         if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
           scheduleFacetRefresh(facetReq);
-        } else if (buildCatalogFilterParams().toString() === '') {
+        } else if (buildCatalogFilterParamsSansDefaultSource().toString() === '') {
           tryHydrateFacetsWithWarmup(facetReq, facetsJsonPrefetch).then(function(used) {
             if (facetReq !== catalogRequestId) return;
             if (!used) scheduleFacetRefresh(facetReq);

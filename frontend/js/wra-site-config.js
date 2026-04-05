@@ -10,6 +10,10 @@
   if (typeof window.WRA_API_BASE !== "string") {
     window.WRA_API_BASE = "";
   }
+  /* Синхронизируйте с query ?v= у car-page*.js в car.html при релизе (или scripts/bump-asset-version.mjs). */
+  if (typeof window.WRA_ASSET_VERSION !== "string" || !window.WRA_ASSET_VERSION.trim()) {
+    window.WRA_ASSET_VERSION = "20260405car";
+  }
   /* Статический каталог без API: перед catalog.js задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true (см. catalog allowCarsJsonFallback). */
 
   /** Публичный URL карточки: /detail/{id} (nginx отдаёт car.html). Фолбэк для старых ссылок — 301 на сервере. */

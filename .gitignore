@@ -28,3 +28,6 @@ ENV/
 
 # Node (tailwind и др.; артефакты вроде car-tailwind.css коммитим отдельно)
 node_modules/
+
+# Playwright / e2e
+test-results/

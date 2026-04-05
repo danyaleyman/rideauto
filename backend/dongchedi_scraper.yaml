@@ -1,0 +1,15 @@
+# 懂车帝 → SQLite: python -m dongchedi.scraper --config dongchedi_scraper.yaml
+#
+# cd backend && python -m dongchedi.scraper --config dongchedi_scraper.yaml
+
+db_path: encar_cars.db
+# brand_id: "4"       # опционально (4 = 宝马). Без поля — все марки (как в POST без brand)
+# sh_city_name: 北京  # опционально; без поля — общий лимит листинга (~10k в выдаче)
+# age_range: "3,5"   # как в HAR (возраст авто)
+# series_id: 2825    # фильтр после ответа API (числовой id серии)
+# limit: 0           # 0 = без лимита; иначе макс. объявлений за прогон (кап 100)
+# max_pages: 200
+# page_size: 60     # 1–100 за запрос
+# enrich_detail: true   # false — быстрее, но без my_price (листинг маскирует цены)
+# detail_concurrency: 6
+# cny_to_rub: 13

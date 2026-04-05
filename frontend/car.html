@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Карточка автомобиля из Кореи — комплектация, фото, расчёт и доставка во Владивосток. World Ride Auto.">
+    <meta property="og:title" content="World Ride Auto — авто из Азии">
+    <meta property="og:description" content="Подробности автомобиля, опции, состояние и оформление заказа.">
+    <meta property="og:type" content="website">
     <title>World Ride Auto - Авто из Азии</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,7 +42,9 @@
     <link rel="stylesheet" href="/css/auth-favorites.css">
     <link rel="stylesheet" href="/css/car-tailwind.css?v=20260403tw">
     <script src="/js/wra-site-config.js?v=20260421"></script>
-    <link rel="preload" href="/js/car-page.js?v=20260404car" as="script">
+    <!-- Версию ?v= для car-page* меняйте вместе (см. deploy/DEPLOY.md, scripts/bump-asset-version.mjs) -->
+    <link rel="preload" href="/js/car-page-dicts.js?v=20260405car" as="script">
+    <link rel="preload" href="/js/car-page.js?v=20260405car" as="script">
     <script src="/js/copy-protection.js"></script>
     <script src="/js/auth-favorites.js?v=20260416"></script>
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin onload="this.onload=null;this.rel='stylesheet'">
@@ -75,6 +81,23 @@
         }
         body { margin: 0; padding: 0; padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--app-bg); font-family: var(--font-sans); overflow-x: clip; }
         * { box-sizing: border-box; }
+        .skip-link {
+            position: absolute;
+            top: -100px;
+            left: 16px;
+            z-index: 10000;
+            padding: 12px 20px;
+            background: var(--wra-primary, #2563eb);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .skip-link:focus {
+            top: 12px;
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
         
         /* Контент-шапка: назад + хлебные крошки (как у конкурента) */
         .content-header {
@@ -2631,6 +2654,7 @@
     </style>
 </head>
 <body class="wra-page-gray text-gray-800 antialiased">
+<a href="#main-content" class="skip-link">К содержанию</a>
 
 <header class="header">
     <div class="header-content">
@@ -2659,6 +2683,7 @@
     </div>
 </header>
 
+<main id="main-content" tabindex="-1">
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="app">
     <!-- Контент-шапка: хлебные крошки -->
     <div class="content-header">
@@ -2682,6 +2707,7 @@
         </div>
     </div>
 </div>
+</main>
 <style>@keyframes car-skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
 
 <!-- Модальное окно галереи -->
@@ -2734,7 +2760,8 @@
     </div>
 </div>
 
-<script src="/js/car-page.js?v=20260404car"></script>
+<script src="/js/car-page-dicts.js?v=20260405car"></script>
+<script src="/js/car-page.js?v=20260405car"></script>
 
 <!-- Футер как в index.html -->
 <div class="footer-wrap">

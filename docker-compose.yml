@@ -1,0 +1,17 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - encar_data:/data
+    environment:
+      WRA_GIT_SHA: ${WRA_GIT_SHA:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WRA_RATE_LIMIT_POST_PER_MINUTE: ${WRA_RATE_LIMIT_POST_PER_MINUTE:-0}
+      WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE: ${WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE:-0}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-}
+
+volumes:
+  encar_data:

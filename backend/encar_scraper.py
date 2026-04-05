@@ -18,7 +18,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiohttp
 import yaml
@@ -869,7 +869,7 @@ async def detail_worker(
             if item_from_list is None:
                 item_from_list = {}
         else:
-            car_id, car_type = item[0], item[1]
+            car_id, _car_type = item[0], item[1]
             item_from_list = item[2] if len(item) > 2 else {}
         if not item_from_list:
             item_from_list = {"Id": car_id}

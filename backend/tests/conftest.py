@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 import pytest
 
-from api_server import create_app
+from api_server import APP_DB, create_app, _now_iso
 
 
 def _insert_car(conn: sqlite3.Connection, pk: int, car_id: str, payload: Dict[str, Any]) -> None:
@@ -76,3 +76,29 @@ def cars_db_path(tmp_path: Path) -> str:
 @pytest.fixture
 def test_app(cars_db_path: str):
     return create_app(cars_db_path)
+
+
+@pytest.fixture
+def auth_headers(test_app):
+    """Bearer-токен и строка users/sessions в той же БД, что у test_app."""
+    conn = test_app[APP_DB]
+    now = _now_iso()
+    conn.execute(
+        """
+        INSERT INTO users (tg_id, username, first_name, last_name, photo_url, raw_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        ("999001", "tester", "T", "User", None, "{}", now, now),
+    )
+    uid = conn.execute("SELECT id FROM users WHERE tg_id = ?", ["999001"]).fetchone()["id"]
+    token = "test-session-token-wra-01"
+    exp = "2099-01-01T00:00:00Z"
+    conn.execute(
+        """
+        INSERT INTO user_sessions (token, user_id, created_at, expires_at, last_seen_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (token, uid, now, exp, now),
+    )
+    conn.commit()
+    return {"Authorization": f"Bearer {token}"}

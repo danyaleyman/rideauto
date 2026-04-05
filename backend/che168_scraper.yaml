@@ -1,0 +1,28 @@
+# Асинхронный скрейпер Che168 → SQLite (python -m che168.scraper --config che168_scraper.yaml)
+# Ежедневно (как Encar): systemd timer / cron, например 03:30 UTC
+#   cd /path/to/backend && python -m che168.scraper --config che168_scraper.yaml
+
+db_path: "encar_cars.db"
+area: china
+# brand: dazhong          # опционально slug марки (см. URL на che168.com/china/…)
+# series: sagitar         # опционально второй сегмент path
+# list_path: /china/beiqixinnengyuan/   # или полный path из браузера (перекрывает brand/series)
+
+# year: 2020              # одно значение
+# year_min: 2018
+# year_max: 2023
+
+# price_min: 50000        # CNY
+# price_max: 300000
+
+# limit: 0                # 0 = без лимита (полный обход до max_pages). 1–100 = тестовый потолок за прогон
+max_pages: 2500
+concurrency: 8
+parallel_pages: 4
+cny_to_rub: 13.0
+mark_label: 中国二手车
+request_timeout_s: 50
+delay_between_pages_s: 0.1
+# cookie: ""              # либо переменная окружения CHE168_COOKIE
+
+log_level: INFO

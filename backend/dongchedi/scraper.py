@@ -1,0 +1,370 @@
+"""
+Асинхронный скрейпер 懂车帝: POST motor/pc/sh/sh_sku_list + опционально HTML карточки для цены (source_sh_price).
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import logging
+import os
+import sqlite3
+import sys
+import time
+from dataclasses import dataclass, fields
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import aiohttp
+import yaml
+
+from dongchedi.client import DEFAULT_HEADERS, fetch_usedcar_html, post_sku_list
+from dongchedi.normalize import row_matches_filters, sku_row_to_payload
+from dongchedi.parse_detail import parse_sku_detail_from_html
+
+log = logging.getLogger("dongchedi.scraper")
+
+
+@dataclass
+class ScrapeConfig:
+    db_path: str = "encar_cars.db"
+    brand_id: Optional[str] = None
+    series_id: Optional[int] = None
+    sh_city_name: Optional[str] = None
+    age_range: Optional[str] = None
+    year: Optional[int] = None
+    year_min: Optional[int] = None
+    year_max: Optional[int] = None
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    limit: int = 0
+    max_pages: int = 500
+    page_size: int = 60
+    concurrency: int = 8
+    detail_concurrency: int = 6
+    enrich_detail: bool = True
+    cny_to_rub: float = 13.0
+    request_timeout_s: float = 45.0
+    delay_between_pages_s: float = 0.15
+    cookie: Optional[str] = None
+
+
+def _ensure_cars_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cars (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            car_id TEXT UNIQUE NOT NULL,
+            data_json TEXT NOT NULL,
+            raw_json TEXT,
+            created_at TEXT
+        )
+        """
+    )
+
+
+def _apply_indexes(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE INDEX IF NOT EXISTS idx_wra_cars_car_id_id ON cars(car_id, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_wra_data_mark ON cars(json_extract(data_json, '$.data.mark'));
+        CREATE INDEX IF NOT EXISTS idx_wra_data_model ON cars(json_extract(data_json, '$.data.model'));
+        """
+    )
+    conn.commit()
+
+
+def _clamp_limit(v: int) -> int:
+    if v <= 0:
+        return 0
+    return min(v, 100)
+
+
+def _year_bounds(cfg: ScrapeConfig) -> Tuple[Optional[int], Optional[int]]:
+    if cfg.year is not None:
+        return cfg.year, cfg.year
+    return cfg.year_min, cfg.year_max
+
+
+def _fen_to_cny_local(fen: Any) -> Optional[float]:
+    try:
+        v = int(fen)
+    except (TypeError, ValueError):
+        return None
+    if v <= 0:
+        return None
+    return v / 100.0
+
+
+def load_config_file(path: str) -> Dict[str, Any]:
+    p = Path(path)
+    if not p.is_file():
+        raise FileNotFoundError(path)
+    with open(p, encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = None) -> ScrapeConfig:
+    base = defaults or ScrapeConfig()
+    m = {k.replace("-", "_"): v for k, v in raw.items()}
+    known = {f.name for f in fields(ScrapeConfig)}
+    for k, v in m.items():
+        if k in known and v is not None:
+            setattr(base, k, v)
+    if base.cookie is None:
+        env_c = (os.environ.get("DONGCHEDI_COOKIE") or "").strip()
+        if env_c:
+            base.cookie = env_c
+    return base
+
+
+def _headers_with_cookie(cookie: Optional[str]) -> Dict[str, str]:
+    h = dict(DEFAULT_HEADERS)
+    if cookie:
+        h["Cookie"] = cookie
+    return h
+
+
+def _apply_indexes_after(db_path: str) -> None:
+    conn = sqlite3.connect(db_path, timeout=120.0)
+    try:
+        _ensure_cars_schema(conn)
+        _apply_indexes(conn)
+    finally:
+        conn.close()
+
+
+async def run_scrape(cfg: ScrapeConfig) -> int:
+    year_min, year_max = _year_bounds(cfg)
+    lim = _clamp_limit(cfg.limit)
+    page_sz = max(1, min(100, int(cfg.page_size)))
+
+    need_price = cfg.price_min is not None or cfg.price_max is not None
+    enrich = cfg.enrich_detail or need_price
+    if need_price and not enrich:
+        enrich = True
+        log.warning("price_min/max требуют карточку — включаем enrich_detail")
+
+    db_path = str(Path(cfg.db_path).resolve())
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
+    def sync_upsert_batch(batch: List[Tuple[str, str]]) -> int:
+        if not batch:
+            return 0
+        conn = sqlite3.connect(db_path, timeout=120.0)
+        try:
+            _ensure_cars_schema(conn)
+            conn.executemany(
+                "INSERT OR REPLACE INTO cars (car_id, data_json, created_at) VALUES (?, ?, datetime('now'))",
+                batch,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return len(batch)
+
+    list_sem = asyncio.Semaphore(max(1, cfg.concurrency))
+    detail_sem = asyncio.Semaphore(max(1, cfg.detail_concurrency))
+    headers = _headers_with_cookie(cfg.cookie)
+    timeout = aiohttp.ClientTimeout(total=cfg.request_timeout_s + 35)
+    connector = aiohttp.TCPConnector(limit=max(12, cfg.concurrency + cfg.detail_concurrency))
+
+    saved = 0
+    seen: Set[str] = set()
+    page = 1
+    stop = False
+
+    async with aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector) as session:
+
+        async def detail_for(sku: str) -> Optional[Dict[str, Any]]:
+            async with detail_sem:
+                st, html = await fetch_usedcar_html(
+                    session, sku, timeout_s=cfg.request_timeout_s
+                )
+            if st != 200 or not html:
+                return None
+            return parse_sku_detail_from_html(html)
+
+        while page <= cfg.max_pages and not stop:
+            async with list_sem:
+                status, payload = await post_sku_list(
+                    session,
+                    page=page,
+                    limit=page_sz,
+                    brand_id=cfg.brand_id,
+                    sh_city_name=cfg.sh_city_name,
+                    age_range=cfg.age_range,
+                    timeout_s=cfg.request_timeout_s,
+                )
+
+            raw_st = payload.get("status")
+            try:
+                api_st = int(raw_st) if raw_st is not None else -1
+            except (TypeError, ValueError):
+                api_st = -1
+            if status != 200 or not payload or api_st != 0:
+                log.warning("list page %s http=%s api_status=%s", page, status, raw_st)
+                break
+
+            data = payload.get("data") or {}
+            rows = data.get("search_sh_sku_info_list") or []
+            if not isinstance(rows, list) or not rows:
+                log.info("empty list page %s, stop", page)
+                break
+
+            candidates: List[Dict[str, Any]] = []
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                sku = row.get("sku_id")
+                if sku is None:
+                    continue
+                sid = str(sku).strip()
+                if not sid or sid in seen:
+                    continue
+                if not row_matches_filters(
+                    row,
+                    series_id=cfg.series_id,
+                    year_min=year_min,
+                    year_max=year_max,
+                ):
+                    continue
+                candidates.append(row)
+
+            details: Dict[str, Optional[Dict[str, Any]]] = {}
+            if enrich and candidates:
+                detail_tasks = [detail_for(str(r.get("sku_id"))) for r in candidates]
+                resolved = await asyncio.gather(*detail_tasks)
+                for r, d in zip(candidates, resolved):
+                    details[str(r.get("sku_id"))] = d
+
+            batch: List[Tuple[str, str]] = []
+            for row in candidates:
+                sid = str(row.get("sku_id")).strip()
+                det = details.get(sid) if enrich else None
+                price_cny: Optional[float] = None
+                if det:
+                    price_cny = _fen_to_cny_local(det.get("source_sh_price"))
+
+                if not row_matches_filters(
+                    row,
+                    series_id=cfg.series_id,
+                    year_min=year_min,
+                    year_max=year_max,
+                    price_min_cny=cfg.price_min,
+                    price_max_cny=cfg.price_max,
+                    price_cny=price_cny if enrich else None,
+                ):
+                    continue
+
+                if need_price and enrich and (price_cny is None or price_cny <= 0):
+                    continue
+
+                seen.add(sid)
+                payload_doc = sku_row_to_payload(row, detail=det, cny_to_rub=cfg.cny_to_rub)
+                inner = (payload_doc.get("data") or {})
+                if not inner:
+                    continue
+                car_id = f"dongchedi-{sid}"
+                batch.append((car_id, json.dumps(payload_doc, ensure_ascii=False)))
+
+                if lim and len(seen) >= lim:
+                    stop = True
+                    break
+
+            if batch:
+                n = await asyncio.to_thread(sync_upsert_batch, batch)
+                saved += n
+                log.info("page %s: +%s rows (total saved %s)", page, n, saved)
+
+            if stop:
+                break
+
+            if not data.get("has_more"):
+                log.info("has_more=false at page %s", page)
+                break
+
+            page += 1
+            if cfg.delay_between_pages_s > 0:
+                await asyncio.sleep(cfg.delay_between_pages_s)
+
+    await asyncio.to_thread(_apply_indexes_after, db_path)
+    return saved
+
+
+def setup_logging(level: str = "INFO") -> None:
+    lv = getattr(logging, level.upper(), logging.INFO)
+    logging.basicConfig(level=lv, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+
+def main(argv: Optional[List[str]] = None) -> None:
+    argv = argv if argv is not None else sys.argv[1:]
+    p = argparse.ArgumentParser(description="懂车帝 async scraper → SQLite")
+    p.add_argument("--config", type=str, default=None)
+    p.add_argument("--db", type=str, default=None)
+    p.add_argument("--brand-id", type=str, default=None, help="Числовой brand_id (напр. 4 = 宝马)")
+    p.add_argument("--series-id", type=int, default=None)
+    p.add_argument("--city", type=str, default=None, help="sh_city_name, напр. 北京")
+    p.add_argument("--age-range", type=str, default=None, help="Напр. 3,5 как в HAR")
+    p.add_argument("--year", type=int, default=None)
+    p.add_argument("--year-min", type=int, default=None)
+    p.add_argument("--year-max", type=int, default=None)
+    p.add_argument("--price-min", type=float, default=None)
+    p.add_argument("--price-max", type=float, default=None)
+    p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--max-pages", type=int, default=None)
+    p.add_argument("--page-size", type=int, default=None, help="1–100 на запрос")
+    p.add_argument("--concurrency", type=int, default=None)
+    p.add_argument("--detail-concurrency", type=int, default=None)
+    p.add_argument("--no-enrich-detail", action="store_true", help="Без запроса карточек (без my_price)")
+    p.add_argument("--cny-to-rub", type=float, default=None)
+    p.add_argument("--log-level", type=str, default="INFO")
+    args = p.parse_args(argv)
+
+    cfg = ScrapeConfig()
+    if args.config:
+        cfg = config_from_mapping(load_config_file(args.config), cfg)
+    if args.db is not None:
+        cfg.db_path = args.db
+    if args.brand_id is not None:
+        cfg.brand_id = args.brand_id or None
+    if args.series_id is not None:
+        cfg.series_id = args.series_id
+    if args.city is not None:
+        cfg.sh_city_name = args.city or None
+    if args.age_range is not None:
+        cfg.age_range = args.age_range or None
+    if args.year is not None:
+        cfg.year = args.year
+    if args.year_min is not None:
+        cfg.year_min = args.year_min
+    if args.year_max is not None:
+        cfg.year_max = args.year_max
+    if args.price_min is not None:
+        cfg.price_min = args.price_min
+    if args.price_max is not None:
+        cfg.price_max = args.price_max
+    if args.limit is not None:
+        cfg.limit = args.limit
+    if args.max_pages is not None:
+        cfg.max_pages = args.max_pages
+    if args.page_size is not None:
+        cfg.page_size = max(1, min(100, args.page_size))
+    if args.concurrency is not None:
+        cfg.concurrency = args.concurrency
+    if args.detail_concurrency is not None:
+        cfg.detail_concurrency = args.detail_concurrency
+    if args.no_enrich_detail:
+        cfg.enrich_detail = False
+    if args.cny_to_rub is not None:
+        cfg.cny_to_rub = args.cny_to_rub
+
+    setup_logging(args.log_level)
+    t0 = time.perf_counter()
+    n = asyncio.run(run_scrape(cfg))
+    log.info("done: saved=%s in %.2fs", n, time.perf_counter() - t0)
+
+
+if __name__ == "__main__":
+    main()

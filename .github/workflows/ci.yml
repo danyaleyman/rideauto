@@ -18,8 +18,19 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
-      - run: ruff check api_server.py encar_image_order.py export_system.py tests
+      - run: ruff check .
       - run: python -m pytest tests -q
+
+  frontend-eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:js
 
   frontend-tailwind:
     runs-on: ubuntu-latest
@@ -31,3 +42,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:car-tailwind
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      PYTHON: python3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: pip install -r backend/requirements.txt
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e

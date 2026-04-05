@@ -9,6 +9,26 @@ info:
 servers:
   - url: /
 
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: unauthorized
+    RateLimitError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: rate_limit
+
 paths:
   /api/health:
     get:
@@ -64,6 +84,10 @@ paths:
           in: query
           description: "1 — полные записи"
           schema: { type: string }
+        - name: source
+          in: query
+          description: "Источник каталога — encar, che168 или dongchedi (по умолчанию без фильтра — все записи)"
+          schema: { type: string, enum: [che168, dongchedi, encar] }
       responses:
         "200":
           description: JSON каталога
@@ -75,6 +99,11 @@ paths:
   /api/facets:
     get:
       summary: Фасеты / фильтры (алиас может быть /api/filters)
+      parameters:
+        - name: source
+          in: query
+          description: "Сужает выборку как у /api/cars (che168 | dongchedi | encar)"
+          schema: { type: string, enum: [che168, dongchedi, encar] }
       responses:
         "200":
           content:
@@ -159,3 +188,310 @@ paths:
           content:
             application/json:
               schema: { type: object }
+
+  /api/auth/telegram:
+    post:
+      summary: Вход через Telegram Login Widget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Токен и пользователь
+          content:
+            application/json:
+              schema: { type: object }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/logout:
+    post:
+      summary: Выход (инвалидировать сессию на сервере)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+
+  /api/me:
+    get:
+      summary: Текущий пользователь
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/favorites:
+    get:
+      summary: Избранное
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      summary: Добавить в избранное
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                car_id: { type: string }
+                note: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/favorites/{car_id}:
+    delete:
+      summary: Удалить из избранного
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: car_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/history:
+    get:
+      summary: История просмотров
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      summary: Записать просмотр
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                car_id: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/subscriptions:
+    get:
+      summary: Подписки
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      summary: Создать подписку
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                filters: { type: object }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/subscriptions/{sid}:
+    delete:
+      summary: Удалить подписку
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sid
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/checkout:
+    get:
+      summary: Список заявок checkout
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      summary: Создать заявку
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                car_ids:
+                  type: array
+                  items: { type: string }
+                comment: { type: string, nullable: true }
+                contact: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/subscriptions/run-notifications:
+    post:
+      summary: Рассылка по подпискам (X-Admin-Key)
+      parameters:
+        - name: X-Admin-Key
+          in: header
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }

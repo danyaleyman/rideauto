@@ -1,2 +1,13 @@
 target-version = "py312"
 line-length = 120
+
+# Скрипты вне CI-проверки: parser_full, quick_start, run_system, … — править точечно.
+exclude = [
+  "parser_full.py",
+  "quick_start.py",
+  "run_system.py",
+  "main_system.py",
+  "postgresql_database.py",
+  "export_from_scraper_db.py",
+  "scripts",
+]
