@@ -499,25 +499,29 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
         clauses.append("json_extract(data_json, '$.data.source') = ?")
         params.append("dongchedi")
     elif src == "encar":
-        clauses.append(
-            "("
-            "json_extract(data_json, '$.data.source') IS NULL "
-            "OR TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')) = '' "
-            "OR json_extract(data_json, '$.data.source') = 'encar'"
-            ")"
+        # Пустой/NULL source в данных считаем Encar; одно выражение проще для планировщика, чем OR из трёх веток.
+        _src_norm = (
+            "COALESCE(NULLIF(TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')), ''), 'encar')"
         )
+        clauses.append(f"{_src_norm} = 'encar'")
 
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     return where, params
 
 
-def _cars_dedup_where(where: str, params: List[str]) -> Tuple[str, List[str]]:
-    """Один ряд на car_id (максимальный id) — убирает исторические дубликаты в выдаче."""
-    dedup = "cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id)"
+# Подзапрос «последняя версия строки по car_id»; JOIN часто предсказуемее для SQLite, чем IN (SELECT …).
+_WRA_CAR_ID_DEDUP_JOIN = (
+    "INNER JOIN (SELECT MAX(id) AS max_id FROM cars GROUP BY car_id) AS _wra_cd ON cars.id = _wra_cd.max_id"
+)
+
+
+def _cars_dedup_from_fragment(where: str, params: List[str]) -> Tuple[str, List[str]]:
+    """Фрагмент сразу после «FROM cars»: AS cars + JOIN дедуп по car_id + при необходимости WHERE (фильтры)."""
+    head = f"AS cars {_WRA_CAR_ID_DEDUP_JOIN}"
     if not where:
-        return f"WHERE {dedup}", list(params)
+        return head, list(params)
     inner = where[6:].strip() if where.startswith("WHERE ") else where
-    return f"WHERE {dedup} AND ({inner})", list(params)
+    return f"{head} WHERE ({inner})", list(params)
 
 
 def _sql_listing_partition_key_bare() -> str:
@@ -531,18 +535,17 @@ def _sql_listing_partition_key_bare() -> str:
     )
 
 
-def _catalog_rows_numbered_sql(where2: str) -> str:
-    """Подзапрос с _rn=1 для уникальных объявлений."""
+def _catalog_listing_max_ids_subquery(from_fragment: str) -> str:
+    """Одна строка каталога на объявление: MAX(id) по ключу партиции (эквивалент ROW_NUMBER…WHERE _rn=1).
+
+    GROUP BY + MAX в SQLite на больших выборках часто заметно быстрее полного window sort.
+    """
     pk = _sql_listing_partition_key_bare()
-    return (
-        f"SELECT car_id, data_json, id, "
-        f"ROW_NUMBER() OVER (PARTITION BY {pk} ORDER BY id DESC) AS _rn "
-        f"FROM cars {where2}"
-    )
+    return f"(SELECT MAX(cars.id) AS mid FROM cars {from_fragment} GROUP BY {pk})"
 
 
-def _catalog_order_by_vis(order_sql: str) -> str:
-    return order_sql.replace("data_json", "vis.data_json") + ", vis.id DESC"
+def _catalog_order_by_alias(order_sql: str, table_alias: str) -> str:
+    return order_sql.replace("data_json", f"{table_alias}.data_json") + f", {table_alias}.id DESC"
 
 
 def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
@@ -601,20 +604,21 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
         offset = (page - 1) * per_page
 
         where, params = _build_filter_sql(query)
-        where2, params2 = _cars_dedup_where(where, params)
+        from_frag, params2 = _cars_dedup_from_fragment(where, params)
         sort = (query.get("sort") or "date_new").strip()
         order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
-        inner_numbered = _catalog_rows_numbered_sql(where2)
+        listing_ids = _catalog_listing_max_ids_subquery(from_frag)
         total = conn.execute(
-            f"SELECT COUNT(*) AS c FROM ({inner_numbered}) AS _v WHERE _v._rn = 1",
+            f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
             params2,
         ).fetchone()["c"]
-        order_vis = _catalog_order_by_vis(order_sql)
+        order_c = _catalog_order_by_alias(order_sql, "c")
         rows = conn.execute(
             f"""
-            SELECT car_id, data_json FROM ({inner_numbered}) AS vis
-            WHERE vis._rn = 1
-            ORDER BY {order_vis}
+            SELECT c.car_id, c.data_json
+            FROM cars AS c
+            INNER JOIN {listing_ids} AS x ON c.id = x.mid
+            ORDER BY {order_c}
             LIMIT ? OFFSET ?
             """,
             [*params2, per_page, offset],
@@ -686,22 +690,23 @@ def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
     conn = _db_connect(db_path)
     try:
         today_str = datetime.now(timezone.utc).date().isoformat()
-        where2, _np = _cars_dedup_where("", [])
-        inner_numbered = _catalog_rows_numbered_sql(where2)
+        from_frag, _np = _cars_dedup_from_fragment("", [])
+        listing_ids = _catalog_listing_max_ids_subquery(from_frag)
         date_expr = (
-            "substr(COALESCE(json_extract(v.data_json, '$.data.offer_created'), "
-            "json_extract(v.data_json, '$.data.created_at')), 1, 10)"
+            "substr(COALESCE(json_extract(c.data_json, '$.data.offer_created'), "
+            "json_extract(c.data_json, '$.data.created_at')), 1, 10)"
         )
         row_today = conn.execute(
             f"""
-            SELECT COUNT(*) AS c FROM ({inner_numbered}) AS v
-            WHERE v._rn = 1 AND {date_expr} = ?
+            SELECT COUNT(*) AS c FROM cars AS c
+            INNER JOIN {listing_ids} AS x ON c.id = x.mid
+            WHERE {date_expr} = ?
             """,
             [today_str],
         ).fetchone()
         n = int(row_today["c"]) if row_today else 0
         row_total = conn.execute(
-            f"SELECT COUNT(*) AS c FROM ({inner_numbered}) AS v WHERE v._rn = 1",
+            f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
             [],
         ).fetchone()
         n_total = int(row_total["c"]) if row_total else 0
@@ -716,7 +721,7 @@ def _json_public_cache(data: Any, cache_control: str) -> web.Response:
 
 def _facet_dimension_direct(
     conn: sqlite3.Connection,
-    where2: str,
+    from_fragment: str,
     params2: List[str],
     value_expr: str,
 ) -> List[Dict[str, Any]]:
@@ -727,7 +732,7 @@ def _facet_dimension_direct(
         WITH cand AS (
             SELECT cars.id AS id, cars.car_id AS car_id, cars.data_json AS data_json
             FROM cars
-            {where2}
+            {from_fragment}
         ),
         dedup AS (
             SELECT MAX(id) AS id
@@ -745,7 +750,7 @@ def _facet_dimension_direct(
     return [{"value": r["val"], "count": r["c"]} for r in rows]
 
 
-def _materialize_facet_narrow_temp(conn: sqlite3.Connection, where2: str, params2: List[str]) -> None:
+def _materialize_facet_narrow_temp(conn: sqlite3.Connection, from_fragment: str, params2: List[str]) -> None:
     """Один проход по cars → TEMP из 8 узких полей (без хранения целого data_json на каждую строку — иначе гигабайты RAM/диска)."""
     conn.execute("DROP TABLE IF EXISTS _wra_facet_cand")
     pk = _sql_listing_partition_key_bare()
@@ -754,7 +759,7 @@ def _materialize_facet_narrow_temp(conn: sqlite3.Connection, where2: str, params
         WITH cand AS (
             SELECT cars.id AS id, cars.car_id AS car_id, cars.data_json AS data_json
             FROM cars
-            {where2}
+            {from_fragment}
         ),
         dedup AS (
             SELECT MAX(id) AS id
@@ -803,23 +808,23 @@ def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
     for name, omit_keys, _expr in _FACET_SPECS:
         q2 = {k: v for k, v in q.items() if k not in omit_keys}
         where, params = _build_filter_sql(q2)
-        where2, params2 = _cars_dedup_where(where, params)
-        groups[(where2, tuple(params2))].append(name)
+        from_frag, params2 = _cars_dedup_from_fragment(where, params)
+        groups[(from_frag, tuple(params2))].append(name)
 
     conn = _db_connect(db_path)
     try:
         acc: Dict[str, List[Dict[str, Any]]] = {}
-        for (where2, params_t), names in groups.items():
+        for (from_frag, params_t), names in groups.items():
             params2 = list(params_t)
             if len(names) >= 2:
-                _materialize_facet_narrow_temp(conn, where2, params2)
+                _materialize_facet_narrow_temp(conn, from_frag, params2)
                 for facet_key in names:
                     acc[facet_key] = _facet_from_narrow_temp(conn, facet_key)
                 conn.execute("DROP TABLE IF EXISTS _wra_facet_cand")
             else:
                 only = names[0]
                 _expr = next(e for n, _o, e in _FACET_SPECS if n == only)
-                acc[only] = _facet_dimension_direct(conn, where2, params2, _expr)
+                acc[only] = _facet_dimension_direct(conn, from_frag, params2, _expr)
         return {name: acc[name] for name, _, _ in _FACET_SPECS}
     finally:
         conn.close()
@@ -840,19 +845,22 @@ def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: 
     pmin = p * 0.8
     pmax = p * 1.2
     pk = _sql_listing_partition_key_bare()
-    inner_num = (
-        f"SELECT car_id, data_json, id, "
-        f"ROW_NUMBER() OVER (PARTITION BY {pk} ORDER BY id DESC) AS _rn "
-        f"FROM cars "
-        f"WHERE cars.id IN (SELECT MAX(id) FROM cars GROUP BY car_id) "
-        f"AND json_extract(data_json, '$.data.mark') = ? "
-        f"AND CAST(json_extract(data_json, '$.data.price_won') AS REAL) BETWEEN ? AND ?"
-    )
     rows = conn.execute(
         f"""
-        SELECT car_id, data_json FROM ({inner_num}) AS vis
-        WHERE vis._rn = 1
-        ORDER BY ABS(CAST(json_extract(vis.data_json, '$.data.price_won') AS REAL) - ?) ASC, vis.id DESC
+        WITH base AS (
+            SELECT cars.car_id AS car_id, cars.data_json AS data_json, cars.id AS id
+            FROM cars AS cars
+            {_WRA_CAR_ID_DEDUP_JOIN}
+            WHERE json_extract(cars.data_json, '$.data.mark') = ?
+              AND CAST(json_extract(cars.data_json, '$.data.price_won') AS REAL) BETWEEN ? AND ?
+        ),
+        listed AS (
+            SELECT MAX(id) AS mid FROM base GROUP BY {pk}
+        )
+        SELECT b.car_id, b.data_json
+        FROM base AS b
+        INNER JOIN listed AS l ON b.id = l.mid
+        ORDER BY ABS(CAST(json_extract(b.data_json, '$.data.price_won') AS REAL) - ?) ASC, b.id DESC
         LIMIT ?
         """,
         [mark, pmin, pmax, p, max(limit * 5, limit + 10)],
@@ -1383,13 +1391,14 @@ async def run_subscription_notifications(request: web.Request) -> web.Response:
             filters = {}
         q = _subscription_filters_to_query(filters if isinstance(filters, dict) else {})
         where, params = _build_filter_sql(q)
-        w2, p2 = _cars_dedup_where(where, params)
+        frag, p2 = _cars_dedup_from_fragment(where, params)
+        id_tail = " AND cars.id > ?" if " WHERE (" in frag else " WHERE cars.id > ?"
         rows = conn.execute(
             f"""
-            SELECT id, car_id, data_json
+            SELECT cars.id, cars.car_id, cars.data_json
             FROM cars
-            {w2} AND id > ?
-            ORDER BY id ASC
+            {frag}{id_tail}
+            ORDER BY cars.id ASC
             LIMIT 5
             """,
             [*p2, int(row["last_notified_car_pk"] or 0)],
