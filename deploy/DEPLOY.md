@@ -68,8 +68,31 @@ location /api/ {
 
 ## Каталог: `ERR_CONNECTION_TIMED_OUT` к `/api/cars`
 
-Статика грузится, а запросы к **`/api/...`** висят и падают по таймауту — браузер **не достучался до aiohttp** (или nginx не проксирует). На сервере:
+**`curl http://127.0.0.1:8080/api/health` с сервера** проверяет только процесс aiohttp. Браузер ходит на **ваш домен по HTTPS** — туда должен попасть **тот же** upstream через nginx.
 
-1. `curl -sS -m 5 http://127.0.0.1:8080/api/health` — должен вернуть JSON `{"status":"ok"}` (порт см. ваш unit/docker).
-2. Убедиться, что в nginx для сайта есть `location /api/ { proxy_pass http://127.0.0.1:8080; ... }` и сервис API запущен.
-3. Если на фронте задан **`window.WRA_API_BASE`** на другой хост — этот хост должен быть доступен с браузера пользователя и отдавать тот же API.
+### 1. Проверка «как браузер» (с сервера)
+
+Подставьте свой домен и схему:
+
+```bash
+curl -sS -m 15 -o /dev/null -w "%{http_code}\n" "https://ВАШ-ДОМЕН/api/health"
+curl -sS -m 60 "https://ВАШ-ДОМЕН/api/cars?page=1&per_page=2&source=encar" | head -c 200
+```
+
+Если здесь таймаут или не JSON — проблема в **nginx (443)** или CDN, а не в Python.
+
+### 2. Частая ошибка: в `server { listen 443 ssl; }` нет `location /api/`
+
+Certbot добавляет отдельный блок для HTTPS. Если туда **не скопированы** все `location /api/...` из [deploy/nginx/prod-encar.conf](nginx/prod-encar.conf), то запросы к `https://сайт/api/cars` попадают в `location /` и отдаются как статика (или 404) — в DevTools это часто выглядит как **долгий pending / timeout**.
+
+См. также [deploy/nginx/TROUBLESHOOT-HTTPS.txt](nginx/TROUBLESHOOT-HTTPS.txt).
+
+### 3. Локальный API и прокси
+
+1. `curl -sS -m 5 http://127.0.0.1:8080/api/health` — `{"status":"ok"}`.
+2. В активном `server{}` для сайта (в т.ч. **443**) есть `proxy_pass` на этот порт для `/api/`.
+3. Если на фронте задан **`window.WRA_API_BASE`** на другой хост — он должен открываться из браузера пользователя.
+
+### 4. Кэш nginx
+
+В `prod-encar.conf` для каталога включён `proxy_cache_lock`. Если первый запрос к upstream «висит», остальные ждут замка. В актуальной версии конфига задан **`proxy_cache_lock_timeout 20s`**, чтобы запросы не копились бесконечно. После `git pull` перенесите эти строки в свой реальный `sites-enabled`.
