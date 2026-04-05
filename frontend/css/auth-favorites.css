@@ -16,12 +16,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.2s ease;
 }
 
-.auth-fav-btn:hover {
-  background: var(--wra-gray-50, #f9fafb);
-  border-color: var(--wra-gray-300, #d1d5db);
+.auth-fav-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .auth-fav-btn:focus-visible {

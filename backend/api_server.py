@@ -26,6 +26,11 @@ from aiohttp import ClientSession, web
 
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
 
+APP_DB_PATH = web.AppKey("db_path", str)
+APP_DB = web.AppKey("db", sqlite3.Connection)
+APP_TELEGRAM_BOT_TOKEN = web.AppKey("telegram_bot_token", str)
+APP_SUBSCRIPTIONS_ADMIN_KEY = web.AppKey("subscriptions_admin_key", str)
+APP_PUBLIC_SITE_URL = web.AppKey("public_site_url", str)
 
 _CATALOG_INDEX_LOCK = threading.Lock()
 # Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
@@ -240,7 +245,7 @@ def _load_user_by_token(conn: sqlite3.Connection, token: str) -> Optional[sqlite
 
 
 def _auth_user_or_401(request: web.Request) -> Tuple[Optional[sqlite3.Connection], Optional[sqlite3.Row], Optional[web.Response]]:
-    conn: sqlite3.Connection = request.app["db"]
+    conn: sqlite3.Connection = request.app[APP_DB]
     token = _parse_bearer_token(request)
     user = _load_user_by_token(conn, token)
     if not user:
@@ -825,13 +830,32 @@ def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: 
 
 
 async def health(_: web.Request) -> web.Response:
-    return web.json_response({"status": "ok"})
+    body: Dict[str, Any] = {"status": "ok"}
+    sha = (os.environ.get("WRA_GIT_SHA") or os.environ.get("GIT_COMMIT") or "").strip()
+    if sha:
+        body["git_sha"] = sha
+    return web.json_response(body)
+
+
+async def api_version(_: web.Request) -> web.Response:
+    """Версия деплоя для мониторинга и отладки (без кэша). Задайте WRA_GIT_SHA при деплое."""
+    import sys
+
+    sha = (os.environ.get("WRA_GIT_SHA") or os.environ.get("GIT_COMMIT") or "").strip()
+    return web.json_response(
+        {
+            "service": "prod-encar-api",
+            "git_sha": sha or None,
+            "python": sys.version.split()[0],
+        },
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 async def cars(request: web.Request) -> web.Response:
     q = {k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()}
     slim = (q.get("full") or "").strip() != "1"
-    db_path: str = request.app["db_path"]
+    db_path: str = request.app[APP_DB_PATH]
     payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
     # Первая страница без фильтров (как у конкурента с «мгновенным» списком после preload) — дольше SWR у клиента.
     if slim and _is_default_first_catalog_page(q):
@@ -845,7 +869,7 @@ async def cars(request: web.Request) -> web.Response:
 
 async def facets(request: web.Request) -> web.Response:
     q = _catalog_query_dict({k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()})
-    db_path: str = request.app["db_path"]
+    db_path: str = request.app[APP_DB_PATH]
     try:
         payload = await asyncio.to_thread(_facets_catalog_sync, db_path, q)
     except Exception as e:
@@ -858,7 +882,7 @@ async def facets(request: web.Request) -> web.Response:
 
 
 async def catalog_stats(request: web.Request) -> web.Response:
-    db_path: str = request.app["db_path"]
+    db_path: str = request.app[APP_DB_PATH]
     payload = await asyncio.to_thread(_catalog_stats_sync, db_path)
     return _json_public_cache(payload, "public, max-age=60, stale-while-revalidate=300")
 
@@ -943,7 +967,7 @@ def _similar_sync(db_path: str, car_id: str, limit: int) -> Dict[str, Any]:
 
 async def car_by_id(request: web.Request) -> web.Response:
     car_id = request.match_info.get("id", "").strip()
-    db_path: str = request.app["db_path"]
+    db_path: str = request.app[APP_DB_PATH]
     status, body = await asyncio.to_thread(_car_by_id_sync, db_path, car_id)
     if status == 200:
         return _json_public_cache(body, "public, max-age=45, stale-while-revalidate=300")
@@ -956,14 +980,14 @@ async def similar(request: web.Request) -> web.Response:
         limit = min(20, max(1, int(request.rel_url.query.get("limit", "8"))))
     except (TypeError, ValueError):
         limit = 8
-    db_path: str = request.app["db_path"]
+    db_path: str = request.app[APP_DB_PATH]
     payload = await asyncio.to_thread(_similar_sync, db_path, car_id, limit)
     return web.json_response(payload)
 
 
 async def auth_telegram(request: web.Request) -> web.Response:
-    conn: sqlite3.Connection = request.app["db"]
-    bot_token = request.app.get("telegram_bot_token") or ""
+    conn: sqlite3.Connection = request.app[APP_DB]
+    bot_token = request.app.get(APP_TELEGRAM_BOT_TOKEN, "") or ""
     if not bot_token:
         return web.json_response({"error": "TELEGRAM_BOT_TOKEN is not configured"}, status=503)
     payload = await _json_body(request)
@@ -1040,7 +1064,7 @@ async def me(request: web.Request) -> web.Response:
 
 
 async def logout(request: web.Request) -> web.Response:
-    conn: sqlite3.Connection = request.app["db"]
+    conn: sqlite3.Connection = request.app[APP_DB]
     token = _parse_bearer_token(request)
     if token:
         conn.execute("DELETE FROM user_sessions WHERE token = ?", [token])
@@ -1193,7 +1217,7 @@ async def subscriptions_remove(request: web.Request) -> web.Response:
 
 
 async def compare(request: web.Request) -> web.Response:
-    conn = request.app["db"]
+    conn = request.app[APP_DB]
     ids = [x.strip() for x in (request.rel_url.query.get("ids") or "").split(",") if x.strip()]
     ids = ids[:4]
     result: List[Dict[str, Any]] = []
@@ -1292,18 +1316,18 @@ async def _send_tg_message(bot_token: str, chat_id: str, text: str) -> bool:
 
 
 async def run_subscription_notifications(request: web.Request) -> web.Response:
-    admin_key_env = (request.app.get("subscriptions_admin_key") or "").strip()
+    admin_key_env = (request.app.get(APP_SUBSCRIPTIONS_ADMIN_KEY, "") or "").strip()
     if not admin_key_env:
         return web.json_response({"error": "SUBSCRIPTIONS_ADMIN_KEY is not configured"}, status=503)
     admin_key = request.headers.get("X-Admin-Key", "").strip()
     if not admin_key or admin_key != admin_key_env:
         return web.json_response({"error": "forbidden"}, status=403)
-    bot_token = (request.app.get("telegram_bot_token") or "").strip()
+    bot_token = (request.app.get(APP_TELEGRAM_BOT_TOKEN, "") or "").strip()
     if not bot_token:
         return web.json_response({"error": "TELEGRAM_BOT_TOKEN is not configured"}, status=503)
 
-    conn: sqlite3.Connection = request.app["db"]
-    site_url = (request.app.get("public_site_url") or "").rstrip("/")
+    conn: sqlite3.Connection = request.app[APP_DB]
+    site_url = (request.app.get(APP_PUBLIC_SITE_URL, "") or "").rstrip("/")
     sub_rows = conn.execute(
         """
         SELECT s.id, s.user_id, s.name, s.filters_json, s.last_notified_car_pk, u.tg_id
@@ -1372,16 +1396,18 @@ def create_app(db_path: str) -> web.Application:
 
     app = web.Application(middlewares=[cors_middleware])
     resolved = str(Path(db_path).resolve())
-    app["db_path"] = resolved
+    app[APP_DB_PATH] = resolved
     conn = _db_connect(resolved)
     _init_app_tables(conn)
-    app["db"] = conn
-    app["telegram_bot_token"] = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    app["subscriptions_admin_key"] = os.environ.get("SUBSCRIPTIONS_ADMIN_KEY", "").strip()
-    app["public_site_url"] = os.environ.get("PUBLIC_SITE_URL", "").strip()
+    app[APP_DB] = conn
+    app[APP_TELEGRAM_BOT_TOKEN] = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    app[APP_SUBSCRIPTIONS_ADMIN_KEY] = os.environ.get("SUBSCRIPTIONS_ADMIN_KEY", "").strip()
+    app[APP_PUBLIC_SITE_URL] = os.environ.get("PUBLIC_SITE_URL", "").strip()
     app.router.add_get("/api/health", health)
+    app.router.add_get("/api/version", api_version)
     app.router.add_get("/api/cars", cars)
     app.router.add_get("/api/facets", facets)
+    app.router.add_get("/api/filters", facets)
     app.router.add_get("/api/stats", catalog_stats)
     app.router.add_get("/api/counts", catalog_counts)
     app.router.add_get("/api/sort", catalog_sort_meta)
@@ -1414,8 +1440,6 @@ def main() -> None:
 
     db_path = str(Path(args.db).resolve())
     app = create_app(db_path)
-    # Алиас как у конкурента; вынесено из create_app — сработает даже если в копии на сервере была «мертвая» строка после return.
-    app.router.add_get("/api/filters", facets)
     web.run_app(app, host=args.host, port=args.port)
 
 

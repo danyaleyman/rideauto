@@ -1,0 +1,21 @@
+# Скопируйте в /etc/systemd/system/encar-api.service и подставьте пути, пользователя и порт.
+# После правок: sudo systemctl daemon-reload && sudo systemctl enable --now encar-api
+
+[Unit]
+Description=Prod Encar catalog API (aiohttp)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/prod-encar/backend
+Environment=PYTHONUNBUFFERED=1
+# Подставьте SHA при деплое (CI/CD или скрипт):
+Environment=WRA_GIT_SHA=deadbeef
+ExecStart=/var/www/prod-encar/backend/.venv/bin/python -m api_server --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

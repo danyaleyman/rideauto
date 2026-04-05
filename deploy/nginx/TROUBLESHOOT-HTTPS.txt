@@ -40,3 +40,32 @@ sudo nginx -t && sudo systemctl reload nginx
 Важно: deploy/nginx/prod-encar.conf в репо описывает только listen 80.
 Если вы копируете его поверх sites-available и затираете блок certbot с 443 —
 HTTPS пропадёт. Тогда снова certbot --nginx или вручную объедините ssl в один server{}.
+
+Каталог не грузится после certbot (HTTPS), а по HTTP всё ок
+============================================================
+Симптом: на https://rideauto.ru/catalog пусто / ошибки в консоли на запросы
+/api/cars, /api/facets, /api/counts (404, HTML вместо JSON, CORS и т.п.).
+
+Причина: certbot часто добавляет отдельный server { listen 443 ssl; } с минимальным
+набором location. В нём нет proxy_pass на 127.0.0.1:8080 для /api/* — запросы API
+уходят в try_files статики и ломают каталог.
+
+Что сделать
+-----------
+1) Посмотреть, что реально отдаётся по HTTPS для API:
+   curl -sI -H "Host: rideauto.ru" https://127.0.0.1/api/health -k | head -5
+
+2) Сравнить полный конфиг — есть ли в server 443 те же блоки, что в server 80
+   (особенно location /api/cars, /api/facets, /api/ и т.д.):
+   sudo nginx -T 2>/dev/null | less
+   (найти оба server_name rideauto.ru — для :80 и :443)
+
+3) Исправление: в server { listen 443 ssl ... } для rideauto.ru должны быть
+   те же proxy location, что в prod-encar.conf (от «location /api/...» до
+   «location /api/»), плюс статика (root, gzip, location /, @wra_extensionless).
+   Ориентир: deploy/nginx/prod-encar.conf и deploy/nginx/snippets/wra-frontend-routes.conf
+   + комментарий в prod-encar.conf про копирование блоков в 443.
+
+4) После правки: sudo nginx -t && sudo systemctl reload nginx
+
+См. также: deploy/nginx/FIX-DUPLICATE-SERVER.txt — если активен «не тот» server{}.

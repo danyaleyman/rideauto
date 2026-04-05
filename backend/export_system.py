@@ -234,7 +234,7 @@ class ExportSystem:
             cars = self.db.get_cars_by_filters(filters)
             
             if format_type.lower() == 'json':
-                return self._export_filtered_to_json(cars, output_path)
+                return self._export_filtered_to_json(cars, output_path, filters)
             elif format_type.lower() == 'csv':
                 return self._export_filtered_to_csv(cars, output_path)
             elif format_type.lower() == 'excel':
@@ -246,7 +246,9 @@ class ExportSystem:
             logger.error(f"❌ Ошибка экспорта отфильтрованных данных: {e}")
             raise
     
-    def _export_filtered_to_json(self, cars: List[Dict], output_path: str) -> str:
+    def _export_filtered_to_json(
+        self, cars: List[Dict], output_path: str, filters: Optional[Dict[str, Any]] = None
+    ) -> str:
         """Экспорт отфильтрованных данных в JSON"""
         try:
             export_data = []
@@ -301,7 +303,7 @@ class ExportSystem:
                 json.dump({
                     'export_date': datetime.now().isoformat(),
                     'total_cars': len(export_data),
-                    'filters': filters,
+                    'filters': filters or {},
                     'cars': export_data
                 }, f, ensure_ascii=False, indent=2)
             

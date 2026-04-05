@@ -12,8 +12,53 @@
     let useStaticCatalog = false;
     let staticCatalogCache = null;
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
+    /** Таймаут ответа списка (мс); при медленном API не держим браузер в вечном pending. */
+    var CATALOG_CARS_TIMEOUT_MS =
+      typeof window.WRA_CATALOG_CARS_TIMEOUT_MS === 'number' && window.WRA_CATALOG_CARS_TIMEOUT_MS > 5000
+        ? window.WRA_CATALOG_CARS_TIMEOUT_MS
+        : 120000;
+    var CATALOG_STATS_TIMEOUT_MS =
+      typeof window.WRA_CATALOG_STATS_TIMEOUT_MS === 'number' && window.WRA_CATALOG_STATS_TIMEOUT_MS > 3000
+        ? window.WRA_CATALOG_STATS_TIMEOUT_MS
+        : 28000;
     function apiUrl(path) {
       return API_BASE + path;
+    }
+
+    function withTimeout(promise, ms, label) {
+      if (!ms || ms <= 0) return promise;
+      return Promise.race([
+        promise,
+        new Promise(function(_, reject) {
+          setTimeout(function() {
+            reject(new Error(label || 'timeout'));
+          }, ms);
+        }),
+      ]);
+    }
+
+    function showCatalogErrorBanner(message) {
+      if (!gridEl) return;
+      gridEl.setAttribute('aria-busy', 'false');
+      var esc = (typeof message === 'string' ? message : '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      var sub =
+        '<p style="margin:12px 0 0;font-size:0.875rem;color:var(--wra-text-muted);">Если проблема не проходит, проверьте <code>/api/health</code> и нагрузку на сервер.</p>';
+      gridEl.innerHTML =
+        '<div class="catalog-error-banner" style="grid-column:1/-1;text-align:center;padding:40px;background:var(--wra-surface);border-radius:24px;border:1px solid var(--wra-border);">' +
+        '<p style="margin:0 0 16px;">' +
+        (esc || 'Не удалось загрузить каталог.') +
+        '</p>' +
+        sub +
+        '<div style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
+        '<button type="button" class="btn btn-primary" id="wraCatalogRetryBtn">Повторить</button>' +
+        '<a href="/catalog" class="btn btn-secondary">Обновить страницу</a>' +
+        '</div></div>';
+      var btn = document.getElementById('wraCatalogRetryBtn');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          window.location.reload();
+        });
+      }
     }
     /**
      * Фолбэк: скачать целиком cars.json в браузер. На проде при ~100k+ машин это гигабайты → OOM и «Aw Snap».
@@ -1416,13 +1461,20 @@
           } catch (eCa) {}
         }
         carsListAbort = new AbortController();
+        var carsTimeoutId = setTimeout(function() {
+          try {
+            carsListAbort.abort();
+          } catch (eAb) {}
+        }, CATALOG_CARS_TIMEOUT_MS);
         var res;
         try {
           res = await fetch(apiUrl('/api/cars?' + params.toString()), { signal: carsListAbort.signal });
         } catch (eF) {
+          clearTimeout(carsTimeoutId);
           if (eF && eF.name === 'AbortError') return;
           throw eF;
         }
+        clearTimeout(carsTimeoutId);
         if (!res.ok) throw new Error('cars HTTP ' + res.status);
         const data = await res.json();
         if (reqId !== catalogRequestId) return;
@@ -1468,10 +1520,10 @@
         pageCars = [];
         catalogTotal = 0;
         catalogPages = 1;
-        if (gridEl) {
-          gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог.</p><a href="/" class="btn btn-primary">Обновить страницу</a></div>';
-        }
+        var errMsg = 'Не удалось загрузить список объявлений.';
+        if (err && err.message === 'timeout') errMsg = 'Сервер не ответил вовремя. Попробуйте ещё раз.';
+        if (err && err.name === 'AbortError') errMsg = 'Запрос отменён или истекло время ожидания.';
+        showCatalogErrorBanner(errMsg);
         if (paginationEl) paginationEl.innerHTML = '';
       }
     }
@@ -2266,7 +2318,7 @@
       }
     }).catch(function() {});
 
-    (async function bootstrapCatalog() {
+    async function bootstrapCatalog() {
       try {
         initCatalogFiltersUi();
 
@@ -2290,19 +2342,29 @@
         var reqId = ++catalogRequestId;
         var todayEl = document.getElementById('bannerTodayCount');
         var statsPromise = todayEl
-          ? fetch(apiUrl('/api/counts'), { cache: 'default' })
-              .then(function(cr) {
-                if (cr.ok) return cr.json();
-                return fetch(apiUrl('/api/stats'), { cache: 'default' }).then(function(sr) {
-                  if (!sr.ok) throw new Error('stats HTTP ' + sr.status);
-                  return sr.json();
-                });
-              })
-              .catch(function() {
-                return fetch(apiUrl('/api/stats'), { cache: 'default' })
-                  .then(function(sr) { return sr.ok ? sr.json() : null; })
-                  .catch(function() { return null; });
-              })
+          ? withTimeout(
+              fetch(apiUrl('/api/counts'), { cache: 'default' })
+                .then(function(cr) {
+                  if (cr.ok) return cr.json();
+                  return fetch(apiUrl('/api/stats'), { cache: 'default' }).then(function(sr) {
+                    if (!sr.ok) throw new Error('stats HTTP ' + sr.status);
+                    return sr.json();
+                  });
+                })
+                .catch(function() {
+                  return fetch(apiUrl('/api/stats'), { cache: 'default' })
+                    .then(function(sr) {
+                      return sr.ok ? sr.json() : null;
+                    })
+                    .catch(function() {
+                      return null;
+                    });
+                }),
+              CATALOG_STATS_TIMEOUT_MS,
+              'timeout'
+            ).catch(function() {
+              return null;
+            })
           : Promise.resolve(null);
 
         var facetsJsonPrefetch = fetch('data/catalog_facets.json', { cache: 'default' })
@@ -2353,12 +2415,13 @@
         }
       } catch (err) {
         console.error('Ошибка загрузки каталога', err);
-        if (gridEl) {
-          gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось загрузить каталог. Проверьте, что API доступен по тому же домену (например /api/cars).</p><a href="/" class="btn btn-primary">Обновить страницу</a></div>';
-        }
+        showCatalogErrorBanner(
+          'Не удалось загрузить каталог. Проверьте, что API доступен по тому же домену (например /api/cars).'
+        );
       }
-    })();
+    }
+    window.WRA_runCatalogBootstrap = bootstrapCatalog;
+    bootstrapCatalog();
 
     var resetFiltersBtn = document.getElementById('resetFiltersBtn');
     if (resetFiltersBtn) {

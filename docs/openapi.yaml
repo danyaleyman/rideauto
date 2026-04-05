@@ -1,0 +1,161 @@
+openapi: 3.0.3
+info:
+  title: Prod Encar API (публичные эндпоинты)
+  version: "1.0"
+  description: |
+    Минимальное описание read-only API каталога и служебных маршрутов.
+    Полный набор query-параметров для `/api/cars` и ответы см. в коде `backend/api_server.py`.
+
+servers:
+  - url: /
+
+paths:
+  /api/health:
+    get:
+      summary: Проверка живости
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  git_sha:
+                    type: string
+                    nullable: true
+                    description: Если задан WRA_GIT_SHA или GIT_COMMIT
+
+  /api/version:
+    get:
+      summary: Версия сервиса (без кэша)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: prod-encar-api
+                  git_sha:
+                    type: string
+                    nullable: true
+                  python:
+                    type: string
+                    example: "3.12.0"
+
+  /api/cars:
+    get:
+      summary: Список автомобилей (каталог)
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer }
+        - name: full
+          in: query
+          description: "1 — полные записи"
+          schema: { type: string }
+      responses:
+        "200":
+          description: JSON каталога
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/facets:
+    get:
+      summary: Фасеты / фильтры (алиас может быть /api/filters)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/stats:
+    get:
+      summary: Агрегированная статистика каталога
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/counts:
+    get:
+      summary: Счётчики для UI фильтров
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/sort:
+    get:
+      summary: Метаданные сортировки
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/car/{id}:
+    get:
+      summary: Одна карточка по id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "404":
+          description: Не найдено
+
+  /api/compare:
+    get:
+      summary: Краткие поля для сравнения (до 4 id через запятую)
+      parameters:
+        - name: ids
+          in: query
+          description: "Например: c1,c2,c3"
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items: { type: object }
+
+  /api/similar:
+    get:
+      summary: Похожие объявления
+      parameters:
+        - name: car_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 8 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
