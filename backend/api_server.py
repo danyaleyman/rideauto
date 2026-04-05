@@ -535,6 +535,12 @@ def _sql_listing_partition_key_bare() -> str:
     )
 
 
+def _sql_listing_partition_key_qualified(table_alias: str) -> str:
+    """Тот же ключ партиции, с префиксом таблицы (для подзапросов / CTE)."""
+    b = _sql_listing_partition_key_bare()
+    return b.replace("data_json", f"{table_alias}.data_json").replace("car_id)", f"{table_alias}.car_id)")
+
+
 def _catalog_listing_max_ids_subquery(from_fragment: str) -> str:
     """Одна строка каталога на объявление: MAX(id) по ключу партиции (эквивалент ROW_NUMBER…WHERE _rn=1).
 
@@ -844,26 +850,29 @@ def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: 
         return []
     pmin = p * 0.8
     pmax = p * 1.2
-    pk = _sql_listing_partition_key_bare()
+    lim = max(limit * 5, limit + 10)
+    pk_base = _sql_listing_partition_key_qualified("base")
+    # Именованные параметры — не перепутать порядок с «?» (раньше на проде ловили ProgrammingError 5 vs 6).
     rows = conn.execute(
         f"""
         WITH base AS (
             SELECT cars.car_id AS car_id, cars.data_json AS data_json, cars.id AS id
             FROM cars AS cars
             {_WRA_CAR_ID_DEDUP_JOIN}
-            WHERE json_extract(cars.data_json, '$.data.mark') = ?
-              AND CAST(json_extract(cars.data_json, '$.data.price_won') AS REAL) BETWEEN ? AND ?
+            WHERE json_extract(cars.data_json, '$.data.mark') = :mark
+              AND CAST(json_extract(cars.data_json, '$.data.price_won') AS REAL)
+                  BETWEEN :pmin AND :pmax
         ),
         listed AS (
-            SELECT MAX(id) AS mid FROM base GROUP BY {pk}
+            SELECT MAX(base.id) AS mid FROM base GROUP BY {pk_base}
         )
         SELECT b.car_id, b.data_json
         FROM base AS b
         INNER JOIN listed AS l ON b.id = l.mid
-        ORDER BY ABS(CAST(json_extract(b.data_json, '$.data.price_won') AS REAL) - ?) ASC, b.id DESC
-        LIMIT ?
+        ORDER BY ABS(CAST(json_extract(b.data_json, '$.data.price_won') AS REAL) - :pcenter) ASC, b.id DESC
+        LIMIT :lim
         """,
-        [mark, pmin, pmax, p, max(limit * 5, limit + 10)],
+        {"mark": mark, "pmin": pmin, "pmax": pmax, "pcenter": p, "lim": lim},
     ).fetchall()
     return rows
 
