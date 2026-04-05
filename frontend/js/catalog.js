@@ -1581,6 +1581,15 @@
         var errMsg = 'Не удалось загрузить список объявлений.';
         if (err && err.message === 'timeout') errMsg = 'Сервер не ответил вовремя. Попробуйте ещё раз.';
         if (err && err.name === 'AbortError') errMsg = 'Запрос отменён или истекло время ожидания.';
+        var emRaw = err && err.message != null ? String(err.message) : '';
+        if (
+          err &&
+          err.name === 'TypeError' &&
+          (/fetch|сеть|network|load failed|failed to fetch/i.test(emRaw) || emRaw === '')
+        ) {
+          errMsg =
+            'API недоступен (нет ответа от /api/…). На сервере: запущен ли процесс с api_server, в nginx настроен ли proxy_pass для /api/ и совпадает ли WRA_API_BASE с реальным URL API.';
+        }
         showCatalogErrorBanner(errMsg);
         if (paginationEl) paginationEl.innerHTML = '';
       }
