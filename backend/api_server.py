@@ -41,7 +41,7 @@ _RATE_WINDOW_SEC = 60.0
 
 _CATALOG_INDEX_LOCK = threading.Lock()
 # Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
-_CATALOG_INDEX_VERSION = 2
+_CATALOG_INDEX_VERSION = 3
 _CATALOG_INDEX_STATE: dict[str, int] = {}
 
 
@@ -68,6 +68,7 @@ def _ensure_catalog_indexes(db_path: str) -> None:
                 conn.executescript(
                     """
                     CREATE INDEX IF NOT EXISTS idx_wra_cars_car_id_id ON cars(car_id, id DESC);
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_source ON cars(json_extract(data_json, '$.data.source'));
                     CREATE INDEX IF NOT EXISTS idx_wra_data_mark ON cars(json_extract(data_json, '$.data.mark'));
                     CREATE INDEX IF NOT EXISTS idx_wra_data_model ON cars(json_extract(data_json, '$.data.model'));
                     CREATE INDEX IF NOT EXISTS idx_wra_data_mark_model ON cars(
@@ -109,7 +110,7 @@ def _ensure_catalog_indexes(db_path: str) -> None:
                 conn.close()
             _CATALOG_INDEX_STATE[rp] = _CATALOG_INDEX_VERSION
         except Exception:
-            pass
+            _LOG.exception("ensure catalog indexes failed for %s", rp)
 
 
 def _db_connect(path: str) -> sqlite3.Connection:
@@ -1506,6 +1507,8 @@ def create_app(db_path: str) -> web.Application:
     app = web.Application(middlewares=[access_log_middleware, cors_middleware, rate_limit_middleware])
     resolved = str(Path(db_path).resolve())
     app[APP_DB_PATH] = resolved
+    # До приёма трафика: иначе первый запрос держит lock на CREATE INDEX, остальные висят до таймаута nginx.
+    _ensure_catalog_indexes(resolved)
     conn = _db_connect(resolved)
     _init_app_tables(conn)
     app[APP_DB] = conn

@@ -41,6 +41,17 @@ docker compose up -d
 
 Пример готовых директив: [nginx-security-headers.example.conf](nginx-security-headers.example.conf).
 
+Для проксирования **`/api/`** на aiohttp задайте запас по времени (иначе при тяжёлом первом запросе к SQLite или большой БД клиент увидит обрыв ~50–60 с). Пример:
+
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_read_timeout 120s;
+    proxy_connect_timeout 10s;
+    proxy_send_timeout 120s;
+}
+```
+
 ## Статика фронтенда
 
 После выноса скрипта страницы авто убедитесь, что файл `frontend/js/car-page.js` отдаётся по пути `/js/car-page.js` (как и остальные `js/*`). Если подключён `car-page-dicts.js`, он должен идти **перед** `car-page.js`.
