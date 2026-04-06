@@ -1030,18 +1030,16 @@
       font-size: 0.8125rem;
       font-weight: 600;
       color: var(--wra-gray-800);
-      background: transparent;
-      border: 1px dashed var(--wra-border);
+      background: var(--wra-white);
+      border: 1px solid var(--wra-gray-300);
       border-radius: var(--radius-md);
       cursor: pointer;
       transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, border-style 0.2s ease;
       width: 100%;
     }
     .show-more-colors-btn:hover {
-      background: #3b82f6;
-      border-color: transparent;
-      border-style: solid;
-      color: #fff;
+      background: var(--wra-gray-100);
+      border-color: var(--wra-gray-400);
     }
     .show-more-colors-btn:focus-visible {
       outline: none;
@@ -1059,8 +1057,10 @@
       align-items: center;
       justify-content: center;
       padding: var(--space-5);
+      opacity: 0;
+      transition: opacity 220ms ease-in-out;
     }
-    .color-modal-overlay.is-open { display: flex; }
+    .color-modal-overlay.is-open { display: flex; opacity: 1; }
     .color-modal {
       background: var(--wra-surface);
       border-radius: var(--radius-xl);
@@ -1073,7 +1073,7 @@
       box-shadow: var(--shadow-lg);
       transform: translate(var(--color-modal-dx), var(--color-modal-dy)) scale(0.9);
       opacity: 0;
-      transition: transform 0.48s cubic-bezier(0.33, 1, 0.68, 1), opacity 0.38s cubic-bezier(0.42, 0, 0.58, 1);
+      transition: transform 250ms ease-in-out, opacity 220ms ease-in-out;
     }
     .color-modal-overlay.is-open .color-modal {
       transform: translate(0, 0) scale(1);
@@ -1088,9 +1088,19 @@
     .color-modal-list {
       padding: var(--space-4) var(--space-6) var(--space-6);
       overflow-y: auto;
-      max-height: 50vh;
+      max-height: 60vh;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: var(--space-4);
+      scrollbar-width: none;
     }
-    .color-modal-list .checkbox-item { margin-bottom: var(--space-2); }
+    .color-modal-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    .color-modal-list .checkbox-item { margin-bottom: var(--space-2); break-inside: avoid; }
+    @media (max-width: 520px) {
+      .color-modal-list {
+        grid-template-columns: 1fr;
+      }
+    }
     .color-modal-close {
       margin-top: var(--space-2);
       padding: var(--space-3) var(--space-6);
@@ -2569,13 +2579,13 @@
           </div>
         </div>
       </div>
-      <!-- 2. Модель (появляется после выбора марки) -->
-      <div class="filter-cascade-slot" id="cascadeSlotModel" aria-hidden="true">
+      <!-- 2. Модель -->
+      <div class="filter-cascade-slot is-revealed" id="cascadeSlotModel" aria-hidden="false">
         <div class="filter-cascade-slot__inner">
           <div class="filter-group">
             <h4>Модель</h4>
             <div class="filter-dropdown" id="modelDropdown">
-              <button type="button" class="filter-dropdown-trigger" id="modelTrigger" aria-expanded="false" disabled>Сначала выберите марку</button>
+              <button type="button" class="filter-dropdown-trigger" id="modelTrigger" aria-expanded="false">Все модели</button>
               <div class="filter-dropdown-panel" id="modelPanel">
                 <div class="checkbox-list filter-dropdown-list" id="modelList"></div>
               </div>
@@ -2585,12 +2595,12 @@
       </div>
       <div class="wra-filters-region wra-filters-region--korea">
       <!-- 3. Поколение -->
-      <div class="filter-cascade-slot" id="cascadeSlotGeneration" aria-hidden="true">
+      <div class="filter-cascade-slot is-revealed" id="cascadeSlotGeneration" aria-hidden="false">
         <div class="filter-cascade-slot__inner">
           <div class="filter-group">
             <h4>Поколение</h4>
             <div class="filter-dropdown" id="generationDropdown">
-              <button type="button" class="filter-dropdown-trigger" id="generationTrigger" aria-expanded="false" disabled>Сначала выберите модель</button>
+              <button type="button" class="filter-dropdown-trigger" id="generationTrigger" aria-expanded="false">Все поколения</button>
               <div class="filter-dropdown-panel" id="generationPanel">
                 <div class="checkbox-list filter-dropdown-list" id="generationList"></div>
               </div>
@@ -2599,12 +2609,12 @@
         </div>
       </div>
       <!-- 4. Комплектация -->
-      <div class="filter-cascade-slot" id="cascadeSlotTrim" aria-hidden="true">
+      <div class="filter-cascade-slot is-revealed" id="cascadeSlotTrim" aria-hidden="false">
         <div class="filter-cascade-slot__inner">
           <div class="filter-group">
             <h4>Комплектация</h4>
             <div class="filter-dropdown" id="trimDropdown">
-              <button type="button" class="filter-dropdown-trigger" id="trimTrigger" aria-expanded="false" disabled>Сначала выберите поколение</button>
+              <button type="button" class="filter-dropdown-trigger" id="trimTrigger" aria-expanded="false">Все комплектации</button>
               <div class="filter-dropdown-panel" id="trimPanel">
                 <div class="checkbox-list filter-dropdown-list" id="trimList"></div>
               </div>

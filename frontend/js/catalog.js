@@ -66,7 +66,7 @@
         var h1 = document.querySelector('.catalog-header h1');
         if (h1) {
           h1.textContent =
-            CATALOG_REGION === 'china' ? 'Автомобили из Китая' : 'Автомобили из Кореи (Encar)';
+            CATALOG_REGION === 'china' ? 'Автомобили из Китая' : 'Автомобили из Кореи';
         }
         var hintNew = document.querySelector('.sort-option[data-value="date_new"] .sort-option-hint');
         if (hintNew && CATALOG_REGION === 'china') {
@@ -760,28 +760,42 @@
         '마쓰다': 'Mazda', '미쓰비시': 'Mitsubishi', '스바루': 'Subaru', '스즈키': 'Suzuki', '다이하쓰': 'Daihatsu',
         '포드': 'Ford', '쉐보레': 'Chevrolet', '지프': 'Jeep', '캐딜락': 'Cadillac', '테슬라': 'Tesla',         '폴스타': 'Polestar',
         '랜드로버': 'Land Rover', '재규어': 'Jaguar', '벤틀리': 'Bentley', '롤스로이스': 'Rolls-Royce', '마세라티': 'Maserati',
-        '페라리': 'Ferrari', '람보르기니': 'Lamborghini', '알파로메오': 'Alfa Romeo', '피아트': 'Fiat'
+        '페라리': 'Ferrari', '람보르기니': 'Lamborghini', '알파로메오': 'Alfa Romeo', '피아트': 'Fiat',
+        '기타 수입차': 'Other imported', '기타 제조사': 'Other manufacturers', '다이하쯔': 'Daihatsu', '닷지': 'Dodge',
+        '도요타': 'Toyota', '동풍소콘': 'DFSK', '로터스': 'Lotus', '르노': 'Renault', '르노코리아(삼성)': 'Renault Korea',
+        '링컨': 'Lincoln', '마이바흐': 'Maybach', '마쯔다': 'Mazda', '맥라렌': 'McLaren', '미쯔비시': 'Mitsubishi',
+        '미쯔오까': 'Mitsuoka', '북기은상': 'BAIC Yinxiang', '사브': 'Saab', '신위안': 'Shineray', '머큐리': 'Mercury',
+        '알파 로메오': 'Alfa Romeo', '애스턴마틴': 'Aston Martin', '어큐라': 'Acura', '이네오스': 'INEOS',
+        '지리': 'Geely', '크라이슬러': 'Chrysler', '푸조': 'Peugeot', '험머': 'Hummer', '기타': 'Other',
+        '/DS': 'DS Automobiles', '(GM )': 'General Motors', '(GM)': 'General Motors', 'GM ': 'General Motors'
       },
       bodyType: {
         '세단': 'Sedan', 'SUV': 'SUV', '해치백': 'Hatchback', '왜건': 'Wagon', '쿠페': 'Coupe', '픽업': 'Pickup', '밴': 'Van',
         '중형차': 'Midsize', '대형차': 'Full-size', '소형차': 'Compact', '경차': 'Light car', '미니밴': 'Minivan', 'RV': 'RV',
         '스포츠카': 'Sports car', '승합차': 'Minibus', '화물차': 'Commercial vehicle',
-        '크로스오버': 'Crossover', '리무진': 'Limousine', '컨버터블': 'Convertible'
+        '크로스오버': 'Crossover', '리무진': 'Limousine', '컨버터블': 'Convertible',
+        '경승합차': 'Minibus', '준중형차': 'Compact', '기타': 'Other'
       },
       engineType: {
         '가솔린': 'Gasoline', '디젤': 'Diesel', 'LPG': 'LPG', 'LPG/가솔린': 'LPG/Gasoline', '하이브리드': 'Hybrid',
         '가솔린+전기': 'Hybrid', '전기': 'Electric', '수소': 'Hydrogen', '디젤+전기': 'Diesel Hybrid',
-        '바이퓨얼': 'Dual fuel', '친환경': 'Eco', '수소+전기': 'Hydrogen EV', '가솔린+전기+LPG': 'Hybrid LPG'
+        '바이퓨얼': 'Dual fuel', '친환경': 'Eco', '수소+전기': 'Hydrogen EV', '가솔린+전기+LPG': 'Hybrid LPG',
+        '+CNG': 'CNG', 'CNG+': 'CNG', 'CNG': 'CNG',
+        '+LPG': 'LPG', 'LPG+': 'LPG', '기타': 'Other'
       },
       transmission: {
         '자동': 'Automatic', '수동': 'Manual', '오토': 'Automatic', '세미자동': 'Semi-Auto', 'CVT': 'CVT', '듀얼 클러치': 'DCT',
-        'ISG': 'ISG', '감속기': 'Reducer', '비전동': 'Non-powered'
+        'ISG': 'ISG', '감속기': 'Reducer', '비전동': 'Non-powered',
+        '세미오토': 'Semi-Auto', '기타': 'Other', '001': 'Other'
       },
       color: {
         '검정': 'Black', '검정색': 'Black', '흰색': 'White', '은색': 'Silver', '회색': 'Gray', '빨간색': 'Red',
         '파란색': 'Blue', '남색': 'Navy', '베이지': 'Beige', '갈색': 'Brown', '녹색': 'Green', '노란색': 'Yellow', '주황': 'Orange',
         '골드': 'Gold', '실버': 'Silver', '블랙': 'Black', '화이트': 'White', '레드': 'Red', '블루': 'Blue', '그레이': 'Gray', '그린': 'Green',
-        '보라색': 'Purple', '연금색': 'Light gold', '연두색': 'Lime green', '은하색': 'Silver gray', '자주색': 'Purple', '쥐색': 'Dark gray', '진주색': 'Pearl', '청색': 'Blue', '하늘색': 'Sky blue'
+        '보라색': 'Purple', '연금색': 'Light gold', '연두색': 'Lime green', '은하색': 'Silver gray', '자주색': 'Purple', '쥐색': 'Dark gray', '진주색': 'Pearl', '청색': 'Blue', '하늘색': 'Sky blue',
+        '검정투톤': 'Black two-tone', '금색투톤': 'Gold two-tone', '은색투톤': 'Silver two-tone',
+        '진주투톤': 'Pearl two-tone', '흰색투톤': 'White two-tone', '갈색투톤': 'Brown two-tone',
+        '갈대색': 'Khaki', '담녹색': 'Light green', '명은색': 'Silver gray', '분홍색': 'Pink', '주황색': 'Orange', '청록색': 'Turquoise'
       }
     };
     function toDisplayEn(val, category) {
@@ -842,13 +856,17 @@
     // Перевод для UI на русский: тип кузова, топливо, коробка, цвет (без корейских символов в выводе)
     const displayRu = {
       'AWD': 'Полный', '2WD': '2WD', 'FWD': 'Передний', 'RWD': 'Задний',
-      '가솔린': 'Бензин', '디젤': 'Дизель', 'LPG': 'Газ', 'LPG/가솔린': 'Газ/бензин', '하이브리드': 'Гибрид', '전기': 'Электро', '가솔린+전기': 'Гибрид', '수소': 'Водород', '디젤+전기': 'Дизель гибрид',
-      'Gasoline': 'Бензин', 'Diesel': 'Дизель', 'Electric': 'Электро', 'Hybrid': 'Гибрид', 'Hydrogen': 'Водород', 'LPG/Gasoline': 'Газ/бензин', 'Diesel Hybrid': 'Дизель гибрид',
+      '가솔린': 'Бензин', '디젤': 'Дизель', 'LPG': 'Газ', 'LPG/가솔린': 'Газ/бензин', '하이브리드': 'Гибрид', '전기': 'Электро', '가솔린+전기': 'Гибрид', '수소': 'Водород', '디젤+전기': 'Дизель + Гибрид',
+      'Gasoline': 'Бензин', 'Diesel': 'Дизель', 'Electric': 'Электро', 'Hybrid': 'Гибрид', 'Hydrogen': 'Водород', 'LPG/Gasoline': 'Газ/бензин', 'Diesel Hybrid': 'Дизель + Гибрид',
+      'CNG': 'CNG', 'Other': 'Прочее',
       '세단': 'Седан', 'SUV': 'Внедорожник', '해치백': 'Хэтчбек', '왜건': 'Универсал', '쿠페': 'Купе', '픽업': 'Пикап', '밴': 'Фургон', '중형차': 'Седан среднего класса', '대형차': 'Седан полноразмерный', '소형차': 'Компакт', '경차': 'Микролитражный', '미니밴': 'Минивэн', 'RV': 'Внедорожник', '스포츠카': 'Спорткар', '승합차': 'Микроавтобус', '화물차': 'Грузовой автомобиль',
       'Sedan': 'Седан', 'Hatchback': 'Хэтчбек', 'Wagon': 'Универсал', 'Coupe': 'Купе', 'Pickup': 'Пикап', 'Van': 'Фургон', 'Midsize': 'Седан среднего класса', 'Full-size': 'Седан полноразмерный', 'Compact': 'Компакт', 'Minivan': 'Минивэн', 'Light car': 'Микролитражный', 'Sports car': 'Спорткар', 'Minibus': 'Микроавтобус', 'Commercial vehicle': 'Грузовой автомобиль',
       'Crossover': 'Кроссовер', 'Convertible': 'Кабриолет', 'Limousine': 'Лимузин', 'Dual fuel': 'Двухтопливный', 'Eco': 'Экологичный', 'Hydrogen EV': 'Водород + электро', 'Hybrid LPG': 'Гибрид LPG', 'ISG': 'ISG', 'Reducer': 'Редуктор', 'Non-powered': 'Без привода',
       '자동': 'Автоматическая', '수동': 'Механическая', '오토': 'Автоматическая', '세미자동': 'Роботизированная', 'CVT': 'Вариатор', '듀얼 클러치': 'Роботизированная',
       'Automatic': 'Автоматическая', 'Manual': 'Механическая', 'Semi-Auto': 'Роботизированная', 'DCT': 'Роботизированная',
+      'Black two-tone': 'Черный двухцветный', 'Gold two-tone': 'Золотой двухцветный', 'Silver two-tone': 'Серебристый двухцветный',
+      'Pearl two-tone': 'Перламутровый двухцветный', 'White two-tone': 'Белый двухцветный', 'Brown two-tone': 'Коричневый двухцветный',
+      'Khaki': 'Хаки', 'Light green': 'Светло-зеленый', 'Pink': 'Розовый', 'Turquoise': 'Бирюзовый',
       '검정': 'Чёрный', '흰색': 'Белый', '검정색': 'Чёрный', '은색': 'Серебристый', '회색': 'Серый', '빨간색': 'Красный', '파란색': 'Синий', '남색': 'Тёмно-синий', '베이지': 'Бежевый', '갈색': 'Коричневый', '녹색': 'Зелёный', '노란색': 'Жёлтый', '주황': 'Оранжевый', '골드': 'Золотой', '실버': 'Серебро', '블랙': 'Чёрный', '화이트': 'Белый', '레드': 'Красный', '블루': 'Синий', '그레이': 'Серый', '그린': 'Зелёный',
       'Black': 'Чёрный', 'White': 'Белый', 'Silver': 'Серебристый', 'Gray': 'Серый', 'Grey': 'Серый', 'Red': 'Красный', 'Blue': 'Синий', 'Navy': 'Тёмно-синий', 'Beige': 'Бежевый', 'Brown': 'Коричневый', 'Green': 'Зелёный', 'Yellow': 'Жёлтый', 'Orange': 'Оранжевый', 'Gold': 'Золотой', 'Purple': 'Фиолетовый', 'Lime green': 'Салатовый', 'Light gold': 'Светло-золотистый', 'Silver gray': 'Серебристо-серый', 'Dark gray': 'Тёмно-серый', 'Pearl': 'Перламутровый', 'Sky blue': 'Голубой',
       '은회색': 'Серебристо-серый', '챠콜': 'Графитовый', '다크그레이': 'Тёмно-серый', '다크블루': 'Тёмно-синий', '다크레드': 'Тёмно-красный', '라이트그레이': 'Светло-серый', '라이트블루': 'Светло-синий', '민트': 'Мятный', '버건디': 'Бордовый', '아이보리': 'Слоновая кость', '카키': 'Хаки', '타이탄': 'Титан', '펄화이트': 'Жемчужно-белый', '크림': 'Кремовый',
@@ -869,8 +887,9 @@
       const s = String(val || '').trim();
       const raw = s;
       const ruCategories = ['bodyType', 'engineType', 'transmission', 'color'];
+      const isRuCategory = ruCategories.indexOf(category) >= 0;
       let out = '';
-      if (ruCategories.indexOf(category) >= 0) {
+      if (isRuCategory) {
         const en = toDisplayEn(s, category);
         out = sanitizeUiLabel(toDisplayRu(en || s) || en || s);
       } else {
@@ -885,7 +904,14 @@
           out = sanitizeUiLabel(toDisplayRu(s) || s);
         }
       }
-      if (!out && raw) out = raw;
+      if (category === 'mark') {
+        out = String(out || raw || '')
+          .replace(/^\(([^)]+)\)$/, '$1')
+          .replace(/^\//, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      if (!out && raw) out = isRuCategory ? 'Прочее' : raw;
       if (!out && val != null && String(val).length) out = String(val).trim();
       return out || 'Прочее';
     }
@@ -1101,7 +1127,27 @@
       container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]:checked').forEach(function(cb) {
         preserve.add(cb.value);
       });
-      const vals = rows.map(function(r) { return r.value; }).filter(Boolean);
+      const countMap = {};
+      rows.forEach(function(r) {
+        if (!r || r.value == null || r.value === '') return;
+        countMap[r.value] = (countMap[r.value] || 0) + Number(r.count || 0);
+      });
+      let vals = Object.keys(countMap);
+      if (['mark', 'body', 'fuel', 'trans', 'color'].indexOf(filterKey) >= 0) {
+        const byLabel = {};
+        vals.forEach(function(v) {
+          const label = String(labelCategory ? filterOptionLabel(v, labelCategory) : v).trim().toLowerCase();
+          if (!label) return;
+          if (!byLabel[label]) byLabel[label] = { value: v, count: 0 };
+          byLabel[label].count += Number(countMap[v] || 0);
+          if (preserve.has(v)) byLabel[label].value = v;
+        });
+        vals = Object.keys(byLabel).map(function(k) { return byLabel[k].value; });
+        vals.forEach(function(v) {
+          const key = String(labelCategory ? filterOptionLabel(v, labelCategory) : v).trim().toLowerCase();
+          if (byLabel[key]) countMap[v] = byLabel[key].count;
+        });
+      }
       vals.sort(function(a, b) {
         const la = labelCategory ? filterOptionLabel(a, labelCategory) : String(a);
         const lb = labelCategory ? filterOptionLabel(b, labelCategory) : String(b);
@@ -1111,12 +1157,7 @@
         container,
         vals,
         function(v) { return labelCategory ? filterOptionLabel(v, labelCategory) : v; },
-        function(v) {
-          for (var i = 0; i < rows.length; i++) {
-            if (rows[i].value === v) return rows[i].count;
-          }
-          return 0;
-        },
+        function(v) { return countMap[v] || 0; },
         filterKey
       );
       container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
@@ -1136,9 +1177,18 @@
 
       const countMap = {};
       (colorRows || []).forEach(function(r) {
-        if (r && r.value != null && r.value !== '') countMap[r.value] = r.count;
+        if (r && r.value != null && r.value !== '') countMap[r.value] = (countMap[r.value] || 0) + Number(r.count || 0);
       });
-      const allColors = (colorRows || []).map(function(r) { return r.value; }).filter(Boolean).sort(function(a, b) {
+      const allColorsRaw = Object.keys(countMap);
+      const colorByLabel = {};
+      allColorsRaw.forEach(function(v) {
+        const k = String(filterOptionLabel(v, 'color') || v).trim().toLowerCase();
+        if (!k) return;
+        if (!colorByLabel[k]) colorByLabel[k] = { value: v, count: 0 };
+        colorByLabel[k].count += Number(countMap[v] || 0);
+        if (preserve.has(v)) colorByLabel[k].value = v;
+      });
+      const allColors = Object.keys(colorByLabel).map(function(k) { return colorByLabel[k].value; }).sort(function(a, b) {
         return (filterOptionLabel(a, 'color') || '').localeCompare(filterOptionLabel(b, 'color') || '', 'ru');
       });
 
@@ -1151,7 +1201,8 @@
         div.className = 'checkbox-item';
         const id = idPrefix + String(val).replace(/\s/g, '_');
         const labelText = filterOptionLabel(val, 'color');
-        const cnt = countMap[val];
+        const group = colorByLabel[String(labelText).trim().toLowerCase()];
+        const cnt = group ? group.count : (countMap[val] || 0);
         const suffix = cnt != null ? (' <span class="opt-count">(' + Number(cnt).toLocaleString('ru-RU') + ')</span>') : '';
         div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText) + suffix);
         container.appendChild(div);
@@ -1179,56 +1230,12 @@
 
       cascade(markListEl, data.marks, 'mark', 'mark', markTrigger, 'Все марки');
 
-      const selMarks = getSelectedValues(markListEl, 'mark');
-      if (selMarks.size === 0) {
-        if (modelListEl) modelListEl.innerHTML = '';
-        if (generationListEl) generationListEl.innerHTML = '';
-        if (trimListEl) trimListEl.innerHTML = '';
-        if (modelTrigger) {
-          modelTrigger.disabled = true;
-          modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
-        }
-        if (generationTrigger) {
-          generationTrigger.disabled = true;
-          generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
-        }
-        if (trimTrigger) {
-          trimTrigger.disabled = true;
-          trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-        }
-      } else {
-        cascade(modelListEl, data.models, 'model', 'model', modelTrigger, 'Все модели');
-        if (modelTrigger) modelTrigger.disabled = false;
-
-        const selModels = getSelectedValues(modelListEl, 'model');
-        if (selModels.size === 0) {
-          if (generationListEl) generationListEl.innerHTML = '';
-          if (trimListEl) trimListEl.innerHTML = '';
-          if (generationTrigger) {
-            generationTrigger.disabled = true;
-            generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
-          }
-          if (trimTrigger) {
-            trimTrigger.disabled = true;
-            trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-          }
-        } else {
-          cascade(generationListEl, data.generations, 'generation', 'generation', generationTrigger, 'Все поколения');
-          if (generationTrigger) generationTrigger.disabled = false;
-
-          const selGen = getSelectedValues(generationListEl, 'generation');
-          if (selGen.size === 0) {
-            if (trimListEl) trimListEl.innerHTML = '';
-            if (trimTrigger) {
-              trimTrigger.disabled = true;
-              trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-            }
-          } else {
-            cascade(trimListEl, data.trims, 'trim', 'trim', trimTrigger, 'Все комплектации');
-            if (trimTrigger) trimTrigger.disabled = false;
-          }
-        }
-      }
+      cascade(modelListEl, data.models, 'model', 'model', modelTrigger, 'Все модели');
+      cascade(generationListEl, data.generations, 'generation', 'generation', generationTrigger, 'Все поколения');
+      cascade(trimListEl, data.trims, 'trim', 'trim', trimTrigger, 'Все комплектации');
+      if (modelTrigger) modelTrigger.disabled = false;
+      if (generationTrigger) generationTrigger.disabled = false;
+      if (trimTrigger) trimTrigger.disabled = false;
 
       renderFacetCheckboxList(document.getElementById('bodyList'), data.bodies || [], 'body', 'bodyType');
       renderFacetCheckboxList(document.getElementById('fuelList'), data.fuels || [], 'fuel', 'engineType');
@@ -1353,54 +1360,12 @@
         if (trigger) setDropdownTriggerText(trigger, container, filterKey, allLabel);
       }
       cascade(markListEl, facetMapToRows(maps.marks), 'mark', 'mark', markTrigger, 'Все марки');
-      var selMarks = getSelectedValues(markListEl, 'mark');
-      if (selMarks.size === 0) {
-        if (modelListEl) modelListEl.innerHTML = '';
-        if (generationListEl) generationListEl.innerHTML = '';
-        if (trimListEl) trimListEl.innerHTML = '';
-        if (modelTrigger) {
-          modelTrigger.disabled = true;
-          modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
-        }
-        if (generationTrigger) {
-          generationTrigger.disabled = true;
-          generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
-        }
-        if (trimTrigger) {
-          trimTrigger.disabled = true;
-          trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-        }
-      } else {
-        cascade(modelListEl, facetMapToRows(maps.models), 'model', 'model', modelTrigger, 'Все модели');
-        if (modelTrigger) modelTrigger.disabled = false;
-        var selModels = getSelectedValues(modelListEl, 'model');
-        if (selModels.size === 0) {
-          if (generationListEl) generationListEl.innerHTML = '';
-          if (trimListEl) trimListEl.innerHTML = '';
-          if (generationTrigger) {
-            generationTrigger.disabled = true;
-            generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
-          }
-          if (trimTrigger) {
-            trimTrigger.disabled = true;
-            trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-          }
-        } else {
-          cascade(generationListEl, facetMapToRows(maps.generations), 'generation', 'generation', generationTrigger, 'Все поколения');
-          if (generationTrigger) generationTrigger.disabled = false;
-          var selGen = getSelectedValues(generationListEl, 'generation');
-          if (selGen.size === 0) {
-            if (trimListEl) trimListEl.innerHTML = '';
-            if (trimTrigger) {
-              trimTrigger.disabled = true;
-              trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
-            }
-          } else {
-            cascade(trimListEl, facetMapToRows(maps.trims), 'trim', 'trim', trimTrigger, 'Все комплектации');
-            if (trimTrigger) trimTrigger.disabled = false;
-          }
-        }
-      }
+      cascade(modelListEl, facetMapToRows(maps.models), 'model', 'model', modelTrigger, 'Все модели');
+      cascade(generationListEl, facetMapToRows(maps.generations), 'generation', 'generation', generationTrigger, 'Все поколения');
+      cascade(trimListEl, facetMapToRows(maps.trims), 'trim', 'trim', trimTrigger, 'Все комплектации');
+      if (modelTrigger) modelTrigger.disabled = false;
+      if (generationTrigger) generationTrigger.disabled = false;
+      if (trimTrigger) trimTrigger.disabled = false;
       renderFacetCheckboxList(document.getElementById('bodyList'), facetMapToRows(maps.body), 'body', 'bodyType');
       renderFacetCheckboxList(document.getElementById('fuelList'), facetMapToRows(maps.fuel), 'fuel', 'engineType');
       renderFacetCheckboxList(document.getElementById('transmissionList'), facetMapToRows(maps.trans), 'transmission', 'transmission');
@@ -2327,29 +2292,20 @@
     }
 
     function syncCascadeSlotVisibility() {
-      const sm = getSelectedValues(markListEl, 'mark');
-      const sMo = getSelectedValues(modelListEl, 'model');
-      const sG = getSelectedValues(generationListEl, 'generation');
       const slotModel = document.getElementById('cascadeSlotModel');
       const slotGen = document.getElementById('cascadeSlotGeneration');
       const slotTrim = document.getElementById('cascadeSlotTrim');
       if (slotModel) {
-        const show = sm.size > 0;
-        if (!show) closeFilterDropdownPair(modelTrigger, modelPanel);
-        slotModel.classList.toggle('is-revealed', show);
-        slotModel.setAttribute('aria-hidden', show ? 'false' : 'true');
+        slotModel.classList.add('is-revealed');
+        slotModel.setAttribute('aria-hidden', 'false');
       }
       if (slotGen) {
-        const show = sMo.size > 0;
-        if (!show) closeFilterDropdownPair(generationTrigger, generationPanel);
-        slotGen.classList.toggle('is-revealed', show);
-        slotGen.setAttribute('aria-hidden', show ? 'false' : 'true');
+        slotGen.classList.add('is-revealed');
+        slotGen.setAttribute('aria-hidden', 'false');
       }
       if (slotTrim) {
-        const show = sG.size > 0;
-        if (!show) closeFilterDropdownPair(trimTrigger, trimPanel);
-        slotTrim.classList.toggle('is-revealed', show);
-        slotTrim.setAttribute('aria-hidden', show ? 'false' : 'true');
+        slotTrim.classList.add('is-revealed');
+        slotTrim.setAttribute('aria-hidden', 'false');
       }
     }
 
@@ -2395,9 +2351,9 @@
         if (container) container.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
       });
       if (markTrigger) markTrigger.innerHTML = '<span class="trigger-placeholder">Все марки</span>';
-      if (modelTrigger) { modelTrigger.disabled = true; modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>'; }
-      if (generationTrigger) { generationTrigger.disabled = true; generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>'; }
-      if (trimTrigger) { trimTrigger.disabled = true; trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>'; }
+      if (modelTrigger) { modelTrigger.disabled = false; modelTrigger.innerHTML = '<span class="trigger-placeholder">Все модели</span>'; }
+      if (generationTrigger) { generationTrigger.disabled = false; generationTrigger.innerHTML = '<span class="trigger-placeholder">Все поколения</span>'; }
+      if (trimTrigger) { trimTrigger.disabled = false; trimTrigger.innerHTML = '<span class="trigger-placeholder">Все комплектации</span>'; }
       document.querySelectorAll('#bodyList input[type=checkbox], #fuelList input[type=checkbox], #transmissionList input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
       document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) { cb.checked = false; });
       var ids = ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'yearFrom', 'monthFrom', 'yearTo', 'monthTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo', 'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'];
@@ -2435,7 +2391,7 @@
       if (mapping && typeof mapping === 'object') {
         ['mark', 'model', 'generation', 'type', 'trim'].forEach(function(cat) {
           if (mapping[cat] && typeof mapping[cat] === 'object') {
-            filterMappingKoEn[cat] = Object.assign({}, filterMappingKoEn[cat] || {}, mapping[cat]);
+            filterMappingKoEn[cat] = Object.assign({}, mapping[cat], filterMappingKoEn[cat] || {});
           }
         });
       }
