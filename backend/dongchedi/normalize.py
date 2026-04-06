@@ -9,6 +9,9 @@ from typing import Any, Dict, Optional
 
 _WAN_KM_RE = re.compile(r"([\d.]+)\s*万公里")
 _WAN_PRICE_RE = re.compile(r"([\d]+(?:\.[\d]+)?)\s*万")
+_HP_RE = re.compile(r"(\d+)\s*马力")
+_TRANSFER_CNT_RE = re.compile(r"(\d+)\s*次")
+_REG_YM_RE = re.compile(r"(\d{4})年\s*(\d{1,2})\s*月")
 
 
 def _utc_date_tag() -> str:
@@ -47,6 +50,74 @@ def _km_from_mileage_str(raw: str) -> Optional[int]:
         return int(float(m.group(1)) * 10000)
     except ValueError:
         return None
+
+
+def _param_pairs_from_detail(detail: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """Собирает name→value из other_params / important_params карточки Dongchedi."""
+    out: Dict[str, str] = {}
+    if not detail or not isinstance(detail, dict):
+        return out
+    for key in ("other_params", "important_params"):
+        raw = detail.get(key)
+        if not isinstance(raw, list):
+            continue
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or "").strip()
+            val = str(item.get("value") or "").strip()
+            if name and val and len(name) < 80 and len(val) < 200:
+                out[name] = val
+    return out
+
+
+def _parse_register_year_month(s: str) -> tuple[str, str]:
+    """'2019年06月' → ('2019', '201906'). Пустые строки если не распознано."""
+    m = _REG_YM_RE.search(s or "")
+    if not m:
+        return "", ""
+    y, mo = m.group(1), m.group(2).zfill(2)
+    return y, f"{y}{mo}"
+
+
+def _parse_horsepower_ma(s: Any) -> Optional[int]:
+    m = _HP_RE.search(str(s or ""))
+    if not m:
+        return None
+    try:
+        hp = int(m.group(1))
+    except ValueError:
+        return None
+    return hp if 20 <= hp <= 2000 else None
+
+
+def _parse_transfer_times(s: str) -> Optional[int]:
+    m = _TRANSFER_CNT_RE.search(s or "")
+    if not m:
+        return None
+    try:
+        return int(m.group(1))
+    except ValueError:
+        return None
+
+
+def _displacement_cc_from_label(s: str) -> Optional[str]:
+    """Только если явно в см³ (цифры ~800–8000); иначе None — текст в dongchedi_displacement_label."""
+    t = str(s or "").strip().replace(" ", "")
+    if not t:
+        return None
+    if "T" in t.upper() or t.endswith("L") or "升" in t:
+        return None
+    digits = re.sub(r"[^\d]", "", t)
+    if not digits:
+        return None
+    try:
+        n = int(digits)
+    except ValueError:
+        return None
+    if 800 <= n <= 8000:
+        return str(n)
+    return None
 
 
 def _first_nonempty_str(*vals: Any) -> str:
@@ -130,6 +201,7 @@ def _image_urls_from_row_and_detail(
     if not detail or not isinstance(detail, dict):
         return out
     for key in (
+        "head_images",
         "image_list",
         "images",
         "sku_image_list",
@@ -188,15 +260,18 @@ def sku_row_to_payload(
     mark = brand_name or "中国二手车"
     model = title or f"{series_name} {row.get('car_name') or ''}".strip() or f"Dongchedi #{sid}"
 
-    cy = row.get("car_year")
-    year = str(int(cy)) if isinstance(cy, int) else (str(cy).strip() if cy not in (None, "") else "")
-    year_month = ""
-    if year and len(year) == 4 and year.isdigit():
-        year_month = f"{year}01"
-
     ci: Dict[str, Any] = {}
     if detail and isinstance(detail.get("car_info"), dict):
         ci = detail["car_info"]
+
+    cy = row.get("car_year")
+    year = str(int(cy)) if isinstance(cy, int) else (str(cy).strip() if cy not in (None, "") else "")
+    cy_ci = ci.get("year") if ci else None
+    if isinstance(cy_ci, int) and 1990 <= cy_ci <= 2035:
+        year = str(cy_ci)
+    year_month = ""
+    if year and len(year) == 4 and year.isdigit():
+        year_month = f"{year}01"
 
     km_age = _km_from_mileage_str(str(row.get("car_mileage") or ""))
     if km_age is None and ci:
@@ -251,6 +326,7 @@ def sku_row_to_payload(
 
     if ci:
         col = _first_nonempty_str(
+            ci.get("body_color"),
             ci.get("color"),
             ci.get("car_color"),
             ci.get("exterior_color_name"),
@@ -283,6 +359,92 @@ def sku_row_to_payload(
         city = _first_nonempty_str(ci.get("city_name"), ci.get("city"))
         if city:
             data["city"] = city
+
+    row_city = _first_nonempty_str(row.get("car_source_city_name"))
+    if row_city:
+        data.setdefault("city", row_city)
+    try:
+        tc = row.get("transfer_cnt")
+        if tc is not None and str(tc).strip() != "":
+            data["transfer_count"] = int(tc)
+    except (TypeError, ValueError):
+        pass
+
+    car_name_row = _first_nonempty_str(row.get("car_name"))
+    if car_name_row:
+        data.setdefault("configuration", car_name_row)
+        data.setdefault("gradeName", car_name_row)
+
+    params = _param_pairs_from_detail(detail)
+    if params:
+        pv = params.get("车源地") or params.get("上牌地")
+        if pv:
+            data["city"] = pv
+        pv = params.get("过户次数")
+        if pv:
+            pt = _parse_transfer_times(pv)
+            if pt is not None:
+                data["transfer_count"] = pt
+        pv = params.get("上牌时间")
+        if pv:
+            y_reg, ym_reg = _parse_register_year_month(pv)
+            if y_reg:
+                data["year"] = y_reg
+            if ym_reg:
+                data["yearMonth"] = ym_reg
+        pv = params.get("排量")
+        if pv:
+            cc = _displacement_cc_from_label(pv)
+            if cc:
+                data["displacement"] = cc
+            elif not data.get("displacement"):
+                data["dongchedi_displacement_label"] = str(pv).strip()
+        pv = params.get("变速箱")
+        if pv and not data.get("transmission_type"):
+            data["transmission_type"] = str(pv).strip()
+        pv = params.get("车身颜色")
+        if pv:
+            data["color"] = str(pv).strip()
+        pv = params.get("内饰颜色")
+        if pv:
+            data["interior_color"] = str(pv).strip()
+
+    itext = _first_nonempty_str((detail or {}).get("important_text")) if detail else ""
+    if itext:
+        data["dongchedi_summary"] = itext
+
+    cc_over = (detail or {}).get("car_config_overview") if detail else None
+    if isinstance(cc_over, dict):
+        cn = _first_nonempty_str(cc_over.get("car_name"))
+        if cn:
+            data["configuration"] = cn
+            data["gradeName"] = cn
+        man = cc_over.get("manipulation")
+        if isinstance(man, dict):
+            df = _first_nonempty_str(man.get("driver_form"))
+            if df:
+                data["drive_type"] = df
+        powd = cc_over.get("power")
+        if isinstance(powd, dict):
+            hpv = _parse_horsepower_ma(powd.get("horsepower"))
+            if hpv is not None:
+                data["hp"] = hpv
+            if not data.get("engine_type"):
+                fu = _first_nonempty_str(powd.get("fuel_form"))
+                if fu:
+                    data["engine_type"] = fu
+            if not data.get("transmission_type"):
+                gbd = _first_nonempty_str(powd.get("gearbox_description"))
+                if gbd:
+                    data["transmission_type"] = gbd
+            if not data.get("displacement") and not data.get("dongchedi_displacement_label"):
+                cap = _first_nonempty_str(powd.get("capacity"))
+                if cap:
+                    cc2 = _displacement_cc_from_label(cap)
+                    if cc2:
+                        data["displacement"] = cc2
+                    else:
+                        data["dongchedi_displacement_label"] = cap
 
     return {"data": data}
 

@@ -1284,13 +1284,33 @@
             ].concat(driveVal ? [{ label: 'Привод', value: driveVal }] : []).concat(
                 { label: 'VIN', value: d.vin },
                 { label: 'Кол-во мест', value: d.seatCount },
-                { label: 'Объём двигателя', value: (function() { var v = d.displacement || d.engine_volume || d.engineDisplacement || ''; if (v == null || v === '') return '—'; var s = String(v).trim().replace(/\s/g, ''); var num = parseInt(s.replace(/[^\d]/g, ''), 10); return (!isNaN(num) && num > 0) ? (num.toLocaleString('ru-RU') + ' см³') : (s ? s + ' см³' : '—'); })() },
-            ).concat(powerVal ? [{ label: 'Мощность', value: powerVal }] : []);
+                { label: 'Объём двигателя', value: (function() {
+                    var raw = d.displacement || d.engine_volume || d.engineDisplacement || d.dongchedi_displacement_label || '';
+                    if (raw == null || raw === '') return '';
+                    var s = String(raw).trim();
+                    if (!s) return '';
+                    var num = parseInt(s.replace(/[^\d]/g, ''), 10);
+                    if (!isNaN(num) && num >= 800 && num <= 8000 && !/[tT]/.test(s)) {
+                        return num.toLocaleString('ru-RU') + ' см³';
+                    }
+                    return s;
+                })() },
+            ).concat(powerVal ? [{ label: 'Мощность', value: powerVal }] : []).concat(
+                d.city ? [{ label: 'Город / регион (КНР)', value: d.city }] : []
+            ).concat(
+                d.transfer_count != null && d.transfer_count !== '' ? [{ label: 'Перерегистраций (КНР)', value: String(d.transfer_count) }] : []
+            ).concat(
+                d.interior_color ? [{ label: 'Цвет салона', value: d.interior_color }] : []
+            );
             var specHtml = '<div class="detail-section"><h2>Основные характеристики</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">';
             specs.forEach(function(s) {
                 if (s.value) specHtml += '<div class="dotted-pair"><span class="key">' + s.label + '</span><span class="value">' + s.value + '</span></div>';
             });
             specHtml += '</div></div>';
+            if (d.dongchedi_summary) {
+                var sumTxt = String(d.dongchedi_summary).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                specHtml += '<div class="detail-section"><h2>Сводка на площадке</h2><p class="text-sm opacity-90">' + sumTxt + '</p></div>';
+            }
 
             const optionsHtml = renderOptionsGrouped(d.options?.standard || []);
             const bodyPanelsHtml = renderBodyPanels(insp.bodyPanels);

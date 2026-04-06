@@ -92,3 +92,54 @@ def test_sku_row_detail_car_info_and_gallery():
     imgs = json.loads(d["images"])
     assert imgs[0] == "https://example.com/cover.jpg"
     assert "https://example.com/extra.jpg" in imgs
+
+
+def test_detail_other_params_car_config_and_listing_meta():
+    row = {
+        "sku_id": 55,
+        "title": "宝马X1",
+        "brand_name": "宝马",
+        "series_name": "宝马X1",
+        "car_year": 2018,
+        "car_mileage": "7万公里",
+        "image": "https://example.com/c.jpg",
+        "car_name": "sDrive18Li",
+        "transfer_cnt": 1,
+        "car_source_city_name": "上海",
+    }
+    detail = {
+        "source_sh_price": 30260000,
+        "important_text": "2019年上牌 | 7.06万公里 | 北京车源",
+        "head_images": ["https://example.com/h1.jpg"],
+        "other_params": [
+            {"name": "上牌时间", "value": "2019年06月"},
+            {"name": "过户次数", "value": "2次"},
+            {"name": "排量", "value": "1.5T"},
+            {"name": "内饰颜色", "value": "浅色"},
+            {"name": "车源地", "value": "北京"},
+        ],
+        "car_config_overview": {
+            "car_name": "sDrive18Li 时尚型",
+            "manipulation": {"driver_form": "前置前驱"},
+            "power": {
+                "horsepower": "136马力",
+                "fuel_form": "汽油",
+                "gearbox_description": "6挡手自一体",
+                "capacity": "1.5T",
+            },
+        },
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=10.0)
+    d = out["data"]
+    assert d["year"] == "2019"
+    assert d["yearMonth"] == "201906"
+    assert d["transfer_count"] == 2
+    assert d["city"] == "北京"
+    assert d["dongchedi_displacement_label"] == "1.5T"
+    assert d["hp"] == 136
+    assert d["drive_type"] == "前置前驱"
+    assert d["interior_color"] == "浅色"
+    assert d["configuration"] == "sDrive18Li 时尚型"
+    assert d["dongchedi_summary"] == "2019年上牌 | 7.06万公里 | 北京车源"
+    imgs = json.loads(d["images"])
+    assert "https://example.com/h1.jpg" in imgs
