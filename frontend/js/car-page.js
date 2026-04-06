@@ -565,7 +565,7 @@
             if (!photos.length) return '<div class="card"><p class="card-body text-muted">Нет фотографий</p></div>';
             photosArray = photos; // сохраняем для модалки
 
-            const mainImgUrl = 'https://ci.encar.com' + photos[0].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+            const mainImgUrl = getModalMainUrl(photos[0]);
 
             return `
                 <div class="gallery-section">
@@ -1245,9 +1245,19 @@
             if (!d.extra) d.extra = {};
             d.extra.inspection_structured = insp;
 
-            // Фото
+            // Фото (Encar: h_images; Dongchedi/прочие: data.images — JSON-массив URL)
             let hImagesList = [];
             try { hImagesList = JSON.parse(d.h_images || '[]'); } catch { hImagesList = []; }
+            if ((!Array.isArray(hImagesList) || !hImagesList.length) && d.images) {
+                try {
+                    const rawIm = JSON.parse(d.images || '[]');
+                    if (Array.isArray(rawIm)) {
+                        hImagesList = rawIm
+                            .filter(function(u) { return typeof u === 'string' && u.trim(); })
+                            .map(function(u) { return { path: u.trim(), type: 'OUTER' }; });
+                    }
+                } catch (eIm) { /* ignore */ }
+            }
             const sortedPhotos = preparePhotos(hImagesList).filter(p => p.type !== 'THUMBNAIL');
 
             // Левая колонка (основная информация) – без верхнего блока titleHtml
@@ -1498,12 +1508,12 @@
             let currentIdx = 0;
 
             function buildThumbUrl(p) {
-                return 'https://ci.encar.com' + p.path + '?impolicy=heightRate&rh=384&cw=640&ch=384&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                return getModalThumbUrl(p);
             }
 
             function buildMainPhotoUrl(idx) {
                 if (idx < 0 || idx >= photosArray.length) return '';
-                return 'https://ci.encar.com' + photosArray[idx].path + '?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center&wtmk=https%3A%2F%2Fci.encar.com%2Fwt_mark%2Fw_mark_04.png&t=20260126173700';
+                return getModalMainUrl(photosArray[idx]);
             }
 
             function prefetchGalleryFullSize(idx) {

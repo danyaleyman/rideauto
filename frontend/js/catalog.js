@@ -85,7 +85,7 @@
     var CATALOG_STATS_TIMEOUT_MS =
       typeof window.WRA_CATALOG_STATS_TIMEOUT_MS === 'number' && window.WRA_CATALOG_STATS_TIMEOUT_MS > 3000
         ? window.WRA_CATALOG_STATS_TIMEOUT_MS
-        : 28000;
+        : 90000;
     function apiUrl(path) {
       return API_BASE + path;
     }
@@ -989,6 +989,20 @@
       return p;
     }
 
+    /** Плитка «Из Китая»: при медленном /api/stats подставляем meta.total из первого безфильтрового запроса /api/cars. */
+    function maybeSyncMarketChinaCountFromCarsMeta(metaTotal) {
+      if (CATALOG_REGION !== 'china') return;
+      var el = document.getElementById('marketChinaCount');
+      if (!el) return;
+      try {
+        if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
+      } catch (e) {
+        return;
+      }
+      if (typeof metaTotal !== 'number' || !Number.isFinite(metaTotal) || metaTotal < 0) return;
+      el.textContent = metaTotal.toLocaleString('ru-RU');
+    }
+
     function updateFilterCountBadge() {
       const selectedMarks = getSelectedValues(markListEl, 'mark');
       const selectedModels = getSelectedValues(modelListEl, 'model');
@@ -1582,6 +1596,7 @@
         catalogTotal = parsed.total;
         catalogPages = parsed.pages;
         page = targetPage;
+        maybeSyncMarketChinaCountFromCarsMeta(parsed.total);
         if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
           await loadCarsPage(1, reqId);
           return;
@@ -2481,8 +2496,10 @@
           : Promise.resolve(null);
 
         function fmtMarketListedCount(n) {
-          if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return '—';
-          return n.toLocaleString('ru-RU');
+          if (n == null || n === '') return '—';
+          var num = typeof n === 'number' ? n : Number(String(n).replace(/[^\d.-]/g, ''));
+          if (!Number.isFinite(num) || num < 0) return '—';
+          return Math.round(num).toLocaleString('ru-RU');
         }
 
         function applyCatalogStatsPayload(st) {
