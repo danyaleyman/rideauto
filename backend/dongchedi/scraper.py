@@ -55,6 +55,10 @@ class ScrapeConfig:
     cookie: Optional[str] = None
     start_shard: int = 1
     start_brand_id: Optional[str] = None
+    # Писать checkpoint рядом с БД (shard_1based + page) для --resume.
+    persist_checkpoint: bool = True
+    resume: bool = False
+    checkpoint_path: Optional[str] = None
 
 
 def _ensure_cars_schema(conn: sqlite3.Connection) -> None:
@@ -118,6 +122,8 @@ def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = 
     raw_brand_ids = m.pop("brand_ids", None)
     if isinstance(raw_brand_ids, list):
         base.brand_ids = [str(x).strip() for x in raw_brand_ids if str(x).strip()]
+    if m.pop("no_checkpoint", False):
+        base.persist_checkpoint = False
     known = {f.name for f in fields(ScrapeConfig)}
     for k, v in m.items():
         if k in known and v is not None:
@@ -129,30 +135,66 @@ def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = 
     return base
 
 
-def _brand_filters_for_listing(cfg: ScrapeConfig) -> List[Optional[str]]:
+def _brand_filters_base(cfg: ScrapeConfig) -> List[Optional[str]]:
     if cfg.brand_ids:
         return [str(x).strip() for x in cfg.brand_ids if str(x).strip()]
     if cfg.shard_brands:
-        filters: List[Optional[str]] = [str(x).strip() for x in DEFAULT_BRAND_SHARD_IDS if str(x).strip()]
-    elif cfg.brand_id and str(cfg.brand_id).strip():
-        filters = [str(cfg.brand_id).strip()]
-    else:
-        filters = [None]
+        return [str(x).strip() for x in DEFAULT_BRAND_SHARD_IDS if str(x).strip()]
+    if cfg.brand_id and str(cfg.brand_id).strip():
+        return [str(cfg.brand_id).strip()]
+    return [None]
 
-    if cfg.start_brand_id and str(cfg.start_brand_id).strip():
-        target = str(cfg.start_brand_id).strip()
-        if target in filters:
-            filters = filters[filters.index(target) :]
-        else:
-            log.warning("start_brand_id=%s not found in shard set, ignoring", target)
-    if cfg.start_shard and int(cfg.start_shard) > 1:
-        start_idx = int(cfg.start_shard) - 1
-        if start_idx < len(filters):
-            filters = filters[start_idx:]
-        else:
-            log.warning("start_shard=%s out of range for %s shards, nothing to run", cfg.start_shard, len(filters))
-            filters = []
+
+def _apply_start_brand_id(filters: List[Optional[str]], cfg: ScrapeConfig) -> List[Optional[str]]:
+    if not cfg.start_brand_id or not str(cfg.start_brand_id).strip():
+        return filters
+    target = str(cfg.start_brand_id).strip()
+    if target in filters:
+        return filters[filters.index(target) :]
+    log.warning("start_brand_id=%s not found in shard set, ignoring", target)
     return filters
+
+
+def _brand_filters_for_listing(cfg: ScrapeConfig) -> List[Optional[str]]:
+    """Полный список проходов листинга (до среза по --start-shard / --resume)."""
+    return _apply_start_brand_id(_brand_filters_base(cfg), cfg)
+
+
+def _default_checkpoint_path(db_path: str) -> str:
+    p = Path(db_path).resolve()
+    return str(p.with_name(p.stem + ".scraper.checkpoint.json"))
+
+
+def _checkpoint_load(path: str) -> Optional[Dict[str, Any]]:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _checkpoint_save(path: str, shard_1based: int, page: int) -> None:
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(
+                {"shard_1based": int(shard_1based), "page": int(page), "saved_at": time.time()},
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
+        os.replace(tmp, path)
+    except OSError as e:
+        log.warning("checkpoint write failed: %s", e)
+
+
+def _checkpoint_clear(path_v: Optional[str]) -> None:
+    if not path_v:
+        return
+    try:
+        os.unlink(path_v)
+    except OSError:
+        pass
 
 
 def _headers_with_cookie(cookie: Optional[str]) -> Dict[str, str]:
@@ -210,9 +252,47 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
     seen: Set[str] = set()
     stop = False
 
-    brand_filters = _brand_filters_for_listing(cfg)
-    if len(brand_filters) > 1 or (brand_filters[0] is not None):
-        log.info("sh_sku_list brand passes: %s (shard_brands=%s)", len(brand_filters), cfg.shard_brands)
+    filters_full = _brand_filters_for_listing(cfg)
+    total_shards = len(filters_full)
+
+    cp_path: Optional[str] = None
+    if cfg.persist_checkpoint:
+        cp_path = cfg.checkpoint_path or _default_checkpoint_path(db_path)
+
+    resume_shard_1 = 1
+    resume_page = 1
+    if cfg.resume and cp_path:
+        cpd = _checkpoint_load(cp_path)
+        if cpd:
+            resume_shard_1 = max(1, int(cpd.get("shard_1based", 1)))
+            resume_page = max(1, int(cpd.get("page", 1)))
+            log.info("resume: shard %s/%s page=%s (%s)", resume_shard_1, total_shards, resume_page, cp_path)
+        else:
+            log.warning("resume: файла checkpoint нет (%s)", cp_path)
+            if cfg.start_shard and int(cfg.start_shard) > 1:
+                resume_shard_1 = int(cfg.start_shard)
+                log.info("используем --start-shard=%s", resume_shard_1)
+    elif cfg.start_shard and int(cfg.start_shard) > 1:
+        resume_shard_1 = int(cfg.start_shard)
+
+    slice_start = resume_shard_1 - 1
+    if slice_start < len(filters_full):
+        brand_filters = filters_full[slice_start:]
+    else:
+        log.warning(
+            "resume/start_shard=%s вне диапазона (%s марок всего), нечего качать",
+            resume_shard_1,
+            total_shards,
+        )
+        brand_filters = []
+
+    if brand_filters and (len(brand_filters) > 1 or brand_filters[0] is not None):
+        log.info(
+            "sh_sku_list: в этом прогоне %s проход(ов) (всего в индексе %s, shard_brands=%s)",
+            len(brand_filters),
+            total_shards,
+            cfg.shard_brands,
+        )
     async with aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector) as session:
 
         async def detail_for(sku: str) -> Optional[Dict[str, Any]]:
@@ -230,16 +310,21 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                     await asyncio.sleep(0.4 * float(attempt + 1))
             return None
 
+        first_shard_in_run = True
         for shard_i, brand_for_list in enumerate(brand_filters):
+            global_shard_1based = slice_start + shard_i + 1
             if len(brand_filters) > 1 or brand_for_list:
                 log.info(
                     "listing shard %s/%s brand=%s",
-                    shard_i + 1,
-                    len(brand_filters),
+                    global_shard_1based,
+                    total_shards,
                     brand_for_list or "—",
                 )
-            page = 1
+            page = resume_page if first_shard_in_run else 1
+            first_shard_in_run = False
             while page <= cfg.max_pages and not stop:
+                if cp_path and cfg.persist_checkpoint:
+                    await asyncio.to_thread(_checkpoint_save, cp_path, global_shard_1based, page)
                 async with list_sem:
                     status, payload = await post_sku_list(
                         session,
@@ -374,6 +459,10 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
             if stop:
                 break
 
+    if not stop and cp_path and cfg.persist_checkpoint:
+        _checkpoint_clear(cp_path)
+        log.info("checkpoint удалён: прогон завершён до конца")
+
     await asyncio.to_thread(_apply_indexes_after, db_path)
     return saved
 
@@ -395,8 +484,15 @@ def main(argv: Optional[List[str]] = None) -> None:
         help="Много проходов sh_sku_list по маркам (обход лимита ~10k без brand)",
     )
     p.add_argument("--series-id", type=int, default=None)
-    p.add_argument("--start-shard", type=int, default=None, help="Продолжить c N-го shard (1-based)")
+    p.add_argument("--start-shard", type=int, default=None, help="Продолжить c N-го shard (1-based), если нет --resume")
     p.add_argument("--start-brand-id", type=str, default=None, help="Продолжить c указанного brand_id")
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="Читать shard/page из checkpoint (файл по умолчанию рядом с БД: *.scraper.checkpoint.json)",
+    )
+    p.add_argument("--no-checkpoint", action="store_true", help="Не записывать checkpoint (и не использовать при --resume)")
+    p.add_argument("--checkpoint", type=str, default=None, help="Путь к JSON checkpoint")
     p.add_argument("--city", type=str, default=None, help="sh_city_name, напр. 北京")
     p.add_argument("--age-range", type=str, default=None, help="Напр. 3,5 как в HAR")
     p.add_argument("--year", type=int, default=None)
@@ -429,6 +525,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         cfg.start_shard = max(1, int(args.start_shard))
     if args.start_brand_id is not None:
         cfg.start_brand_id = (args.start_brand_id or "").strip() or None
+    if args.resume:
+        cfg.resume = True
+    if args.no_checkpoint:
+        cfg.persist_checkpoint = False
+    if args.checkpoint is not None:
+        cfg.checkpoint_path = (args.checkpoint or "").strip() or None
     if args.city is not None:
         cfg.sh_city_name = args.city or None
     if args.age_range is not None:

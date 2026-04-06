@@ -18,3 +18,9 @@ db_path: encar_china.db
 # enrich_detail: true   # false — быстрее, но без my_price (листинг маскирует цены)
 # detail_concurrency: 6
 # cny_to_rub: 13
+#
+# Перезапуск после обрыва (рядом с db_path появится encar_china.scraper.checkpoint.json):
+#   python -m dongchedi.scraper --config dongchedi_scraper.yaml --resume
+# Или явно: --resume --db encar_china.db
+# Отключить запись checkpoint: no_checkpoint: true  или флаг --no-checkpoint
+# resume: true   # то же, что CLI --resume (если добавите в yaml)

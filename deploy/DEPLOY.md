@@ -41,7 +41,7 @@ docker compose up -d
 
 Корейский каталог остаётся в **`encar_cars.db`** (аргумент **`--db`**). Китайский — в отдельном файле, чтобы не смешивать выдачу.
 
-- Скрапер: из `backend/` выполните `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (в YAML по умолчанию **`db_path: encar_china.db`** в каталоге `backend/`). На сервере задайте **`--db /opt/prod-encar/encar_china.db`**, чтобы путь совпадал с API.
+- Скрапер: из `backend/` выполните `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (в YAML по умолчанию **`db_path: encar_china.db`** в каталоге `backend/`). На сервере задайте **`--db /opt/prod-encar/encar_china.db`**, чтобы путь совпадал с API. При обрыве прогона повторите с **`--resume`**: читается **`encar_china.scraper.checkpoint.json`** рядом с БД (номер shard и страницы листинга); после успешного окончания файл удаляется.
 - Расписание: **`deploy/systemd/dongchedi-update.timer`** (или **`prod-dongchedi-update.timer`**) — **00:00 Asia/Yekaterinburg**, как **`encar-update.timer`**. Сначала один раз полный прогон вручную, затем включите timer.
 - API: задайте **`WRA_CHINA_DB_PATH`** / **`--db-china`**, либо положите **`encar_china.db` в ту же папку, что и `encar_cars.db`**, или в **`backend/encar_china.db`** — тогда `api_server` подхватит файл сам. Проверка: **`GET /api/health`** → **`china_catalog_db": true`**. После первой выгрузки перезапустите API; при кэше nginx для `/api/cars` может понадобиться сброс зоны или ждать TTL.
 
