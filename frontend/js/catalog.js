@@ -13,8 +13,8 @@
     let staticCatalogCache = null;
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
     /**
-     * Рынок: Корея → `source=encar`. Китай: `?region=china` → `source=china` (che168+dongchedi в БД);
-     * узко — `?source=che168` или `?source=dongchedi`.
+     * Рынок: Корея → `source=encar`. Китай: `?region=china` → `source=china` (Dongchedi в отдельной БД);
+     * узко — `?source=dongchedi`; старые ссылки `?source=che168` трактуются как китайский каталог (`source=china`).
      * `window.WRA_CATALOG_SOURCE` — только если в URL нет `region`/`source` (иначе вкладка Китай даст Корею).
      */
     var CATALOG_REGION = 'korea';
@@ -31,11 +31,8 @@
 
         if (regionChina || srcQ === 'che168' || srcQ === 'dongchedi' || srcQ === 'china') {
           CATALOG_REGION = 'china';
-          if (srcQ === 'che168') CATALOG_SOURCE = 'che168';
-          else if (srcQ === 'dongchedi') CATALOG_SOURCE = 'dongchedi';
-          else if (srcQ === 'china') CATALOG_SOURCE = 'china';
-          else if (regionChina) CATALOG_SOURCE = 'china';
-          else CATALOG_SOURCE = 'dongchedi';
+          if (srcQ === 'dongchedi') CATALOG_SOURCE = 'dongchedi';
+          else CATALOG_SOURCE = 'china';
           return;
         }
         if (regionKorea) {
@@ -46,9 +43,14 @@
 
         var w = typeof window !== 'undefined' && window.WRA_CATALOG_SOURCE ? String(window.WRA_CATALOG_SOURCE).trim() : '';
         if (w) {
-          CATALOG_SOURCE = w;
           var wl = w.toLowerCase();
-          CATALOG_REGION = wl === 'che168' || wl === 'dongchedi' || wl === 'china' ? 'china' : 'korea';
+          if (wl === 'che168' || wl === 'dongchedi' || wl === 'china') {
+            CATALOG_REGION = 'china';
+            CATALOG_SOURCE = wl === 'dongchedi' ? 'dongchedi' : 'china';
+            return;
+          }
+          CATALOG_SOURCE = w;
+          CATALOG_REGION = 'korea';
           return;
         }
         CATALOG_REGION = 'korea';
@@ -139,7 +141,7 @@
      * Чисто статический каталог без API: задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true до catalog.js (и держите выгрузку небольшой или задайте лимит).
      */
     function allowCarsJsonFallback() {
-      if (CATALOG_SOURCE === 'che168' || CATALOG_SOURCE === 'dongchedi' || CATALOG_SOURCE === 'china')
+      if (CATALOG_REGION === 'china')
         return false;
       if (typeof window.WRA_ALLOW_CATALOG_JSON_FALLBACK === 'boolean') {
         return window.WRA_ALLOW_CATALOG_JSON_FALLBACK;

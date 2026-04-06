@@ -13,7 +13,7 @@ fi
 
 install -d -m 0755 -o "$OWNER" -g "$GROUP" "$ROOT/logs"
 
-for f in encar_cars.db scraper_checkpoint.db scraper.log auto_update.log; do
+for f in encar_cars.db encar_china.db scraper_checkpoint.db scraper.log auto_update.log; do
   if [[ -e "$ROOT/$f" ]]; then
     chown "$OWNER:$GROUP" "$ROOT/$f" || true
     chmod u+rw,g+rw "$ROOT/$f" 2>/dev/null || chmod 664 "$ROOT/$f" || true
@@ -22,7 +22,7 @@ done
 
 # WAL / SHM рядом с основной БД
 shopt -s nullglob
-for f in "$ROOT"/encar_cars.db-* "$ROOT"/scraper_checkpoint.db-*; do
+for f in "$ROOT"/encar_cars.db-* "$ROOT"/encar_china.db-* "$ROOT"/scraper_checkpoint.db-*; do
   [[ -e "$f" ]] || continue
   chown "$OWNER:$GROUP" "$f" || true
 done

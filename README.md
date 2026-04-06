@@ -54,8 +54,10 @@ python backend/export_from_scraper_db.py \
 Для больших объёмов каталога (100k+) используйте API вместо полной загрузки всех карточек в браузер:
 
 ```bash
-python backend/api_server.py --db encar_cars.db --host 0.0.0.0 --port 8080
+python backend/api_server.py --db encar_cars.db --db-china encar_china.db --host 0.0.0.0 --port 8080
 ```
+
+Китайский каталог (Dongchedi) хранится в отдельном **`encar_china.db`**; без **`--db-china`** / **`WRA_CHINA_DB_PATH`** запросы `region=china` читают ту же БД, что и Корея (режим совместимости одного файла).
 
 Эндпоинты:
 - `GET /api/health`
@@ -81,6 +83,7 @@ localStorage.setItem('encar_api_base', 'http://YOUR_HOST:8080');
 - `deploy/systemd/prod-encar-api.service`
 - `deploy/systemd/prod-encar-auto-update.service`
 - `deploy/systemd/prod-encar-auto-update.timer`
+- `deploy/systemd/dongchedi-update.service.example` и `dongchedi-update.timer.example` (отдельная **`encar_china.db`** для Dongchedi)
 - `deploy/deploy_prod.sh`
 
 Быстрый деплой на Linux VPS:
@@ -90,7 +93,7 @@ chmod +x deploy/deploy_prod.sh
 ./deploy/deploy_prod.sh
 ```
 
-По умолчанию ставится в `/opt/prod-encar`, API слушает `127.0.0.1:8080`, Nginx публикует фронт и проксирует `/api/*`.
+По умолчанию ставится в `/opt/prod-encar`, API слушает `127.0.0.1:8080`, Nginx публикует фронт и проксирует `/api/*`. В **`prod-encar-api.service`** и **`encar-api.service`** задано **`--db-china /opt/prod-encar/encar_china.db`**.
 
 ## Security hardening (рекомендуется)
 

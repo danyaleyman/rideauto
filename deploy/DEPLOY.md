@@ -33,9 +33,17 @@ docker compose build
 docker compose up -d
 ```
 
-По умолчанию БД в именованном томе `encar_data` по пути контейнера `/data/encar_cars.db`. Чтобы подставить свою БД с хоста, замените в `docker-compose.yml` секцию `volumes` у сервиса `api` на что-то вроде `./encar_cars.db:/data/encar_cars.db` (файл на хосте должен существовать или быть создан пустым перед первым запуском).
+В томе `encar_data` лежат два каталога: **`/data/encar_cars.db`** (Корея / Encar) и **`/data/encar_china.db`** (Китай / Dongchedi). Переменная **`WRA_CHINA_DB_PATH`** в `docker-compose.yml` по умолчанию указывает на `/data/encar_china.db`. Чтобы подставить файлы с хоста, смонтируйте оба, например: `./encar_cars.db:/data/encar_cars.db` и `./encar_china.db:/data/encar_china.db`.
 
 См. также [BACKUP-SQLITE.md](BACKUP-SQLITE.md).
+
+## Китайский каталог (Dongchedi, отдельная SQLite)
+
+Корейский каталог остаётся в **`encar_cars.db`** (аргумент **`--db`**). Китайский — в отдельном файле, чтобы не смешивать выдачу.
+
+- Скрапер: из `backend/` выполните `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (в YAML по умолчанию **`db_path: encar_china.db`** в каталоге `backend/`). На сервере задайте **`--db /opt/prod-encar/encar_china.db`**, чтобы путь совпадал с API.
+- Периодический прогон: примеры **`deploy/systemd/dongchedi-update.service.example`** и **`dongchedi-update.timer.example`**.
+- API: задайте **`WRA_CHINA_DB_PATH`** с абсолютным путём к этому файлу **или** добавьте в `ExecStart` **`--db-china /path/to/encar_china.db`**. При старте API создаст таблицу, если файла ещё нет.
 
 ## Заголовки безопасности (nginx)
 

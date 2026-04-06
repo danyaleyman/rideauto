@@ -3,6 +3,7 @@ set -euo pipefail
 
 API_BASE="${API_BASE:-http://127.0.0.1:8080}"
 DB_PATH="${DB_PATH:-/opt/prod-encar/encar_cars.db}"
+DB_CHINA_PATH="${DB_CHINA_PATH:-/opt/prod-encar/encar_china.db}"
 ENV_FILE="${ENV_FILE:-/etc/default/prod-encar}"
 
 RED=$'\033[31m'
@@ -146,7 +147,22 @@ CODE="$(request GET "$API_BASE/api/compare?ids=$CAR_ID" "$CMP_JSON")"
 [[ "$CODE" == "200" ]] || fail "GET /api/compare вернул HTTP $CODE"
 pass "Сравнение работает"
 
-info "9) Checkout create/list"
+info "9) Китайский каталог (Dongchedi), если БД не пуста"
+if [[ -f "$DB_CHINA_PATH" ]] && CAR_CN="$(sqlite3 "$DB_CHINA_PATH" "select car_id from cars limit 1;" 2>/dev/null)" && [[ -n "$CAR_CN" ]]; then
+  CARS_CN_JSON="$TMP_DIR/cars_cn.json"
+  CODE="$(request GET "$API_BASE/api/cars?region=china&source=china&page=1&per_page=2" "$CARS_CN_JSON")"
+  [[ "$CODE" == "200" ]] || fail "GET /api/cars (china) вернул HTTP $CODE"
+  TOTAL_CN="$(json_get "$CARS_CN_JSON" "meta.total")"
+  [[ "${TOTAL_CN:-0}" != "0" ]] || fail "В encar_china.db есть объявления, но API meta.total=0 — проверьте --db-china / WRA_CHINA_DB_PATH"
+  CAR_PAGE_JSON="$TMP_DIR/car_cn.json"
+  CODE="$(request GET "$API_BASE/api/car/$CAR_CN" "$CAR_PAGE_JSON")"
+  [[ "$CODE" == "200" ]] || fail "GET /api/car для dongchedi car_id вернул HTTP $CODE"
+  pass "Китай: список и карточка ($CAR_CN)"
+else
+  info "encar_china.db нет или пуста — пропуск (заполните Dongchedi-скрейпером и перезапустите API с --db-china)"
+fi
+
+info "10) Checkout create/list"
 ADD_CHK_JSON="$TMP_DIR/add_checkout.json"
 CODE="$(request POST "$API_BASE/api/checkout" "$ADD_CHK_JSON" "$TOKEN" "{\"car_ids\":[\"$CAR_ID\"],\"contact\":\"@smoke_user\",\"comment\":\"smoke checkout\"}")"
 [[ "$CODE" == "200" ]] || fail "POST /api/checkout вернул HTTP $CODE"
@@ -156,7 +172,7 @@ CODE="$(request GET "$API_BASE/api/checkout" "$LIST_CHK_JSON" "$TOKEN")"
 pass "Checkout работает"
 
 if [[ -f "$ENV_FILE" ]]; then
-  info "10) Проверка раннера уведомлений"
+  info "11) Проверка раннера уведомлений"
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   if [[ -n "${SUBSCRIPTIONS_ADMIN_KEY:-}" ]]; then

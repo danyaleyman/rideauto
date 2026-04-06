@@ -1,0 +1,27 @@
+# Пример: периодическое обновление китайского каталога (отдельный encar_china.db).
+# cp deploy/systemd/dongchedi-update.service.example /etc/systemd/system/dongchedi-update.service
+# cp deploy/systemd/dongchedi-update.timer.example  /etc/systemd/system/dongchedi-update.timer
+# sudo systemctl daemon-reload && sudo systemctl enable --now dongchedi-update.timer
+#
+# Путь --db должен совпадать с --db-china / WRA_CHINA_DB_PATH у api_server.
+
+[Unit]
+Description=Dongchedi used car scrape to encar_china.db
+After=network.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/prod-encar/backend
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/prod-encar/.venv/bin/python -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
+TimeoutStartSec=4h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/prod-encar
+
+[Install]
+WantedBy=multi-user.target

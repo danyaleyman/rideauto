@@ -86,8 +86,8 @@ paths:
           schema: { type: string }
         - name: source
           in: query
-          description: "encar | che168 | dongchedi | china (china = оба китайских источника). Без параметра — все записи"
-          schema: { type: string, enum: [che168, dongchedi, encar, china] }
+          description: "encar | dongchedi | china (china = весь китайский каталог, Dongchedi). Без параметра — все записи"
+          schema: { type: string, enum: [dongchedi, encar, china] }
         - name: region
           in: query
           description: "korea | china — рынок каталога; при потере source сужает выборку (как encar или china)"
@@ -106,8 +106,8 @@ paths:
       parameters:
         - name: source
           in: query
-          description: "Как у /api/cars: che168 | dongchedi | encar | china"
-          schema: { type: string, enum: [che168, dongchedi, encar, china] }
+          description: "Как у /api/cars: dongchedi | encar | china"
+          schema: { type: string, enum: [dongchedi, encar, china] }
         - name: region
           in: query
           description: "Как у /api/cars: korea | china"

@@ -1,0 +1,14 @@
+# Раз в сутки в 04:30 UTC (подставьте свой часовой пояс через OnCalendar=).
+# Не пересекайте с пиковой нагрузкой API при очень больших лимитах скрейпера.
+
+[Unit]
+Description=Daily Dongchedi catalog update
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=dongchedi-update.service
+
+[Install]
+WantedBy=timers.target

@@ -1,7 +1,7 @@
 [Unit]
 Description=Prod Encar daily update job
 After=network.target
-# Права: User=www-data должен писать encar_cars.db, scraper_checkpoint.db, logs/
+# Права: User=www-data должен писать encar_cars.db, encar_china.db (Dongchedi), scraper_checkpoint.db, logs/
 # sudo bash /opt/prod-encar/deploy/scripts/ensure_scraper_runtime_permissions.sh
 
 [Service]

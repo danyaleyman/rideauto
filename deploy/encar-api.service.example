@@ -13,7 +13,9 @@ WorkingDirectory=/var/www/prod-encar/backend
 Environment=PYTHONUNBUFFERED=1
 # Подставьте SHA при деплое (CI/CD или скрипт):
 Environment=WRA_GIT_SHA=deadbeef
-ExecStart=/var/www/prod-encar/backend/.venv/bin/python -m api_server --host 127.0.0.1 --port 8765
+# Либо переменная (дублирует --db-china):
+# Environment=WRA_CHINA_DB_PATH=/var/www/prod-encar/encar_china.db
+ExecStart=/var/www/prod-encar/backend/.venv/bin/python -m api_server --db /var/www/prod-encar/encar_cars.db --db-china /var/www/prod-encar/encar_china.db --host 127.0.0.1 --port 8765
 Restart=on-failure
 RestartSec=5
 

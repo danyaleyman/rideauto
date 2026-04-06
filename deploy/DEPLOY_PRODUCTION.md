@@ -136,13 +136,13 @@ sudo nginx -t && sudo systemctl reload nginx
    - догрузка деталей **`encar_scraper.py --only-pending`**;
    - **`export_from_scraper_db`** ( **`price.py`** внутри экспорта, `my_price` обратно в SQLite + `cars.json`, chunks, `catalog_facets.json`).
 
-3. **Сайт** отдаёт статику из `frontend/`; **API** читает **`encar_cars.db`** — после шага 2 данные в БД уже новые. Микрокэш nginx для **`/api/cars`** и фасетов может отдавать ответ до **~60 s** после записи; при необходимости очистите зону **`proxy_cache_path`** или дождитесь TTL.
+3. **Сайт** отдаёт статику из `frontend/`; **API** читает **`encar_cars.db`** (Корея) и при настроенном **`--db-china`** / **`WRA_CHINA_DB_PATH`** — **`encar_china.db`** (Dongchedi). После шага 2 корейские данные в БД уже новые; китайский каталог обновляется отдельным прогоном `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (см. `deploy/DEPLOY.md`). Микрокэш nginx для **`/api/cars`** и фасетов может отдавать ответ до **~60 s** после записи; при необходимости очистите зону **`proxy_cache_path`** или дождитесь TTL.
 
 Если systemd не знает `Asia/Yekaterinburg` в `OnCalendar`, либо обновите systemd, либо задайте UTC-эквивалент: **00:00 Екатеринбурга (UTC+5) = 19:00 UTC предыдущего календарного дня** (запись вида `OnCalendar=*-*-* 19:00:00` в **UTC** требует сдвига при переходе ЛО‑времени — предпочтительно починить timezone в таймере).
 
 ## 5) Права на файлы
 
-`encar-api.service` работает от `www-data` и нуждается в чтении/записи БД и каталога проекта (`ReadWritePaths=/opt/prod-encar`). Выдайте права на `encar_cars.db` и при необходимости на `frontend/` так, чтобы `www-data` мог обновлять артефакты скрапера (или запускайте обновление каталога от того же пользователя).
+`encar-api.service` работает от `www-data` и нуждается в чтении/записи БД и каталога проекта (`ReadWritePaths=/opt/prod-encar`). Выдайте права на `encar_cars.db`, **`encar_china.db`** (если используете Dongchedi) и при необходимости на `frontend/` так, чтобы `www-data` мог обновлять артефакты скрапера (или запускайте обновление каталога от того же пользователя). Удобно: `deploy/scripts/ensure_scraper_runtime_permissions.sh`.
 
 ## 6) Verify
 

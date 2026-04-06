@@ -49,6 +49,53 @@ def _km_from_mileage_str(raw: str) -> Optional[int]:
         return None
 
 
+def _first_nonempty_str(*vals: Any) -> str:
+    for v in vals:
+        if v is None:
+            continue
+        s = str(v).strip()
+        if s:
+            return s
+    return ""
+
+
+def _image_urls_from_row_and_detail(
+    row_img: str,
+    detail: Optional[Dict[str, Any]],
+) -> list[str]:
+    out: list[str] = []
+    if row_img:
+        out.append(row_img)
+    if not detail or not isinstance(detail, dict):
+        return out
+    for key in (
+        "image_list",
+        "images",
+        "sku_image_list",
+        "car_image_list",
+        "photo_list",
+        "image_url_list",
+    ):
+        raw = detail.get(key)
+        if not isinstance(raw, list):
+            continue
+        for item in raw:
+            if isinstance(item, str):
+                u = item.strip()
+                if u and u not in out:
+                    out.append(u)
+            elif isinstance(item, dict):
+                u = _first_nonempty_str(
+                    item.get("url"),
+                    item.get("image"),
+                    item.get("image_url"),
+                    item.get("pic_url"),
+                )
+                if u and u not in out:
+                    out.append(u)
+    return out
+
+
 def sku_row_to_payload(
     row: Dict[str, Any],
     *,
@@ -78,14 +125,17 @@ def sku_row_to_payload(
     if year and len(year) == 4 and year.isdigit():
         year_month = f"{year}01"
 
+    ci: Dict[str, Any] = {}
+    if detail and isinstance(detail.get("car_info"), dict):
+        ci = detail["car_info"]
+
     km_age = _km_from_mileage_str(str(row.get("car_mileage") or ""))
-    if km_age is None and detail:
-        ci = detail.get("car_info") or {}
-        if isinstance(ci, dict):
-            km_age = _km_from_mileage_str(str(ci.get("mileage") or ""))
+    if km_age is None and ci:
+        km_age = _km_from_mileage_str(str(ci.get("mileage") or ""))
 
     img = str(row.get("image") or "").strip()
-    images_json = json.dumps([img], ensure_ascii=False) if img else None
+    urls = _image_urls_from_row_and_detail(img, detail)
+    images_json = json.dumps(urls, ensure_ascii=False) if urls else None
 
     price_cny: Optional[float] = None
     if detail:
@@ -129,6 +179,42 @@ def sku_row_to_payload(
         data["dongchedi_brand_id"] = row.get("brand_id")
     if series_name:
         data["dongchedi_series_name"] = series_name
+
+    if ci:
+        col = _first_nonempty_str(
+            ci.get("color"),
+            ci.get("car_color"),
+            ci.get("exterior_color_name"),
+            ci.get("exterior_color"),
+        )
+        if col:
+            data["color"] = col
+        trans = _first_nonempty_str(
+            ci.get("transmission"),
+            ci.get("gear_type"),
+            ci.get("gearbox"),
+            ci.get("gearbox_type"),
+        )
+        if trans:
+            data["transmission_type"] = trans
+        fuel = _first_nonempty_str(
+            ci.get("fuel_type"),
+            ci.get("fuel"),
+            ci.get("energy_type"),
+            ci.get("engine_type"),
+        )
+        if fuel:
+            data["engine_type"] = fuel
+        disp = _first_nonempty_str(ci.get("displacement"), ci.get("liter"))
+        if disp:
+            data["displacement"] = disp
+        vin = _first_nonempty_str(ci.get("vin"))
+        if vin:
+            data["vin"] = vin
+        city = _first_nonempty_str(ci.get("city_name"), ci.get("city"))
+        if city:
+            data["city"] = city
+
     return {"data": data}
 
 

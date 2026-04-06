@@ -93,7 +93,7 @@ async def test_facets_returns_mark_lists(test_app):
 
 @pytest.mark.asyncio
 async def test_china_market_empty_db_fast_cars_and_facets(test_app):
-    """Без строк che168/dongchedi в БД: китайский каталог и фасеты — пусто, без тяжёлого CTE."""
+    """Без строк Dongchedi в БД: китайский каталог и фасеты — пусто, без тяжёлого CTE."""
     async with TestClient(TestServer(test_app)) as client:
         r1 = await client.get(
             "/api/cars",

@@ -28,7 +28,7 @@ log = logging.getLogger("dongchedi.scraper")
 
 @dataclass
 class ScrapeConfig:
-    db_path: str = "encar_cars.db"
+    db_path: str = "encar_china.db"
     brand_id: Optional[str] = None
     series_id: Optional[int] = None
     sh_city_name: Optional[str] = None

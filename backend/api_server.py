@@ -29,6 +29,7 @@ from aiohttp import ClientSession, web
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
 
 APP_DB_PATH = web.AppKey("db_path", str)
+APP_CHINA_DB_PATH = web.AppKey("china_db_path", str)
 APP_DB = web.AppKey("db", sqlite3.Connection)
 APP_TELEGRAM_BOT_TOKEN = web.AppKey("telegram_bot_token", str)
 APP_SUBSCRIPTIONS_ADMIN_KEY = web.AppKey("subscriptions_admin_key", str)
@@ -53,20 +54,90 @@ _LISTING_PARTITION_KEY_EXPR = (
     "car_id)"
 )
 
-# Китайский рынок в БД: только эти source (совпадает с веткой china в _build_filter_sql).
-_WRA_CHINA_SOURCES_SQL = "json_extract(data_json, '$.data.source') IN ('che168', 'dongchedi')"
+# Китайский каталог в API — только Dongchedi (отдельный SQLite, см. WRA_CHINA_DB_PATH / --db-china).
+_WRA_DONGCHEDI_SOURCE_SQL = "json_extract(data_json, '$.data.source') = 'dongchedi'"
 
 
 def _catalog_query_is_china_market(q: Dict[str, str]) -> bool:
     src = (q.get("source") or "").strip().lower()
     reg = (q.get("region") or "").strip().lower()
-    return src in ("china", "che168", "dongchedi") or reg == "china"
+    return src in ("china", "dongchedi") or reg == "china"
 
 
-def _db_has_any_china_source_row(conn: sqlite3.Connection) -> bool:
-    """Без дедупа по inner_id: если нет ни одной сырой строки che168/dongchedi, китайского каталога в БД нет."""
-    r = conn.execute(f"SELECT 1 FROM cars WHERE {_WRA_CHINA_SOURCES_SQL} LIMIT 1").fetchone()
+def _db_has_any_dongchedi_row(conn: sqlite3.Connection) -> bool:
+    """Без дедупа: нет ни одной строки source=dongchedi — пустой китайский каталог."""
+    r = conn.execute(f"SELECT 1 FROM cars WHERE {_WRA_DONGCHEDI_SOURCE_SQL} LIMIT 1").fetchone()
     return r is not None
+
+
+def _resolve_catalog_db_path(korea_db: str, china_db: Optional[str], query: Dict[str, str]) -> str:
+    ch = (china_db or "").strip()
+    if _catalog_query_is_china_market(query) and ch:
+        return ch
+    return korea_db
+
+
+def _car_lookup_db_paths(korea_db: str, china_db: Optional[str], car_id: str) -> List[str]:
+    """Сначала БД, где с высокой вероятностью лежит car_id (dongchedi-* → Китай)."""
+    ch = (china_db or "").strip()
+    cid = (car_id or "").strip().lower()
+    if cid.startswith("dongchedi-") and ch:
+        return [ch, korea_db]
+    if ch:
+        return [korea_db, ch]
+    return [korea_db]
+
+
+def _bootstrap_cars_table_if_missing(db_path: str) -> None:
+    """Минимальная схема как у encar_scraper / dongchedi.scraper (для новой encar_china.db)."""
+    conn = sqlite3.connect(db_path, timeout=60.0)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cars (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                car_id TEXT UNIQUE NOT NULL,
+                data_json TEXT NOT NULL,
+                raw_json TEXT,
+                created_at TEXT
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _dongchedi_db_listing_total_sync(db_path: str) -> int:
+    where, params = _build_filter_sql({})
+    from_frag, params2 = _cars_dedup_from_fragment(where, params)
+    listing_ids = _catalog_listing_max_ids_subquery(from_frag)
+    conn = _db_connect(db_path)
+    try:
+        row = conn.execute(
+            f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
+            params2,
+        ).fetchone()
+        return int(row["c"]) if row else 0
+    finally:
+        conn.close()
+
+
+def _catalog_stats_merged_sync(korea_db: str, china_db: Optional[str]) -> Dict[str, Any]:
+    """Счётчики Кореи с korea_db; china_listed — из отдельной china_db (если задана)."""
+    base = _catalog_stats_korea_db_sync(korea_db)
+    ch = (china_db or "").strip()
+    if ch:
+        try:
+            rp = str(Path(ch).resolve())
+            Path(rp).parent.mkdir(parents=True, exist_ok=True)
+            _bootstrap_cars_table_if_missing(rp)
+            _ensure_catalog_indexes(rp)
+            base["china_listed"] = _dongchedi_db_listing_total_sync(rp)
+        except Exception:
+            _LOG.exception("catalog stats china db %s", ch)
+            base["china_listed"] = 0
+    return base
 
 
 def _ensure_catalog_indexes(db_path: str) -> None:
@@ -534,15 +605,14 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
             "COALESCE(NULLIF(TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')), ''), 'encar')"
         )
         clauses.append(f"{_src_norm} = 'encar'")
-    elif src == "che168":
-        clauses.append("json_extract(data_json, '$.data.source') = ?")
-        params.append("che168")
     elif src == "dongchedi":
         clauses.append("json_extract(data_json, '$.data.source') = ?")
         params.append("dongchedi")
+    elif src == "che168":
+        clauses.append("1 = 0")
     elif src == "china" or region == "china":
         # source=china ИЛИ только region=china (если прокси/кэш отрезал source — иначе отдаётся весь каталог = «Корея»).
-        clauses.append(_WRA_CHINA_SOURCES_SQL)
+        clauses.append(_WRA_DONGCHEDI_SOURCE_SQL)
     elif region == "korea":
         _src_norm = (
             "COALESCE(NULLIF(TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')), ''), 'encar')"
@@ -667,7 +737,7 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
 
             where, params = _build_filter_sql(query)
             from_frag, params2 = _cars_dedup_from_fragment(where, params)
-            if _catalog_query_is_china_market(query) and not _db_has_any_china_source_row(conn):
+            if _catalog_query_is_china_market(query) and not _db_has_any_dongchedi_row(conn):
                 return {
                     "result": [],
                     "meta": {
@@ -781,7 +851,8 @@ _FACET_TEMP_COL: Dict[str, str] = {
 }
 
 
-def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
+def _catalog_stats_korea_db_sync(db_path: str) -> Dict[str, Any]:
+    """Статистика по корейской БД (Encar). Счётчик Китая в ответе — 0 здесь; см. _catalog_stats_merged_sync."""
     _ensure_catalog_indexes(db_path)
     conn = _db_connect(db_path)
     try:
@@ -801,16 +872,13 @@ def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
             [today_str],
         ).fetchone()
         n = int(row_today["c"]) if row_today else 0
-        # Один проход по дедуплицированному листингу вместо трёх отдельных COUNT (меньше нагрузка на SQLite).
         _src_norm_c = (
             "COALESCE(NULLIF(TRIM(COALESCE(json_extract(c.data_json, '$.data.source'), '')), ''), 'encar')"
         )
-        _china_c = "json_extract(c.data_json, '$.data.source') IN ('che168', 'dongchedi')"
         row_mix = conn.execute(
             f"""
             SELECT COUNT(*) AS total,
-                   SUM(CASE WHEN {_src_norm_c} = 'encar' THEN 1 ELSE 0 END) AS korea,
-                   SUM(CASE WHEN {_china_c} THEN 1 ELSE 0 END) AS china
+                   SUM(CASE WHEN {_src_norm_c} = 'encar' THEN 1 ELSE 0 END) AS korea
             FROM cars AS c
             INNER JOIN {listing_ids} AS x ON c.id = x.mid
             """,
@@ -818,13 +886,12 @@ def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
         ).fetchone()
         n_total = int(row_mix["total"]) if row_mix else 0
         korea = int(row_mix["korea"] or 0) if row_mix else 0
-        china = int(row_mix["china"] or 0) if row_mix else 0
         return {
             "listed_today": n,
             "date_utc": today_str,
             "total": n_total,
             "korea_listed": korea,
-            "china_listed": china,
+            "china_listed": 0,
         }
     finally:
         conn.close()
@@ -923,7 +990,7 @@ def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
     if _catalog_query_is_china_market(q):
         conn_probe = _db_connect(db_path)
         try:
-            if not _db_has_any_china_source_row(conn_probe):
+            if not _db_has_any_dongchedi_row(conn_probe):
                 return empty_facets
         finally:
             conn_probe.close()
@@ -1020,7 +1087,9 @@ async def api_version(_: web.Request) -> web.Response:
 async def cars(request: web.Request) -> web.Response:
     q = {k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()}
     slim = (q.get("full") or "").strip() != "1"
-    db_path: str = request.app[APP_DB_PATH]
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
+    db_path = _resolve_catalog_db_path(korea_db, china_db, q)
     try:
         payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
     except sqlite3.OperationalError as e:
@@ -1043,7 +1112,9 @@ async def cars(request: web.Request) -> web.Response:
 
 async def facets(request: web.Request) -> web.Response:
     q = _catalog_query_dict({k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()})
-    db_path: str = request.app[APP_DB_PATH]
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
+    db_path = _resolve_catalog_db_path(korea_db, china_db, q)
     try:
         payload = await asyncio.to_thread(_facets_catalog_sync, db_path, q)
     except Exception as e:
@@ -1056,8 +1127,9 @@ async def facets(request: web.Request) -> web.Response:
 
 
 async def catalog_stats(request: web.Request) -> web.Response:
-    db_path: str = request.app[APP_DB_PATH]
-    payload = await asyncio.to_thread(_catalog_stats_sync, db_path)
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
+    payload = await asyncio.to_thread(_catalog_stats_merged_sync, korea_db, china_db)
     return _json_public_cache(payload, "public, max-age=90, stale-while-revalidate=600")
 
 
@@ -1105,6 +1177,16 @@ def _car_by_id_sync(db_path: str, car_id: str) -> Tuple[int, Dict[str, Any]]:
         conn.close()
 
 
+def _car_by_id_sync_multi(korea_db: str, china_db: Optional[str], car_id: str) -> Tuple[int, Dict[str, Any]]:
+    if not car_id:
+        return 400, {"error": "id is required"}
+    for dp in _car_lookup_db_paths(korea_db, china_db, car_id):
+        st, body = _car_by_id_sync(dp, car_id)
+        if st == 200:
+            return st, body
+    return 404, {"error": "not found"}
+
+
 def _similar_sync(db_path: str, car_id: str, limit: int) -> Dict[str, Any]:
     if not car_id:
         return {"result": [], "meta": {"limit": limit}}
@@ -1139,10 +1221,51 @@ def _similar_sync(db_path: str, car_id: str, limit: int) -> Dict[str, Any]:
         conn.close()
 
 
+def _similar_sync_multi(korea_db: str, china_db: Optional[str], car_id: str, limit: int) -> Dict[str, Any]:
+    for dp in _car_lookup_db_paths(korea_db, china_db, car_id):
+        st, _ = _car_by_id_sync(dp, car_id)
+        if st == 200:
+            return _similar_sync(dp, car_id, limit)
+    return {"result": [], "meta": {"limit": limit, "count": 0}}
+
+
+def _compare_cars_sync(korea_db: str, china_db: Optional[str], ids: List[str]) -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+    for cid in ids:
+        row = None
+        for dp in _car_lookup_db_paths(korea_db, china_db, cid):
+            conn = _db_connect(dp)
+            try:
+                row = _car_row_by_any_id(conn, cid)
+                if row:
+                    break
+            finally:
+                conn.close()
+        if not row:
+            continue
+        car = json.loads(row["data_json"])
+        car["id"] = row["car_id"]
+        d = car.get("data") if isinstance(car.get("data"), dict) else {}
+        result.append(
+            {
+                "id": car["id"],
+                "title": _car_title(d),
+                "price_rub": _extract_num(d, "my_price"),
+                "km_age": d.get("km_age"),
+                "power": d.get("power"),
+                "displacement": d.get("displacement"),
+                "year": d.get("year"),
+                "customs_total_rub": d.get("customs_total_rub"),
+            }
+        )
+    return result
+
+
 async def car_by_id(request: web.Request) -> web.Response:
     car_id = request.match_info.get("id", "").strip()
-    db_path: str = request.app[APP_DB_PATH]
-    status, body = await asyncio.to_thread(_car_by_id_sync, db_path, car_id)
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
+    status, body = await asyncio.to_thread(_car_by_id_sync_multi, korea_db, china_db, car_id)
     if status == 200:
         return _json_public_cache(body, "public, max-age=45, stale-while-revalidate=300")
     return web.json_response(body, status=status)
@@ -1154,8 +1277,9 @@ async def similar(request: web.Request) -> web.Response:
         limit = min(20, max(1, int(request.rel_url.query.get("limit", "8"))))
     except (TypeError, ValueError):
         limit = 8
-    db_path: str = request.app[APP_DB_PATH]
-    payload = await asyncio.to_thread(_similar_sync, db_path, car_id, limit)
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
+    payload = await asyncio.to_thread(_similar_sync_multi, korea_db, china_db, car_id, limit)
     return web.json_response(payload)
 
 
@@ -1396,29 +1520,11 @@ async def subscriptions_remove(request: web.Request) -> web.Response:
 
 
 async def compare(request: web.Request) -> web.Response:
-    conn = request.app[APP_DB]
     ids = [x.strip() for x in (request.rel_url.query.get("ids") or "").split(",") if x.strip()]
     ids = ids[:4]
-    result: List[Dict[str, Any]] = []
-    for cid in ids:
-        row = _car_row_by_any_id(conn, cid)
-        if not row:
-            continue
-        car = json.loads(row["data_json"])
-        car["id"] = row["car_id"]
-        d = car.get("data") if isinstance(car.get("data"), dict) else {}
-        result.append(
-            {
-                "id": car["id"],
-                "title": _car_title(d),
-                "price_rub": _extract_num(d, "my_price"),
-                "km_age": d.get("km_age"),
-                "power": d.get("power"),
-                "displacement": d.get("displacement"),
-                "year": d.get("year"),
-                "customs_total_rub": d.get("customs_total_rub"),
-            }
-        )
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
+    result = await asyncio.to_thread(_compare_cars_sync, korea_db, china_db, ids)
     return web.json_response({"result": result})
 
 
@@ -1506,6 +1612,8 @@ async def run_subscription_notifications(request: web.Request) -> web.Response:
         return web.json_response({"error": "TELEGRAM_BOT_TOKEN is not configured"}, status=503)
 
     conn: sqlite3.Connection = request.app[APP_DB]
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
     site_url = (request.app.get(APP_PUBLIC_SITE_URL, "") or "").rstrip("/")
     sub_rows = conn.execute(
         """
@@ -1528,16 +1636,21 @@ async def run_subscription_notifications(request: web.Request) -> web.Response:
         where, params = _build_filter_sql(q)
         frag, p2 = _cars_dedup_from_fragment(where, params)
         id_tail = " AND cars.id > ?" if " WHERE (" in frag else " WHERE cars.id > ?"
-        rows = conn.execute(
-            f"""
-            SELECT cars.id, cars.car_id, cars.data_json
-            FROM cars
-            {frag}{id_tail}
-            ORDER BY cars.id ASC
-            LIMIT 5
-            """,
-            [*p2, int(row["last_notified_car_pk"] or 0)],
-        ).fetchall()
+        cat_db = _resolve_catalog_db_path(korea_db, china_db, q)
+        conn_cars = _db_connect(cat_db)
+        try:
+            rows = conn_cars.execute(
+                f"""
+                SELECT cars.id, cars.car_id, cars.data_json
+                FROM cars
+                {frag}{id_tail}
+                ORDER BY cars.id ASC
+                LIMIT 5
+                """,
+                [*p2, int(row["last_notified_car_pk"] or 0)],
+            ).fetchall()
+        finally:
+            conn_cars.close()
         if not rows:
             continue
         max_pk = max(int(r["id"]) for r in rows)
@@ -1594,7 +1707,7 @@ def _rate_limit_take(key: str, limit: int) -> bool:
         return True
 
 
-def create_app(db_path: str) -> web.Application:
+def create_app(db_path: str, china_db_path: Optional[str] = None) -> web.Application:
     @web.middleware
     async def access_log_middleware(request, handler):
         rid = _request_id_header(request)
@@ -1651,6 +1764,13 @@ def create_app(db_path: str) -> web.Application:
     app = web.Application(middlewares=[access_log_middleware, cors_middleware, rate_limit_middleware])
     resolved = str(Path(db_path).resolve())
     app[APP_DB_PATH] = resolved
+    china_resolved = ""
+    if china_db_path and str(china_db_path).strip():
+        china_resolved = str(Path(china_db_path).expanduser().resolve())
+        Path(china_resolved).parent.mkdir(parents=True, exist_ok=True)
+        _bootstrap_cars_table_if_missing(china_resolved)
+        _ensure_catalog_indexes(china_resolved)
+    app[APP_CHINA_DB_PATH] = china_resolved
     # До приёма трафика: иначе первый запрос держит lock на CREATE INDEX, остальные висят до таймаута nginx.
     _ensure_catalog_indexes(resolved)
     conn = _db_connect(resolved)
@@ -1689,7 +1809,12 @@ def create_app(db_path: str) -> web.Application:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Prod Encar API server")
-    parser.add_argument("--db", default="encar_cars.db", help="SQLite DB path")
+    parser.add_argument("--db", default="encar_cars.db", help="SQLite DB path (Encar / Корея)")
+    parser.add_argument(
+        "--db-china",
+        default=None,
+        help="SQLite каталог Dongchedi; иначе переменная окружения WRA_CHINA_DB_PATH",
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Host")
     parser.add_argument("--port", type=int, default=8080, help="Port")
     args = parser.parse_args()
@@ -1701,7 +1826,9 @@ def main() -> None:
         )
 
     db_path = str(Path(args.db).resolve())
-    app = create_app(db_path)
+    china_raw = (args.db_china if args.db_china is not None else (os.environ.get("WRA_CHINA_DB_PATH") or "")).strip()
+    china_arg = str(Path(china_raw).resolve()) if china_raw else None
+    app = create_app(db_path, china_db_path=china_arg)
     web.run_app(app, host=args.host, port=args.port)
 
 

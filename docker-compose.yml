@@ -7,6 +7,8 @@ services:
       - encar_data:/data
     environment:
       WRA_GIT_SHA: ${WRA_GIT_SHA:-}
+      # Корея: /data/encar_cars.db (--db в Dockerfile). Китай (Dongchedi): отдельный SQLite в том же томе.
+      WRA_CHINA_DB_PATH: ${WRA_CHINA_DB_PATH:-/data/encar_china.db}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       WRA_RATE_LIMIT_POST_PER_MINUTE: ${WRA_RATE_LIMIT_POST_PER_MINUTE:-0}
       WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE: ${WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE:-0}
