@@ -64,6 +64,16 @@ location /api/ {
 
 После выноса скрипта страницы авто убедитесь, что файл `frontend/js/car-page.js` отдаётся по пути `/js/car-page.js` (как и остальные `js/*`). Если подключён `car-page-dicts.js`, он должен идти **перед** `car-page.js`.
 
+### SEO-посадки марка/модель (пререндер)
+
+Источник данных — `frontend/data/seo-landings.json`. Сгенерировать HTML и обновить блок URL в `frontend/sitemap-pages.xml`:
+
+```bash
+npm run generate:seo-landings
+```
+
+Файлы появляются в `frontend/seo/korea/<марка>/<модель>/index.html`. В nginx нужен префикс **`location ^~ /seo/korea/`** (см. `deploy/nginx/prod-encar.conf`). После деплоя перезагрузите nginx при изменении конфига.
+
 ## Версии query-параметра `?v=` у JS/CSS
 
 При релизе обновляйте суффикс `?v=` у изменённых статических файлов (или используйте `scripts/bump-asset-version.mjs` из корня репозитория), иначе у клиентов останется старый кэш.

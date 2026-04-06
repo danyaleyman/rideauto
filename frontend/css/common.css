@@ -944,3 +944,44 @@ a.wra-context-bar__link:hover {
   pointer-events: none;
   visibility: hidden;
 }
+
+/* Сравнение на карточке каталога */
+.icon-btn--compare.compare-active {
+  box-shadow: 0 0 0 2px var(--wra-primary-light);
+  border-radius: 8px;
+  background: var(--wra-primary-light);
+}
+
+.wra-seo-landing {
+  max-width: var(--container-max, 720px);
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+.wra-seo-landing h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  margin: 0 0 16px;
+  line-height: 1.25;
+}
+
+.wra-seo-landing .wra-seo-lead {
+  font-size: var(--text-base);
+  color: var(--wra-text-muted);
+  line-height: 1.55;
+  margin: 0 0 24px;
+}
+
+.wra-seo-landing .wra-seo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.wra-seo-landing .wra-seo-note {
+  font-size: var(--text-sm);
+  color: var(--wra-text-muted);
+  margin: 0;
+}

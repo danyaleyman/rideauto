@@ -11,6 +11,7 @@
   },
   "scripts": {
     "build:car-tailwind": "tailwindcss -i ./frontend/css/tailwind-car.input.css -o ./frontend/css/car-tailwind.css --minify",
+    "generate:seo-landings": "node scripts/generate-seo-landings.mjs",
     "lint:js": "eslint frontend/js",
     "test:e2e": "playwright test"
   }

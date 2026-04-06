@@ -2243,6 +2243,7 @@
                 <h2>${fullTitle}</h2>
                 <div class="car-actions">
                   <button type="button" class="icon-btn icon-btn--share" aria-label="Поделиться" title="Поделиться"><img src="image/External_Link.svg" alt="" width="18" height="18"></button>
+                  <button type="button" class="icon-btn icon-btn--compare" aria-label="В сравнение" title="В сравнение"><img src="image/exchange.svg" alt="" width="18" height="18"></button>
                   <button type="button" class="icon-btn icon-btn--fav" aria-label="В избранное" title="В избранное"><img src="image/Heart_01.svg" alt="" width="18" height="18" class="fav-icon"></button>
                 </div>
               </div>
@@ -2264,6 +2265,15 @@
             </div>
           </div>
         `;
+
+        const listingSid =
+          car.id != null
+            ? car.id
+            : car.inner_id != null
+              ? car.inner_id
+              : car.data && car.data.inner_id != null
+                ? car.data.inner_id
+                : null;
 
         // Переключение фото движением курсора
         const preview = card.querySelector('.preview');
@@ -2325,12 +2335,31 @@
           }).catch(() => { window.open(carUrl, '_blank'); });
         });
         // Избранное — переключение состояния
+        const cmpBtn = card.querySelector('.car-actions .icon-btn--compare');
+        bindCardIconPressSpring(cmpBtn);
+        if (cmpBtn) {
+          if (listingSid == null) {
+            cmpBtn.hidden = true;
+          } else {
+            if (window.WRAContextBar && window.WRAContextBar.isInCompare(listingSid)) {
+              cmpBtn.classList.add('compare-active');
+            }
+            cmpBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              e.preventDefault();
+              if (window.WRAContextBar && typeof window.WRAContextBar.toggleCompare === 'function') {
+                window.WRAContextBar.toggleCompare(listingSid);
+                cmpBtn.classList.toggle('compare-active', window.WRAContextBar.isInCompare(listingSid));
+              }
+            });
+          }
+        }
+
         const favBtn = card.querySelector('.car-actions .icon-btn--fav');
         bindCardIconPressSpring(favBtn);
         if (favBtn) {
-          const sid = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (car.data && car.data.inner_id != null ? car.data.inner_id : null));
-          if (window.WRAAuthFavorites && typeof window.WRAAuthFavorites.bindFavoriteButton === 'function' && sid != null) {
-            window.WRAAuthFavorites.bindFavoriteButton(favBtn, sid);
+          if (window.WRAAuthFavorites && typeof window.WRAAuthFavorites.bindFavoriteButton === 'function' && listingSid != null) {
+            window.WRAAuthFavorites.bindFavoriteButton(favBtn, listingSid);
           } else {
             favBtn.addEventListener('click', (e) => {
               e.stopPropagation();
@@ -2361,15 +2390,13 @@
         }
         card.addEventListener('click', (e) => {
             if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.info-icon-wrap') || e.target.closest('.car-actions')) return;
-            const linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (car.data && car.data.inner_id != null ? car.data.inner_id : null));
-            if (linkId == null) return;
-            goToCar(linkId);
+            if (listingSid == null) return;
+            goToCar(listingSid);
         });
         card.addEventListener('keydown', function(e) {
           if (e.key === 'Enter' && !e.target.closest('a') && !e.target.closest('button')) {
             e.preventDefault();
-            var linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (car.data && car.data.inner_id != null ? car.data.inner_id : null));
-            if (linkId != null) goToCar(linkId);
+            if (listingSid != null) goToCar(listingSid);
           }
         });
 
@@ -3030,11 +3057,33 @@
       else setTimeout(run, 1600);
     }
 
+    function ingestCompareFromUrl() {
+      try {
+        var sp = new URLSearchParams(window.location.search || '');
+        if (!sp.has('compare')) return;
+        var raw = sp.get('compare');
+        if (raw == null || !String(raw).trim()) return;
+        if (window.WRAContextBar && typeof window.WRAContextBar.importCompareFromShare === 'function') {
+          window.WRAContextBar.importCompareFromShare(String(raw));
+        }
+        sp.delete('compare');
+        var path = window.location.pathname || '/';
+        var qs = sp.toString();
+        var next = qs ? path + '?' + qs : path;
+        catalogUrlSyncSuppressed = true;
+        try {
+          history.replaceState({ wraCatalog: 1 }, '', next);
+        } catch (eH) { /* ignore */ }
+        catalogUrlSyncSuppressed = false;
+      } catch (eCmp) { /* ignore */ }
+    }
+
     async function bootstrapCatalog() {
       try {
         syncCatalogMarketFromLocation();
         applyCatalogRegionUi();
         initCatalogFiltersUi();
+        ingestCompareFromUrl();
 
         catalogUrlBootstrapMerge = catalogFacetBootstrapFromLocation();
         try {

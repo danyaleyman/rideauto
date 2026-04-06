@@ -1,0 +1,97 @@
+{
+  "baseUrl": "https://rideauto.ru",
+  "markPages": [
+    {
+      "markValue": "Hyundai",
+      "title": "Hyundai из Кореи — купить автомобиль с доставкой во Владивосток",
+      "description": "Каталог Hyundai с корейского рынка Encar: подбор по модели, цены «под ключ», доставка и оформление через World Ride Auto."
+    },
+    {
+      "markValue": "Kia",
+      "title": "Kia из Кореи — авто в наличии и под заказ",
+      "description": "Kia Sportage, Sorento, Carnival и другие модели из Кореи. Актуальные объявления, прозрачный расчёт, помощь с доставкой."
+    },
+    {
+      "markValue": "Genesis",
+      "title": "Genesis из Кореи — премиальные седаны и кроссоверы",
+      "description": "Genesis G70, G80, GV70, GV80 и другие модели с Encar. Проверенные объявления и сопровождение сделки."
+    },
+    {
+      "markValue": "BMW",
+      "title": "BMW из Кореи — баварские авто с пробегом и новые",
+      "description": "Подбор BMW на корейском рынке: седаны, кроссоверы, электрокары. Ориентиры по ценам и таможенным платежам."
+    },
+    {
+      "markValue": "Mercedes-Benz",
+      "title": "Mercedes-Benz из Кореи — E-Class, S-Class, SUV",
+      "description": "Mercedes-Benz с Encar: классические модели и актуальные кроссоверы. Фильтры по году, пробегу и комплектации."
+    },
+    {
+      "markValue": "Audi",
+      "title": "Audi из Кореи — A4, A6, Q5, Q7",
+      "description": "Audi на корейском авторынке. Удобный поиск в каталоге World Ride Auto и консультация менеджера."
+    },
+    {
+      "markValue": "Toyota",
+      "title": "Toyota из Кореи — Camry, Alphard, RAV4 и другие",
+      "description": "Toyota с корейских площадок: популярные модели для семьи и бизнеса. Доставка во Владивосток."
+    },
+    {
+      "markValue": "Lexus",
+      "title": "Lexus из Кореи — ES, RX, NX",
+      "description": "Lexus б/у и почти новые из Кореи. Смотрите выдачу в каталоге и запрашивайте расчёт у менеджера."
+    },
+    {
+      "markValue": "Volkswagen",
+      "title": "Volkswagen из Кореи",
+      "description": "Volkswagen на Encar: Golf, Tiguan, Passat и др. Подбор и сопровождение покупки."
+    },
+    {
+      "markValue": "Porsche",
+      "title": "Porsche из Кореи",
+      "description": "Спортивные и премиальные Porsche с корейского рынка. Индивидуальный подбор и проверка истории."
+    },
+    {
+      "markValue": "Tesla",
+      "title": "Tesla из Кореи",
+      "description": "Электромобили Tesla в корейском каталоге. Уточняйте комплектацию и сроки через менеджера."
+    },
+    {
+      "markValue": "Land Rover",
+      "title": "Land Rover из Кореи — Range Rover, Discovery",
+      "description": "Внедорожники и кроссоверы Land Rover с Encar. Актуальные объявления и доставка."
+    }
+  ],
+  "modelPages": [
+    { "markValue": "Hyundai", "modelValue": "Tucson", "title": "Hyundai Tucson из Кореи — цены и объявления", "description": "Hyundai Tucson б/у и новые с корейского рынка. Фильтры по пробегу, году и цене «под ключ»." },
+    { "markValue": "Hyundai", "modelValue": "Santa Fe", "title": "Hyundai Santa Fe из Кореи", "description": "Santa Fe в корейском каталоге Encar. Подбор комплектаций и расчёт стоимости." },
+    { "markValue": "Hyundai", "modelValue": "Palisade", "title": "Hyundai Palisade из Кореи", "description": "Семиместный кроссовер Palisade с Кореи — объявления и консультация по покупке." },
+    { "markValue": "Hyundai", "modelValue": "Grandeur", "title": "Hyundai Grandeur (Azera) из Кореи", "description": "Седан бизнес-класса Grandeur на Encar. Смотрите актуальную выдачу в каталоге." },
+    { "markValue": "Hyundai", "modelValue": "Staria", "title": "Hyundai Staria из Кореи", "description": "Минивэн Staria с корейского рынка — подбор по году и пробегу." },
+    { "markValue": "Hyundai", "modelValue": "Sonata", "title": "Hyundai Sonata из Кореи", "description": "Hyundai Sonata DN8 и другие поколения в каталоге World Ride Auto." },
+    { "markValue": "Hyundai", "modelValue": "Avante", "title": "Hyundai Avante (Elantra) из Кореи", "description": "Компактный седан Avante/Elantra с Encar — удобные фильтры и доставка." },
+    { "markValue": "Kia", "modelValue": "Sportage", "title": "Kia Sportage из Кореи", "description": "Kia Sportage NQ5 и предыдущие поколения — большой выбор в корейском каталоге." },
+    { "markValue": "Kia", "modelValue": "Sorento", "title": "Kia Sorento из Кореи", "description": "Kia Sorento MQ4 и другие — семейные кроссоверы с корейского рынка." },
+    { "markValue": "Kia", "modelValue": "Carnival", "title": "Kia Carnival из Кореи", "description": "Минивэн Kia Carnival (Sedona) — просторные семейные авто с Encar." },
+    { "markValue": "Kia", "modelValue": "K5", "title": "Kia K5 из Кореи", "description": "Седан Kia K5 с корейского авторынка." },
+    { "markValue": "Kia", "modelValue": "K8", "title": "Kia K8 из Кореи", "description": "Премиальный седан Kia K8 — объявления и расчёт." },
+    { "markValue": "Genesis", "modelValue": "GV80", "title": "Genesis GV80 из Кореи", "description": "Кроссовер Genesis GV80 — премиум-сегмент с Encar." },
+    { "markValue": "Genesis", "modelValue": "G80", "title": "Genesis G80 из Кореи", "description": "Седан Genesis G80 б/у и новые объявления из Кореи." },
+    { "markValue": "Genesis", "modelValue": "GV70", "title": "Genesis GV70 из Кореи", "description": "Компактный кроссовер Genesis GV70 в каталоге." },
+    { "markValue": "Genesis", "modelValue": "G70", "title": "Genesis G70 из Кореи", "description": "Спорт-седан Genesis G70 с корейского рынка." },
+    { "markValue": "BMW", "modelValue": "5 Series", "title": "BMW 5 Series из Кореи", "description": "BMW 5-й серии (G30 и др.) — подбор на Encar." },
+    { "markValue": "BMW", "modelValue": "3 Series", "title": "BMW 3 Series из Кореи", "description": "BMW 3-й серии с корейского рынка." },
+    { "markValue": "BMW", "modelValue": "X5", "title": "BMW X5 из Кореи", "description": "Кроссовер BMW X5 — объявления и цены." },
+    { "markValue": "Mercedes-Benz", "modelValue": "E-Class", "title": "Mercedes-Benz E-Class из Кореи", "description": "E-Class W213 и другие поколения в корейском каталоге." },
+    { "markValue": "Mercedes-Benz", "modelValue": "S-Class", "title": "Mercedes-Benz S-Class из Кореи", "description": "Флагманский седан S-Class с Encar." },
+    { "markValue": "Mercedes-Benz", "modelValue": "GLE", "title": "Mercedes-Benz GLE из Кореи", "description": "Кроссовер Mercedes-Benz GLE — выдача в каталоге." },
+    { "markValue": "Audi", "modelValue": "A6", "title": "Audi A6 из Кореи", "description": "Audi A6 с корейского авторынка." },
+    { "markValue": "Audi", "modelValue": "Q5", "title": "Audi Q5 из Кореи", "description": "Кроссовер Audi Q5 — фильтры и объявления." },
+    { "markValue": "Toyota", "modelValue": "Camry", "title": "Toyota Camry из Кореи", "description": "Toyota Camry XV70 и другие — популярный седан с Encar." },
+    { "markValue": "Toyota", "modelValue": "Alphard", "title": "Toyota Alphard из Кореи", "description": "Минивэн премиум-класса Toyota Alphard из Кореи." },
+    { "markValue": "Toyota", "modelValue": "RAV4", "title": "Toyota RAV4 из Кореи", "description": "Кроссовер Toyota RAV4 в корейском каталоге." },
+    { "markValue": "Lexus", "modelValue": "ES", "title": "Lexus ES из Кореи", "description": "Седан Lexus ES — подбор объявлений." },
+    { "markValue": "Lexus", "modelValue": "RX", "title": "Lexus RX из Кореи", "description": "Кроссовер Lexus RX с Encar." },
+    { "markValue": "Lexus", "modelValue": "NX", "title": "Lexus NX из Кореи", "description": "Компактный кроссовер Lexus NX из Кореи." }
+  ]
+}

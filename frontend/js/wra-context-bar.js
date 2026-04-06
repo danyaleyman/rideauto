@@ -93,6 +93,22 @@
       saveKey(RCV_KEY, uniqPush(arr, id, RCV_MAX), RCV_MAX);
       renderBar();
     },
+    isInCompare: function (id) {
+      var v = String(id || "").trim();
+      if (!v) return false;
+      return loadKey(CMP_KEY, CMP_MAX).indexOf(v) >= 0;
+    },
+    /** Импорт из ссылки ?compare=id1,id2 (до CMP_MAX объявлений). */
+    importCompareFromShare: function (csv) {
+      var ids = parseIds(csv).slice(0, CMP_MAX);
+      if (!ids.length) return 0;
+      saveKey(CMP_KEY, ids, CMP_MAX);
+      renderBar();
+      if (window.WRAAnalytics && typeof window.WRAAnalytics.track === "function") {
+        window.WRAAnalytics.track("wra_compare_import_url", { count: ids.length });
+      }
+      return ids.length;
+    },
     toggleCompare: function (id) {
       var v = String(id || "").trim();
       if (!v) return;
