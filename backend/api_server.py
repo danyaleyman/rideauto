@@ -53,6 +53,21 @@ _LISTING_PARTITION_KEY_EXPR = (
     "car_id)"
 )
 
+# Китайский рынок в БД: только эти source (совпадает с веткой china в _build_filter_sql).
+_WRA_CHINA_SOURCES_SQL = "json_extract(data_json, '$.data.source') IN ('che168', 'dongchedi')"
+
+
+def _catalog_query_is_china_market(q: Dict[str, str]) -> bool:
+    src = (q.get("source") or "").strip().lower()
+    reg = (q.get("region") or "").strip().lower()
+    return src in ("china", "che168", "dongchedi") or reg == "china"
+
+
+def _db_has_any_china_source_row(conn: sqlite3.Connection) -> bool:
+    """Без дедупа по inner_id: если нет ни одной сырой строки che168/dongchedi, китайского каталога в БД нет."""
+    r = conn.execute(f"SELECT 1 FROM cars WHERE {_WRA_CHINA_SOURCES_SQL} LIMIT 1").fetchone()
+    return r is not None
+
 
 def _ensure_catalog_indexes(db_path: str) -> None:
     """Выраженные индексы под фильтры каталога (mark/model/цена/пробег/год/цвет/мощность/ДТП…).
@@ -513,7 +528,6 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
     src = (query.get("source") or "").strip().lower()
     region = (query.get("region") or "").strip().lower()
     # Только json_extract — совпадает с idx_wra_data_source; LOWER/TRIM по всей таблице даёт full scan и 504 на проде.
-    _china_market_sql = "json_extract(data_json, '$.data.source') IN ('che168', 'dongchedi')"
     # Явный source=encar важнее region=china (на случай тестовых URL).
     if src == "encar":
         _src_norm = (
@@ -528,7 +542,7 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
         params.append("dongchedi")
     elif src == "china" or region == "china":
         # source=china ИЛИ только region=china (если прокси/кэш отрезал source — иначе отдаётся весь каталог = «Корея»).
-        clauses.append(_china_market_sql)
+        clauses.append(_WRA_CHINA_SOURCES_SQL)
     elif region == "korea":
         _src_norm = (
             "COALESCE(NULLIF(TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')), ''), 'encar')"
@@ -653,6 +667,18 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
 
             where, params = _build_filter_sql(query)
             from_frag, params2 = _cars_dedup_from_fragment(where, params)
+            if _catalog_query_is_china_market(query) and not _db_has_any_china_source_row(conn):
+                return {
+                    "result": [],
+                    "meta": {
+                        "page": page,
+                        "per_page": per_page,
+                        "total": 0,
+                        "pages": 1,
+                        "next_page": None,
+                        "list_mode": "slim" if slim else "full",
+                    },
+                }
             sort = (query.get("sort") or "date_new").strip()
             order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
             listing_ids = _catalog_listing_max_ids_subquery(from_frag)
@@ -893,6 +919,14 @@ def _facet_from_narrow_temp(conn: sqlite3.Connection, facet_key: str) -> List[Di
 def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
     """Одинаковый SQL-фильтр у нескольких измерений → 1 scan + узкий TEMP + несколько дешёвых GROUP BY."""
     _ensure_catalog_indexes(db_path)
+    empty_facets: Dict[str, List[Dict[str, Any]]] = {name: [] for name, _, _ in _FACET_SPECS}
+    if _catalog_query_is_china_market(q):
+        conn_probe = _db_connect(db_path)
+        try:
+            if not _db_has_any_china_source_row(conn_probe):
+                return empty_facets
+        finally:
+            conn_probe.close()
     groups: DefaultDict[Tuple[str, Tuple[str, ...]], List[str]] = defaultdict(list)
     for name, omit_keys, _expr in _FACET_SPECS:
         q2 = {k: v for k, v in q.items() if k not in omit_keys}

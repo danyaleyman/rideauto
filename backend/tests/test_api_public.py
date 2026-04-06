@@ -92,6 +92,25 @@ async def test_facets_returns_mark_lists(test_app):
 
 
 @pytest.mark.asyncio
+async def test_china_market_empty_db_fast_cars_and_facets(test_app):
+    """Без строк che168/dongchedi в БД: китайский каталог и фасеты — пусто, без тяжёлого CTE."""
+    async with TestClient(TestServer(test_app)) as client:
+        r1 = await client.get(
+            "/api/cars",
+            params={"region": "china", "source": "china", "page": "1", "per_page": "12"},
+        )
+        assert r1.status == 200
+        j1 = await r1.json()
+        assert (j1.get("meta") or {}).get("total") == 0
+        assert j1.get("result") == []
+        r2 = await client.get("/api/facets", params={"region": "china", "source": "china"})
+        assert r2.status == 200
+        j2 = await r2.json()
+        assert j2.get("marks") == []
+        assert j2.get("models") == []
+
+
+@pytest.mark.asyncio
 async def test_cars_first_page(test_app):
     async with TestClient(TestServer(test_app)) as client:
         resp = await client.get("/api/cars", params={"page": "1", "per_page": "10"})
