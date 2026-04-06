@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import aiohttp
 import yaml
 
+from dongchedi.brand_shards import DEFAULT_BRAND_SHARD_IDS
 from dongchedi.client import DEFAULT_HEADERS, fetch_usedcar_html, post_sku_list
 from dongchedi.normalize import row_matches_filters, sku_row_to_payload
 from dongchedi.parse_detail import parse_sku_detail_from_html
@@ -28,8 +29,12 @@ log = logging.getLogger("dongchedi.scraper")
 
 @dataclass
 class ScrapeConfig:
+    """Конфиг скрейпера: brand_ids / shard_brands расширяют охват листинга; enrich_detail даёт цену и галерею с карточки."""
+
     db_path: str = "encar_china.db"
     brand_id: Optional[str] = None
+    brand_ids: Optional[List[str]] = None
+    shard_brands: bool = False
     series_id: Optional[int] = None
     sh_city_name: Optional[str] = None
     age_range: Optional[str] = None
@@ -108,6 +113,9 @@ def load_config_file(path: str) -> Dict[str, Any]:
 def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = None) -> ScrapeConfig:
     base = defaults or ScrapeConfig()
     m = {k.replace("-", "_"): v for k, v in raw.items()}
+    raw_brand_ids = m.pop("brand_ids", None)
+    if isinstance(raw_brand_ids, list):
+        base.brand_ids = [str(x).strip() for x in raw_brand_ids if str(x).strip()]
     known = {f.name for f in fields(ScrapeConfig)}
     for k, v in m.items():
         if k in known and v is not None:
@@ -117,6 +125,16 @@ def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = 
         if env_c:
             base.cookie = env_c
     return base
+
+
+def _brand_filters_for_listing(cfg: ScrapeConfig) -> List[Optional[str]]:
+    if cfg.brand_ids:
+        return [str(x).strip() for x in cfg.brand_ids if str(x).strip()]
+    if cfg.shard_brands:
+        return list(DEFAULT_BRAND_SHARD_IDS)
+    if cfg.brand_id and str(cfg.brand_id).strip():
+        return [str(cfg.brand_id).strip()]
+    return [None]
 
 
 def _headers_with_cookie(cookie: Optional[str]) -> Dict[str, str]:
@@ -172,9 +190,11 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
 
     saved = 0
     seen: Set[str] = set()
-    page = 1
     stop = False
 
+    brand_filters = _brand_filters_for_listing(cfg)
+    if len(brand_filters) > 1 or (brand_filters[0] is not None):
+        log.info("sh_sku_list brand passes: %s (shard_brands=%s)", len(brand_filters), cfg.shard_brands)
     async with aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector) as session:
 
         async def detail_for(sku: str) -> Optional[Dict[str, Any]]:
@@ -186,108 +206,132 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                 return None
             return parse_sku_detail_from_html(html)
 
-        while page <= cfg.max_pages and not stop:
-            async with list_sem:
-                status, payload = await post_sku_list(
-                    session,
-                    page=page,
-                    limit=page_sz,
-                    brand_id=cfg.brand_id,
-                    sh_city_name=cfg.sh_city_name,
-                    age_range=cfg.age_range,
-                    timeout_s=cfg.request_timeout_s,
+        for shard_i, brand_for_list in enumerate(brand_filters):
+            if len(brand_filters) > 1 or brand_for_list:
+                log.info(
+                    "listing shard %s/%s brand=%s",
+                    shard_i + 1,
+                    len(brand_filters),
+                    brand_for_list or "—",
                 )
+            page = 1
+            while page <= cfg.max_pages and not stop:
+                async with list_sem:
+                    status, payload = await post_sku_list(
+                        session,
+                        page=page,
+                        limit=page_sz,
+                        brand_id=brand_for_list,
+                        sh_city_name=cfg.sh_city_name,
+                        age_range=cfg.age_range,
+                        timeout_s=cfg.request_timeout_s,
+                    )
 
-            raw_st = payload.get("status")
-            try:
-                api_st = int(raw_st) if raw_st is not None else -1
-            except (TypeError, ValueError):
-                api_st = -1
-            if status != 200 or not payload or api_st != 0:
-                log.warning("list page %s http=%s api_status=%s", page, status, raw_st)
-                break
-
-            data = payload.get("data") or {}
-            rows = data.get("search_sh_sku_info_list") or []
-            if not isinstance(rows, list) or not rows:
-                log.info("empty list page %s, stop", page)
-                break
-
-            candidates: List[Dict[str, Any]] = []
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                sku = row.get("sku_id")
-                if sku is None:
-                    continue
-                sid = str(sku).strip()
-                if not sid or sid in seen:
-                    continue
-                if not row_matches_filters(
-                    row,
-                    series_id=cfg.series_id,
-                    year_min=year_min,
-                    year_max=year_max,
-                ):
-                    continue
-                candidates.append(row)
-
-            details: Dict[str, Optional[Dict[str, Any]]] = {}
-            if enrich and candidates:
-                detail_tasks = [detail_for(str(r.get("sku_id"))) for r in candidates]
-                resolved = await asyncio.gather(*detail_tasks)
-                for r, d in zip(candidates, resolved):
-                    details[str(r.get("sku_id"))] = d
-
-            batch: List[Tuple[str, str]] = []
-            for row in candidates:
-                sid = str(row.get("sku_id")).strip()
-                det = details.get(sid) if enrich else None
-                price_cny: Optional[float] = None
-                if det:
-                    price_cny = _fen_to_cny_local(det.get("source_sh_price"))
-
-                if not row_matches_filters(
-                    row,
-                    series_id=cfg.series_id,
-                    year_min=year_min,
-                    year_max=year_max,
-                    price_min_cny=cfg.price_min,
-                    price_max_cny=cfg.price_max,
-                    price_cny=price_cny if enrich else None,
-                ):
-                    continue
-
-                if need_price and enrich and (price_cny is None or price_cny <= 0):
-                    continue
-
-                seen.add(sid)
-                payload_doc = sku_row_to_payload(row, detail=det, cny_to_rub=cfg.cny_to_rub)
-                inner = (payload_doc.get("data") or {})
-                if not inner:
-                    continue
-                car_id = f"dongchedi-{sid}"
-                batch.append((car_id, json.dumps(payload_doc, ensure_ascii=False)))
-
-                if lim and len(seen) >= lim:
-                    stop = True
+                raw_st = payload.get("status") if payload else None
+                try:
+                    api_st = int(raw_st) if raw_st is not None else -1
+                except (TypeError, ValueError):
+                    api_st = -1
+                if status != 200 or not payload or api_st != 0:
+                    log.warning(
+                        "list page %s brand=%s http=%s api_status=%s",
+                        page,
+                        brand_for_list,
+                        status,
+                        raw_st,
+                    )
                     break
 
-            if batch:
-                n = await asyncio.to_thread(sync_upsert_batch, batch)
-                saved += n
-                log.info("page %s: +%s rows (total saved %s)", page, n, saved)
+                data = payload.get("data") or {}
+                rows = data.get("search_sh_sku_info_list") or []
+                if not isinstance(rows, list) or not rows:
+                    log.info("empty list page %s brand=%s, next shard", page, brand_for_list)
+                    break
+
+                candidates: List[Dict[str, Any]] = []
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    sku = row.get("sku_id")
+                    if sku is None:
+                        continue
+                    sid = str(sku).strip()
+                    if not sid or sid in seen:
+                        continue
+                    if not row_matches_filters(
+                        row,
+                        series_id=cfg.series_id,
+                        year_min=year_min,
+                        year_max=year_max,
+                    ):
+                        continue
+                    candidates.append(row)
+
+                details: Dict[str, Optional[Dict[str, Any]]] = {}
+                if enrich and candidates:
+                    detail_tasks = [detail_for(str(r.get("sku_id"))) for r in candidates]
+                    resolved = await asyncio.gather(*detail_tasks)
+                    for r, d in zip(candidates, resolved):
+                        details[str(r.get("sku_id"))] = d
+
+                batch: List[Tuple[str, str]] = []
+                for row in candidates:
+                    sid = str(row.get("sku_id")).strip()
+                    det = details.get(sid) if enrich else None
+                    price_cny: Optional[float] = None
+                    if det:
+                        price_cny = _fen_to_cny_local(det.get("source_sh_price"))
+
+                    if not row_matches_filters(
+                        row,
+                        series_id=cfg.series_id,
+                        year_min=year_min,
+                        year_max=year_max,
+                        price_min_cny=cfg.price_min,
+                        price_max_cny=cfg.price_max,
+                        price_cny=price_cny if enrich else None,
+                    ):
+                        continue
+
+                    if need_price and enrich and (price_cny is None or price_cny <= 0):
+                        continue
+
+                    seen.add(sid)
+                    payload_doc = sku_row_to_payload(row, detail=det, cny_to_rub=cfg.cny_to_rub)
+                    inner = (payload_doc.get("data") or {})
+                    if not inner:
+                        continue
+                    car_id = f"dongchedi-{sid}"
+                    batch.append((car_id, json.dumps(payload_doc, ensure_ascii=False)))
+
+                    if lim and len(seen) >= lim:
+                        stop = True
+                        break
+
+                if batch:
+                    n = await asyncio.to_thread(sync_upsert_batch, batch)
+                    saved += n
+                    log.info(
+                        "page %s brand=%s: +%s rows (total saved %s)",
+                        page,
+                        brand_for_list,
+                        n,
+                        saved,
+                    )
+
+                if stop:
+                    break
+
+                if not data.get("has_more"):
+                    log.info("has_more=false at page %s brand=%s", page, brand_for_list)
+                    break
+
+                page += 1
+                if cfg.delay_between_pages_s > 0:
+                    await asyncio.sleep(cfg.delay_between_pages_s)
 
             if stop:
                 break
-
-            if not data.get("has_more"):
-                log.info("has_more=false at page %s", page)
-                break
-
-            page += 1
-            if cfg.delay_between_pages_s > 0:
-                await asyncio.sleep(cfg.delay_between_pages_s)
 
     await asyncio.to_thread(_apply_indexes_after, db_path)
     return saved
@@ -304,6 +348,11 @@ def main(argv: Optional[List[str]] = None) -> None:
     p.add_argument("--config", type=str, default=None)
     p.add_argument("--db", type=str, default=None)
     p.add_argument("--brand-id", type=str, default=None, help="Числовой brand_id (напр. 4 = 宝马)")
+    p.add_argument(
+        "--shard-brands",
+        action="store_true",
+        help="Много проходов sh_sku_list по маркам (обход лимита ~10k без brand)",
+    )
     p.add_argument("--series-id", type=int, default=None)
     p.add_argument("--city", type=str, default=None, help="sh_city_name, напр. 北京")
     p.add_argument("--age-range", type=str, default=None, help="Напр. 3,5 как в HAR")
@@ -327,6 +376,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         cfg = config_from_mapping(load_config_file(args.config), cfg)
     if args.db is not None:
         cfg.db_path = args.db
+    if args.shard_brands:
+        cfg.shard_brands = True
     if args.brand_id is not None:
         cfg.brand_id = args.brand_id or None
     if args.series_id is not None:

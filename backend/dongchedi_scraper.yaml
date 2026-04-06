@@ -5,8 +5,11 @@
 # Прод (рядом с encar_cars.db): добавьте --db /opt/prod-encar/encar_china.db или задайте тот же путь в db_path ниже.
 
 db_path: encar_china.db
-# brand_id: "4"       # опционально (4 = 宝马). Без поля — все марки (как в POST без brand)
-# sh_city_name: 北京  # опционально; без поля — общий лимит листинга (~10k в выдаче)
+# Один прогон без brand на API даёт ~10k объявлений (has_more обрывается). Чтобы добрать каталог:
+# shard_brands: true   # много проходов sh_sku_list по списку марок (см. dongchedi/brand_shards.py)
+# brand_ids: ["4", "16", "10"]  # явный список марок (перекрывает shard_brands и brand_id)
+# brand_id: "4"       # одна марка (если shard_brands: false)
+# sh_city_name: 北京  # опционально; ещё один срез выдачи по городу
 # age_range: "3,5"   # как в HAR (возраст авто)
 # series_id: 2825    # фильтр после ответа API (числовой id серии)
 # limit: 0           # 0 = без лимита; иначе макс. объявлений за прогон (кап 100)

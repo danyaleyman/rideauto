@@ -37,6 +37,30 @@ def test_row_matches_series_and_year():
     assert not row_matches_filters(row, series_id=145, year_min=2020, year_max=2021)
 
 
+def test_sku_row_nested_detail_yields_multiple_photos():
+    row = {
+        "sku_id": 99,
+        "title": "Gallery car",
+        "brand_name": "测试",
+        "series_name": "S",
+        "car_year": 2020,
+        "car_mileage": "1万公里",
+        "image": "https://example.com/cover.jpg",
+    }
+    detail = {
+        "car_report": {
+            "sections": [
+                {"pics": ["https://p3-dcd.byteimg.com/a.webp", "https://p3-dcd.byteimg.com/b.jpg"]},
+            ]
+        },
+        "extra_nested": {"thumb": "https://img.site/shot.png?x=1"},
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    imgs = json.loads(out["data"]["images"])
+    assert len(imgs) >= 3
+    assert "https://example.com/cover.jpg" in imgs
+
+
 def test_sku_row_detail_car_info_and_gallery():
     row = {
         "sku_id": 7,

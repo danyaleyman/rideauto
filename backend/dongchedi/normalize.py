@@ -59,13 +59,74 @@ def _first_nonempty_str(*vals: Any) -> str:
     return ""
 
 
+def _deep_collect_image_urls(detail: Dict[str, Any], *, max_urls: int = 80) -> list[str]:
+    """Рекурсивно вытаскивает URL картинок из skuDetail (__NEXT_DATA__): галереи часто вложены."""
+
+    out: list[str] = []
+    dup: set[str] = set()
+
+    def looks_like_photo_url(low: str) -> bool:
+        return any(
+            x in low
+            for x in (
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".webp",
+                ".gif",
+                "byteimg",
+                "bytecdn",
+                "dcdapp",
+                "dcd-cdn",
+                "p3-dcd",
+                "p9-dcd",
+                "p6-dcd",
+                "tos-cn",
+                "/image",
+                "img",
+                "photo",
+                "pic",
+            )
+        )
+
+    def walk(o: Any, depth: int) -> None:
+        if depth > 18 or len(out) >= max_urls:
+            return
+        if isinstance(o, str):
+            s = o.strip()
+            if len(s) < 20 or not s.startswith("http"):
+                return
+            low = s.lower()
+            if s in dup or not looks_like_photo_url(low):
+                return
+            dup.add(s)
+            out.append(s)
+            return
+        if isinstance(o, dict):
+            for v in o.values():
+                walk(v, depth + 1)
+        elif isinstance(o, list):
+            for v in o[:500]:
+                walk(v, depth + 1)
+
+    walk(detail, 0)
+    return out
+
+
 def _image_urls_from_row_and_detail(
     row_img: str,
     detail: Optional[Dict[str, Any]],
 ) -> list[str]:
     out: list[str] = []
-    if row_img:
-        out.append(row_img)
+    dup: set[str] = set()
+
+    def add(u: str) -> None:
+        s = (u or "").strip()
+        if s and s not in dup:
+            dup.add(s)
+            out.append(s)
+
+    add(row_img)
     if not detail or not isinstance(detail, dict):
         return out
     for key in (
@@ -75,24 +136,32 @@ def _image_urls_from_row_and_detail(
         "car_image_list",
         "photo_list",
         "image_url_list",
+        "car_image_info_list",
+        "appearance_image_list",
+        "interior_image_list",
+        "space_image_list",
+        "official_photo_list",
+        "sku_car_image_list",
     ):
         raw = detail.get(key)
         if not isinstance(raw, list):
             continue
         for item in raw:
             if isinstance(item, str):
-                u = item.strip()
-                if u and u not in out:
-                    out.append(u)
+                add(item)
             elif isinstance(item, dict):
                 u = _first_nonempty_str(
                     item.get("url"),
                     item.get("image"),
                     item.get("image_url"),
                     item.get("pic_url"),
+                    item.get("big_url"),
+                    item.get("thumb_url"),
+                    item.get("cover_url"),
                 )
-                if u and u not in out:
-                    out.append(u)
+                add(u)
+    for u in _deep_collect_image_urls(detail, max_urls=100):
+        add(u)
     return out
 
 
