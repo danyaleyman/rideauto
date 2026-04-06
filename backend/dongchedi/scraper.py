@@ -133,8 +133,8 @@ def _brand_filters_for_listing(cfg: ScrapeConfig) -> List[Optional[str]]:
     if cfg.brand_ids:
         return [str(x).strip() for x in cfg.brand_ids if str(x).strip()]
     if cfg.shard_brands:
-        return list(DEFAULT_BRAND_SHARD_IDS)
-    if cfg.brand_id and str(cfg.brand_id).strip():
+        filters: List[Optional[str]] = [str(x).strip() for x in DEFAULT_BRAND_SHARD_IDS if str(x).strip()]
+    elif cfg.brand_id and str(cfg.brand_id).strip():
         filters = [str(cfg.brand_id).strip()]
     else:
         filters = [None]
