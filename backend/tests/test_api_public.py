@@ -54,6 +54,8 @@ async def test_stats_lists_total(test_app):
         assert data.get("total") == 3
         assert "listed_today" in data
         assert "date_utc" in data
+        assert data.get("korea_listed") == 3
+        assert data.get("china_listed") == 0
 
 
 @pytest.mark.asyncio
@@ -63,16 +65,6 @@ async def test_counts_matches_stats(test_app):
         r_counts = await client.get("/api/counts")
         assert r_stats.status == 200 and r_counts.status == 200
         assert await r_stats.json() == await r_counts.json()
-
-
-@pytest.mark.asyncio
-async def test_catalog_totals_korea_china(test_app):
-    async with TestClient(TestServer(test_app)) as client:
-        resp = await client.get("/api/catalog-totals")
-        assert resp.status == 200
-        data = await resp.json()
-        assert data.get("korea_listed") == 3
-        assert data.get("china_listed") == 0
 
 
 @pytest.mark.asyncio

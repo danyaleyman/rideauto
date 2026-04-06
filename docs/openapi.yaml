@@ -120,33 +120,33 @@ paths:
 
   /api/stats:
     get:
-      summary: Агрегированная статистика каталога
+      summary: Агрегированная статистика каталога (в т.ч. korea_listed / china_listed)
       responses:
         "200":
-          content:
-            application/json:
-              schema: { type: object }
-
-  /api/counts:
-    get:
-      summary: Счётчики для UI фильтров
-      responses:
-        "200":
-          content:
-            application/json:
-              schema: { type: object }
-
-  /api/catalog-totals:
-    get:
-      summary: Числа объявлений Корея/Китай для карточек рынка (без двух запросов /api/cars)
-      responses:
-        "200":
-          description: korea_listed / china_listed — тот же дедуп, что у каталога
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  listed_today: { type: integer }
+                  date_utc: { type: string }
+                  total: { type: integer }
+                  korea_listed: { type: integer }
+                  china_listed: { type: integer }
+
+  /api/counts:
+    get:
+      summary: Счётчики для UI (в т.ч. korea_listed / china_listed для карточек рынка)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  listed_today: { type: integer }
+                  date_utc: { type: string }
+                  total: { type: integer }
                   korea_listed: { type: integer }
                   china_listed: { type: integer }
 

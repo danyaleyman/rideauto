@@ -737,6 +737,7 @@ _FACET_TEMP_COL: Dict[str, str] = {
 
 
 def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
+    _ensure_catalog_indexes(db_path)
     conn = _db_connect(db_path)
     try:
         today_str = datetime.now(timezone.utc).date().isoformat()
@@ -755,36 +756,31 @@ def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
             [today_str],
         ).fetchone()
         n = int(row_today["c"]) if row_today else 0
-        row_total = conn.execute(
-            f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
+        # Один проход по дедуплицированному листингу вместо трёх отдельных COUNT (меньше нагрузка на SQLite).
+        _src_norm_c = (
+            "COALESCE(NULLIF(TRIM(COALESCE(json_extract(c.data_json, '$.data.source'), '')), ''), 'encar')"
+        )
+        _china_c = "json_extract(c.data_json, '$.data.source') IN ('che168', 'dongchedi')"
+        row_mix = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN {_src_norm_c} = 'encar' THEN 1 ELSE 0 END) AS korea,
+                   SUM(CASE WHEN {_china_c} THEN 1 ELSE 0 END) AS china
+            FROM cars AS c
+            INNER JOIN {listing_ids} AS x ON c.id = x.mid
+            """,
             [],
         ).fetchone()
-        n_total = int(row_total["c"]) if row_total else 0
-        return {"listed_today": n, "date_utc": today_str, "total": n_total}
-    finally:
-        conn.close()
-
-
-def _catalog_listing_count_sync(conn: sqlite3.Connection, query: Dict[str, str]) -> int:
-    """COUNT объявлений в каталоге с тем же дедупом, что /api/cars (без разбора JSON строк)."""
-    where, params = _build_filter_sql(query)
-    from_frag, params2 = _cars_dedup_from_fragment(where, params)
-    listing_ids = _catalog_listing_max_ids_subquery(from_frag)
-    row = conn.execute(
-        f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
-        params2,
-    ).fetchone()
-    return int(row["c"]) if row else 0
-
-
-def _catalog_market_totals_sync(db_path: str) -> Dict[str, Any]:
-    """Два числа для карточек «Из Кореи / Из Китая» — один поток, одно соединение (не два параллельных /api/cars)."""
-    _ensure_catalog_indexes(db_path)
-    conn = _db_connect(db_path)
-    try:
-        korea = _catalog_listing_count_sync(conn, {"source": "encar"})
-        china = _catalog_listing_count_sync(conn, {"source": "china"})
-        return {"korea_listed": korea, "china_listed": china}
+        n_total = int(row_mix["total"]) if row_mix else 0
+        korea = int(row_mix["korea"] or 0) if row_mix else 0
+        china = int(row_mix["china"] or 0) if row_mix else 0
+        return {
+            "listed_today": n,
+            "date_utc": today_str,
+            "total": n_total,
+            "korea_listed": korea,
+            "china_listed": china,
+        }
     finally:
         conn.close()
 
@@ -1009,19 +1005,12 @@ async def facets(request: web.Request) -> web.Response:
 async def catalog_stats(request: web.Request) -> web.Response:
     db_path: str = request.app[APP_DB_PATH]
     payload = await asyncio.to_thread(_catalog_stats_sync, db_path)
-    return _json_public_cache(payload, "public, max-age=60, stale-while-revalidate=300")
+    return _json_public_cache(payload, "public, max-age=90, stale-while-revalidate=600")
 
 
 async def catalog_counts(request: web.Request) -> web.Response:
     """Как у конкурента: тот же payload, что /api/stats (+ total), отдельный URL для micro-cache."""
     return await catalog_stats(request)
-
-
-async def catalog_market_totals(request: web.Request) -> web.Response:
-    """Счётчики для UI «Из Кореи / Из Китая» без двух параллельных /api/cars."""
-    db_path: str = request.app[APP_DB_PATH]
-    payload = await asyncio.to_thread(_catalog_market_totals_sync, db_path)
-    return _json_public_cache(payload, "public, max-age=60, stale-while-revalidate=180")
 
 
 async def catalog_sort_meta(_: web.Request) -> web.Response:
@@ -1624,7 +1613,6 @@ def create_app(db_path: str) -> web.Application:
     app.router.add_get("/api/filters", facets)
     app.router.add_get("/api/stats", catalog_stats)
     app.router.add_get("/api/counts", catalog_counts)
-    app.router.add_get("/api/catalog-totals", catalog_market_totals)
     app.router.add_get("/api/sort", catalog_sort_meta)
     app.router.add_get("/api/car/{id}", car_by_id)
     app.router.add_get("/api/similar", similar)

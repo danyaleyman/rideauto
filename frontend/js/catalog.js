@@ -2424,29 +2424,6 @@
       }
     }).catch(function() {});
 
-    /** Числа «n авто» на карточках рынка: один /api/catalog-totals (не два параллельных /api/cars — иначе SQLite и пул потоков захлёбываются). */
-    function hydrateMarketPickerCounts() {
-      var ke = document.getElementById('marketKoreaCount');
-      var ce = document.getElementById('marketChinaCount');
-      if (!ke && !ce) return Promise.resolve();
-      function fmt(n) {
-        if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return '—';
-        return n.toLocaleString('ru-RU');
-      }
-      return fetch(apiUrl('/api/catalog-totals'), catalogApiFetchInit())
-        .then(function(r) {
-          return r.ok ? r.json() : null;
-        })
-        .then(function(d) {
-          if (ke) ke.textContent = fmt(d && d.korea_listed);
-          if (ce) ce.textContent = fmt(d && d.china_listed);
-        })
-        .catch(function() {
-          if (ke) ke.textContent = '—';
-          if (ce) ce.textContent = '—';
-        });
-    }
-
     async function bootstrapCatalog() {
       try {
         syncCatalogMarketFromLocation();
@@ -2472,7 +2449,10 @@
 
         var reqId = ++catalogRequestId;
         var todayEl = document.getElementById('bannerTodayCount');
-        var statsPromise = todayEl
+        var marketKoreaEl = document.getElementById('marketKoreaCount');
+        var marketChinaEl = document.getElementById('marketChinaCount');
+        var needStats = !!(todayEl || marketKoreaEl || marketChinaEl);
+        var statsPromise = needStats
           ? withTimeout(
               fetch(apiUrl('/api/counts'), catalogApiFetchInit())
                 .then(function(cr) {
@@ -2498,6 +2478,33 @@
             })
           : Promise.resolve(null);
 
+        function fmtMarketListedCount(n) {
+          if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return '—';
+          return n.toLocaleString('ru-RU');
+        }
+
+        function applyCatalogStatsPayload(st) {
+          if (!needStats) return;
+          try {
+            if (todayEl) {
+              var n0 = (st && typeof st.listed_today === 'number') ? st.listed_today : 0;
+              todayEl.textContent = n0 > 0 ? ('+' + n0.toLocaleString('ru-RU')) : '+0';
+            }
+            if (marketKoreaEl) marketKoreaEl.textContent = fmtMarketListedCount(st && st.korea_listed);
+            if (marketChinaEl) marketChinaEl.textContent = fmtMarketListedCount(st && st.china_listed);
+          } catch (eApply) {
+            if (todayEl) todayEl.textContent = '+0';
+            if (marketKoreaEl) marketKoreaEl.textContent = '—';
+            if (marketChinaEl) marketChinaEl.textContent = '—';
+          }
+        }
+
+        if (needStats) {
+          void statsPromise.then(function(st) {
+            applyCatalogStatsPayload(st);
+          });
+        }
+
         var facetsJsonPrefetch = fetch('data/catalog_facets.json', { cache: 'default' })
           .then(function(r) { return r.ok ? r.json() : null; })
           .catch(function() { return null; });
@@ -2508,8 +2515,6 @@
           var reqClamp = ++catalogRequestId;
           await loadCarsPage(catalogPages, reqClamp);
         }
-
-        void hydrateMarketPickerCounts();
 
         var facetReq = catalogRequestId;
         if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
@@ -2531,13 +2536,11 @@
           scheduleFacetRefresh(facetReq);
         }
 
-        if (todayEl) {
+        if (needStats) {
           try {
-            var st = await statsPromise;
-            var n = (st && typeof st.listed_today === 'number') ? st.listed_today : 0;
-            todayEl.textContent = n > 0 ? ('+' + n.toLocaleString('ru-RU')) : '+0';
-          } catch (e2) {
-            todayEl.textContent = '+0';
+            await statsPromise;
+          } catch (eAwaitStats) {
+            /* UI уже заполнен через .then или останется «—» / +0 */
           }
         }
 

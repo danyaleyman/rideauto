@@ -1,0 +1,6 @@
+# Вставить ОДИН раз внутрь блока http { } главного /etc/nginx/nginx.conf (или в общий include до server{}).
+# Нужен для keepalive до aiohttp — меньше TCP-handshake при параллельных /api/cars, /api/facets, /api/counts.
+upstream wra_api_backend {
+    server 127.0.0.1:8080;
+    keepalive 64;
+}
