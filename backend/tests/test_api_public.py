@@ -13,6 +13,7 @@ async def test_health_ok(test_app):
         assert resp.status == 200
         data = await resp.json()
         assert data.get("status") == "ok"
+        assert data.get("china_catalog_db") is False
 
 
 @pytest.mark.asyncio

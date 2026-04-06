@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from api_server import create_app
+from api_server import _discover_china_db_if_unconfigured, create_app
 
 
 @pytest.fixture
@@ -189,3 +189,33 @@ async def test_china_queries_use_separate_db(dual_korea_china_paths: tuple[str, 
         js = await st.json()
         assert js.get("korea_listed") == 1
         assert js.get("china_listed") == 1
+
+
+@pytest.mark.asyncio
+async def test_health_china_catalog_db_when_china_configured(cars_db_mixed: str, tmp_path: Path):
+    china = tmp_path / "china_side.db"
+    app = create_app(cars_db_mixed, china_db_path=str(china))
+    async with TestClient(TestServer(app)) as client:
+        r = await client.get("/api/health")
+        assert r.status == 200
+        d = await r.json()
+        assert d.get("china_catalog_db") is True
+
+
+def test_discover_china_db_prefers_sibling(tmp_path: Path) -> None:
+    korea = tmp_path / "encar_cars.db"
+    korea.write_bytes(b"x")
+    (tmp_path / "backend").mkdir()
+    (tmp_path / "backend" / "encar_china.db").write_bytes(b"y")
+    (tmp_path / "encar_china.db").write_bytes(b"z")
+    got = _discover_china_db_if_unconfigured(str(korea))
+    assert got == str((tmp_path / "encar_china.db").resolve())
+
+
+def test_discover_china_db_backend_fallback(tmp_path: Path) -> None:
+    korea = tmp_path / "encar_cars.db"
+    korea.write_bytes(b"x")
+    (tmp_path / "backend").mkdir()
+    chin = tmp_path / "backend" / "encar_china.db"
+    chin.write_bytes(b"y")
+    assert _discover_china_db_if_unconfigured(str(korea)) == str(chin.resolve())

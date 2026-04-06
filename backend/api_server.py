@@ -4,6 +4,7 @@ Lightweight API for large catalogs (100k+).
 
 Run:
   python backend/api_server.py --db encar_cars.db --host 0.0.0.0 --port 8080
+  # Китай: --db-china или WRA_CHINA_DB_PATH; иначе ищется encar_china.db рядом с --db или в backend/.
 """
 from __future__ import annotations
 
@@ -62,6 +63,22 @@ def _catalog_query_is_china_market(q: Dict[str, str]) -> bool:
     src = (q.get("source") or "").strip().lower()
     reg = (q.get("region") or "").strip().lower()
     return src in ("china", "dongchedi") or reg == "china"
+
+
+def _discover_china_db_if_unconfigured(korea_db_resolved: str) -> Optional[str]:
+    """Если не заданы --db-china и WRA_CHINA_DB_PATH — ищем файл рядом с Кореей или в backend/.
+
+    Типичный случай: выгрузка Dongchedi в encar_china.db, а API забыли с флагом.
+    """
+    root = Path(korea_db_resolved).resolve().parent
+    for rel in ("encar_china.db", Path("backend") / "encar_china.db"):
+        cand = root / rel
+        try:
+            if cand.is_file():
+                return str(cand.resolve())
+        except OSError:
+            continue
+    return None
 
 
 def _db_has_any_dongchedi_row(conn: sqlite3.Connection) -> bool:
@@ -1061,11 +1078,13 @@ def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: 
     return rows
 
 
-async def health(_: web.Request) -> web.Response:
+async def health(request: web.Request) -> web.Response:
     body: Dict[str, Any] = {"status": "ok"}
     sha = (os.environ.get("WRA_GIT_SHA") or os.environ.get("GIT_COMMIT") or "").strip()
     if sha:
         body["git_sha"] = sha
+    ch = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip()
+    body["china_catalog_db"] = bool(ch)
     return web.json_response(body)
 
 
@@ -1826,8 +1845,18 @@ def main() -> None:
         )
 
     db_path = str(Path(args.db).resolve())
-    china_raw = (args.db_china if args.db_china is not None else (os.environ.get("WRA_CHINA_DB_PATH") or "")).strip()
-    china_arg = str(Path(china_raw).resolve()) if china_raw else None
+    china_arg: Optional[str] = None
+    if args.db_china is not None and str(args.db_china).strip():
+        china_arg = str(Path(args.db_china).expanduser().resolve())
+    else:
+        env_ch = (os.environ.get("WRA_CHINA_DB_PATH") or "").strip()
+        if env_ch:
+            china_arg = str(Path(env_ch).expanduser().resolve())
+        else:
+            discovered = _discover_china_db_if_unconfigured(db_path)
+            if discovered:
+                china_arg = discovered
+                _LOG.info("China catalog DB auto-discovered: %s", discovered)
     app = create_app(db_path, china_db_path=china_arg)
     web.run_app(app, host=args.host, port=args.port)
 
