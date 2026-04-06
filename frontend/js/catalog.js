@@ -1397,10 +1397,33 @@
       if (!res.ok) throw new Error('facets HTTP ' + res.status);
       const data = await res.json();
       if (paramSnap !== buildCatalogFilterParams().toString()) return;
-      applyFacetsApiPayload(data, null);
+      applyFacetsApiPayload(data, reqId);
     }
 
-    /** Фасеты НЕ опережают сетку: список грузится первым, затем статика или /api/facets. */
+    function markFacetsHydrated() {
+      return !!(markListEl && markListEl.querySelector('input[type=checkbox]'));
+    }
+
+    /**
+     * Снимок GET /api/facets без фильтров (frontend/data/catalog_facets.json с бэка).
+     * Подмешиваем только пока список марок пуст — не перетираем свежий ответ API.
+     */
+    function prefetchStaticFacetsSnapshot(reqId) {
+      syncCatalogMarketFromLocation();
+      if (CATALOG_SOURCE !== 'encar' || CATALOG_REGION !== 'korea') return;
+      if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) return;
+      fetch('data/catalog_facets.json', { cache: 'default' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; })
+        .then(function(data) {
+          if (reqId !== catalogRequestId) return;
+          if (markFacetsHydrated()) return;
+          if (!data || typeof data !== 'object' || !Array.isArray(data.marks) || data.marks.length === 0) return;
+          applyFacetsApiPayload(data, reqId);
+        });
+    }
+
+    /** Фасеты: параллельно сетке (/api/facets); опционально быстрый первый кадр из catalog_facets.json. */
     function scheduleFacetRefresh(reqId) {
       function run() {
         refreshFacetBars(reqId).catch(function(e) {
@@ -2430,22 +2453,9 @@
 
     showSkeleton();
 
-    var mappingPromise = (function() {
-      try {
-        if (typeof AbortController !== 'undefined') {
-          var ctrl = new AbortController();
-          var to = setTimeout(function() {
-            try { ctrl.abort(); } catch (e) {}
-          }, 8000);
-          return fetch('data/encar_mapping.json', { signal: ctrl.signal })
-            .then(function(r) { clearTimeout(to); return r.ok ? r.json() : null; })
-            .catch(function() { clearTimeout(to); return null; });
-        }
-      } catch (e) {}
-      return fetch('data/encar_mapping.json')
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .catch(function() { return null; });
-    })();
+    var mappingPromise = fetch('data/encar_mapping.json', { cache: 'default' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .catch(function() { return null; });
 
     mappingPromise.then(function(mapping) {
       if (mapping && typeof mapping === 'object') {
@@ -2540,15 +2550,20 @@
           });
         }
 
+        prefetchStaticFacetsSnapshot(reqId);
+        scheduleFacetRefresh(reqId);
+        var facetBootstrapId = reqId;
         await loadCarsPage(wantPage, reqId);
         if (reqId !== catalogRequestId) return;
         if (wantPage > catalogPages && catalogPages >= 1) {
-          var reqClamp = ++catalogRequestId;
-          await loadCarsPage(catalogPages, reqClamp);
+          facetBootstrapId = ++catalogRequestId;
+          await loadCarsPage(catalogPages, facetBootstrapId);
+          if (facetBootstrapId !== catalogRequestId) return;
+          if (facetBootstrapId !== reqId) {
+            prefetchStaticFacetsSnapshot(facetBootstrapId);
+            scheduleFacetRefresh(facetBootstrapId);
+          }
         }
-
-        var facetReq = catalogRequestId;
-        scheduleFacetRefresh(facetReq);
 
         if (needStats) {
           try {
