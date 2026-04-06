@@ -5,6 +5,18 @@
             return API_BASE + path;
         }
 
+        function allowCarPageJsonFallback() {
+            if (typeof window.WRA_ALLOW_CATALOG_JSON_FALLBACK === 'boolean') {
+                return window.WRA_ALLOW_CATALOG_JSON_FALLBACK;
+            }
+            if (window.WRA_CATALOG_API_ONLY === true) return false;
+            try {
+                var h = (window.location.hostname || '').toLowerCase();
+                if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.local')) return true;
+            } catch (e) {}
+            return false;
+        }
+
         if (window.WRAAuthFavorites) {
             window.WRAAuthFavorites.initHeader({
                 loginButtonSelector: '#headerLoginBtn',
@@ -1868,9 +1880,15 @@
 
         /** Один автомобиль с бэкенда (без скачивания полного cars.json — при ~180k строк браузер не справляется). */
         function loadCarDataFromApi(id) {
-            return fetch(apiUrl('/api/car/' + encodeURIComponent(id))).then(function(response) {
+            return fetch(apiUrl('/api/car/' + encodeURIComponent(id)), { cache: 'no-store' }).then(function(response) {
                 if (response.status === 404) {
                     return Promise.reject({ notFound: true });
+                }
+                if (response.status === 429) {
+                    return Promise.reject({ status: 429, rateLimit: true });
+                }
+                if (response.status === 401 || response.status === 403) {
+                    return Promise.reject({ status: response.status, forbidden: true });
                 }
                 if (!response.ok) throw new Error('Ошибка загрузки данных');
                 return response.json();
@@ -1898,6 +1916,8 @@
         function loadCarData(id) {
             return loadCarDataFromApi(id).catch(function(err) {
                 if (err && err.notFound) return Promise.reject(err);
+                if (err && (err.rateLimit || err.forbidden)) return Promise.reject(err);
+                if (!allowCarPageJsonFallback()) return Promise.reject(err);
                 return loadCarDataFromCarsJson(id);
             });
         }
@@ -1915,11 +1935,18 @@
                 var el = document.getElementById('car-content');
                 if (el) {
                     el.setAttribute('aria-busy', 'false');
+                    var msg = 'Не удалось загрузить данные. Проверьте подключение к интернету.';
                     if (err && err.notFound) {
-                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Автомобиль с таким ID не найден.</p><a href="/catalog" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
-                    } else {
-                        el.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">Не удалось загрузить данные. Проверьте подключение к интернету.</p><a href="/catalog" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
+                        msg = 'Автомобиль с таким ID не найден.';
+                    } else if (err && err.rateLimit) {
+                        msg = 'Слишком много запросов к серверу. Подождите минуту и обновите страницу.';
+                    } else if (err && err.forbidden) {
+                        msg = 'Доступ к данным ограничен. Попробуйте позже или войдите в аккаунт.';
                     }
+                    el.innerHTML =
+                        '<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center"><p class="text-gray-600 mb-4">' +
+                        String(msg).replace(/</g, '&lt;') +
+                        '</p><a href="/catalog" class="inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold text-white bg-gray-800 hover:bg-gray-900">В каталог</a></div>';
                 }
             });
 

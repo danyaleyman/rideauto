@@ -13,6 +13,15 @@
     let facetsListAbort = null;
     let useStaticCatalog = false;
     let staticCatalogCache = null;
+    /** Параметры из URL, пока DOM фасетов не совпал (как у агрегаторов: шаринг ссылки на поиск). */
+    let catalogUrlBootstrapMerge = null;
+    var catalogUrlSyncSuppressed = false;
+    var CATALOG_URL_KEYS = new Set([
+      'marks', 'models', 'generations', 'trims', 'body', 'fuel', 'trans', 'color',
+      'power_from', 'power_to', 'engine_from', 'engine_to', 'price_from', 'price_to', 'mileage_from', 'mileage_to',
+      'ym_from', 'ym_to', 'ins_cases_from', 'ins_cases_to', 'ins_payout_from', 'ins_payout_to', 'damaged_from', 'damaged_to',
+      'drive_awd', 'no_insurance_cases', 'no_insurance_payouts', 'no_damaged', 'passage_cars', 'source', 'region', 'page', 'sort',
+    ]);
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
     /**
      * Рынок: Корея → `source=encar`. Китай: `?region=china` → `source=china` (Dongchedi в отдельной БД);
@@ -1034,7 +1043,58 @@
       if (CATALOG_SOURCE) p.set('source', CATALOG_SOURCE);
       if (CATALOG_REGION) p.set('region', CATALOG_REGION);
 
+      if (catalogUrlBootstrapMerge && catalogUrlBootstrapMerge.toString()) {
+        catalogUrlBootstrapMerge.forEach(function(value, key) {
+          if (!p.has(key)) p.set(key, value);
+        });
+      }
+
       return p;
+    }
+
+    function catalogFacetBootstrapFromLocation() {
+      try {
+        var sp0 = new URLSearchParams(window.location.search || '');
+        var boot = new URLSearchParams();
+        sp0.forEach(function(v, k) {
+          if (CATALOG_URL_KEYS.has(k) && k !== 'page' && k !== 'sort') boot.set(k, v);
+        });
+        return boot.toString() ? boot : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function readPageSortFromLocation() {
+      try {
+        var sp = new URLSearchParams(window.location.search || '');
+        var pg = parseInt(sp.get('page') || '1', 10);
+        var st = (sp.get('sort') || '').trim();
+        return {
+          page: !isNaN(pg) && pg >= 1 ? pg : 1,
+          sort: st || 'date_new',
+        };
+      } catch (e2) {
+        return { page: 1, sort: 'date_new' };
+      }
+    }
+
+    function syncCatalogAddressBarReplace() {
+      if (catalogUrlSyncSuppressed) return;
+      try {
+        var p = buildCatalogFilterParams();
+        if (page > 1) p.set('page', String(page));
+        else p.delete('page');
+        var s = currentSort || 'date_new';
+        if (s && s !== 'date_new') p.set('sort', s);
+        else p.delete('sort');
+        var qs = p.toString();
+        var path = window.location.pathname || '/';
+        var next = qs ? path + '?' + qs : path;
+        var cur = window.location.pathname + (window.location.search || '');
+        if (next === cur) return;
+        history.replaceState({ wraCatalog: 1 }, '', next);
+      } catch (e) { /* ignore */ }
     }
 
     /** «Пустые фильтры» для прогрева фасетов: режим Кореи (`source=encar`) не считается фильтром. */
@@ -1304,6 +1364,7 @@
 
       syncCascadeSlotVisibility();
       scheduleRepositionOpenCascadePanels();
+      hydrateFacetSelectionsFromUrlBootstrap(reqId);
     }
 
     function refreshFacetsFromStaticCache(expectedParamSnap) {
@@ -1663,6 +1724,7 @@
         }
         updateFilterCountBadge();
         draw();
+        syncCatalogAddressBarReplace();
         if (targetPage === 1) scheduleIdlePrefetchCatalogPage2();
       } catch (err) {
         if (reqId !== catalogRequestId) return;
@@ -2180,6 +2242,165 @@
     const MONTHS = ['', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
     const MONTH_LABELS = ['', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
+    function applyYmFromTotalMonths(totalStr, yearElId, monthElId) {
+      var n = parseInt(totalStr, 10);
+      if (isNaN(n) || n < 0) return;
+      var y = Math.floor(n / 12);
+      var mo = (n % 12) + 1;
+      if (mo < 1 || mo > 12) return;
+      var yEl = document.getElementById(yearElId);
+      var mEl = document.getElementById(monthElId);
+      if (yEl) yEl.value = String(y);
+      syncYearMonthDropdowns();
+      if (mEl && mo >= 1 && mo <= 12) mEl.value = MONTHS[mo];
+    }
+
+    /** Поля без фасетных списков из query (сразу после initCatalogFiltersUi). */
+    function applyScalarFiltersFromUrlParams(sp) {
+      if (!sp) return;
+      function setVal(id, key) {
+        if (!sp.has(key)) return;
+        var el = document.getElementById(id);
+        if (!el) return;
+        var v = sp.get(key);
+        if (v != null && v !== '') el.value = v;
+      }
+      setVal('powerFrom', 'power_from');
+      setVal('powerTo', 'power_to');
+      setVal('engineFrom', 'engine_from');
+      setVal('engineTo', 'engine_to');
+      setVal('priceFrom', 'price_from');
+      setVal('priceTo', 'price_to');
+      setVal('mileageFrom', 'mileage_from');
+      setVal('mileageTo', 'mileage_to');
+      setVal('insuranceCasesFrom', 'ins_cases_from');
+      setVal('insuranceCasesTo', 'ins_cases_to');
+      setVal('insurancePayoutsFrom', 'ins_payout_from');
+      setVal('insurancePayoutsTo', 'ins_payout_to');
+      setVal('damagedFrom', 'damaged_from');
+      setVal('damagedTo', 'damaged_to');
+      if (sp.get('ym_from')) applyYmFromTotalMonths(sp.get('ym_from'), 'yearFrom', 'monthFrom');
+      if (sp.get('ym_to')) applyYmFromTotalMonths(sp.get('ym_to'), 'yearTo', 'monthTo');
+      var dchk = document.getElementById('filterDriveAwd');
+      if (dchk) dchk.checked = sp.get('drive_awd') === '1';
+      var nic = document.getElementById('filterNoInsuranceCases');
+      if (nic) nic.checked = sp.get('no_insurance_cases') === '1';
+      var nip = document.getElementById('filterNoInsurancePayouts');
+      if (nip) nip.checked = sp.get('no_insurance_payouts') === '1';
+      var nd = document.getElementById('filterNoDamaged');
+      if (nd) nd.checked = sp.get('no_damaged') === '1';
+      var pvc = document.getElementById('filterPassageCars');
+      if (pvc) pvc.checked = sp.get('passage_cars') === '1';
+      syncCheckboxVisualStates(document);
+      if (sp.get('ym_from') || sp.get('ym_to')) {
+        syncCustomSelectUi(document.getElementById('yearFrom'), yearFromTrigger, yearFromOptions, 'Год от');
+        syncCustomSelectUi(document.getElementById('yearTo'), yearToTrigger, yearToOptions, 'Год до');
+      }
+    }
+
+    function hydrateFacetSelectionsFromUrlBootstrap(reqId) {
+      if (!catalogUrlBootstrapMerge || !catalogUrlBootstrapMerge.toString()) return;
+      function tryCsvKey(key, container, dataFilter, onHit) {
+        if (!catalogUrlBootstrapMerge.has(key) || !container) return false;
+        var inputs = container.querySelectorAll('input[type="checkbox"][data-filter="' + dataFilter + '"]');
+        if (!inputs.length) return false;
+        var raw = catalogUrlBootstrapMerge.get(key) || '';
+        var want = new Set();
+        raw.split(',').forEach(function(s) {
+          var t = String(s || '').trim();
+          if (t) want.add(t);
+        });
+        if (!want.size) {
+          catalogUrlBootstrapMerge.delete(key);
+          return false;
+        }
+        var matched = false;
+        inputs.forEach(function(cb) {
+          if (want.has(cb.value)) {
+            cb.checked = true;
+            matched = true;
+          }
+        });
+        if (!matched) {
+          catalogUrlBootstrapMerge.delete(key);
+          return false;
+        }
+        catalogUrlBootstrapMerge.delete(key);
+        if (typeof onHit === 'function') onHit();
+        return true;
+      }
+      if (
+        tryCsvKey('marks', markListEl, 'mark', function() {
+          setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
+        })
+      ) {
+        syncCascadeSlotVisibility();
+        updateFilterCountBadge();
+        scheduleFacetRefresh(reqId, true);
+        return;
+      }
+      if (
+        tryCsvKey('models', modelListEl, 'model', function() {
+          setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
+        })
+      ) {
+        syncCascadeSlotVisibility();
+        updateFilterCountBadge();
+        scheduleFacetRefresh(reqId, true);
+        return;
+      }
+      if (
+        tryCsvKey('generations', generationListEl, 'generation', function() {
+          setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
+        })
+      ) {
+        syncCascadeSlotVisibility();
+        updateFilterCountBadge();
+        scheduleFacetRefresh(reqId, true);
+        return;
+      }
+      if (
+        tryCsvKey('trims', trimListEl, 'trim', function() {
+          setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+        })
+      ) {
+        syncCascadeSlotVisibility();
+        updateFilterCountBadge();
+        scheduleFacetRefresh(reqId, true);
+        return;
+      }
+      var hitOther = false;
+      if (tryCsvKey('body', document.getElementById('bodyList'), 'body', null)) hitOther = true;
+      if (tryCsvKey('fuel', document.getElementById('fuelList'), 'fuel', null)) hitOther = true;
+      if (tryCsvKey('trans', document.getElementById('transmissionList'), 'transmission', null)) hitOther = true;
+      if (catalogUrlBootstrapMerge.has('color')) {
+        var craw = catalogUrlBootstrapMerge.get('color') || '';
+        var cwant = new Set();
+        craw.split(',').forEach(function(s) {
+          var t = String(s || '').trim();
+          if (t) cwant.add(t);
+        });
+        var cHit = false;
+        document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
+          if (cwant.has(cb.value)) {
+            cb.checked = true;
+            cHit = true;
+          }
+        });
+        if (cHit) {
+          catalogUrlBootstrapMerge.delete('color');
+          hitOther = true;
+          syncAllColorCheckboxStates();
+        } else catalogUrlBootstrapMerge.delete('color');
+      }
+      if (hitOther) {
+        updateFilterCountBadge();
+        scheduleFacetRefresh(reqId, true);
+        return;
+      }
+      if (!catalogUrlBootstrapMerge.toString()) catalogUrlBootstrapMerge = null;
+    }
+
     function syncYearMonthDropdowns() {
       var yearFromEl = document.getElementById('yearFrom');
       var yearToEl = document.getElementById('yearTo');
@@ -2503,7 +2724,7 @@
     }
 
     // Сброс всех фильтров
-    function resetFilters() {
+    function resetFilters(quiet) {
       closeAllDropdowns();
       [markListEl, modelListEl, generationListEl, trimListEl].forEach(function(container) {
         if (container) container.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
@@ -2521,30 +2742,49 @@
       chk = document.getElementById('filterPassageCars'); if (chk) chk.checked = false;
       syncCheckboxVisualStates(document);
       syncCascadeSlotVisibility();
-      void runApplyFilters();
+      catalogUrlBootstrapMerge = null;
+      if (!quiet) void runApplyFilters();
     }
 
     showSkeleton();
 
-    var mappingPromise = fetch('data/encar_mapping.json', { cache: 'default' })
-      .then(function(r) { return r.ok ? r.json() : null; })
-      .catch(function() { return null; });
-
-    mappingPromise.then(function(mapping) {
-      if (mapping && typeof mapping === 'object') {
-        ['mark', 'model', 'generation', 'type', 'trim'].forEach(function(cat) {
-          if (mapping[cat] && typeof mapping[cat] === 'object') {
-            filterMappingKoEn[cat] = Object.assign({}, mapping[cat], filterMappingKoEn[cat] || {});
-          }
-        });
-      }
-    }).catch(function() {});
+    function scheduleEncarMappingPrefetch() {
+      var run = function() {
+        fetch('data/encar_mapping.json', { cache: 'default' })
+          .then(function(r) {
+            return r.ok ? r.json() : null;
+          })
+          .then(function(mapping) {
+            if (mapping && typeof mapping === 'object') {
+              ['mark', 'model', 'generation', 'type', 'trim'].forEach(function(cat) {
+                if (mapping[cat] && typeof mapping[cat] === 'object') {
+                  filterMappingKoEn[cat] = Object.assign({}, mapping[cat], filterMappingKoEn[cat] || {});
+                }
+              });
+            }
+          })
+          .catch(function() {});
+      };
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
+      else setTimeout(run, 1600);
+    }
 
     async function bootstrapCatalog() {
       try {
         syncCatalogMarketFromLocation();
         applyCatalogRegionUi();
         initCatalogFiltersUi();
+
+        catalogUrlBootstrapMerge = catalogFacetBootstrapFromLocation();
+        try {
+          applyScalarFiltersFromUrlParams(new URLSearchParams(window.location.search || ''));
+        } catch (eSc) { /* ignore */ }
+        var urlPageSort = readPageSortFromLocation();
+        if (sortSelect) {
+          currentSort = urlPageSort.sort;
+          sortSelect.value = urlPageSort.sort;
+          syncSortUi(urlPageSort.sort);
+        }
 
         var savedScroll = null;
         var savedPage = null;
@@ -2557,7 +2797,7 @@
           }
         } catch (e) {}
 
-        var wantPage = 1;
+        var wantPage = urlPageSort.page;
         if (savedPage !== null) {
           var pageNum = Math.max(1, parseInt(savedPage, 10));
           if (!isNaN(pageNum)) wantPage = pageNum;
@@ -2654,6 +2894,8 @@
             });
           }
         }
+
+        scheduleEncarMappingPrefetch();
       } catch (err) {
         console.error('Ошибка загрузки каталога', err);
         showCatalogErrorBanner(
@@ -2662,11 +2904,42 @@
       }
     }
     window.WRA_runCatalogBootstrap = bootstrapCatalog;
+
+    window.addEventListener('popstate', function() {
+      var rawPath = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+      if (rawPath !== '/' && rawPath !== '/catalog') return;
+      catalogUrlSyncSuppressed = true;
+      catalogForwardCursor = null;
+      try {
+        syncCatalogMarketFromLocation();
+        applyCatalogRegionUi();
+        resetFilters(true);
+        catalogUrlBootstrapMerge = catalogFacetBootstrapFromLocation();
+        applyScalarFiltersFromUrlParams(new URLSearchParams(window.location.search || ''));
+        var ps = readPageSortFromLocation();
+        currentSort = ps.sort;
+        if (sortSelect) {
+          sortSelect.value = ps.sort;
+          syncSortUi(ps.sort);
+        }
+        catalogRequestId++;
+        var rid = catalogRequestId;
+        scheduleFacetRefresh(rid, true);
+        void loadCarsPage(ps.page, rid).finally(function() {
+          catalogUrlSyncSuppressed = false;
+        });
+      } catch (ePop) {
+        catalogUrlSyncSuppressed = false;
+      }
+    });
+
     bootstrapCatalog();
 
     var resetFiltersBtn = document.getElementById('resetFiltersBtn');
     if (resetFiltersBtn) {
-      resetFiltersBtn.addEventListener('click', resetFilters);
+      resetFiltersBtn.addEventListener('click', function() {
+        resetFilters(false);
+      });
       var pressResetSpring = null;
       function playPressSpring() {
         if (!resetFiltersBtn.animate) return;
