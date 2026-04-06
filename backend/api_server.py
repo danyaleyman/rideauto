@@ -41,7 +41,7 @@ _RATE_WINDOW_SEC = 60.0
 
 _CATALOG_INDEX_LOCK = threading.Lock()
 # Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
-_CATALOG_INDEX_VERSION = 4
+_CATALOG_INDEX_VERSION = 5
 _CATALOG_INDEX_STATE: dict[str, int] = {}
 
 # Должно совпадать с GROUP BY в _catalog_listing_max_ids_subquery (иначе планировщик не использует индекс).
@@ -116,6 +116,15 @@ def _ensure_catalog_indexes(db_path: str) -> None:
                     + f"CREATE INDEX IF NOT EXISTS idx_wra_listing_partition_id ON cars ({_LISTING_PARTITION_KEY_EXPR}, id DESC);\n"
                 )
                 conn.commit()
+                # Один раз после создания/обновления индексов — лучший план для JOIN + GROUP BY на больших БД.
+                try:
+                    conn.execute("PRAGMA analysis_limit=4000")
+                except Exception:
+                    pass
+                try:
+                    conn.execute("ANALYZE cars")
+                except Exception:
+                    pass
             finally:
                 conn.close()
             _CATALOG_INDEX_STATE[rp] = _CATALOG_INDEX_VERSION
@@ -648,23 +657,30 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
             order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
             listing_ids = _catalog_listing_max_ids_subquery(from_frag)
             t_count0 = time.perf_counter()
-            total = conn.execute(
-                f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
-                params2,
-            ).fetchone()["c"]
-            t_count1 = time.perf_counter()
-            order_c = _catalog_order_by_alias(order_sql, "c")
-            rows = conn.execute(
-                f"""
-                SELECT c.car_id, c.data_json
-                FROM cars AS c
-                INNER JOIN {listing_ids} AS x ON c.id = x.mid
-                ORDER BY {order_c}
+            # Один проход: тяжёлый подзапрос listing_ids не дублируем (отдельный COUNT + SELECT давали 2× нагрузку).
+            order_u = _catalog_order_by_alias(order_sql, "u")
+            merged_sql = f"""
+                SELECT u.car_id, u.data_json, u._wra_tot
+                FROM (
+                    SELECT c.car_id, c.data_json, c.id,
+                           COUNT(*) OVER () AS _wra_tot
+                    FROM cars AS c
+                    INNER JOIN {listing_ids} AS x ON c.id = x.mid
+                ) AS u
+                ORDER BY {order_u}
                 LIMIT ? OFFSET ?
-                """,
-                [*params2, per_page, offset],
-            ).fetchall()
-            t_rows1 = time.perf_counter()
+                """
+            rows = conn.execute(merged_sql, [*params2, per_page, offset]).fetchall()
+            if rows:
+                total = int(rows[0]["_wra_tot"])
+            else:
+                total = int(
+                    conn.execute(
+                        f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
+                        params2,
+                    ).fetchone()["c"]
+                )
+            t_count1 = time.perf_counter()
 
             result: List[Dict[str, Any]] = []
             for row in rows:
@@ -682,10 +698,9 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
 
             pages = max(1, (int(total) + per_page - 1) // per_page)
             _LOG.info(
-                "catalog cars src=%s count_ms=%.0f select_ms=%.0f total=%s rows=%s wall_ms=%.0f",
+                "catalog cars src=%s list_ms=%.0f total=%s rows=%s wall_ms=%.0f",
                 src_log,
                 (t_count1 - t_count0) * 1000,
-                (t_rows1 - t_count1) * 1000,
                 int(total),
                 len(rows),
                 (time.perf_counter() - t_wall0) * 1000,

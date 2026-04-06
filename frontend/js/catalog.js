@@ -79,7 +79,7 @@
     var CATALOG_CARS_TIMEOUT_MS =
       typeof window.WRA_CATALOG_CARS_TIMEOUT_MS === 'number' && window.WRA_CATALOG_CARS_TIMEOUT_MS > 5000
         ? window.WRA_CATALOG_CARS_TIMEOUT_MS
-        : 180000;
+        : 300000;
     var CATALOG_STATS_TIMEOUT_MS =
       typeof window.WRA_CATALOG_STATS_TIMEOUT_MS === 'number' && window.WRA_CATALOG_STATS_TIMEOUT_MS > 3000
         ? window.WRA_CATALOG_STATS_TIMEOUT_MS
