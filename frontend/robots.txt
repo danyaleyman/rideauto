@@ -1,0 +1,8 @@
+# Синхронизируйте хост с продакшеном (nginx отдаёт как статику).
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Предпочтительно индекс с шардами каталога:
+Sitemap: https://rideauto.ru/api/sitemap/index.xml
+Sitemap: https://rideauto.ru/sitemap.xml

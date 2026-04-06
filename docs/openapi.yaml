@@ -5,6 +5,9 @@ info:
   description: |
     Минимальное описание read-only API каталога и служебных маршрутов.
     Полный набор query-параметров для `/api/cars` и ответы см. в коде `backend/api_server.py`.
+    Лимиты GET по IP: `WRA_RATE_LIMIT_GET_CARS_PER_MINUTE`, `WRA_RATE_LIMIT_GET_FACETS_PER_MINUTE` (0 = без лимита).
+    Курсорная пагинация: query `cursor` в `/api/cars` для сортировок date_*, year_*, mileage_*, price_high / price_low; см. `meta.next_cursor`.
+    Метрики: `GET /api/metrics` при `WRA_PROMETHEUS_METRICS=1`.
 
 servers:
   - url: /
@@ -33,6 +36,11 @@ paths:
   /api/health:
     get:
       summary: Проверка живости
+      parameters:
+        - name: deep
+          in: query
+          description: "1 — проверка чтения SQLite каталога (PRAGMA user_version, COUNT cars)"
+          schema: { type: string, enum: ["1"] }
       responses:
         "200":
           description: OK
@@ -48,6 +56,22 @@ paths:
                     type: string
                     nullable: true
                     description: Если задан WRA_GIT_SHA или GIT_COMMIT
+                  catalog_db:
+                    type: object
+                    nullable: true
+                    description: При deep=1 — результат проверки основной БД каталога
+
+  /api/metrics:
+    get:
+      summary: Prometheus text exposition (выкл. по умолчанию)
+      description: Доступно только при WRA_PROMETHEUS_METRICS=1
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema: { type: string }
+        "404":
+          description: Метрики отключены
 
   /api/version:
     get:
@@ -73,6 +97,7 @@ paths:
   /api/cars:
     get:
       summary: Список автомобилей (каталог)
+      description: При включённом WRA_RATE_LIMIT_GET_CARS_PER_MINUTE возможен ответ 429.
       parameters:
         - name: page
           in: query
@@ -92,6 +117,10 @@ paths:
           in: query
           description: "korea | china — рынок каталога; при потере source сужает выборку (как encar или china)"
           schema: { type: string, enum: [korea, china] }
+        - name: cursor
+          in: query
+          description: "Opaque keyset-курсор из meta.next_cursor (сортировки date/year/mileage/price_high/price_low)"
+          schema: { type: string }
       responses:
         "200":
           description: JSON каталога
@@ -99,6 +128,58 @@ paths:
             application/json:
               schema:
                 type: object
+        "429":
+          description: Слишком много запросов (лимит GET)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateLimitError"
+
+  /api/sitemap/catalog.xml:
+    get:
+      summary: Sitemap карточек каталога (URL вида /detail/{id})
+      description: |
+        Генерация XML urlset; объём задаётся `WRA_SITEMAP_MAX_URLS` (по умолчанию 12000, максимум 45000).
+        Базовый домен — `PUBLIC_SITE_URL` или https://rideauto.ru .
+        Параметр `part` (1..N) — срез по `WRA_SITEMAP_MAX_URLS` URL (шард).
+      parameters:
+        - name: part
+          in: query
+          schema: { type: integer, default: 1 }
+      responses:
+        "200":
+          description: application/xml
+          content:
+            application/xml:
+              schema:
+                type: string
+        "304":
+          description: Not Modified (If-None-Match / ETag)
+
+  /api/sitemap/index.xml:
+    get:
+      summary: Индекс sitemap (статические страницы + шарды каталога)
+      responses:
+        "200":
+          content:
+            application/xml:
+              schema: { type: string }
+
+  /api/html/car/{id}:
+    get:
+      summary: Полный car.html с подстановкой SEO (title, OG, JSON-LD Product)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            text/html:
+              schema: { type: string }
+        "404":
+          description: Объявление не найдено (noindex)
 
   /api/facets:
     get:
@@ -117,6 +198,12 @@ paths:
           content:
             application/json:
               schema: { type: object }
+        "429":
+          description: Лимит GET
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateLimitError"
 
   /api/stats:
     get:

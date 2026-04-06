@@ -180,6 +180,31 @@
     state.onFavoritesChanged.push(fn);
   }
 
+  function wraUserFacingMessage(err) {
+    var st = err && err.wraStatus;
+    var code = err && err.wraCode;
+    if (st === 429 || code === "rate_limit") {
+      return "Слишком много запросов. Подождите около минуты и попробуйте снова.";
+    }
+    if (st === 401 || st === 403) {
+      return "Сессия недействительна. Войдите через Telegram ещё раз.";
+    }
+    if (st === 503) {
+      return "Сервис временно перегружен. Попробуйте позже.";
+    }
+    var msg = err && err.message != null ? String(err.message) : "";
+    if (!msg || msg === "HTTP 0") {
+      return "Нет ответа от сервера. Проверьте соединение.";
+    }
+    if (/TypeError|fetch|network|failed to fetch|load failed|aborted|AbortError/i.test(msg)) {
+      return "Нет связи с сервером. Проверьте интернет и что сайт открывается.";
+    }
+    if (msg.indexOf("HTTP ") === 0) {
+      return "Ошибка сервера (" + msg + "). Попробуйте позже.";
+    }
+    return msg;
+  }
+
   function api(path, options) {
     options = options || {};
     var method = options.method || "GET";
@@ -191,9 +216,12 @@
       body: options.body ? JSON.stringify(options.body) : undefined
     }).then(function (r) {
       if (!r.ok) {
-        return r.json().catch(function () { return {}; }).then(function (err) {
-          var msg = (err && err.error) ? err.error : ("HTTP " + r.status);
-          throw new Error(msg);
+        return r.json().catch(function () { return {}; }).then(function (errBody) {
+          var raw = (errBody && errBody.error) ? String(errBody.error) : ("HTTP " + r.status);
+          var e = new Error(raw);
+          e.wraStatus = r.status;
+          e.wraCode = errBody && errBody.error != null ? String(errBody.error) : "";
+          throw e;
         });
       }
       return r.json().catch(function () { return {}; });
@@ -379,8 +407,8 @@
           api("/api/favorites", { method: "POST", auth: true, body: { car_id: cid, note: note } }).then(function () {
             state.favoriteNotes[cid] = note;
             openFavoritesModal();
-          }).catch(function () {
-            alert("Не удалось сохранить заметку.");
+          }).catch(function (err) {
+            alert(wraUserFacingMessage(err));
           });
         });
       });
@@ -403,6 +431,8 @@
           quickCheckout(ids);
         });
       }
+    }).catch(function (err) {
+      body.innerHTML = "<p>" + wraUserFacingMessage(err) + "</p>";
     });
   }
 
@@ -446,7 +476,9 @@
             '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + price + '</div>' +
             "</div>";
         }).filter(Boolean).join("");
-        return html || "<p>Не удалось загрузить карточки избранного.</p>";
+        return html || "<p>В избранном есть ID, но нет данных в локальном каталоге. Откройте главную страницу или обновите список.</p>";
+      }).catch(function (err) {
+        return "<p>" + wraUserFacingMessage(err) + "</p>";
       });
     }
 
@@ -464,7 +496,7 @@
             '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + (r.viewed_at || "") + '</div>' +
             "</div>";
         }).join("");
-      }).catch(function () { return "<p>История недоступна.</p>"; });
+      }).catch(function (err) { return "<p>" + wraUserFacingMessage(err) + "</p>"; });
     }
 
     function renderSubscriptionsTab() {
@@ -483,7 +515,7 @@
             "</div>";
         }).join("");
         return html;
-      }).catch(function () { return "<p>Подписки недоступны.</p>"; });
+      }).catch(function (err) { return "<p>" + wraUserFacingMessage(err) + "</p>"; });
     }
 
     function renderCheckoutTab() {
@@ -498,7 +530,7 @@
             '<div style="font-size:12px;color:#6b7280;">Дата: ' + (r.created_at || "") + "</div>" +
             "</div>";
         }).join("");
-      }).catch(function () { return "<p>Заявки недоступны.</p>"; });
+      }).catch(function (err) { return "<p>" + wraUserFacingMessage(err) + "</p>"; });
     }
 
     function mountTab(name) {
@@ -522,7 +554,7 @@
             try { filters = JSON.parse(raw || "{}"); } catch (e) { alert("Невалидный JSON"); return; }
             api("/api/subscriptions", { method: "POST", auth: true, body: { name: nameSub, filters: filters } }).then(function () {
               mountTab("subscriptions");
-            }).catch(function () { alert("Не удалось создать подписку."); });
+            }).catch(function (err) { alert(wraUserFacingMessage(err)); });
           });
         }
         target.querySelectorAll(".js-sub-del").forEach(function (btn) {
@@ -531,9 +563,12 @@
             if (!sid) return;
             api("/api/subscriptions/" + encodeURIComponent(sid), { method: "DELETE", auth: true }).then(function () {
               mountTab("subscriptions");
-            }).catch(function () { alert("Не удалось удалить подписку."); });
+            }).catch(function (err) { alert(wraUserFacingMessage(err)); });
           });
         });
+      }).catch(function (err) {
+        var target = document.getElementById("wra-account-content");
+        if (target) target.innerHTML = "<p>" + wraUserFacingMessage(err) + "</p>";
       });
     }
 
@@ -569,8 +604,8 @@
           '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + when + '</div>' +
           "</div>";
       }).join("");
-    }).catch(function () {
-      body.innerHTML = "<p>Не удалось загрузить историю.</p>";
+    }).catch(function (err) {
+      body.innerHTML = "<p>" + wraUserFacingMessage(err) + "</p>";
     });
   }
 
@@ -593,8 +628,8 @@
         ].join("\n");
       });
       alert("Сравнение:\n\n" + lines.join("\n\n----------------\n\n"));
-    }).catch(function () {
-      alert("Сравнение временно недоступно.");
+    }).catch(function (err) {
+      alert(wraUserFacingMessage(err));
     });
   }
 
@@ -609,8 +644,8 @@
       body: { car_ids: (ids || []).map(String), contact: contact, comment: comment }
     }).then(function () {
       alert("Запрос отправлен. Менеджер свяжется с вами.");
-    }).catch(function () {
-      alert("Не удалось отправить запрос. Попробуйте позже.");
+    }).catch(function (err) {
+      alert(wraUserFacingMessage(err));
     });
   }
 
@@ -623,8 +658,8 @@
     }).then(function () {
       alert("Подписка сохранена.");
       return true;
-    }).catch(function () {
-      alert("Не удалось сохранить подписку.");
+    }).catch(function (err) {
+      alert(wraUserFacingMessage(err));
       return false;
     });
   }
@@ -698,8 +733,10 @@
         saveFavorites();
         emitFavoritesChanged();
         button.classList.toggle("fav-active", !currentlyFav);
-      }).catch(function () {
-        // fallback to local if API failed
+      }).catch(function (err) {
+        if (err && (err.wraStatus === 429 || err.wraStatus === 401 || err.wraStatus === 403)) {
+          alert(wraUserFacingMessage(err));
+        }
         var active = toggleFavoriteLocal(sid);
         button.classList.toggle("fav-active", active);
       });

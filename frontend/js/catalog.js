@@ -1,6 +1,8 @@
   (function() {
     const PER_PAGE = 12;
     let page = 1;
+    /** Keyset «вперёд» для /api/cars (стабильнее offset при обновлении БД). */
+    let catalogForwardCursor = null;
     let pageCars = [];
     let catalogTotal = 0;
     let catalogPages = 1;
@@ -1514,7 +1516,11 @@
       if (!Number.isFinite(pages) || pages < 1) {
         pages = total > 0 ? Math.max(1, Math.ceil(total / perPage)) : 1;
       }
-      return { list: list, total: total, pages: pages };
+      var nextCur = '';
+      if (meta.next_cursor != null && String(meta.next_cursor).trim() !== '') {
+        nextCur = String(meta.next_cursor).trim();
+      }
+      return { list: list, total: total, pages: pages, next_cursor: nextCur };
     }
 
     function loadCarsPageStatic(targetPage, reqId) {
@@ -1552,6 +1558,9 @@
           params.set('page', '2');
           params.set('per_page', String(PER_PAGE));
           params.set('sort', currentSort || 'date_new');
+          if (catalogForwardCursor) {
+            params.set('cursor', catalogForwardCursor);
+          }
           var url = apiUrl('/api/cars?' + params.toString());
           var init = catalogApiFetchInit({});
           try {
@@ -1576,6 +1585,19 @@
       }
       try {
         const params = buildCatalogFilterParams();
+        var useListCursor = false;
+        if (!useStaticCatalog) {
+          if (targetPage === 1) {
+            catalogForwardCursor = null;
+          } else if (targetPage === page + 1 && catalogForwardCursor) {
+            useListCursor = true;
+          } else if (targetPage !== page + 1 && targetPage !== page) {
+            catalogForwardCursor = null;
+          }
+        }
+        if (useListCursor) {
+          params.set('cursor', catalogForwardCursor);
+        }
         params.set('page', String(targetPage));
         params.set('per_page', String(PER_PAGE));
         params.set('sort', currentSort || 'date_new');
@@ -1609,6 +1631,7 @@
         pageCars = parsed.list;
         catalogTotal = parsed.total;
         catalogPages = parsed.pages;
+        catalogForwardCursor = parsed.next_cursor || null;
         page = targetPage;
         maybeSyncMarketChinaCountFromCarsMeta(parsed.total);
         if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
@@ -1667,6 +1690,7 @@
 
     async function runApplyFilters() {
       const reqId = ++catalogRequestId;
+      catalogForwardCursor = null;
       page = 1;
       syncCascadeSlotVisibility();
       scheduleFacetRefresh(reqId);

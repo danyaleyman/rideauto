@@ -49,6 +49,129 @@ async def test_version_git_sha_from_env(test_app, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_stats_etag_304_when_if_none_match(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        r1 = await client.get("/api/stats")
+        assert r1.status == 200
+        etag = r1.headers.get("ETag")
+        assert etag and etag.startswith('W/"md5-')
+        r2 = await client.get("/api/stats", headers={"If-None-Match": etag})
+        assert r2.status == 304
+        assert r2.headers.get("ETag") == etag
+        assert await r2.read() == b""
+
+
+@pytest.mark.asyncio
+async def test_health_deep_includes_catalog_probe(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/health", params={"deep": "1"})
+        assert resp.status == 200
+        data = await resp.json()
+        probe = data.get("catalog_db")
+        assert isinstance(probe, dict)
+        assert probe.get("readable") is True
+        assert int(probe.get("cars_rows") or 0) >= 3
+
+
+@pytest.mark.asyncio
+async def test_sitemap_index_xml_contains_pages_and_catalog(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/sitemap/index.xml")
+        assert resp.status == 200
+        text = await resp.text()
+        assert "sitemap-pages.xml" in text
+        assert "catalog.xml?part=1" in text
+
+
+@pytest.mark.asyncio
+async def test_cars_cursor_price_high_matches_offset(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        r1 = await client.get("/api/cars", params={"page": "1", "per_page": "2", "sort": "price_high"})
+        assert r1.status == 200
+        j1 = await r1.json()
+        cur = (j1.get("meta") or {}).get("next_cursor")
+        assert cur
+        r2c = await client.get("/api/cars", params={"cursor": cur, "page": "2", "per_page": "2", "sort": "price_high"})
+        r2p = await client.get("/api/cars", params={"page": "2", "per_page": "2", "sort": "price_high"})
+        assert r2c.status == 200 and r2p.status == 200
+        jc, jp = await r2c.json(), await r2p.json()
+        assert jc.get("result") == jp.get("result")
+
+
+@pytest.mark.asyncio
+async def test_cars_cursor_second_page_matches_offset(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        r1 = await client.get("/api/cars", params={"page": "1", "per_page": "2", "sort": "year_new"})
+        assert r1.status == 200
+        j1 = await r1.json()
+        cur = (j1.get("meta") or {}).get("next_cursor")
+        assert cur
+        r2c = await client.get("/api/cars", params={"cursor": cur, "page": "2", "per_page": "2", "sort": "year_new"})
+        r2p = await client.get("/api/cars", params={"page": "2", "per_page": "2", "sort": "year_new"})
+        assert r2c.status == 200 and r2p.status == 200
+        jc, jp = await r2c.json(), await r2p.json()
+        assert jc.get("result") == jp.get("result")
+
+
+@pytest.mark.asyncio
+async def test_html_car_page_injects_title(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/html/car/c1")
+        assert resp.status == 200
+        html = await resp.text()
+        assert "Hyundai" in html or "Solaris" in html
+        assert "application/ld+json" in html
+
+
+@pytest.mark.asyncio
+async def test_html_car_page_404_has_noindex(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/html/car/does-not-exist-xyz")
+        assert resp.status == 404
+        html = await resp.text()
+        assert "noindex" in html.lower()
+
+
+@pytest.mark.asyncio
+async def test_prometheus_metrics_disabled_by_default(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/metrics")
+        assert resp.status == 404
+
+
+@pytest.mark.asyncio
+async def test_sitemap_catalog_xml_lists_detail_urls(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/sitemap/catalog.xml")
+        assert resp.status == 200
+        assert resp.headers.get("Content-Type", "").lower().startswith("application/xml")
+        text = await resp.text()
+        assert "<urlset" in text
+        assert "https://rideauto.ru/detail/c3" in text
+        assert "https://rideauto.ru/detail/c1" in text
+
+
+@pytest.mark.asyncio
+async def test_sitemap_catalog_xml_304_with_if_none_match(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        r1 = await client.get("/api/sitemap/catalog.xml")
+        etag = r1.headers.get("ETag")
+        assert etag
+        r2 = await client.get("/api/sitemap/catalog.xml", headers={"If-None-Match": etag})
+        assert r2.status == 304
+
+
+@pytest.mark.asyncio
+async def test_cars_link_header_next_page(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        r = await client.get("/api/cars", params={"page": "1", "per_page": "2"})
+        assert r.status == 200
+        link = r.headers.get("Link") or ""
+        assert 'rel="next"' in link
+        assert "page=2" in link
+
+
+@pytest.mark.asyncio
 async def test_stats_lists_total(test_app):
     async with TestClient(TestServer(test_app)) as client:
         resp = await client.get("/api/stats")

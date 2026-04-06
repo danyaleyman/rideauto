@@ -7,7 +7,14 @@
     <meta property="og:title" content="World Ride Auto — авто из Азии">
     <meta property="og:description" content="Каталог автомобилей с Кореи: цены, комплектации, доставка.">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://rideauto.ru/">
+    <meta property="og:image" content="https://rideauto.ru/image/logo%20no%20text.svg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://rideauto.ru/">
     <title>World Ride Auto - Авто из Азии</title>
+    <script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"World Ride Auto","url":"https://rideauto.ru/","logo":{"@type":"ImageObject","url":"https://rideauto.ru/image/logo%20no%20text.svg"}},{"@type":"WebSite","name":"World Ride Auto","url":"https://rideauto.ru/","publisher":{"@type":"Organization","name":"World Ride Auto"}}]}
+    </script>
     <!-- Раньше favicon/logo ждали по 50+ с из‑за лимита 6 соединений HTTP/1.1: долгие /api/* заняли все слоты. -->
     <link rel="preload" href="image/logo%20no%20text.svg" as="image" fetchpriority="high">
     <link rel="preload" href="image/logo.svg" as="image" fetchpriority="high">
@@ -38,7 +45,7 @@
       })();
     </script>
     <script defer src="/js/wra-site-config.js?v=20260421"></script>
-    <script defer src="/js/auth-favorites.js?v=20260416"></script>
+    <script defer src="/js/auth-favorites.js?v=20260406"></script>
     <script defer src="/js/copy-protection.js?v=20260410"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1368,6 +1375,7 @@
       position: relative;
       flex: 0 0 290px;
       width: 290px;
+      aspect-ratio: 290 / 186;
       min-height: 186px;
       align-self: stretch;
       overflow: hidden;

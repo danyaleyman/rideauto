@@ -9,11 +9,16 @@ Run:
 Кэш воркера (ускорение «тёплых» запросов):
   WRA_FACETS_CACHE_TTL, WRA_CATALOG_LIST_CACHE_TTL, WRA_CATALOG_LIST_CACHE_MAX_PAGE (1–2 страницы по умолчанию),
   WRA_CATALOG_LIST_CACHE=0 — отключить кэш ленты.
+  Публичные GET /api/cars, /api/facets, /api/stats, /api/sort, /api/car/* — weak ETag + ответ 304 при If-None-Match (меньше трафика за прокси/CDN).
+  Лимиты: WRA_RATE_LIMIT_GET_CARS_PER_MINUTE, WRA_RATE_LIMIT_GET_FACETS_PER_MINUTE (0 = выкл.).
+  Sitemap: WRA_SITEMAP_MAX_URLS — URL на часть; индекс /api/sitemap/index.xml.
+  Метрики: GET /api/metrics — только при WRA_PROMETHEUS_METRICS=1.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -25,9 +30,12 @@ import sqlite3
 import threading
 import time
 from datetime import datetime, timezone
+from html import escape as html_escape_attr
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple
+from urllib.parse import quote, urlencode
+from xml.sax.saxutils import escape as xml_escape_text
 
 from aiohttp import ClientSession, web
 
@@ -44,6 +52,15 @@ _LOG = logging.getLogger("wra.api")
 _RATE_BUCKETS: DefaultDict[str, List[float]] = defaultdict(list)
 _RATE_LOCK = threading.Lock()
 _RATE_WINDOW_SEC = 60.0
+
+_METRICS_LOCK = threading.Lock()
+_METRIC_REQUESTS: DefaultDict[Tuple[str, str, str], int] = defaultdict(int)  # (method, path_group, status)
+_METRIC_DURATION_MS_SUM: DefaultDict[str, float] = defaultdict(float)  # path_group
+_METRIC_DURATION_MS_COUNT: DefaultDict[str, int] = defaultdict(int)
+_METRIC_304_COUNT = 0
+
+_CAR_HTML_TEMPLATE_MTNS: Optional[int] = None
+_CAR_HTML_TEMPLATE_TEXT: str = ""
 
 _CATALOG_INDEX_LOCK = threading.Lock()
 # Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
@@ -706,7 +723,7 @@ def _catalog_order_by_alias(order_sql: str, table_alias: str) -> str:
 
 
 def _catalog_query_dict(raw: Dict[str, str]) -> Dict[str, str]:
-    skip = frozenset({"page", "per_page", "sort", "full"})
+    skip = frozenset({"page", "per_page", "sort", "full", "cursor"})
     return {k: v for k, v in raw.items() if k not in skip and v not in (None, "")}
 
 
@@ -758,6 +775,219 @@ _CATALOG_SORT_META: Tuple[Tuple[str, str, str], ...] = (
     ("mileage_low", "По пробегу", "сначала с меньшим пробегом"),
 )
 
+_CATALOG_CURSOR_VER = 1
+
+
+def _b64url_encode(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(s: str) -> Optional[bytes]:
+    if not s:
+        return None
+    pad = "=" * ((4 - len(s) % 4) % 4)
+    try:
+        return base64.urlsafe_b64decode(s + pad)
+    except Exception:
+        return None
+
+
+def _catalog_cursor_encode(d: Dict[str, Any]) -> str:
+    return _b64url_encode(json.dumps(d, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+
+
+def _catalog_cursor_decode(raw: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not raw:
+        return None
+    b = _b64url_decode(raw.strip())
+    if not b:
+        return None
+    try:
+        d = json.loads(b.decode("utf-8"))
+        if not isinstance(d, dict) or int(d.get("v", 0)) != _CATALOG_CURSOR_VER:
+            return None
+        return d
+    except Exception:
+        return None
+
+
+def _catalog_ts_sql_u() -> str:
+    return (
+        "COALESCE(json_extract(u.data_json, '$.data.offer_created'), "
+        "json_extract(u.data_json, '$.data.created_at'))"
+    )
+
+
+def _catalog_year_sql_u() -> str:
+    return "CAST(SUBSTR(COALESCE(json_extract(u.data_json, '$.data.year'), ''), 1, 4) AS INTEGER)"
+
+
+def _catalog_km_sql_u() -> str:
+    return "CAST(json_extract(u.data_json, '$.data.km_age') AS INTEGER)"
+
+
+def _catalog_price_nf_sql_u() -> str:
+    return (
+        "(CASE WHEN json_extract(u.data_json, '$.data.my_price') IS NULL "
+        "OR json_extract(u.data_json, '$.data.my_price') = '' THEN 1 ELSE 0 END)"
+    )
+
+
+def _catalog_price_sql_u() -> str:
+    return "CAST(json_extract(u.data_json, '$.data.my_price') AS REAL)"
+
+
+def _catalog_cursor_extra_where(sort: str, cur: Dict[str, Any]) -> Tuple[str, Tuple[Any, ...]]:
+    """Фрагмент AND (...) для keyset-пагинации; пустая строка если курсор не подходит."""
+    if cur.get("s") != sort:
+        return "", ()
+    cid = cur.get("id")
+    if not isinstance(cid, int):
+        try:
+            cid = int(cid)
+        except (TypeError, ValueError):
+            return "", ()
+
+    ts_sql = _catalog_ts_sql_u()
+    y_sql = _catalog_year_sql_u()
+    km_sql = _catalog_km_sql_u()
+
+    if sort == "date_new":
+        ts = cur.get("ts")
+        if ts is None:
+            return "", ()
+        ts = str(ts)
+        frag = f" AND (({ts_sql} < ?) OR ({ts_sql} = ? AND u.id < ?))"
+        return frag, (ts, ts, cid)
+    if sort == "date_old":
+        ts = cur.get("ts")
+        if ts is None:
+            return "", ()
+        ts = str(ts)
+        frag = f" AND (({ts_sql} > ?) OR ({ts_sql} = ? AND u.id < ?))"
+        return frag, (ts, ts, cid)
+    if sort == "year_new":
+        y = cur.get("y")
+        try:
+            yi = int(y)
+        except (TypeError, ValueError):
+            return "", ()
+        frag = f" AND (({y_sql} < ?) OR ({y_sql} = ? AND u.id < ?))"
+        return frag, (yi, yi, cid)
+    if sort == "year_old":
+        y = cur.get("y")
+        try:
+            yi = int(y)
+        except (TypeError, ValueError):
+            return "", ()
+        frag = f" AND (({y_sql} > ?) OR ({y_sql} = ? AND u.id < ?))"
+        return frag, (yi, yi, cid)
+    if sort == "mileage_high":
+        if "m" not in cur:
+            return "", ()
+        m = cur.get("m")
+        try:
+            mi = int(m)
+        except (TypeError, ValueError):
+            return "", ()
+        frag = f" AND (({km_sql} < ?) OR ({km_sql} = ? AND u.id < ?))"
+        return frag, (mi, mi, cid)
+    if sort == "mileage_low":
+        if "m" not in cur:
+            return "", ()
+        m = cur.get("m")
+        try:
+            mi = int(m)
+        except (TypeError, ValueError):
+            return "", ()
+        frag = f" AND (({km_sql} > ?) OR ({km_sql} = ? AND u.id < ?))"
+        return frag, (mi, mi, cid)
+    if sort == "price_high":
+        try:
+            nf_c = int(cur.get("nf"))
+        except (TypeError, ValueError):
+            return "", ()
+        nf_sql = _catalog_price_nf_sql_u()
+        pr_sql = _catalog_price_sql_u()
+        if nf_c == 0:
+            if cur.get("pr") is None:
+                return "", ()
+            try:
+                pr_f = float(cur["pr"])
+            except (TypeError, ValueError):
+                return "", ()
+            frag = f""" AND (
+                ({nf_sql} > ?)
+                OR ({nf_sql} = ? AND {pr_sql} < ?)
+                OR ({nf_sql} = ? AND {pr_sql} = ? AND u.id < ?)
+            )"""
+            return frag, (nf_c, nf_c, pr_f, nf_c, pr_f, cid)
+        frag = f" AND ({nf_sql} = 1 AND u.id < ?)"
+        return frag, (cid,)
+    if sort == "price_low":
+        try:
+            nf_c = int(cur.get("nf"))
+        except (TypeError, ValueError):
+            return "", ()
+        nf_sql = _catalog_price_nf_sql_u()
+        pr_sql = _catalog_price_sql_u()
+        if nf_c == 0:
+            if cur.get("pr") is None:
+                return "", ()
+            try:
+                pr_f = float(cur["pr"])
+            except (TypeError, ValueError):
+                return "", ()
+            frag = f""" AND (
+                ({nf_sql} > ?)
+                OR ({nf_sql} = ? AND {pr_sql} > ?)
+                OR ({nf_sql} = ? AND {pr_sql} = ? AND u.id < ?)
+            )"""
+            return frag, (nf_c, nf_c, pr_f, nf_c, pr_f, cid)
+        frag = f" AND ({nf_sql} = 1 AND u.id < ?)"
+        return frag, (cid,)
+    return "", ()
+
+
+def _catalog_build_cursor_payload(sort: str, row_id: int, data_json: str) -> Optional[Dict[str, Any]]:
+    try:
+        car = json.loads(data_json)
+    except Exception:
+        return None
+    data = car.get("data") if isinstance(car.get("data"), dict) else car
+    if not isinstance(data, dict):
+        data = {}
+    base: Dict[str, Any] = {"v": _CATALOG_CURSOR_VER, "s": sort, "id": row_id}
+    if sort in ("date_new", "date_old"):
+        ts = data.get("offer_created") or data.get("created_at") or ""
+        base["ts"] = str(ts)
+    elif sort in ("year_new", "year_old"):
+        try:
+            base["y"] = int(str(data.get("year") or "0")[:4] or 0)
+        except ValueError:
+            return None
+    elif sort in ("mileage_high", "mileage_low"):
+        v = data.get("km_age")
+        if v is None or str(v).strip() == "":
+            return None
+        try:
+            base["m"] = int(v)
+        except (TypeError, ValueError):
+            return None
+    elif sort in ("price_high", "price_low"):
+        mp = data.get("my_price")
+        nf = 1 if mp is None or str(mp).strip() == "" else 0
+        base["nf"] = nf
+        if nf == 0:
+            try:
+                base["pr"] = float(mp)
+            except (TypeError, ValueError):
+                return None
+        return base
+    else:
+        return None
+    return base
+
 
 def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Dict[str, Any]:
     t_wall0 = time.perf_counter()
@@ -794,22 +1024,29 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
                 }
             sort = (query.get("sort") or "date_new").strip()
             order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
+            cur_raw = (query.get("cursor") or "").strip()
+            cur_dec = _catalog_cursor_decode(cur_raw) if cur_raw else None
+            cur_sql, cur_params = _catalog_cursor_extra_where(sort, cur_dec) if cur_dec else ("", ())
+            use_cursor = bool(cur_sql)
+            if use_cursor:
+                offset = 0
             listing_ids = _catalog_listing_max_ids_subquery(from_frag)
             t_count0 = time.perf_counter()
             # Один проход: тяжёлый подзапрос listing_ids не дублируем (отдельный COUNT + SELECT давали 2× нагрузку).
             order_u = _catalog_order_by_alias(order_sql, "u")
             merged_sql = f"""
-                SELECT u.car_id, u.data_json, u._wra_tot
+                SELECT u.car_id, u.data_json, u.id AS _wra_row_id, u._wra_tot
                 FROM (
                     SELECT c.car_id, c.data_json, c.id,
                            COUNT(*) OVER () AS _wra_tot
                     FROM cars AS c
                     INNER JOIN {listing_ids} AS x ON c.id = x.mid
                 ) AS u
+                WHERE 1=1{cur_sql}
                 ORDER BY {order_u}
                 LIMIT ? OFFSET ?
                 """
-            rows = conn.execute(merged_sql, [*params2, per_page, offset]).fetchall()
+            rows = conn.execute(merged_sql, [*params2, *cur_params, per_page, offset]).fetchall()
             if rows:
                 total = int(rows[0]["_wra_tot"])
             else:
@@ -836,25 +1073,29 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
                     result.append(car)
 
             pages = max(1, (int(total) + per_page - 1) // per_page)
+            meta_out: Dict[str, Any] = {
+                "page": page,
+                "per_page": per_page,
+                "total": int(total),
+                "pages": pages,
+                "next_page": page + 1 if page < pages else None,
+                "list_mode": "slim" if slim else "full",
+            }
+            if rows and len(rows) >= per_page:
+                lr = rows[-1]
+                pl = _catalog_build_cursor_payload(sort, int(lr["_wra_row_id"]), lr["data_json"])
+                if pl:
+                    meta_out["next_cursor"] = _catalog_cursor_encode(pl)
             _LOG.info(
-                "catalog cars src=%s list_ms=%.0f total=%s rows=%s wall_ms=%.0f",
+                "catalog cars src=%s list_ms=%.0f total=%s rows=%s wall_ms=%.0f cursor=%s",
                 src_log,
                 (t_count1 - t_count0) * 1000,
                 int(total),
                 len(rows),
                 (time.perf_counter() - t_wall0) * 1000,
+                int(use_cursor),
             )
-            return {
-                "result": result,
-                "meta": {
-                    "page": page,
-                    "per_page": per_page,
-                    "total": int(total),
-                    "pages": pages,
-                    "next_page": page + 1 if page < pages else None,
-                    "list_mode": "slim" if slim else "full",
-                },
-            }
+            return {"result": result, "meta": meta_out}
         finally:
             if interrupt_ms > 0:
                 conn.set_progress_handler(None, 0)
@@ -874,6 +1115,8 @@ def _cars_catalog_cache_key(db_path: str, q: Dict[str, str], slim: bool) -> Tupl
 def _cars_catalog_eligible_for_list_cache(q: Dict[str, str], slim: bool) -> bool:
     """Только slim-лента и первые страницы — как типичный «горячий» срез у маркетплейсов."""
     if not _CATALOG_LIST_CACHE_ENABLED or not slim:
+        return False
+    if (q.get("cursor") or "").strip():
         return False
     try:
         page = int((q.get("page") or "1").strip() or "1")
@@ -995,8 +1238,260 @@ def _catalog_stats_korea_db_sync(db_path: str) -> Dict[str, Any]:
         conn.close()
 
 
-def _json_public_cache(data: Any, cache_control: str) -> web.Response:
-    return web.json_response(data, headers={"Cache-Control": cache_control})
+def _norm_etag_token(raw: str) -> str:
+    t = raw.strip()
+    if t.startswith("W/"):
+        t = t[2:].strip()
+    if len(t) >= 2 and t[0] == '"' and t[-1] == '"':
+        t = t[1:-1]
+    return t
+
+
+def _if_none_match_satisfied(request: web.Request, etag: str) -> bool:
+    inm = (request.headers.get("If-None-Match") or "").strip()
+    if not inm:
+        return False
+    if inm == "*":
+        return True
+    want = _norm_etag_token(etag)
+    for part in inm.split(","):
+        if _norm_etag_token(part) == want:
+            return True
+    return False
+
+
+def _json_public_cache(
+    data: Any,
+    cache_control: str,
+    *,
+    request: Optional[web.Request] = None,
+    extra_headers: Optional[Dict[str, str]] = None,
+) -> web.Response:
+    """JSON с Cache-Control; при request и совпадении If-None-Match — 304 без тела."""
+    text = json.dumps(data, ensure_ascii=False, separators=(",", ":"), sort_keys=True, default=str)
+    body_bytes = text.encode("utf-8")
+    headers: Dict[str, str] = {"Cache-Control": cache_control, "ETag": f'W/"md5-{hashlib.md5(body_bytes).hexdigest()}"'}
+    if extra_headers:
+        headers.update(extra_headers)
+    if request is not None and _if_none_match_satisfied(request, headers["ETag"]):
+        return web.Response(status=304, headers=headers)
+    resp = web.Response(body=body_bytes, content_type="application/json", charset="utf-8")
+    for k, v in headers.items():
+        resp.headers[k] = v
+    return resp
+
+
+def _cars_pagination_link(request: web.Request, payload: Dict[str, Any]) -> Optional[str]:
+    meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+    np = meta.get("next_page")
+    if np is None:
+        return None
+    pairs = [(k, str(v)) for k, v in request.rel_url.query.items() if k not in ("page", "cursor")]
+    nc = meta.get("next_cursor")
+    if nc:
+        pairs.append(("cursor", str(nc)))
+    pairs.append(("page", str(int(np))))
+    return f'</api/cars?{urlencode(pairs)}>; rel="next"'
+
+
+def _site_base_url(request: web.Request) -> str:
+    raw = (request.app.get(APP_PUBLIC_SITE_URL, "") or os.environ.get("PUBLIC_SITE_URL") or "").strip()
+    if raw:
+        return raw.rstrip("/")
+    return "https://rideauto.ru"
+
+
+def _metrics_path_group(path: str) -> str:
+    if path == "/api/cars":
+        return "cars"
+    if path in ("/api/facets", "/api/filters"):
+        return "facets"
+    if path.startswith("/api/car/"):
+        return "car"
+    return "other"
+
+
+def _sitemap_count_rows(db_path: str) -> int:
+    if not db_path or not Path(db_path).is_file():
+        return 0
+    conn = _db_connect(db_path)
+    try:
+        r = conn.execute("SELECT COUNT(*) AS c FROM cars").fetchone()
+        return int(r["c"]) if r else 0
+    finally:
+        conn.close()
+
+
+def _sitemap_ids_slice(db_path: str, offset: int, limit: int) -> List[str]:
+    if limit <= 0 or not db_path or not Path(db_path).is_file():
+        return []
+    conn = _db_connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT car_id FROM cars ORDER BY id DESC LIMIT ? OFFSET ?",
+            (limit, max(0, offset)),
+        ).fetchall()
+        return [str(r[0]).strip() for r in rows if r[0] and str(r[0]).strip()]
+    finally:
+        conn.close()
+
+
+def _sitemap_collect_car_ids_slice(korea_db: str, china_db: Optional[str], offset: int, limit: int) -> List[str]:
+    """Срез глобальной ленты: сначала Корея по id DESC, затем Китай (как в однопроходном sitemap)."""
+    china_path = str(Path(china_db).expanduser().resolve()) if china_db and str(china_db).strip() else ""
+    nk = _sitemap_count_rows(korea_db)
+    nc = _sitemap_count_rows(china_path) if china_path else 0
+    if offset >= nk + nc:
+        return []
+    if offset < nk:
+        take_k = min(limit, nk - offset)
+        first = _sitemap_ids_slice(korea_db, offset, take_k)
+        if len(first) >= limit:
+            return first[:limit]
+        rem = limit - len(first)
+        if china_path and rem > 0:
+            first.extend(_sitemap_ids_slice(china_path, 0, rem))
+        return first[:limit]
+    return _sitemap_ids_slice(china_path, offset - nk, limit)
+
+
+def _sitemap_index_xml_body(base: str, korea_db: str, china_db: Optional[str], cap: int) -> str:
+    china_path = str(Path(china_db).expanduser().resolve()) if china_db and str(china_db).strip() else ""
+    total = _sitemap_count_rows(korea_db) + (_sitemap_count_rows(china_path) if china_path else 0)
+    n_parts = max(1, (total + cap - 1) // cap) if total > 0 else 1
+    base = base.rstrip("/")
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        f"  <sitemap><loc>{xml_escape_text(base + '/sitemap-pages.xml')}</loc></sitemap>",
+    ]
+    for i in range(1, n_parts + 1):
+        loc = f"{base}/api/sitemap/catalog.xml?part={i}"
+        lines.append(f"  <sitemap><loc>{xml_escape_text(loc)}</loc></sitemap>")
+    lines.append("</sitemapindex>")
+    return "\n".join(lines) + "\n"
+
+
+def _health_sqlite_probe(db_path: str) -> Dict[str, Any]:
+    out: Dict[str, Any] = {"path": db_path, "readable": False}
+    try:
+        st = Path(db_path).stat()
+        out["bytes"] = int(st.st_size)
+    except OSError as e:
+        out["stat_error"] = str(e)[:160]
+        return out
+    try:
+        conn = _db_connect(db_path)
+        try:
+            conn.execute("SELECT 1 AS _ok").fetchone()
+            out["readable"] = True
+            try:
+                uv = conn.execute("PRAGMA user_version").fetchone()
+                out["pragma_user_version"] = int(uv[0]) if uv and uv[0] is not None else 0
+            except sqlite3.Error:
+                out["pragma_user_version"] = None
+            cr = conn.execute("SELECT COUNT(*) AS c FROM cars").fetchone()
+            out["cars_rows"] = int(cr["c"]) if cr else None
+        finally:
+            conn.close()
+    except Exception as e:
+        out["query_error"] = str(e)[:240]
+    return out
+
+
+def _car_html_template_path() -> Path:
+    return Path(__file__).resolve().parent.parent / "frontend" / "car.html"
+
+
+def _load_car_html_template_text() -> str:
+    global _CAR_HTML_TEMPLATE_MTNS, _CAR_HTML_TEMPLATE_TEXT
+    p = _car_html_template_path()
+    try:
+        st = p.stat()
+    except OSError:
+        return ""
+    mt = int(st.st_mtime_ns)
+    if _CAR_HTML_TEMPLATE_MTNS == mt and _CAR_HTML_TEMPLATE_TEXT:
+        return _CAR_HTML_TEMPLATE_TEXT
+    _CAR_HTML_TEMPLATE_TEXT = p.read_text(encoding="utf-8")
+    _CAR_HTML_TEMPLATE_MTNS = mt
+    return _CAR_HTML_TEMPLATE_TEXT
+
+
+def _first_car_image_url(d: Dict[str, Any]) -> str:
+    for key in ("images", "h_images"):
+        v = d.get(key)
+        if isinstance(v, list) and v:
+            u = v[0]
+            if isinstance(u, str) and u.strip():
+                return u.strip()
+            if isinstance(u, dict):
+                for k in ("url", "src", "photo"):
+                    s = u.get(k)
+                    if isinstance(s, str) and s.strip():
+                        return s.strip()
+    return ""
+
+
+def _car_seo_head_block(canonical_url: str, page_title: str, description: str, og_image: str, car: Dict[str, Any]) -> str:
+    d = car.get("data") if isinstance(car.get("data"), dict) else {}
+    if not isinstance(d, dict):
+        d = {}
+    price = _extract_num(d, "my_price")
+    brand = d.get("mark") or ""
+    offers: Dict[str, Any] = {
+        "@type": "Offer",
+        "url": canonical_url,
+        "availability": "https://schema.org/InStock",
+        "priceCurrency": "RUB",
+    }
+    if price is not None:
+        offers["price"] = price
+    ld: Dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": page_title,
+        "description": description[:500],
+        "offers": offers,
+    }
+    if brand:
+        ld["brand"] = {"@type": "Brand", "name": str(brand)}
+    if og_image:
+        ld["image"] = og_image
+    og_fallback = "https://rideauto.ru/image/logo%20no%20text.svg"
+    og_image_esc = html_escape_attr(og_image or og_fallback, quote=True)
+    parts = [
+        f"<title>{html_escape_attr(page_title, quote=True)}</title>",
+        f'<meta name="description" content="{html_escape_attr(description[:320], quote=True)}">',
+        f'<link rel="canonical" href="{html_escape_attr(canonical_url, quote=True)}">',
+        f'<meta property="og:title" content="{html_escape_attr(page_title, quote=True)}">',
+        f'<meta property="og:description" content="{html_escape_attr(description[:300], quote=True)}">',
+        '<meta property="og:type" content="product">',
+        f'<meta property="og:url" content="{html_escape_attr(canonical_url, quote=True)}">',
+        f'<meta property="og:image" content="{og_image_esc}">',
+        '<meta name="twitter:card" content="summary_large_image">',
+        '<script type="application/ld+json">'
+        + json.dumps(ld, ensure_ascii=False, separators=(",", ":"))
+        + "</script>",
+    ]
+    return "\n".join(parts) + "\n"
+
+
+def _sitemap_catalog_xml_body(base: str, car_ids: List[str]) -> str:
+    base = base.rstrip("/")
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for cid in car_ids:
+        loc = f"{base}/detail/{quote(cid, safe='')}"
+        lines.append("  <url>")
+        lines.append(f"    <loc>{xml_escape_text(loc)}</loc>")
+        lines.append("    <changefreq>weekly</changefreq>")
+        lines.append("    <priority>0.7</priority>")
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    return "\n".join(lines) + "\n"
 
 
 def _facet_dimension_direct(
@@ -1200,7 +1695,29 @@ async def health(request: web.Request) -> web.Response:
         body["git_sha"] = sha
     ch = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip()
     body["china_catalog_db"] = bool(ch)
+    deep = request.rel_url.query.get("deep") == "1" or (os.environ.get("WRA_HEALTH_DEEP") or "").strip() == "1"
+    if deep:
+        korea_db = request.app[APP_DB_PATH]
+        body["catalog_db"] = await asyncio.to_thread(_health_sqlite_probe, korea_db)
+        if ch:
+            body["china_catalog_db_probe"] = await asyncio.to_thread(_health_sqlite_probe, ch)
     return web.json_response(body)
+
+
+async def prometheus_metrics(_: web.Request) -> web.Response:
+    if (os.environ.get("WRA_PROMETHEUS_METRICS") or "").strip() != "1":
+        return web.Response(status=404, body=b"metrics disabled\n", content_type="text/plain", charset="utf-8")
+    lines: List[str] = []
+    with _METRICS_LOCK:
+        for (method, grp, status), n in sorted(_METRIC_REQUESTS.items()):
+            lines.append(f'wra_http_requests_total{{method="{method}",route_group="{grp}",status="{status}"}} {n}')
+        lines.append(f"wra_http_response_304_total {_METRIC_304_COUNT}")
+        for grp in sorted(_METRIC_DURATION_MS_SUM.keys()):
+            s = _METRIC_DURATION_MS_SUM[grp]
+            c = max(1, _METRIC_DURATION_MS_COUNT[grp])
+            lines.append(f'wra_http_request_duration_ms_avg{{route_group="{grp}"}} {s / c:.3f}')
+    body = ("\n".join(lines) + "\n").encode("utf-8")
+    return web.Response(body=body, content_type="text/plain", charset="utf-8")
 
 
 async def api_version(_: web.Request) -> web.Response:
@@ -1241,7 +1758,11 @@ async def cars(request: web.Request) -> web.Response:
         cache = "public, max-age=60, stale-while-revalidate=180"
     else:
         cache = "public, max-age=20, stale-while-revalidate=120"
-    return _json_public_cache(payload, cache)
+    extra: Optional[Dict[str, str]] = None
+    link = _cars_pagination_link(request, payload)
+    if link:
+        extra = {"Link": link}
+    return _json_public_cache(payload, cache, request=request, extra_headers=extra)
 
 
 async def facets(request: web.Request) -> web.Response:
@@ -1258,14 +1779,14 @@ async def facets(request: web.Request) -> web.Response:
             headers={"Cache-Control": "no-store"},
         )
     # Долгий stale-while-revalidate: браузер/CDN отдают прошлый JSON мгновенно, пока идёт фоновое обновление.
-    return _json_public_cache(payload, "public, max-age=45, stale-while-revalidate=86400")
+    return _json_public_cache(payload, "public, max-age=45, stale-while-revalidate=86400", request=request)
 
 
 async def catalog_stats(request: web.Request) -> web.Response:
     korea_db = request.app[APP_DB_PATH]
     china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
     payload = await asyncio.to_thread(_catalog_stats_merged_sync, korea_db, china_db)
-    return _json_public_cache(payload, "public, max-age=90, stale-while-revalidate=600")
+    return _json_public_cache(payload, "public, max-age=90, stale-while-revalidate=600", request=request)
 
 
 async def catalog_counts(request: web.Request) -> web.Response:
@@ -1273,11 +1794,115 @@ async def catalog_counts(request: web.Request) -> web.Response:
     return await catalog_stats(request)
 
 
-async def catalog_sort_meta(_: web.Request) -> web.Response:
+async def catalog_sort_meta(request: web.Request) -> web.Response:
     opts = [{"value": v, "title": t, "hint": h} for v, t, h in _CATALOG_SORT_META]
     return _json_public_cache(
         {"options": opts},
         "public, max-age=3600, stale-while-revalidate=86400",
+        request=request,
+    )
+
+
+async def sitemap_catalog_xml(request: web.Request) -> web.Response:
+    """Sitemap urlset с публичными URL карточек /detail/{id}; part=1..N (шаг WRA_SITEMAP_MAX_URLS)."""
+    cap = min(45000, max(1, _env_int("WRA_SITEMAP_MAX_URLS", 12000)))
+    try:
+        part = max(1, int((request.rel_url.query.get("part") or "1").strip() or "1"))
+    except ValueError:
+        part = 1
+    offset = (part - 1) * cap
+    base = _site_base_url(request)
+    korea_db = request.app[APP_DB_PATH]
+    china_raw = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip()
+    china_db = china_raw or None
+    car_ids = await asyncio.to_thread(_sitemap_collect_car_ids_slice, korea_db, china_db, offset, cap)
+    body = _sitemap_catalog_xml_body(base, car_ids).encode("utf-8")
+    headers: Dict[str, str] = {
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+        "ETag": f'W/"md5-{hashlib.md5(body).hexdigest()}"',
+    }
+    if _if_none_match_satisfied(request, headers["ETag"]):
+        return web.Response(status=304, headers=headers)
+    resp = web.Response(body=body)
+    for k, v in headers.items():
+        resp.headers[k] = v
+    return resp
+
+
+async def sitemap_index_xml(request: web.Request) -> web.Response:
+    cap = min(45000, max(1, _env_int("WRA_SITEMAP_MAX_URLS", 12000)))
+    base = _site_base_url(request)
+    korea_db = request.app[APP_DB_PATH]
+    china_raw = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip()
+    china_db = china_raw or None
+    body = _sitemap_index_xml_body(base, korea_db, china_db, cap).encode("utf-8")
+    headers: Dict[str, str] = {
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control": "public, max-age=7200, stale-while-revalidate=86400",
+        "ETag": f'W/"md5-{hashlib.md5(body).hexdigest()}"',
+    }
+    if _if_none_match_satisfied(request, headers["ETag"]):
+        return web.Response(status=304, headers=headers)
+    resp = web.Response(body=body)
+    for k, v in headers.items():
+        resp.headers[k] = v
+    return resp
+
+
+async def car_page_html(request: web.Request) -> web.Response:
+    """Полный car.html с подстановкой title/OG/JSON-LD (для SEO без отдельного SSR). Nginx может проксировать /detail/{id} сюда."""
+    car_id = (request.match_info.get("id") or "").strip()
+    korea_db = request.app[APP_DB_PATH]
+    china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
+    base = _site_base_url(request)
+    tpl = _load_car_html_template_text()
+    if not tpl:
+        return web.Response(status=503, text="car.html template not found\n", content_type="text/plain", charset="utf-8")
+    status, body = await asyncio.to_thread(_car_by_id_sync_multi, korea_db, china_db, request.match_info.get("id", "").strip())
+    canonical = f"{base}/detail/{quote(car_id, safe='')}"
+    if status != 200:
+        nf = (
+            "<!DOCTYPE html><html lang=\"ru\"><head><meta charset=\"UTF-8\">"
+            '<meta name="robots" content="noindex">'
+            f"<title>Объявление не найдено</title></head><body><p>Карточка недоступна.</p>"
+            f'<p><a href="{html_escape_attr(base + "/", quote=True)}">В каталог</a></p></body></html>'
+        )
+        return web.Response(
+            body=nf.encode("utf-8"),
+            status=404,
+            content_type="text/html",
+            charset="utf-8",
+            headers={"Cache-Control": "public, max-age=120"},
+        )
+    car = body.get("result") if isinstance(body.get("result"), dict) else {}
+    d = car.get("data") if isinstance(car.get("data"), dict) else {}
+    title_base = _car_title(d) if isinstance(d, dict) else car_id
+    page_title = f"{title_base} — World Ride Auto" if title_base else f"Авто {car_id} — World Ride Auto"
+    parts_desc: List[str] = []
+    if isinstance(d, dict):
+        if d.get("year"):
+            parts_desc.append(str(d.get("year")))
+        pr = _extract_num(d, "my_price")
+        if pr is not None:
+            parts_desc.append(f"{int(pr):,} ₽".replace(",", " "))
+    description = (", ".join(parts_desc) + ". Доставка, растаможка — World Ride Auto.") if parts_desc else page_title
+    og_img = _first_car_image_url(d) if isinstance(d, dict) else ""
+    fragment = _car_seo_head_block(canonical, page_title, description, og_img, car)
+    begin = "<!-- WRA_SEO_HEAD_BEGIN -->"
+    end = "<!-- WRA_SEO_HEAD_END -->"
+    if begin in tpl and end in tpl:
+        i = tpl.index(begin) + len(begin)
+        j = tpl.index(end)
+        html_out = tpl[:i] + "\n" + fragment + tpl[j:]
+    else:
+        html_out = tpl.replace("<head>", "<head>\n" + fragment, 1)
+    out_bytes = html_out.encode("utf-8")
+    return web.Response(
+        body=out_bytes,
+        content_type="text/html",
+        charset="utf-8",
+        headers={"Cache-Control": "public, max-age=300, stale-while-revalidate=3600"},
     )
 
 
@@ -1402,7 +2027,7 @@ async def car_by_id(request: web.Request) -> web.Response:
     china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
     status, body = await asyncio.to_thread(_car_by_id_sync_multi, korea_db, china_db, car_id)
     if status == 200:
-        return _json_public_cache(body, "public, max-age=45, stale-while-revalidate=300")
+        return _json_public_cache(body, "public, max-age=45, stale-while-revalidate=300", request=request)
     return web.json_response(body, status=status)
 
 
@@ -1874,10 +2499,28 @@ def create_app(db_path: str, china_db_path: Optional[str] = None) -> web.Applica
 
     @web.middleware
     async def rate_limit_middleware(request, handler):
-        if request.method != "POST":
-            return await handler(request)
         ip = _client_ip_for_rate_limit(request)
         path = request.path
+        if request.method == "GET" and path == "/api/cars":
+            cars_get_lim = _env_int("WRA_RATE_LIMIT_GET_CARS_PER_MINUTE", 0)
+            if cars_get_lim > 0 and not _rate_limit_take(f"get_cars:{ip}", cars_get_lim):
+                return web.json_response(
+                    {"error": "rate_limit"},
+                    status=429,
+                    headers={"Retry-After": "60", "Cache-Control": "no-store"},
+                )
+            return await handler(request)
+        if request.method == "GET" and path in ("/api/facets", "/api/filters"):
+            facets_lim = _env_int("WRA_RATE_LIMIT_GET_FACETS_PER_MINUTE", 0)
+            if facets_lim > 0 and not _rate_limit_take(f"get_facets:{ip}", facets_lim):
+                return web.json_response(
+                    {"error": "rate_limit"},
+                    status=429,
+                    headers={"Retry-After": "60", "Cache-Control": "no-store"},
+                )
+            return await handler(request)
+        if request.method != "POST":
+            return await handler(request)
         auth_limit = _env_int("WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE", 0)
         if path == "/api/auth/telegram" and auth_limit > 0:
             if not _rate_limit_take(f"auth_tg:{ip}", auth_limit):
@@ -1896,7 +2539,41 @@ def create_app(db_path: str, china_db_path: Optional[str] = None) -> web.Applica
             )
         return await handler(request)
 
-    app = web.Application(middlewares=[access_log_middleware, cors_middleware, rate_limit_middleware])
+    @web.middleware
+    async def security_headers_middleware(request, handler):
+        resp = await handler(request)
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        return resp
+
+    @web.middleware
+    async def prometheus_metrics_middleware(request, handler):
+        global _METRIC_304_COUNT
+        t0 = time.perf_counter()
+        resp = await handler(request)
+        if (os.environ.get("WRA_PROMETHEUS_METRICS") or "").strip() == "1":
+            dt_ms = (time.perf_counter() - t0) * 1000.0
+            grp = _metrics_path_group(request.path)
+            st = str(resp.status)
+            with _METRICS_LOCK:
+                _METRIC_REQUESTS[(request.method, grp, st)] += 1
+                if resp.status == 304:
+                    _METRIC_304_COUNT += 1
+                if grp in ("cars", "facets"):
+                    _METRIC_DURATION_MS_SUM[grp] += dt_ms
+                    _METRIC_DURATION_MS_COUNT[grp] += 1
+        return resp
+
+    app = web.Application(
+        middlewares=[
+            access_log_middleware,
+            cors_middleware,
+            rate_limit_middleware,
+            security_headers_middleware,
+            prometheus_metrics_middleware,
+        ]
+    )
     resolved = str(Path(db_path).resolve())
     app[APP_DB_PATH] = resolved
     china_resolved = ""
@@ -1915,6 +2592,7 @@ def create_app(db_path: str, china_db_path: Optional[str] = None) -> web.Applica
     app[APP_SUBSCRIPTIONS_ADMIN_KEY] = os.environ.get("SUBSCRIPTIONS_ADMIN_KEY", "").strip()
     app[APP_PUBLIC_SITE_URL] = os.environ.get("PUBLIC_SITE_URL", "").strip()
     app.router.add_get("/api/health", health)
+    app.router.add_get("/api/metrics", prometheus_metrics)
     app.router.add_get("/api/version", api_version)
     app.router.add_get("/api/cars", cars)
     app.router.add_get("/api/facets", facets)
@@ -1922,6 +2600,9 @@ def create_app(db_path: str, china_db_path: Optional[str] = None) -> web.Applica
     app.router.add_get("/api/stats", catalog_stats)
     app.router.add_get("/api/counts", catalog_counts)
     app.router.add_get("/api/sort", catalog_sort_meta)
+    app.router.add_get("/api/sitemap/catalog.xml", sitemap_catalog_xml)
+    app.router.add_get("/api/sitemap/index.xml", sitemap_index_xml)
+    app.router.add_get("/api/html/car/{id}", car_page_html)
     app.router.add_get("/api/car/{id}", car_by_id)
     app.router.add_get("/api/similar", similar)
     app.router.add_post("/api/auth/telegram", auth_telegram)

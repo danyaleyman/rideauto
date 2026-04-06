@@ -33,6 +33,38 @@ async def test_x_request_id_generated_when_missing(test_app):
 
 
 @pytest.mark.asyncio
+async def test_get_facets_rate_limit_returns_429(test_app, monkeypatch):
+    monkeypatch.setenv("WRA_RATE_LIMIT_GET_FACETS_PER_MINUTE", "2")
+    async with TestClient(TestServer(test_app)) as client:
+        assert (await client.get("/api/facets")).status == 200
+        assert (await client.get("/api/facets")).status == 200
+        r3 = await client.get("/api/facets")
+        assert r3.status == 429
+
+
+@pytest.mark.asyncio
+async def test_get_cars_rate_limit_returns_429(test_app, monkeypatch):
+    monkeypatch.setenv("WRA_RATE_LIMIT_GET_CARS_PER_MINUTE", "2")
+    async with TestClient(TestServer(test_app)) as client:
+        assert (await client.get("/api/cars", params={"page": "1", "per_page": "5"})).status == 200
+        assert (await client.get("/api/cars", params={"page": "1", "per_page": "5"})).status == 200
+        r3 = await client.get("/api/cars", params={"page": "1", "per_page": "5"})
+        assert r3.status == 429
+        body = await r3.json()
+        assert body.get("error") == "rate_limit"
+
+
+@pytest.mark.asyncio
+async def test_security_headers_on_json_route(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/health")
+        assert resp.status == 200
+        assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+        assert resp.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+        assert resp.headers.get("X-Frame-Options") == "SAMEORIGIN"
+
+
+@pytest.mark.asyncio
 async def test_post_rate_limit_returns_429(test_app, monkeypatch):
     monkeypatch.setenv("WRA_RATE_LIMIT_POST_PER_MINUTE", "2")
     async with TestClient(TestServer(test_app)) as client:
