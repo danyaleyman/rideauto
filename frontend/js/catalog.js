@@ -14,22 +14,19 @@
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
     /**
      * Рынок: Корея → `source=encar`. Китай: `?region=china` → `source=china` (che168+dongchedi в БД);
-     * узко — `?source=che168` или `?source=dongchedi`. Переопределение: `window.WRA_CATALOG_SOURCE`.
+     * узко — `?source=che168` или `?source=dongchedi`.
+     * `window.WRA_CATALOG_SOURCE` — только если в URL нет `region`/`source` (иначе вкладка Китай даст Корею).
      */
     var CATALOG_REGION = 'korea';
     let CATALOG_SOURCE = 'encar';
     (function initCatalogSource() {
       try {
-        var w = typeof window !== 'undefined' && window.WRA_CATALOG_SOURCE ? String(window.WRA_CATALOG_SOURCE).trim() : '';
-        if (w) {
-          CATALOG_SOURCE = w;
-          var wl = w.toLowerCase();
-          CATALOG_REGION = wl === 'che168' || wl === 'dongchedi' || wl === 'china' ? 'china' : 'korea';
-          return;
-        }
         var sp = new URLSearchParams(window.location.search || '');
         var srcQ = (sp.get('source') || '').toLowerCase();
-        var regionChina = (sp.get('region') || '').toLowerCase() === 'china';
+        var reg = (sp.get('region') || '').toLowerCase();
+        var regionChina = reg === 'china';
+        var regionKorea = reg === 'korea';
+
         if (regionChina || srcQ === 'che168' || srcQ === 'dongchedi' || srcQ === 'china') {
           CATALOG_REGION = 'china';
           if (srcQ === 'che168') CATALOG_SOURCE = 'che168';
@@ -37,6 +34,19 @@
           else if (srcQ === 'china') CATALOG_SOURCE = 'china';
           else if (regionChina) CATALOG_SOURCE = 'china';
           else CATALOG_SOURCE = 'dongchedi';
+          return;
+        }
+        if (regionKorea) {
+          CATALOG_REGION = 'korea';
+          CATALOG_SOURCE = 'encar';
+          return;
+        }
+
+        var w = typeof window !== 'undefined' && window.WRA_CATALOG_SOURCE ? String(window.WRA_CATALOG_SOURCE).trim() : '';
+        if (w) {
+          CATALOG_SOURCE = w;
+          var wl = w.toLowerCase();
+          CATALOG_REGION = wl === 'che168' || wl === 'dongchedi' || wl === 'china' ? 'china' : 'korea';
           return;
         }
         CATALOG_REGION = 'korea';

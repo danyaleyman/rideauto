@@ -494,7 +494,10 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
     src = (query.get("source") or "").strip().lower()
     # Вкладка «Китай» без source=… на фронте: и che168, и dongchedi (в БД часто только один из них).
     if src == "china":
-        clauses.append("json_extract(data_json, '$.data.source') IN ('dongchedi', 'che168')")
+        # Только явные китайские source; NULL/пусто/encar не попадают (иначе смешение с Кореей).
+        clauses.append(
+            "LOWER(TRIM(COALESCE(CAST(json_extract(data_json, '$.data.source') AS TEXT), ''))) IN ('dongchedi', 'che168')"
+        )
     elif src == "che168":
         clauses.append("json_extract(data_json, '$.data.source') = ?")
         params.append("che168")
