@@ -7,7 +7,9 @@ info:
     Полный набор query-параметров для `/api/cars` и ответы см. в коде `backend/api_server.py`.
     Лимиты GET по IP: `WRA_RATE_LIMIT_GET_CARS_PER_MINUTE`, `WRA_RATE_LIMIT_GET_FACETS_PER_MINUTE` (0 = без лимита).
     Курсорная пагинация: query `cursor` в `/api/cars` для сортировок date_*, year_*, mileage_*, price_high / price_low; см. `meta.next_cursor`.
-    Метрики: `GET /api/metrics` при `WRA_PROMETHEUS_METRICS=1`.
+    Без `cursor`: глубокий `page` ограничен для анонимов (`WRA_CATALOG_MAX_PAGE_OFFSET_ANON`, по умолчанию 80; `-1` = выкл.); при сессии Bearer — `WRA_CATALOG_MAX_PAGE_OFFSET_AUTH` (0 = без лимита).
+    Кэш фасетов в воркере: `WRA_FACETS_CACHE_TTL` (сек, по умолчанию 300).
+    Метрики: `GET /api/metrics` при `WRA_PROMETHEUS_METRICS=1` (в т.ч. `wra_http_request_duration_ms_p95`).
 
 servers:
   - url: /
@@ -39,7 +41,7 @@ paths:
       parameters:
         - name: deep
           in: query
-          description: "1 — проверка чтения SQLite каталога (PRAGMA user_version, COUNT cars)"
+          description: "1 — проверка чтения SQLite каталога (размер файла, wal/shm при наличии, COUNT cars)"
           schema: { type: string, enum: ["1"] }
       responses:
         "200":
@@ -128,6 +130,16 @@ paths:
             application/json:
               schema:
                 type: object
+        "400":
+          description: Слишком большой номер страницы без cursor (см. error deep_pagination_requires_cursor)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, example: deep_pagination_requires_cursor }
+                  detail: { type: string }
+                  max_page: { type: integer }
         "429":
           description: Слишком много запросов (лимит GET)
           content:

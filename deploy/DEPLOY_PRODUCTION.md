@@ -165,6 +165,45 @@ python backend/auto_update.py --config backend/config.json --type daily --worker
 - `frontend/data/chunks/cars_*.json`
 - при необходимости `.gz` варианты
 
+Каталог в браузере при сотнях тысяч объявлений идёт через **API** (`/api/cars`), а не через полный `cars.json`.
+
+## Sitemap на диск (~500k URL)
+
+1. Каталог для генерации и путь в nginx (пример):
+
+```bash
+sudo mkdir -p /var/www/sitemap
+sudo chown prod-encar:prod-encar /var/www/sitemap
+```
+
+2. В конфиге сайта уже есть блок `location /sitemap-gen/` → `alias /var/www/sitemap/;` (см. `deploy/nginx/prod-encar.conf`).
+
+3. Таймер (обе БД обязательны):
+
+```bash
+sudo cp deploy/systemd/prod-encar-sitemap-gen.service /etc/systemd/system/
+sudo cp deploy/systemd/prod-encar-sitemap-gen.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now prod-encar-sitemap-gen.timer
+```
+
+Проверка: `sudo systemctl start prod-encar-sitemap-gen.service` и откройте `https://ВАШ_ДОМЕН/sitemap-gen/sitemap-index.xml`.
+
+4. В **Google Search Console** / `robots.txt` укажите основным индексом URL вида `https://rideauto.ru/sitemap-gen/sitemap-index.xml`.
+
+## Прогрев кэша API после деплоя
+
+```bash
+cd /opt/prod-encar && .venv/bin/python scripts/warm_public_cache.py --base http://127.0.0.1:8080
+```
+
+(с localhost nginx проксирует на тот же воркер).
+
+## Наблюдаемость
+
+- Включите `WRA_PROMETHEUS_METRICS=1` в окружении API и снимайте `GET /api/metrics` (см. `deploy/env.prod-encar.example`): счётчики запросов, средняя и **p95** латентность для групп `cars`, `facets`, `car`.
+- Алерты: рост `wra_http_request_duration_ms_p95{route_group="cars"}`, доля 429/503, **mtime** файлов в `/var/www/sitemap`, размер `encar_*.db` и `*-wal` на диске (`GET /api/health?deep=1`).
+
 ## Примечания
 
 - Пути `User/Group` и `/opt/prod-encar` в `deploy/systemd/*.service` при необходимости поменяйте под свой сервер.

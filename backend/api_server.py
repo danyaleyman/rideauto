@@ -11,8 +11,11 @@ Run:
   WRA_CATALOG_LIST_CACHE=0 — отключить кэш ленты.
   Публичные GET /api/cars, /api/facets, /api/stats, /api/sort, /api/car/* — weak ETag + ответ 304 при If-None-Match (меньше трафика за прокси/CDN).
   Лимиты: WRA_RATE_LIMIT_GET_CARS_PER_MINUTE, WRA_RATE_LIMIT_GET_FACETS_PER_MINUTE (0 = выкл.).
+  Глубокий offset: WRA_CATALOG_MAX_PAGE_OFFSET_ANON (по умолчанию 80; -1 = выкл.), без cursor для анонимов;
+    авторизованные: WRA_CATALOG_MAX_PAGE_OFFSET_AUTH (0 = без лимита при валидной сессии).
   Sitemap: WRA_SITEMAP_MAX_URLS — URL на часть; индекс /api/sitemap/index.xml.
-  Метрики: GET /api/metrics — только при WRA_PROMETHEUS_METRICS=1.
+  Метрики: GET /api/metrics — только при WRA_PROMETHEUS_METRICS=1 (см. также wra_http_request_duration_ms_p95).
+  Каталог в этом процессе — SQLite (отдельная БД Китая). PostgreSQL в пайплайне обновления; перенос чтения каталога в PG — отдельный объём (дублирование SQL/json).
 """
 from __future__ import annotations
 
@@ -31,7 +34,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from html import escape as html_escape_attr
-from collections import defaultdict
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 from urllib.parse import quote, urlencode
@@ -57,6 +60,7 @@ _METRICS_LOCK = threading.Lock()
 _METRIC_REQUESTS: DefaultDict[Tuple[str, str, str], int] = defaultdict(int)  # (method, path_group, status)
 _METRIC_DURATION_MS_SUM: DefaultDict[str, float] = defaultdict(float)  # path_group
 _METRIC_DURATION_MS_COUNT: DefaultDict[str, int] = defaultdict(int)
+_METRIC_DURATION_SAMPLES: DefaultDict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
 _METRIC_304_COUNT = 0
 
 _CAR_HTML_TEMPLATE_MTNS: Optional[int] = None
@@ -70,7 +74,7 @@ _CATALOG_INDEX_STATE: dict[str, int] = {}
 _FACETS_CACHE_LOCK = threading.Lock()
 # In-process TTL cache: повторные /api/facets с тем же query мгновенны (как edge/SWR у крупных площадок).
 _FACETS_RESULT_CACHE: Dict[Tuple[str, Tuple[Tuple[str, str], ...]], Tuple[float, Dict[str, Any]]] = {}
-_FACETS_CACHE_TTL_SEC = float(os.environ.get("WRA_FACETS_CACHE_TTL", "120"))
+_FACETS_CACHE_TTL_SEC = float(os.environ.get("WRA_FACETS_CACHE_TTL", "300"))
 _FACETS_CACHE_MAX_ENTRIES = max(32, int(os.environ.get("WRA_FACETS_CACHE_MAX", "512")))
 
 _CATALOG_LIST_CACHE_LOCK = threading.Lock()
@@ -415,6 +419,69 @@ def _load_user_by_token(conn: sqlite3.Connection, token: str) -> Optional[sqlite
     conn.execute("UPDATE user_sessions SET last_seen_at = ? WHERE token = ?", [now, token])
     conn.commit()
     return row
+
+
+def _session_exists(conn: sqlite3.Connection, token: str) -> bool:
+    """Проверка сессии без UPDATE last_seen (для лёгких порогов вроде лимита page)."""
+    if not token:
+        return False
+    r = conn.execute(
+        "SELECT 1 AS o FROM user_sessions WHERE token = ? AND expires_at > ? LIMIT 1",
+        [token, _now_iso()],
+    ).fetchone()
+    return r is not None
+
+
+def _env_int_signed(name: str, default: int) -> int:
+    """Целое из env, в т.ч. отрицательное (-1 = выключить лимит в guard каталога)."""
+    try:
+        raw = (os.environ.get(name) or "").strip()
+        if raw == "":
+            return default
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _cars_offset_page_guard(request: web.Request, q: Dict[str, str]) -> Optional[web.Response]:
+    """Дорогой OFFSET на SQLite без keyset: режем глубину page для анонимов (см. env)."""
+    if (q.get("cursor") or "").strip():
+        return None
+    anon_cap = _env_int_signed("WRA_CATALOG_MAX_PAGE_OFFSET_ANON", 80)
+    if anon_cap < 0:
+        return None
+    auth_cap = _env_int_signed("WRA_CATALOG_MAX_PAGE_OFFSET_AUTH", 0)
+    try:
+        page = int((q.get("page") or "1").strip() or "1")
+    except ValueError:
+        return None
+    if page <= anon_cap:
+        return None
+    token = _parse_bearer_token(request)
+    conn: sqlite3.Connection = request.app[APP_DB]
+    if not token or not _session_exists(conn, token):
+        return web.json_response(
+            {
+                "error": "deep_pagination_requires_cursor",
+                "detail": "Для страниц с большим номером используйте курсор из meta.next_cursor (листание «вперёд») или войдите.",
+                "max_page": anon_cap,
+            },
+            status=400,
+            headers={"Cache-Control": "no-store"},
+        )
+    if auth_cap == 0:
+        return None
+    if page > auth_cap:
+        return web.json_response(
+            {
+                "error": "deep_pagination_requires_cursor",
+                "detail": f"Превышен лимит нумерации страниц ({auth_cap}). Используйте meta.next_cursor.",
+                "max_page": auth_cap,
+            },
+            status=400,
+            headers={"Cache-Control": "no-store"},
+        )
+    return None
 
 
 def _auth_user_or_401(request: web.Request) -> Tuple[Optional[sqlite3.Connection], Optional[sqlite3.Row], Optional[web.Response]]:
@@ -1377,6 +1444,18 @@ def _health_sqlite_probe(db_path: str) -> Dict[str, Any]:
     try:
         st = Path(db_path).stat()
         out["bytes"] = int(st.st_size)
+        wal_p = Path(f"{db_path}-wal")
+        shm_p = Path(f"{db_path}-shm")
+        try:
+            if wal_p.is_file():
+                out["wal_bytes"] = int(wal_p.stat().st_size)
+        except OSError:
+            pass
+        try:
+            if shm_p.is_file():
+                out["shm_bytes"] = int(shm_p.stat().st_size)
+        except OSError:
+            pass
     except OSError as e:
         out["stat_error"] = str(e)[:160]
         return out
@@ -1716,6 +1795,12 @@ async def prometheus_metrics(_: web.Request) -> web.Response:
             s = _METRIC_DURATION_MS_SUM[grp]
             c = max(1, _METRIC_DURATION_MS_COUNT[grp])
             lines.append(f'wra_http_request_duration_ms_avg{{route_group="{grp}"}} {s / c:.3f}')
+        for grp, samples in sorted(_METRIC_DURATION_SAMPLES.items()):
+            if not samples:
+                continue
+            arr = sorted(samples)
+            idx = min(len(arr) - 1, max(0, int(round(0.95 * (len(arr) - 1)))))
+            lines.append(f'wra_http_request_duration_ms_p95{{route_group="{grp}"}} {float(arr[idx]):.3f}')
     body = ("\n".join(lines) + "\n").encode("utf-8")
     return web.Response(body=body, content_type="text/plain", charset="utf-8")
 
@@ -1737,6 +1822,9 @@ async def api_version(_: web.Request) -> web.Response:
 
 async def cars(request: web.Request) -> web.Response:
     q = {k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()}
+    guard = _cars_offset_page_guard(request, q)
+    if guard is not None:
+        return guard
     slim = (q.get("full") or "").strip() != "1"
     korea_db = request.app[APP_DB_PATH]
     china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
@@ -1779,7 +1867,7 @@ async def facets(request: web.Request) -> web.Response:
             headers={"Cache-Control": "no-store"},
         )
     # Долгий stale-while-revalidate: браузер/CDN отдают прошлый JSON мгновенно, пока идёт фоновое обновление.
-    return _json_public_cache(payload, "public, max-age=45, stale-while-revalidate=86400", request=request)
+    return _json_public_cache(payload, "public, max-age=120, stale-while-revalidate=86400", request=request)
 
 
 async def catalog_stats(request: web.Request) -> web.Response:
@@ -2560,9 +2648,10 @@ def create_app(db_path: str, china_db_path: Optional[str] = None) -> web.Applica
                 _METRIC_REQUESTS[(request.method, grp, st)] += 1
                 if resp.status == 304:
                     _METRIC_304_COUNT += 1
-                if grp in ("cars", "facets"):
+                if grp in ("cars", "facets", "car"):
                     _METRIC_DURATION_MS_SUM[grp] += dt_ms
                     _METRIC_DURATION_MS_COUNT[grp] += 1
+                    _METRIC_DURATION_SAMPLES[grp].append(dt_ms)
         return resp
 
     app = web.Application(

@@ -271,6 +271,59 @@ async def test_cars_first_page(test_app):
 
 
 @pytest.mark.asyncio
+async def test_cars_deep_page_without_cursor_rejected_for_anon(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        r = await client.get("/api/cars", params={"page": "100", "per_page": "12"})
+        assert r.status == 400
+        j = await r.json()
+        assert j.get("error") == "deep_pagination_requires_cursor"
+
+
+@pytest.mark.asyncio
+async def test_cars_deep_page_allowed_when_guard_disabled(test_app, monkeypatch):
+    monkeypatch.setenv("WRA_CATALOG_MAX_PAGE_OFFSET_ANON", "-1")
+    async with TestClient(TestServer(test_app)) as client:
+        r = await client.get("/api/cars", params={"page": "100", "per_page": "12"})
+        assert r.status == 200
+
+
+@pytest.mark.asyncio
+async def test_health_deep_includes_wal_fields_when_present(test_app, cars_db_path, monkeypatch):
+    monkeypatch.setenv("WRA_HEALTH_DEEP", "1")
+    from pathlib import Path
+
+    wal = Path(str(cars_db_path) + "-wal")
+    wal.write_bytes(b"")
+    try:
+        async with TestClient(TestServer(test_app)) as client:
+            resp = await client.get("/api/health")
+            assert resp.status == 200
+            data = await resp.json()
+            probe = data.get("catalog_db") or {}
+            assert probe.get("wal_bytes") is not None
+    finally:
+        try:
+            wal.unlink()
+        except OSError:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_prometheus_metrics_includes_p95(test_app, monkeypatch):
+    monkeypatch.setenv("WRA_PROMETHEUS_METRICS", "1")
+    with api_server._METRICS_LOCK:
+        api_server._METRIC_DURATION_SAMPLES.clear()
+        api_server._METRIC_DURATION_MS_SUM.clear()
+        api_server._METRIC_DURATION_MS_COUNT.clear()
+    async with TestClient(TestServer(test_app)) as client:
+        assert (await client.get("/api/cars", params={"page": "1", "per_page": "5"})).status == 200
+        resp = await client.get("/api/metrics")
+        assert resp.status == 200
+        body = await resp.text()
+    assert 'wra_http_request_duration_ms_p95{route_group="cars"}' in body
+
+
+@pytest.mark.asyncio
 async def test_cars_slim_page1_memo_calls_sql_once(test_app, monkeypatch):
     calls = {"n": 0}
     orig = api_server._cars_catalog_sync

@@ -138,9 +138,9 @@
       }
     }
     /**
-     * Фолбэк: скачать целиком cars.json в браузер. На проде при ~100k+ машин это гигабайты → OOM и «Aw Snap».
-     * По умолчанию разрешён только если API на другом origin (WRA_API_BASE не пустой): тогда локальный cars.json часто маленький снапшот.
-     * Чисто статический каталог без API: задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true до catalog.js (и держите выгрузку небольшой или задайте лимит).
+     * Фолбэк: скачать целиком cars.json в браузер. На ~500k строк каталога — OOM в табе.
+     * Разрешено только явно (WRA_ALLOW_CATALOG_JSON_FALLBACK=true) или на localhost / *.local для разработки.
+     * Прод: same-origin API без тяжёлого JSON (установите WRA_CATALOG_API_ONLY=true для жёсткого запрета).
      */
     function allowCarsJsonFallback() {
       if (CATALOG_REGION === 'china')
@@ -148,7 +148,14 @@
       if (typeof window.WRA_ALLOW_CATALOG_JSON_FALLBACK === 'boolean') {
         return window.WRA_ALLOW_CATALOG_JSON_FALLBACK;
       }
-      return API_BASE !== '';
+      if (window.WRA_CATALOG_API_ONLY === true)
+        return false;
+      try {
+        var h = (window.location.hostname || '').toLowerCase();
+        if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.local'))
+          return true;
+      } catch (e) { /* ignore */ }
+      return false;
     }
     var CATALOG_JSON_FALLBACK_MAX_BYTES =
       typeof window.WRA_CATALOG_JSON_FALLBACK_MAX_BYTES === 'number' && window.WRA_CATALOG_JSON_FALLBACK_MAX_BYTES > 0
@@ -1624,8 +1631,24 @@
           throw eF;
         }
         clearTimeout(carsTimeoutId);
-        if (!res.ok) throw new Error('cars HTTP ' + res.status);
-        const data = await res.json();
+        var data;
+        try {
+          data = await res.json();
+        } catch (eJson) {
+          if (!res.ok) throw new Error('cars HTTP ' + res.status);
+          throw eJson;
+        }
+        if (!res.ok) {
+          var msg = 'cars HTTP ' + res.status;
+          if (data && typeof data === 'object' && data.error === 'deep_pagination_requires_cursor') {
+            msg =
+              String(
+                data.detail ||
+                  'Глубокая пагинация: листайте «Далее» по страницам или откройте каталог с начала (курсор в API).'
+              );
+          }
+          throw new Error(msg);
+        }
         if (reqId !== catalogRequestId) return;
         const parsed = parseCarsApiPayload(data);
         pageCars = parsed.list;

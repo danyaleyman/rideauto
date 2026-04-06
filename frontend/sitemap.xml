@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Основной индекс генерируется API: /api/sitemap/index.xml (шардированный каталог). Этот файл — фолбэх редирект в nginx или дубль для совместимости. -->
+<!-- Прод: основной индекс на диске (cron) — /sitemap-gen/sitemap-index.xml; здесь — совместимость. -->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://rideauto.ru/sitemap-gen/sitemap-index.xml</loc>
+  </sitemap>
   <sitemap>
     <loc>https://rideauto.ru/api/sitemap/index.xml</loc>
   </sitemap>
