@@ -20,7 +20,7 @@
     <!-- Не preload /api/*: при недоступном бэкенде браузер долго держит соединения и блокирует fetch из catalog.js (лимит HTTP/1.1). -->
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
-    <link rel="preload" href="js/catalog.js?v=20260408" as="script">
+    <link rel="preload" href="js/catalog.js?v=20260409" as="script">
     <script>
       (function () {
         try {
@@ -633,6 +633,7 @@
       box-shadow: var(--shadow-sm);
       flex: 0 0 auto;
       position: relative;
+      pointer-events: none;
     }
     .checkbox:hover .checkbox__control { border-color: var(--toggle-border-hover); }
     .checkbox[data-selected="true"] .checkbox__control {
@@ -650,6 +651,7 @@
       width: 0.75rem;
       height: 0.75rem;
       color: var(--toggle-inner);
+      pointer-events: none;
     }
     .checkbox__indicator svg {
       width: 100%;
@@ -1029,17 +1031,18 @@
       padding: 10px 12px;
       font-size: 0.8125rem;
       font-weight: 600;
-      color: var(--wra-gray-800);
+      color: var(--wra-primary);
       background: var(--wra-white);
-      border: 1px solid var(--wra-gray-300);
+      border: 1px solid rgba(59, 130, 246, 0.35);
       border-radius: var(--radius-md);
       cursor: pointer;
       transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, border-style 0.2s ease;
       width: 100%;
     }
     .show-more-colors-btn:hover {
-      background: var(--wra-gray-100);
-      border-color: var(--wra-gray-400);
+      background: var(--wra-primary-light);
+      border-color: var(--wra-primary);
+      color: var(--wra-primary-hover, #2563eb);
     }
     .show-more-colors-btn:focus-visible {
       outline: none;
@@ -1062,11 +1065,13 @@
     }
     .color-modal-overlay.is-open { display: flex; opacity: 1; }
     .color-modal {
+      position: relative;
+      z-index: 1;
       background: var(--wra-surface);
       border-radius: var(--radius-xl);
-      max-width: 400px;
+      max-width: min(720px, calc(100vw - 32px));
       width: 100%;
-      max-height: 80vh;
+      max-height: 90vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -1088,13 +1093,17 @@
     .color-modal-list {
       padding: var(--space-4) var(--space-6) var(--space-6);
       overflow-y: auto;
-      max-height: 60vh;
+      max-height: min(72vh, 560px);
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       column-gap: var(--space-4);
-      scrollbar-width: none;
+      scrollbar-width: thin;
     }
-    .color-modal-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    .color-modal-list::-webkit-scrollbar { width: 8px; height: 8px; }
+    .color-modal-list::-webkit-scrollbar-thumb {
+      background: var(--wra-gray-300);
+      border-radius: 4px;
+    }
     .color-modal-list .checkbox-item { margin-bottom: var(--space-2); break-inside: avoid; }
     @media (max-width: 520px) {
       .color-modal-list {
@@ -2580,12 +2589,12 @@
         </div>
       </div>
       <!-- 2. Модель -->
-      <div class="filter-cascade-slot is-revealed" id="cascadeSlotModel" aria-hidden="false">
+      <div class="filter-cascade-slot" id="cascadeSlotModel" aria-hidden="true">
         <div class="filter-cascade-slot__inner">
           <div class="filter-group">
             <h4>Модель</h4>
             <div class="filter-dropdown" id="modelDropdown">
-              <button type="button" class="filter-dropdown-trigger" id="modelTrigger" aria-expanded="false">Все модели</button>
+              <button type="button" class="filter-dropdown-trigger" id="modelTrigger" aria-expanded="false" disabled><span class="trigger-placeholder">Сначала выберите марку</span></button>
               <div class="filter-dropdown-panel" id="modelPanel">
                 <div class="checkbox-list filter-dropdown-list" id="modelList"></div>
               </div>
@@ -2595,12 +2604,12 @@
       </div>
       <div class="wra-filters-region wra-filters-region--korea">
       <!-- 3. Поколение -->
-      <div class="filter-cascade-slot is-revealed" id="cascadeSlotGeneration" aria-hidden="false">
+      <div class="filter-cascade-slot" id="cascadeSlotGeneration" aria-hidden="true">
         <div class="filter-cascade-slot__inner">
           <div class="filter-group">
             <h4>Поколение</h4>
             <div class="filter-dropdown" id="generationDropdown">
-              <button type="button" class="filter-dropdown-trigger" id="generationTrigger" aria-expanded="false">Все поколения</button>
+              <button type="button" class="filter-dropdown-trigger" id="generationTrigger" aria-expanded="false" disabled><span class="trigger-placeholder">Сначала выберите модель</span></button>
               <div class="filter-dropdown-panel" id="generationPanel">
                 <div class="checkbox-list filter-dropdown-list" id="generationList"></div>
               </div>
@@ -2609,12 +2618,12 @@
         </div>
       </div>
       <!-- 4. Комплектация -->
-      <div class="filter-cascade-slot is-revealed" id="cascadeSlotTrim" aria-hidden="false">
+      <div class="filter-cascade-slot" id="cascadeSlotTrim" aria-hidden="true">
         <div class="filter-cascade-slot__inner">
           <div class="filter-group">
             <h4>Комплектация</h4>
             <div class="filter-dropdown" id="trimDropdown">
-              <button type="button" class="filter-dropdown-trigger" id="trimTrigger" aria-expanded="false">Все комплектации</button>
+              <button type="button" class="filter-dropdown-trigger" id="trimTrigger" aria-expanded="false" disabled><span class="trigger-placeholder">Сначала выберите поколение</span></button>
               <div class="filter-dropdown-panel" id="trimPanel">
                 <div class="checkbox-list filter-dropdown-list" id="trimList"></div>
               </div>
@@ -2904,7 +2913,7 @@
   else scrollToCatalogIfPath();
 })();
 </script>
-<script src="js/catalog.js?v=20260408" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/catalog.js?v=20260409" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
 <script src="js/header-init.js?v=20260410" defer></script>
 <script src="js/cookie-consent.js?v=20260421" defer></script>
 

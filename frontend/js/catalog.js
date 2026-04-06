@@ -1249,10 +1249,11 @@
       colorModalList.innerHTML = '';
       const restColors = allColors.slice(4);
 
-      function appendColor(container, val, idPrefix) {
+      function appendColor(container, val, idPrefix, idx) {
         const div = document.createElement('div');
         div.className = 'checkbox-item';
-        const id = idPrefix + String(val).replace(/\s/g, '_');
+        const safe = String(val).replace(/[^\w\-]/g, '_').slice(0, 80);
+        const id = idPrefix + idx + '_' + safe;
         const labelText = filterOptionLabel(val, 'color');
         const group = colorByLabel[String(labelText).trim().toLowerCase()];
         const cnt = group ? group.count : (countMap[val] || 0);
@@ -1260,8 +1261,8 @@
         div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText) + suffix, null);
         container.appendChild(div);
       }
-      allColors.slice(0, 4).forEach(function(val) { appendColor(colorListVisible, val, 'filter-color-'); });
-      allColors.forEach(function(val) { appendColor(colorModalList, val, 'filter-color-modal-'); });
+      allColors.slice(0, 4).forEach(function(val, idx) { appendColor(colorListVisible, val, 'filter-color-', idx); });
+      allColors.forEach(function(val, idx) { appendColor(colorModalList, val, 'filter-color-modal-', idx); });
 
       document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
         cb.checked = preserve.has(cb.value);
@@ -1286,9 +1287,6 @@
       cascade(modelListEl, data.models, 'model', 'model', modelTrigger, 'Все модели');
       cascade(generationListEl, data.generations, 'generation', 'generation', generationTrigger, 'Все поколения');
       cascade(trimListEl, data.trims, 'trim', 'trim', trimTrigger, 'Все комплектации');
-      if (modelTrigger) modelTrigger.disabled = false;
-      if (generationTrigger) generationTrigger.disabled = false;
-      if (trimTrigger) trimTrigger.disabled = false;
 
       renderFacetCheckboxList(document.getElementById('bodyList'), data.bodies || [], 'body', 'bodyType');
       renderFacetCheckboxList(document.getElementById('fuelList'), data.fuels || [], 'fuel', 'engineType');
@@ -1297,54 +1295,6 @@
 
       syncCascadeSlotVisibility();
       scheduleRepositionOpenCascadePanels();
-    }
-
-    /**
-     * Сначала catalog_facets.json (Корея); если нет марок — один запрос /api/facets (без параллели → в DevTools не «canceled»).
-     */
-    async function tryHydrateFacetsWithWarmup(reqId, jsonPromise) {
-      if (reqId !== catalogRequestId) return false;
-      syncCatalogMarketFromLocation();
-      if (CATALOG_SOURCE !== 'encar') return false;
-      try {
-        var data = await jsonPromise;
-        if (reqId !== catalogRequestId) return true;
-        if (data && typeof data === 'object' && Array.isArray(data.marks)) {
-          applyFacetsApiPayload(data, reqId);
-          return true;
-        }
-      } catch (e) {}
-      try {
-        var res = await fetch(apiUrl('/api/facets?' + buildCatalogFilterParams().toString()), catalogApiFetchInit());
-        if (reqId !== catalogRequestId) return true;
-        if (!res.ok) return false;
-        var fromApi = await res.json();
-        if (reqId !== catalogRequestId) return true;
-        if (fromApi && typeof fromApi === 'object' && Array.isArray(fromApi.marks) && !fromApi.error) {
-          applyFacetsApiPayload(fromApi, reqId);
-          return true;
-        }
-      } catch (e2) {}
-      return false;
-    }
-
-    async function revalidateFacetsFromApiIfStillDefault(bootToken) {
-      var rid = bootToken;
-      if (rid !== catalogRequestId) return;
-      syncCatalogMarketFromLocation();
-      if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) return;
-      try {
-        if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
-        var params = buildCatalogFilterParams();
-        var res = await fetch(apiUrl('/api/facets?' + params.toString()), catalogApiFetchInit());
-        if (!res.ok) return;
-        var data = await res.json();
-        if (rid !== catalogRequestId) return;
-        if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
-        applyFacetsApiPayload(data, rid);
-      } catch (e) {
-        if (rid === catalogRequestId) console.warn('[catalog] facet revalidate failed', e);
-      }
     }
 
     function refreshFacetsFromStaticCache(expectedParamSnap) {
@@ -1416,9 +1366,6 @@
       cascade(modelListEl, facetMapToRows(maps.models), 'model', 'model', modelTrigger, 'Все модели');
       cascade(generationListEl, facetMapToRows(maps.generations), 'generation', 'generation', generationTrigger, 'Все поколения');
       cascade(trimListEl, facetMapToRows(maps.trims), 'trim', 'trim', trimTrigger, 'Все комплектации');
-      if (modelTrigger) modelTrigger.disabled = false;
-      if (generationTrigger) generationTrigger.disabled = false;
-      if (trimTrigger) trimTrigger.disabled = false;
       renderFacetCheckboxList(document.getElementById('bodyList'), facetMapToRows(maps.body), 'body', 'bodyType');
       renderFacetCheckboxList(document.getElementById('fuelList'), facetMapToRows(maps.fuel), 'fuel', 'engineType');
       renderFacetCheckboxList(document.getElementById('transmissionList'), facetMapToRows(maps.trans), 'transmission', 'transmission');
@@ -1672,6 +1619,7 @@
     async function runApplyFilters() {
       const reqId = ++catalogRequestId;
       page = 1;
+      syncCascadeSlotVisibility();
       scheduleFacetRefresh(reqId);
       try {
         await loadCarsPage(1, reqId);
@@ -2200,14 +2148,8 @@
           var df = t.getAttribute('data-filter');
           if (df === 'mark' || df === 'model' || df === 'generation' || df === 'trim') return;
           if (df === 'color') {
-            var byValue = {};
-            document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
-              byValue[cb.value] = byValue[cb.value] || cb.checked;
-            });
-            document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
-              cb.checked = !!byValue[cb.value];
-            });
-            syncCheckboxVisualStates(document);
+            syncAllColorCheckboxStates();
+            updateFilterCountBadge();
             void runApplyFilters();
             return;
           }
@@ -2269,7 +2211,14 @@
         markListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'mark') return;
           closeAllDropdowns();
+          clearFacetCheckboxes(modelListEl);
+          clearFacetCheckboxes(generationListEl);
+          clearFacetCheckboxes(trimListEl);
           setDropdownTriggerText(markTrigger, markListEl, 'mark', 'Все марки');
+          setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
+          setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
+          setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+          syncCascadeSlotVisibility();
           void runApplyFilters();
         });
       }
@@ -2277,7 +2226,12 @@
         modelListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'model') return;
           closeAllDropdowns();
+          clearFacetCheckboxes(generationListEl);
+          clearFacetCheckboxes(trimListEl);
           setDropdownTriggerText(modelTrigger, modelListEl, 'model', 'Все модели');
+          setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
+          setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+          syncCascadeSlotVisibility();
           void runApplyFilters();
         });
       }
@@ -2285,7 +2239,10 @@
         generationListEl.addEventListener('change', function(e) {
           if (!e.target || e.target.getAttribute('data-filter') !== 'generation') return;
           closeAllDropdowns();
+          clearFacetCheckboxes(trimListEl);
           setDropdownTriggerText(generationTrigger, generationListEl, 'generation', 'Все поколения');
+          setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+          syncCascadeSlotVisibility();
           void runApplyFilters();
         });
       }
@@ -2294,6 +2251,7 @@
           if (!e.target || e.target.getAttribute('data-filter') !== 'trim') return;
           closeAllDropdowns();
           setDropdownTriggerText(trimTrigger, trimListEl, 'trim', 'Все комплектации');
+          syncCascadeSlotVisibility();
           void runApplyFilters();
         });
       }
@@ -2313,7 +2271,16 @@
 
       initFilterSectionToggles();
 
-      if (!markListEl) syncCascadeSlotVisibility();
+      syncCascadeSlotVisibility();
+
+      document.addEventListener('change', function(e) {
+        var t = e.target;
+        if (!t || t.type !== 'checkbox' || t.getAttribute('data-filter') !== 'color') return;
+        if (!t.closest('#colorModalList')) return;
+        syncAllColorCheckboxStates();
+        updateFilterCountBadge();
+        void runApplyFilters();
+      });
     }
 
     function escapeHtml(s) {
@@ -2330,6 +2297,21 @@
       });
       return out;
     }
+    function clearFacetCheckboxes(container) {
+      if (!container) return;
+      container.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+    }
+    function syncAllColorCheckboxStates() {
+      var byValue = {};
+      document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
+        if (byValue[cb.value] === undefined) byValue[cb.value] = false;
+        byValue[cb.value] = byValue[cb.value] || cb.checked;
+      });
+      document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) {
+        cb.checked = !!byValue[cb.value];
+      });
+      syncCheckboxVisualStates(document);
+    }
 
     function closeFilterDropdownPair(trigger, panel) {
       if (!trigger || !panel) return;
@@ -2345,20 +2327,46 @@
     }
 
     function syncCascadeSlotVisibility() {
-      const slotModel = document.getElementById('cascadeSlotModel');
-      const slotGen = document.getElementById('cascadeSlotGeneration');
-      const slotTrim = document.getElementById('cascadeSlotTrim');
+      var marks = getSelectedValues(markListEl, 'mark');
+      var models = getSelectedValues(modelListEl, 'model');
+      var gens = getSelectedValues(generationListEl, 'generation');
+      var slotModel = document.getElementById('cascadeSlotModel');
+      var slotGen = document.getElementById('cascadeSlotGeneration');
+      var slotTrim = document.getElementById('cascadeSlotTrim');
       if (slotModel) {
-        slotModel.classList.add('is-revealed');
-        slotModel.setAttribute('aria-hidden', 'false');
+        var showM = marks.size > 0;
+        slotModel.classList.toggle('is-revealed', showM);
+        slotModel.setAttribute('aria-hidden', showM ? 'false' : 'true');
       }
       if (slotGen) {
-        slotGen.classList.add('is-revealed');
-        slotGen.setAttribute('aria-hidden', 'false');
+        var showG = marks.size > 0 && models.size > 0;
+        slotGen.classList.toggle('is-revealed', showG);
+        slotGen.setAttribute('aria-hidden', showG ? 'false' : 'true');
       }
       if (slotTrim) {
-        slotTrim.classList.add('is-revealed');
-        slotTrim.setAttribute('aria-hidden', 'false');
+        var showT = marks.size > 0 && models.size > 0 && gens.size > 0;
+        slotTrim.classList.toggle('is-revealed', showT);
+        slotTrim.setAttribute('aria-hidden', showT ? 'false' : 'true');
+      }
+      if (modelTrigger) {
+        modelTrigger.disabled = marks.size === 0;
+        if (marks.size === 0) {
+          modelTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите марку</span>';
+        }
+      }
+      if (generationTrigger) {
+        var disG = marks.size === 0 || models.size === 0;
+        generationTrigger.disabled = disG;
+        if (disG) {
+          generationTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите модель</span>';
+        }
+      }
+      if (trimTrigger) {
+        var disT = marks.size === 0 || models.size === 0 || gens.size === 0;
+        trimTrigger.disabled = disT;
+        if (disT) {
+          trimTrigger.innerHTML = '<span class="trigger-placeholder">Сначала выберите поколение</span>';
+        }
       }
     }
 
@@ -2405,9 +2413,6 @@
         if (container) container.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
       });
       if (markTrigger) markTrigger.innerHTML = '<span class="trigger-placeholder">Все марки</span>';
-      if (modelTrigger) { modelTrigger.disabled = false; modelTrigger.innerHTML = '<span class="trigger-placeholder">Все модели</span>'; }
-      if (generationTrigger) { generationTrigger.disabled = false; generationTrigger.innerHTML = '<span class="trigger-placeholder">Все поколения</span>'; }
-      if (trimTrigger) { trimTrigger.disabled = false; trimTrigger.innerHTML = '<span class="trigger-placeholder">Все комплектации</span>'; }
       document.querySelectorAll('#bodyList input[type=checkbox], #fuelList input[type=checkbox], #transmissionList input[type=checkbox], .drive-checkbox-wrap input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
       document.querySelectorAll('input[data-filter="color"]').forEach(function(cb) { cb.checked = false; });
       var ids = ['powerFrom', 'powerTo', 'engineFrom', 'engineTo', 'yearFrom', 'monthFrom', 'yearTo', 'monthTo', 'priceFrom', 'priceTo', 'mileageFrom', 'mileageTo', 'insuranceCasesFrom', 'insuranceCasesTo', 'insurancePayoutsFrom', 'insurancePayoutsTo', 'damagedFrom', 'damagedTo'];
@@ -2419,6 +2424,7 @@
       chk = document.getElementById('filterNoDamaged'); if (chk) chk.checked = false;
       chk = document.getElementById('filterPassageCars'); if (chk) chk.checked = false;
       syncCheckboxVisualStates(document);
+      syncCascadeSlotVisibility();
       void runApplyFilters();
     }
 
@@ -2534,10 +2540,6 @@
           });
         }
 
-        var facetsJsonPrefetch = fetch('data/catalog_facets.json', { cache: 'default' })
-          .then(function(r) { return r.ok ? r.json() : null; })
-          .catch(function() { return null; });
-
         await loadCarsPage(wantPage, reqId);
         if (reqId !== catalogRequestId) return;
         if (wantPage > catalogPages && catalogPages >= 1) {
@@ -2546,24 +2548,7 @@
         }
 
         var facetReq = catalogRequestId;
-        if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
-          scheduleFacetRefresh(facetReq);
-        } else if (
-          CATALOG_SOURCE === 'encar' &&
-          buildCatalogFilterParamsSansDefaultSource().toString() === ''
-        ) {
-          tryHydrateFacetsWithWarmup(facetReq, facetsJsonPrefetch).then(function(used) {
-            if (facetReq !== catalogRequestId) return;
-            if (!used) scheduleFacetRefresh(facetReq);
-            else {
-              setTimeout(function() {
-                void revalidateFacetsFromApiIfStillDefault(facetReq);
-              }, 3500);
-            }
-          });
-        } else {
-          scheduleFacetRefresh(facetReq);
-        }
+        scheduleFacetRefresh(facetReq);
 
         if (needStats) {
           try {
