@@ -86,8 +86,8 @@ paths:
           schema: { type: string }
         - name: source
           in: query
-          description: "Источник каталога — encar, che168 или dongchedi (по умолчанию без фильтра — все записи)"
-          schema: { type: string, enum: [che168, dongchedi, encar] }
+          description: "encar | che168 | dongchedi | china (china = оба китайских источника). Без параметра — все записи"
+          schema: { type: string, enum: [che168, dongchedi, encar, china] }
       responses:
         "200":
           description: JSON каталога
@@ -102,8 +102,8 @@ paths:
       parameters:
         - name: source
           in: query
-          description: "Сужает выборку как у /api/cars (che168 | dongchedi | encar)"
-          schema: { type: string, enum: [che168, dongchedi, encar] }
+          description: "Как у /api/cars: che168 | dongchedi | encar | china"
+          schema: { type: string, enum: [che168, dongchedi, encar, china] }
       responses:
         "200":
           content:

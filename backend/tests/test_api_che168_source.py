@@ -95,6 +95,17 @@ async def test_cars_source_dongchedi_only(cars_db_mixed: str):
 
 
 @pytest.mark.asyncio
+async def test_cars_source_china_union_che168_and_dongchedi(cars_db_mixed: str):
+    app = create_app(cars_db_mixed)
+    async with TestClient(TestServer(app)) as client:
+        r = await client.get("/api/cars", params={"page": "1", "per_page": "20", "source": "china"})
+        assert r.status == 200
+        data = await r.json()
+        ids = {x.get("id") for x in (data.get("result") or [])}
+        assert ids == {"che168-99", "dongchedi-7"}
+
+
+@pytest.mark.asyncio
 async def test_facets_respects_source_che168(cars_db_mixed: str):
     app = create_app(cars_db_mixed)
     async with TestClient(TestServer(app)) as client:

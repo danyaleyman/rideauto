@@ -13,8 +13,8 @@
     let staticCatalogCache = null;
     const API_BASE = (typeof window.WRA_API_BASE === 'string' ? window.WRA_API_BASE : '').replace(/\/+$/, '');
     /**
-     * Рынок: Корея → API `source=encar`, Китай → `source=dongchedi` (или устар. `che168` для старых данных).
-     * URL: `?region=korea|china` или `?source=dongchedi|che168`. Переопределение: `window.WRA_CATALOG_SOURCE`.
+     * Рынок: Корея → `source=encar`. Китай: `?region=china` → `source=china` (che168+dongchedi в БД);
+     * узко — `?source=che168` или `?source=dongchedi`. Переопределение: `window.WRA_CATALOG_SOURCE`.
      */
     var CATALOG_REGION = 'korea';
     let CATALOG_SOURCE = 'encar';
@@ -24,15 +24,19 @@
         if (w) {
           CATALOG_SOURCE = w;
           var wl = w.toLowerCase();
-          CATALOG_REGION = wl === 'che168' || wl === 'dongchedi' ? 'china' : 'korea';
+          CATALOG_REGION = wl === 'che168' || wl === 'dongchedi' || wl === 'china' ? 'china' : 'korea';
           return;
         }
         var sp = new URLSearchParams(window.location.search || '');
         var srcQ = (sp.get('source') || '').toLowerCase();
         var regionChina = (sp.get('region') || '').toLowerCase() === 'china';
-        if (regionChina || srcQ === 'che168' || srcQ === 'dongchedi') {
+        if (regionChina || srcQ === 'che168' || srcQ === 'dongchedi' || srcQ === 'china') {
           CATALOG_REGION = 'china';
-          CATALOG_SOURCE = srcQ === 'che168' ? 'che168' : 'dongchedi';
+          if (srcQ === 'che168') CATALOG_SOURCE = 'che168';
+          else if (srcQ === 'dongchedi') CATALOG_SOURCE = 'dongchedi';
+          else if (srcQ === 'china') CATALOG_SOURCE = 'china';
+          else if (regionChina) CATALOG_SOURCE = 'china';
+          else CATALOG_SOURCE = 'dongchedi';
           return;
         }
         CATALOG_REGION = 'korea';
@@ -119,7 +123,8 @@
      * Чисто статический каталог без API: задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true до catalog.js (и держите выгрузку небольшой или задайте лимит).
      */
     function allowCarsJsonFallback() {
-      if (CATALOG_SOURCE === 'che168' || CATALOG_SOURCE === 'dongchedi') return false;
+      if (CATALOG_SOURCE === 'che168' || CATALOG_SOURCE === 'dongchedi' || CATALOG_SOURCE === 'china')
+        return false;
       if (typeof window.WRA_ALLOW_CATALOG_JSON_FALLBACK === 'boolean') {
         return window.WRA_ALLOW_CATALOG_JSON_FALLBACK;
       }
@@ -952,7 +957,7 @@
       if (CATALOG_REGION === 'korea' && p.get('source') === 'encar') {
         p.delete('source');
       }
-      if (CATALOG_REGION === 'china' && p.get('source') === 'dongchedi') {
+      if (CATALOG_REGION === 'china' && (p.get('source') === 'dongchedi' || p.get('source') === 'china')) {
         p.delete('source');
       }
       return p;

@@ -492,7 +492,10 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
         clauses.append(f"{age_expr} BETWEEN 3 AND 5")
 
     src = (query.get("source") or "").strip().lower()
-    if src == "che168":
+    # Вкладка «Китай» без source=… на фронте: и che168, и dongchedi (в БД часто только один из них).
+    if src == "china":
+        clauses.append("json_extract(data_json, '$.data.source') IN ('dongchedi', 'che168')")
+    elif src == "che168":
         clauses.append("json_extract(data_json, '$.data.source') = ?")
         params.append("che168")
     elif src == "dongchedi":
@@ -568,6 +571,8 @@ def _is_default_first_catalog_page(q: Dict[str, str]) -> bool:
     if src_low == "encar":
         qd.pop("source", None)
     if src_low == "dongchedi":
+        qd.pop("source", None)
+    if src_low == "china":
         qd.pop("source", None)
     if qd:
         return False
