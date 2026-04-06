@@ -1929,6 +1929,26 @@
         ]).then(function(results) {
                 buildMotorHpIndexCar(results[1]);
                 renderCar(results[0]);
+                try {
+                    var raw = results[0];
+                    var rid =
+                        raw &&
+                        (raw.id != null
+                            ? String(raw.id)
+                            : raw.inner_id != null
+                              ? String(raw.inner_id)
+                              : raw.data && raw.data.inner_id != null
+                                ? String(raw.data.inner_id)
+                                : '');
+                    if (rid) {
+                        if (window.WRAContextBar && typeof window.WRAContextBar.addRecent === 'function') {
+                            window.WRAContextBar.addRecent(rid);
+                        }
+                        if (window.WRAAnalytics && typeof window.WRAAnalytics.track === 'function') {
+                            window.WRAAnalytics.track('wra_car_view', { id: rid });
+                        }
+                    }
+                } catch (eRv) {}
             })
             .catch(function(err) {
                 console.error(err);

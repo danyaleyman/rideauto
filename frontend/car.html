@@ -37,8 +37,8 @@
       } catch (e) {}
     })();
     </script>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap"></noscript>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=optional" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=optional"></noscript>
     <!-- Пути от корня: страница открывается как /detail/{id}, иначе css/js резолвятся в /detail/css/... -->
     <link rel="stylesheet" href="/css/common.css">
     <link rel="stylesheet" href="/css/cookie-consent.css">
@@ -47,9 +47,9 @@
     <script src="/js/wra-site-config.js?v=20260421"></script>
     <!-- Версию ?v= для car-page* меняйте вместе (см. deploy/DEPLOY.md, scripts/bump-asset-version.mjs) -->
     <link rel="preload" href="/js/car-page-dicts.js?v=20260405car" as="script">
-    <link rel="preload" href="/js/car-page.js?v=20260408car" as="script">
+    <link rel="preload" href="/js/car-page.js?v=20260422car" as="script">
     <script src="/js/copy-protection.js"></script>
-    <script src="/js/auth-favorites.js?v=20260406"></script>
+    <script src="/js/auth-favorites.js?v=20260422"></script>
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin></noscript>
     <script>
@@ -2686,6 +2686,16 @@
     </div>
 </header>
 
+<div class="wra-context-bar" id="wraContextBar" hidden>
+    <div class="wra-context-bar__inner wra-container">
+        <div class="wra-context-bar__block">
+            <span class="wra-context-bar__label">Недавно:</span>
+            <span id="wraContextRecent" class="wra-context-bar__links" hidden></span>
+        </div>
+        <div class="wra-context-bar__block" id="wraContextCompare" hidden></div>
+    </div>
+</div>
+
 <main id="main-content" tabindex="-1">
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="app">
     <!-- Контент-шапка: хлебные крошки -->
@@ -2763,8 +2773,10 @@
     </div>
 </div>
 
+<script src="/js/wra-analytics.js?v=20260422"></script>
+<script src="/js/wra-context-bar.js?v=20260422"></script>
 <script src="/js/car-page-dicts.js?v=20260405car"></script>
-<script src="/js/car-page.js?v=20260408car"></script>
+<script src="/js/car-page.js?v=20260422car"></script>
 
 <!-- Футер как в index.html -->
 <div class="footer-wrap">

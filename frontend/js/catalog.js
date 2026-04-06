@@ -16,6 +16,13 @@
     /** Параметры из URL, пока DOM фасетов не совпал (как у агрегаторов: шаринг ссылки на поиск). */
     let catalogUrlBootstrapMerge = null;
     var catalogUrlSyncSuppressed = false;
+    /** Новая запись в history при смене страницы / фильтров / сортировки (не при первом replace). */
+    var catalogHistoryPushPending = false;
+    /** Макс. карточек в сетке при режиме «Показать ещё» (производительность). */
+    var CATALOG_MAX_GRID_CARDS =
+      typeof window.WRA_CATALOG_MAX_GRID_CARDS === 'number' && window.WRA_CATALOG_MAX_GRID_CARDS >= 24
+        ? window.WRA_CATALOG_MAX_GRID_CARDS
+        : 72;
     var CATALOG_URL_KEYS = new Set([
       'marks', 'models', 'generations', 'trims', 'body', 'fuel', 'trans', 'color',
       'power_from', 'power_to', 'engine_from', 'engine_to', 'price_from', 'price_to', 'mileage_from', 'mileage_to',
@@ -128,10 +135,10 @@
       gridEl.setAttribute('aria-busy', 'false');
       var esc = (typeof message === 'string' ? message : '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
       var sub =
-        '<p style="margin:12px 0 0;font-size:0.875rem;color:var(--wra-text-muted);">Если проблема не проходит, проверьте <code>/api/health</code> и нагрузку на сервер.</p>';
+        '<p class="wra-ui-state--muted">Если проблема не проходит, проверьте <code>/api/health</code> и нагрузку на сервер.</p>';
       gridEl.innerHTML =
-        '<div class="catalog-error-banner" style="grid-column:1/-1;text-align:center;padding:40px;background:var(--wra-surface);border-radius:24px;border:1px solid var(--wra-border);">' +
-        '<p style="margin:0 0 16px;">' +
+        '<div class="catalog-error-banner wra-ui-state">' +
+        '<p>' +
         (esc || 'Не удалось загрузить каталог.') +
         '</p>' +
         sub +
@@ -174,6 +181,8 @@
     // DOM элементы
     const gridEl = document.getElementById('grid');
     const paginationEl = document.getElementById('pagination');
+    const catalogLoadMoreEl = document.getElementById('catalogLoadMoreWrap');
+    const catalogInfiniteSentinel = document.getElementById('catalogInfiniteSentinel');
     const foundCounter = document.getElementById('foundCounter');
     const filterCountEl = document.getElementById('filterCount');
     const markListEl = document.getElementById('markList');
@@ -263,17 +272,98 @@
       gridEl.innerHTML = html;
     }
 
+    function catalogMobileFeedPreferred() {
+      try {
+        return window.matchMedia && window.matchMedia('(max-width: 767px)').matches;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    var catalogAppendInFlight = false;
+    var filtersDrawerTrapHandler = null;
+    var filtersDrawerLastFocus = null;
+
+    function getFiltersPanelFocusables() {
+      var panel = document.getElementById('filtersPanel');
+      if (!panel) return [];
+      var sel =
+        'a[href]:not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      return Array.prototype.slice.call(panel.querySelectorAll(sel)).filter(function(node) {
+        try {
+          return node && typeof node.focus === 'function' && !node.hasAttribute('disabled');
+        } catch (e) {
+          return false;
+        }
+      });
+    }
+
     function closeFiltersDrawer() {
-      if (filtersDrawerOverlay) filtersDrawerOverlay.classList.remove('is-open');
+      if (filtersDrawerOverlay) {
+        filtersDrawerOverlay.classList.remove('is-open');
+        filtersDrawerOverlay.setAttribute('aria-hidden', 'true');
+      }
       if (filtersOpenBtn) filtersOpenBtn.setAttribute('aria-expanded', 'false');
+      var fp = document.getElementById('filtersPanel');
+      if (fp) fp.removeAttribute('aria-modal');
       document.body.classList.remove('filters-drawer-open');
+      if (filtersDrawerTrapHandler) {
+        document.removeEventListener('keydown', filtersDrawerTrapHandler);
+        filtersDrawerTrapHandler = null;
+      }
+      if (filtersDrawerLastFocus && typeof filtersDrawerLastFocus.focus === 'function') {
+        try {
+          filtersDrawerLastFocus.focus();
+        } catch (e) {}
+      }
+      filtersDrawerLastFocus = null;
     }
     function openFiltersDrawer() {
-      if (filtersDrawerOverlay) filtersDrawerOverlay.classList.add('is-open');
+      filtersDrawerLastFocus = document.activeElement;
+      if (filtersDrawerOverlay) {
+        filtersDrawerOverlay.classList.add('is-open');
+        filtersDrawerOverlay.setAttribute('aria-hidden', 'false');
+      }
       if (filtersOpenBtn) filtersOpenBtn.setAttribute('aria-expanded', 'true');
       document.body.classList.add('filters-drawer-open');
+      var fp = document.getElementById('filtersPanel');
+      if (fp) fp.setAttribute('aria-modal', 'true');
+      if (filtersDrawerTrapHandler) {
+        document.removeEventListener('keydown', filtersDrawerTrapHandler);
+        filtersDrawerTrapHandler = null;
+      }
+      filtersDrawerTrapHandler = function(e) {
+        if (!document.body.classList.contains('filters-drawer-open')) return;
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeFiltersDrawer();
+          return;
+        }
+        if (e.key !== 'Tab') return;
+        var list = getFiltersPanelFocusables();
+        if (list.length === 0) return;
+        var first = list[0];
+        var last = list[list.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first || !fp.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      };
+      document.addEventListener('keydown', filtersDrawerTrapHandler);
+      setTimeout(function() {
+        var list = getFiltersPanelFocusables();
+        if (list.length) list[0].focus();
+      }, 60);
       if (markListEl && !markListEl.querySelector('input[type=checkbox]')) {
         scheduleFacetRefresh(catalogRequestId, true);
+      }
+      if (window.WRAAnalytics && typeof window.WRAAnalytics.track === 'function') {
+        window.WRAAnalytics.track('wra_filter_drawer_open', {});
       }
     }
     if (filtersOpenBtn && filtersDrawerOverlay) {
@@ -1079,7 +1169,7 @@
       }
     }
 
-    function syncCatalogAddressBarReplace() {
+    function syncCatalogAddressBar(usePush) {
       if (catalogUrlSyncSuppressed) return;
       try {
         var p = buildCatalogFilterParams();
@@ -1093,7 +1183,8 @@
         var next = qs ? path + '?' + qs : path;
         var cur = window.location.pathname + (window.location.search || '');
         if (next === cur) return;
-        history.replaceState({ wraCatalog: 1 }, '', next);
+        if (usePush) history.pushState({ wraCatalog: 1 }, '', next);
+        else history.replaceState({ wraCatalog: 1 }, '', next);
       } catch (e) { /* ignore */ }
     }
 
@@ -1613,6 +1704,55 @@
       draw();
     }
 
+    function loadCarsPageStaticAppend(targetPage, reqId) {
+      if (!staticCatalogCache || !staticCatalogCache.length) return;
+      if (reqId !== catalogRequestId) return;
+      const params = buildCatalogFilterParams();
+      let filtered = staticCatalogCache.filter(function(c) { return carMatchesParamsUrl(c, params); });
+      filtered = dedupeCatalogCars(filtered);
+      filtered = sortCarsStatic(filtered, currentSort || 'date_new');
+      catalogTotal = filtered.length;
+      catalogPages = Math.max(1, Math.ceil(catalogTotal / PER_PAGE));
+      var tp = Math.max(1, Math.min(targetPage, catalogPages));
+      var start = (tp - 1) * PER_PAGE;
+      var newSlice = filtered.slice(start, start + PER_PAGE);
+      var prevLen = pageCars.length;
+      pageCars = dedupeCatalogCars(pageCars.concat(newSlice));
+      page = tp;
+      if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
+        loadCarsPageStatic(1, reqId);
+        return;
+      }
+      var hadTrim = pageCars.length > CATALOG_MAX_GRID_CARDS;
+      if (hadTrim) {
+        pageCars = pageCars.slice(pageCars.length - CATALOG_MAX_GRID_CARDS);
+      }
+      updateFilterCountBadge();
+      if (hadTrim || prevLen === 0) {
+        draw();
+      } else {
+        draw({ append: true, appendStartIdx: prevLen });
+      }
+    }
+
+    function trimCatalogGridDom() {
+      if (!gridEl) return;
+      var cards = gridEl.querySelectorAll('.car-card');
+      var excess = cards.length - CATALOG_MAX_GRID_CARDS;
+      if (excess <= 0) return;
+      var first = cards[0];
+      var top0 = first.getBoundingClientRect().top;
+      for (var i = 0; i < excess; i++) {
+        gridEl.removeChild(cards[i]);
+      }
+      pageCars.splice(0, excess);
+      var firstNew = gridEl.querySelector('.car-card');
+      if (firstNew) {
+        var top1 = firstNew.getBoundingClientRect().top;
+        window.scrollBy(0, top1 - top0);
+      }
+    }
+
     function scheduleIdlePrefetchCatalogPage2() {
       if (useStaticCatalog || catalogPages < 2) return;
       try {
@@ -1644,24 +1784,31 @@
       }
     }
 
-    async function loadCarsPage(targetPage, reqId) {
+    async function loadCarsPage(targetPage, reqId, opts) {
+      opts = opts || {};
+      var append = !!opts.append;
+      var usePush = !!opts.usePush;
+      var skipSkeleton = !!opts.skipSkeleton || append;
       if (reqId == null) reqId = ++catalogRequestId;
-      showSkeleton();
+
       if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
-        loadCarsPageStatic(targetPage, reqId);
+        if (!skipSkeleton) showSkeleton();
+        if (append) loadCarsPageStaticAppend(targetPage, reqId);
+        else loadCarsPageStatic(targetPage, reqId);
+        syncCatalogAddressBar(usePush);
         return;
       }
+
+      if (!skipSkeleton) showSkeleton();
       try {
         const params = buildCatalogFilterParams();
         var useListCursor = false;
-        if (!useStaticCatalog) {
-          if (targetPage === 1) {
-            catalogForwardCursor = null;
-          } else if (targetPage === page + 1 && catalogForwardCursor) {
-            useListCursor = true;
-          } else if (targetPage !== page + 1 && targetPage !== page) {
-            catalogForwardCursor = null;
-          }
+        if (!append && targetPage === 1) {
+          catalogForwardCursor = null;
+        } else if (targetPage === page + 1 && catalogForwardCursor) {
+          useListCursor = true;
+        } else if (!append && targetPage !== page + 1 && targetPage !== page) {
+          catalogForwardCursor = null;
         }
         if (useListCursor) {
           params.set('cursor', catalogForwardCursor);
@@ -1712,20 +1859,41 @@
         }
         if (reqId !== catalogRequestId) return;
         const parsed = parseCarsApiPayload(data);
-        pageCars = parsed.list;
-        catalogTotal = parsed.total;
-        catalogPages = parsed.pages;
-        catalogForwardCursor = parsed.next_cursor || null;
-        page = targetPage;
-        maybeSyncMarketChinaCountFromCarsMeta(parsed.total);
-        if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
-          await loadCarsPage(1, reqId);
-          return;
+        if (append) {
+          var prevLen = pageCars.length;
+          pageCars = dedupeCatalogCars(pageCars.concat(parsed.list));
+          catalogTotal = parsed.total;
+          catalogPages = parsed.pages;
+          catalogForwardCursor = parsed.next_cursor || null;
+          page = targetPage;
+          maybeSyncMarketChinaCountFromCarsMeta(parsed.total);
+          if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
+            await loadCarsPage(1, reqId, { usePush: false, skipSkeleton: true });
+            return;
+          }
+          var hadTrim = pageCars.length > CATALOG_MAX_GRID_CARDS;
+          if (hadTrim) {
+            pageCars = pageCars.slice(pageCars.length - CATALOG_MAX_GRID_CARDS);
+          }
+          updateFilterCountBadge();
+          if (hadTrim || prevLen === 0) draw();
+          else draw({ append: true, appendStartIdx: prevLen });
+        } else {
+          pageCars = parsed.list;
+          catalogTotal = parsed.total;
+          catalogPages = parsed.pages;
+          catalogForwardCursor = parsed.next_cursor || null;
+          page = targetPage;
+          maybeSyncMarketChinaCountFromCarsMeta(parsed.total);
+          if (pageCars.length === 0 && catalogTotal > 0 && targetPage > 1) {
+            await loadCarsPage(1, reqId, { usePush: usePush, skipSkeleton: true });
+            return;
+          }
+          updateFilterCountBadge();
+          draw();
         }
-        updateFilterCountBadge();
-        draw();
-        syncCatalogAddressBarReplace();
-        if (targetPage === 1) scheduleIdlePrefetchCatalogPage2();
+        syncCatalogAddressBar(usePush);
+        if (targetPage === 1 && !append) scheduleIdlePrefetchCatalogPage2();
       } catch (err) {
         if (reqId !== catalogRequestId) return;
         if (err && err.name === 'AbortError') return;
@@ -1746,7 +1914,9 @@
               var parsedInit = parseCarsApiPayload(raw);
               staticCatalogCache = dedupeCatalogCars(parsedInit.list);
               useStaticCatalog = true;
-              loadCarsPageStatic(targetPage, reqId);
+              if (append) loadCarsPageStaticAppend(targetPage, reqId);
+              else loadCarsPageStatic(targetPage, reqId);
+              syncCatalogAddressBar(usePush);
               scheduleFacetRefresh(reqId, true);
               return;
             }
@@ -1773,21 +1943,35 @@
       }
     }
 
+    async function loadCatalogNextPageAppend() {
+      if (catalogAppendInFlight || page >= catalogPages) return;
+      catalogAppendInFlight = true;
+      try {
+        var reqId = ++catalogRequestId;
+        await loadCarsPage(page + 1, reqId, { append: true, usePush: true });
+      } finally {
+        catalogAppendInFlight = false;
+      }
+    }
+
     async function runApplyFilters() {
       const reqId = ++catalogRequestId;
       catalogForwardCursor = null;
       page = 1;
       syncCascadeSlotVisibility();
       scheduleFacetRefresh(reqId);
+      if (window.WRAAnalytics && typeof window.WRAAnalytics.track === 'function') {
+        window.WRAAnalytics.track('wra_filter_apply', {});
+      }
       try {
-        await loadCarsPage(1, reqId);
+        await loadCarsPage(1, reqId, { usePush: true });
         if (reqId !== catalogRequestId) return;
       } catch (e) {
         if (reqId !== catalogRequestId) return;
         console.error(e);
         if (gridEl) {
           gridEl.setAttribute('aria-busy', 'false');
-          gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Не удалось обновить каталог.</p><a href="/" class="btn btn-primary">Обновить страницу</a></div>';
+          gridEl.innerHTML = '<div class="wra-ui-state"><p>Не удалось обновить каталог.</p><a href="/" class="btn btn-primary">Обновить страницу</a></div>';
         }
       }
     }
@@ -1935,8 +2119,57 @@
       }
     }
 
+    var catalogInfiniteObs = null;
+    function updateCatalogLoadMoreUi() {
+      if (!catalogLoadMoreEl) return;
+      var mobile = catalogMobileFeedPreferred();
+      var t = Number(catalogTotal);
+      if (!mobile || catalogPages <= 1 || page >= catalogPages || !Number.isFinite(t) || t < 1) {
+        catalogLoadMoreEl.hidden = true;
+        catalogLoadMoreEl.innerHTML = '';
+        if (catalogInfiniteObs) {
+          try {
+            catalogInfiniteObs.disconnect();
+          } catch (eObs) {}
+          catalogInfiniteObs = null;
+        }
+        return;
+      }
+      catalogLoadMoreEl.hidden = false;
+      catalogLoadMoreEl.innerHTML =
+        '<button type="button" class="btn btn-secondary catalog-load-more-btn" id="catalogLoadMoreBtn">Показать ещё</button>';
+      var btn = document.getElementById('catalogLoadMoreBtn');
+      if (btn) {
+        btn.addEventListener('click', function onCatalogLoadMore() {
+          if (window.WRAAnalytics && typeof window.WRAAnalytics.track === 'function') {
+            window.WRAAnalytics.track('wra_catalog_load_more', { page: page + 1 });
+          }
+          void loadCatalogNextPageAppend();
+        });
+      }
+      if (catalogInfiniteSentinel && typeof IntersectionObserver !== 'undefined') {
+        if (catalogInfiniteObs) {
+          try {
+            catalogInfiniteObs.disconnect();
+          } catch (eObs2) {}
+        }
+        catalogInfiniteObs = new IntersectionObserver(
+          function(entries) {
+            if (!entries.length || !entries[0].isIntersecting) return;
+            if (catalogAppendInFlight || page >= catalogPages) return;
+            void loadCatalogNextPageAppend();
+          },
+          { root: null, rootMargin: '320px', threshold: 0 }
+        );
+        catalogInfiniteObs.observe(catalogInfiniteSentinel);
+      }
+    }
+
     // Отрисовка карточек
-    function draw() {
+    function draw(drawOpts) {
+      drawOpts = drawOpts || {};
+      var append = !!drawOpts.append;
+      var appendStartIdx = typeof drawOpts.appendStartIdx === 'number' ? drawOpts.appendStartIdx : 0;
       if (!gridEl) return;
       gridEl.setAttribute('aria-busy', 'false');
       var totalN = Number(catalogTotal);
@@ -1944,24 +2177,30 @@
       if (totalN === 0) {
         var resetBtn = document.getElementById('resetFiltersBtn');
         var resetHtml = resetBtn ? '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'resetFiltersBtn\').click()">Сбросить фильтры</button>' : '';
-        gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Ничего не найдено. Попробуйте изменить фильтры.</p>' + resetHtml + '</div>';
+        gridEl.innerHTML = '<div class="wra-ui-state wra-ui-state--empty"><p>Ничего не найдено. Попробуйте изменить фильтры.</p>' + resetHtml + '</div>';
         if (paginationEl) paginationEl.innerHTML = '';
         if (foundCounter) foundCounter.textContent = '0';
         if (catalogAriaLive) catalogAriaLive.textContent = 'Найдено 0 объявлений';
+        updateCatalogLoadMoreUi();
         return;
       }
 
       if (!pageCars || pageCars.length === 0) {
-        gridEl.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--wra-surface); border-radius:24px; border:1px solid var(--wra-border);"><p style="margin:0 0 16px;">Список не загрузился (есть ' + totalN.toLocaleString('ru-RU') + ' объявлений в базе). Обновите страницу.</p><a href="/" class="btn btn-primary">Обновить</a></div>';
+        gridEl.innerHTML = '<div class="wra-ui-state wra-ui-state--empty"><p>Список не загрузился (есть ' + totalN.toLocaleString('ru-RU') + ' объявлений в базе). Обновите страницу.</p><a href="/" class="btn btn-primary">Обновить</a></div>';
         if (paginationEl) paginationEl.innerHTML = '';
         if (foundCounter) foundCounter.textContent = totalN.toLocaleString('ru-RU');
         if (catalogAriaLive) catalogAriaLive.textContent = 'Каталог не отобразился';
+        updateCatalogLoadMoreUi();
         return;
       }
 
-      gridEl.innerHTML = '';
-        const eagerHeroImage = page === 1;
-        pageCars.forEach(function(car, cardIdx) {
+      if (!append) {
+        gridEl.innerHTML = '';
+      }
+      const eagerHeroImage = !append && page === 1;
+      var startIdx = append ? appendStartIdx : 0;
+      for (var cardIdx = startIdx; cardIdx < pageCars.length; cardIdx++) {
+        var car = pageCars[cardIdx];
         const d = car.data || car;
         const images = getPreviewImages(d);
 
@@ -2108,6 +2347,14 @@
                 sessionStorage.setItem('encar_catalog_scroll', String(window.scrollY || document.documentElement.scrollTop));
                 sessionStorage.setItem('encar_catalog_page', String(page));
             } catch (e) {}
+            try {
+              if (window.WRAContextBar && typeof window.WRAContextBar.addRecent === 'function') {
+                window.WRAContextBar.addRecent(linkId);
+              }
+              if (window.WRAAnalytics && typeof window.WRAAnalytics.track === 'function') {
+                window.WRAAnalytics.track('wra_car_open_from_catalog', { id: String(linkId) });
+              }
+            } catch (e2) {}
             window.location.href = typeof window.wraCarDetailUrl === 'function'
               ? window.wraCarDetailUrl(linkId)
               : ('/detail/' + encodeURIComponent(linkId));
@@ -2127,21 +2374,35 @@
         });
 
         gridEl.appendChild(card);
-      });
+      }
 
+      trimCatalogGridDom();
       drawPagination();
+      updateCatalogLoadMoreUi();
       if (foundCounter) foundCounter.textContent = totalN.toLocaleString('ru-RU');
-      if (catalogAriaLive) catalogAriaLive.textContent = 'Найдено ' + totalN.toLocaleString('ru-RU') + ' объявлений';
+      if (catalogAriaLive) {
+        catalogAriaLive.textContent =
+          'Найдено ' +
+          totalN.toLocaleString('ru-RU') +
+          ' объявлений' +
+          (append ? ', показано ' + String(pageCars.length) : '');
+      }
     }
 
     function drawPagination() {
       if (!paginationEl) return;
       const total = catalogPages;
       paginationEl.innerHTML = '';
+      if (catalogMobileFeedPreferred()) {
+        paginationEl.hidden = true;
+        return;
+      }
+      paginationEl.hidden = false;
       if (total <= 1) return;
 
       const go = (p) => {
-        void loadCarsPage(p);
+        var rid = ++catalogRequestId;
+        void loadCarsPage(p, rid, { usePush: true });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
@@ -3013,13 +3274,21 @@
           syncSortUi(value);
           closeAllDropdowns();
           currentSort = value;
-          void loadCarsPage(1);
+          if (window.WRAAnalytics && typeof window.WRAAnalytics.track === 'function') {
+            window.WRAAnalytics.track('wra_catalog_sort', { sort: value });
+          }
+          var rid = ++catalogRequestId;
+          void loadCarsPage(1, rid, { usePush: true });
         });
       }
       sortSelect.addEventListener('change', () => {
         currentSort = sortSelect.value || 'date_new';
         syncSortUi(currentSort);
-        void loadCarsPage(1);
+        if (window.WRAAnalytics && typeof window.WRAAnalytics.track === 'function') {
+          window.WRAAnalytics.track('wra_catalog_sort', { sort: currentSort });
+        }
+        var rid2 = ++catalogRequestId;
+        void loadCarsPage(1, rid2, { usePush: true });
       });
       syncSortUi(sortSelect.value || 'date_new');
     }
@@ -3176,7 +3445,13 @@
     }
     window.addEventListener('resize', function() {
       if (_resizeTick) clearTimeout(_resizeTick);
-      _resizeTick = setTimeout(_onHeroResize, 200);
+      _resizeTick = setTimeout(function() {
+        _onHeroResize();
+        if (gridEl && gridEl.querySelector('.car-card')) {
+          drawPagination();
+          updateCatalogLoadMoreUi();
+        }
+      }, 200);
     });
     setTimeout(_onHeroResize, 900);
   })();

@@ -26,7 +26,7 @@
     <!-- Не preload /api/*: при недоступном бэкенде браузер долго держит соединения и блокирует fetch из catalog.js (лимит HTTP/1.1). -->
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
-    <link rel="preload" href="js/catalog.js?v=20260408" as="script">
+    <link rel="preload" href="js/catalog.js?v=20260422" as="script">
     <script>
       (function () {
         try {
@@ -44,13 +44,12 @@
       })();
     </script>
     <script defer src="/js/wra-site-config.js?v=20260421"></script>
-    <script defer src="/js/auth-favorites.js?v=20260406"></script>
+    <script defer src="/js/auth-favorites.js?v=20260422"></script>
     <script defer src="/js/copy-protection.js?v=20260410"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap"></noscript>
-    <script defer src="https://kit.fontawesome.com/767a85f1ee.js" crossorigin="anonymous"></script>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=optional" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=optional"></noscript>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; padding-bottom: env(safe-area-inset-bottom, 0px); font-family: var(--font-sans); background: var(--wra-gray-100); overflow-x: clip; }
@@ -2502,6 +2501,16 @@
     </nav>
   </header>
 
+  <div class="wra-context-bar" id="wraContextBar" hidden>
+    <div class="wra-context-bar__inner wra-container">
+      <div class="wra-context-bar__block">
+        <span class="wra-context-bar__label">Недавно:</span>
+        <span id="wraContextRecent" class="wra-context-bar__links" hidden></span>
+      </div>
+      <div class="wra-context-bar__block" id="wraContextCompare" hidden></div>
+    </div>
+  </div>
+
   <!-- Баннер: бренд слева + 2 статичных карточки и 1 активный слайдер по центру -->
   <div class="hero-banner-wrap">
     <section class="hero-banner">
@@ -2880,6 +2889,8 @@
     <div class="car-grid" id="grid" aria-busy="true" aria-live="polite">
       <!-- Скелетоны при загрузке вставляются скриптом -->
     </div>
+    <div class="catalog-load-more-wrap" id="catalogLoadMoreWrap" hidden></div>
+    <div class="catalog-infinite-sentinel" id="catalogInfiniteSentinel" aria-hidden="true"></div>
     <div class="pagination" id="pagination"></div>
   </main>
 </div>
@@ -2920,9 +2931,26 @@
   else scrollToCatalogIfPath();
 })();
 </script>
-<script src="js/catalog.js?v=20260408" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/wra-analytics.js?v=20260422" defer></script>
+<script src="js/catalog.js?v=20260422" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/wra-context-bar.js?v=20260422" defer></script>
 <script src="js/header-init.js?v=20260410" defer></script>
 <script src="js/cookie-consent.js?v=20260421" defer></script>
+<script>
+(function () {
+  function loadFa() {
+    if (document.querySelector("script[data-wra-fa-kit]")) return;
+    var s = document.createElement("script");
+    s.src = "https://kit.fontawesome.com/767a85f1ee.js";
+    s.crossOrigin = "anonymous";
+    s.async = true;
+    s.setAttribute("data-wra-fa-kit", "1");
+    document.head.appendChild(s);
+  }
+  if (document.readyState === "complete") loadFa();
+  else window.addEventListener("load", loadFa, { once: true });
+})();
+</script>
 
 </body>
 </html>

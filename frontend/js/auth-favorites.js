@@ -643,6 +643,9 @@
       auth: true,
       body: { car_ids: (ids || []).map(String), contact: contact, comment: comment }
     }).then(function () {
+      if (window.WRAAnalytics && typeof window.WRAAnalytics.track === "function") {
+        window.WRAAnalytics.track("wra_checkout_submit", { count: (ids || []).length });
+      }
       alert("Запрос отправлен. Менеджер свяжется с вами.");
     }).catch(function (err) {
       alert(wraUserFacingMessage(err));
@@ -656,6 +659,9 @@
       auth: true,
       body: { name: name || "Подписка на поиск", filters: filters || {} }
     }).then(function () {
+      if (window.WRAAnalytics && typeof window.WRAAnalytics.track === "function") {
+        window.WRAAnalytics.track("wra_search_subscription", {});
+      }
       alert("Подписка сохранена.");
       return true;
     }).catch(function (err) {
@@ -733,6 +739,9 @@
         saveFavorites();
         emitFavoritesChanged();
         button.classList.toggle("fav-active", !currentlyFav);
+        if (window.WRAAnalytics && typeof window.WRAAnalytics.track === "function") {
+          window.WRAAnalytics.track("wra_favorite_toggle", { id: sid, active: !currentlyFav });
+        }
       }).catch(function (err) {
         if (err && (err.wraStatus === 429 || err.wraStatus === 401 || err.wraStatus === 403)) {
           alert(wraUserFacingMessage(err));
