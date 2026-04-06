@@ -148,6 +148,44 @@ async def test_cars_first_page(test_app):
 
 
 @pytest.mark.asyncio
+async def test_cars_slim_page1_memo_calls_sql_once(test_app, monkeypatch):
+    calls = {"n": 0}
+    orig = api_server._cars_catalog_sync
+
+    def wrapped(db_path: str, query: dict, *, slim: bool):
+        calls["n"] += 1
+        return orig(db_path, query, slim=slim)
+
+    monkeypatch.setattr(api_server, "_cars_catalog_sync", wrapped)
+    with api_server._CATALOG_LIST_CACHE_LOCK:
+        api_server._CATALOG_LIST_CACHE.clear()
+    async with TestClient(TestServer(test_app)) as client:
+        r1 = await client.get("/api/cars", params={"page": "1", "per_page": "10"})
+        r2 = await client.get("/api/cars", params={"page": "1", "per_page": "10"})
+        assert r1.status == 200 and r2.status == 200
+        assert await r1.json() == await r2.json()
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_cars_full_mode_bypasses_list_cache(test_app, monkeypatch):
+    calls = {"n": 0}
+    orig = api_server._cars_catalog_sync
+
+    def wrapped(db_path: str, query: dict, *, slim: bool):
+        calls["n"] += 1
+        return orig(db_path, query, slim=slim)
+
+    monkeypatch.setattr(api_server, "_cars_catalog_sync", wrapped)
+    with api_server._CATALOG_LIST_CACHE_LOCK:
+        api_server._CATALOG_LIST_CACHE.clear()
+    async with TestClient(TestServer(test_app)) as client:
+        await client.get("/api/cars", params={"page": "1", "per_page": "10", "full": "1"})
+        await client.get("/api/cars", params={"page": "1", "per_page": "10", "full": "1"})
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
 async def test_car_by_id_ok(test_app):
     async with TestClient(TestServer(test_app)) as client:
         resp = await client.get("/api/car/c1")

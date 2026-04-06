@@ -5,6 +5,10 @@ Lightweight API for large catalogs (100k+).
 Run:
   python backend/api_server.py --db encar_cars.db --host 0.0.0.0 --port 8080
   # Китай: --db-china или WRA_CHINA_DB_PATH; иначе ищется encar_china.db рядом с --db или в backend/.
+
+Кэш воркера (ускорение «тёплых» запросов):
+  WRA_FACETS_CACHE_TTL, WRA_CATALOG_LIST_CACHE_TTL, WRA_CATALOG_LIST_CACHE_MAX_PAGE (1–2 страницы по умолчанию),
+  WRA_CATALOG_LIST_CACHE=0 — отключить кэш ленты.
 """
 from __future__ import annotations
 
@@ -51,6 +55,19 @@ _FACETS_CACHE_LOCK = threading.Lock()
 _FACETS_RESULT_CACHE: Dict[Tuple[str, Tuple[Tuple[str, str], ...]], Tuple[float, Dict[str, Any]]] = {}
 _FACETS_CACHE_TTL_SEC = float(os.environ.get("WRA_FACETS_CACHE_TTL", "120"))
 _FACETS_CACHE_MAX_ENTRIES = max(32, int(os.environ.get("WRA_FACETS_CACHE_MAX", "512")))
+
+_CATALOG_LIST_CACHE_LOCK = threading.Lock()
+_CATALOG_LIST_CACHE: Dict[Tuple[str, bool, Tuple[Tuple[str, str], ...]], Tuple[float, Dict[str, Any]]] = {}
+_CATALOG_LIST_CACHE_TTL_SEC = float(os.environ.get("WRA_CATALOG_LIST_CACHE_TTL", "45"))
+_CATALOG_LIST_CACHE_MAX_ENTRIES = max(16, int(os.environ.get("WRA_CATALOG_LIST_CACHE_MAX", "96")))
+_CATALOG_LIST_CACHE_MAX_PAGE = max(1, int(os.environ.get("WRA_CATALOG_LIST_CACHE_MAX_PAGE", "2")))
+_CATALOG_LIST_CACHE_MAX_PER_PAGE = min(100, max(12, int(os.environ.get("WRA_CATALOG_LIST_CACHE_MAX_PER_PAGE", "48"))))
+_CATALOG_LIST_CACHE_ENABLED = os.environ.get("WRA_CATALOG_LIST_CACHE", "1").strip().lower() not in (
+    "0",
+    "false",
+    "no",
+    "off",
+)
 
 # Должно совпадать с GROUP BY в _catalog_listing_max_ids_subquery (иначе планировщик не использует индекс).
 _LISTING_PARTITION_KEY_EXPR = (
@@ -845,6 +862,61 @@ def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Di
         conn.close()
 
 
+def _cars_catalog_cache_key(db_path: str, q: Dict[str, str], slim: bool) -> Tuple[str, bool, Tuple[Tuple[str, str], ...]]:
+    try:
+        rp = str(Path(db_path).resolve())
+    except Exception:
+        rp = db_path
+    frozen = tuple(sorted((str(k), str(v)) for k, v in q.items()))
+    return (rp, slim, frozen)
+
+
+def _cars_catalog_eligible_for_list_cache(q: Dict[str, str], slim: bool) -> bool:
+    """Только slim-лента и первые страницы — как типичный «горячий» срез у маркетплейсов."""
+    if not _CATALOG_LIST_CACHE_ENABLED or not slim:
+        return False
+    try:
+        page = int((q.get("page") or "1").strip() or "1")
+    except ValueError:
+        return False
+    if page < 1 or page > _CATALOG_LIST_CACHE_MAX_PAGE:
+        return False
+    try:
+        per_page = int((q.get("per_page") or "12").strip() or "12")
+    except ValueError:
+        return False
+    if per_page < 1 or per_page > _CATALOG_LIST_CACHE_MAX_PER_PAGE:
+        return False
+    return True
+
+
+def _catalog_list_cache_prune_unlocked(now: float) -> None:
+    ttl = _CATALOG_LIST_CACHE_TTL_SEC
+    dead = [k for k, (ts, _) in _CATALOG_LIST_CACHE.items() if (now - ts) >= ttl]
+    for k in dead:
+        del _CATALOG_LIST_CACHE[k]
+    while len(_CATALOG_LIST_CACHE) > _CATALOG_LIST_CACHE_MAX_ENTRIES:
+        oldest_k = min(_CATALOG_LIST_CACHE.items(), key=lambda kv: kv[1][0])[0]
+        del _CATALOG_LIST_CACHE[oldest_k]
+
+
+def _cars_catalog_sync_memo(db_path: str, q: Dict[str, str], *, slim: bool) -> Dict[str, Any]:
+    """Повторные запросы тех же страниц (Корея/Китай, те же фильтры) — из RAM воркера до TTL."""
+    if not _cars_catalog_eligible_for_list_cache(q, slim):
+        return _cars_catalog_sync(db_path, q, slim=slim)
+    key = _cars_catalog_cache_key(db_path, q, slim)
+    now = time.monotonic()
+    with _CATALOG_LIST_CACHE_LOCK:
+        ent = _CATALOG_LIST_CACHE.get(key)
+        if ent is not None and (now - ent[0]) < _CATALOG_LIST_CACHE_TTL_SEC:
+            return ent[1]
+    payload = _cars_catalog_sync(db_path, q, slim=slim)
+    with _CATALOG_LIST_CACHE_LOCK:
+        _CATALOG_LIST_CACHE[key] = (time.monotonic(), payload)
+        _catalog_list_cache_prune_unlocked(time.monotonic())
+    return payload
+
+
 _FACET_MARK = "json_extract(data_json, '$.data.mark')"
 _FACET_MODEL = "json_extract(data_json, '$.data.model')"
 _FACET_GENERATION = "COALESCE(json_extract(data_json, '$.data.generation'), json_extract(data_json, '$.data.configuration'))"
@@ -1153,7 +1225,7 @@ async def cars(request: web.Request) -> web.Response:
     china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
     db_path = _resolve_catalog_db_path(korea_db, china_db, q)
     try:
-        payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
+        payload = await asyncio.to_thread(lambda: _cars_catalog_sync_memo(db_path, q, slim=slim))
     except sqlite3.OperationalError as e:
         if "interrupted" in str(e).lower():
             return web.json_response(
