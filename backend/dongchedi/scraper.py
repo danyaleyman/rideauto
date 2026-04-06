@@ -53,6 +53,8 @@ class ScrapeConfig:
     request_timeout_s: float = 45.0
     delay_between_pages_s: float = 0.15
     cookie: Optional[str] = None
+    start_shard: int = 1
+    start_brand_id: Optional[str] = None
 
 
 def _ensure_cars_schema(conn: sqlite3.Connection) -> None:
@@ -133,8 +135,24 @@ def _brand_filters_for_listing(cfg: ScrapeConfig) -> List[Optional[str]]:
     if cfg.shard_brands:
         return list(DEFAULT_BRAND_SHARD_IDS)
     if cfg.brand_id and str(cfg.brand_id).strip():
-        return [str(cfg.brand_id).strip()]
-    return [None]
+        filters = [str(cfg.brand_id).strip()]
+    else:
+        filters = [None]
+
+    if cfg.start_brand_id and str(cfg.start_brand_id).strip():
+        target = str(cfg.start_brand_id).strip()
+        if target in filters:
+            filters = filters[filters.index(target) :]
+        else:
+            log.warning("start_brand_id=%s not found in shard set, ignoring", target)
+    if cfg.start_shard and int(cfg.start_shard) > 1:
+        start_idx = int(cfg.start_shard) - 1
+        if start_idx < len(filters):
+            filters = filters[start_idx:]
+        else:
+            log.warning("start_shard=%s out of range for %s shards, nothing to run", cfg.start_shard, len(filters))
+            filters = []
+    return filters
 
 
 def _headers_with_cookie(cookie: Optional[str]) -> Dict[str, str]:
@@ -233,20 +251,37 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                         timeout_s=cfg.request_timeout_s,
                     )
 
-                raw_st = payload.get("status") if payload else None
-                try:
-                    api_st = int(raw_st) if raw_st is not None else -1
-                except (TypeError, ValueError):
-                    api_st = -1
-                if status != 200 or not payload or api_st != 0:
+                if status != 200 or not payload:
                     log.warning(
                         "list page %s brand=%s http=%s api_status=%s",
                         page,
                         brand_for_list,
                         status,
-                        raw_st,
+                        None,
                     )
                     break
+
+                raw_st = payload.get("status")
+                if raw_st is None:
+                    # Иногда Dongchedi отдает полезный payload без status (или с code/msg в другом формате).
+                    # В таком случае ориентируемся на наличие data/search_sh_sku_info_list ниже.
+                    alt_st = payload.get("code")
+                    if alt_st is not None:
+                        raw_st = alt_st
+                if raw_st is not None:
+                    try:
+                        api_st = int(raw_st)
+                    except (TypeError, ValueError):
+                        api_st = -1
+                    if api_st != 0:
+                        log.warning(
+                            "list page %s brand=%s http=%s api_status=%s",
+                            page,
+                            brand_for_list,
+                            status,
+                            raw_st,
+                        )
+                        break
 
                 data = payload.get("data") or {}
                 rows = data.get("search_sh_sku_info_list") or []
@@ -360,6 +395,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         help="Много проходов sh_sku_list по маркам (обход лимита ~10k без brand)",
     )
     p.add_argument("--series-id", type=int, default=None)
+    p.add_argument("--start-shard", type=int, default=None, help="Продолжить c N-го shard (1-based)")
+    p.add_argument("--start-brand-id", type=str, default=None, help="Продолжить c указанного brand_id")
     p.add_argument("--city", type=str, default=None, help="sh_city_name, напр. 北京")
     p.add_argument("--age-range", type=str, default=None, help="Напр. 3,5 как в HAR")
     p.add_argument("--year", type=int, default=None)
@@ -388,6 +425,10 @@ def main(argv: Optional[List[str]] = None) -> None:
         cfg.brand_id = args.brand_id or None
     if args.series_id is not None:
         cfg.series_id = args.series_id
+    if args.start_shard is not None:
+        cfg.start_shard = max(1, int(args.start_shard))
+    if args.start_brand_id is not None:
+        cfg.start_brand_id = (args.start_brand_id or "").strip() or None
     if args.city is not None:
         cfg.sh_city_name = args.city or None
     if args.age_range is not None:
