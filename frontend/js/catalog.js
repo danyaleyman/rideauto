@@ -1190,6 +1190,8 @@
      */
     async function tryHydrateFacetsWithWarmup(reqId, jsonPromise) {
       if (reqId !== catalogRequestId) return false;
+      // catalog_facets.json — снимок под Корею (encar). Для Китая всегда только /api/facets с source.
+      if (CATALOG_SOURCE !== 'encar') return false;
       var ac = new AbortController();
       var apiP = fetch(apiUrl('/api/facets?' + buildCatalogFilterParams().toString()), { signal: ac.signal })
         .then(function(r) { return r.ok ? r.json() : null; })
@@ -2448,7 +2450,10 @@
         var facetReq = catalogRequestId;
         if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {
           scheduleFacetRefresh(facetReq);
-        } else if (buildCatalogFilterParamsSansDefaultSource().toString() === '') {
+        } else if (
+          CATALOG_SOURCE === 'encar' &&
+          buildCatalogFilterParamsSansDefaultSource().toString() === ''
+        ) {
           tryHydrateFacetsWithWarmup(facetReq, facetsJsonPrefetch).then(function(used) {
             if (facetReq !== catalogRequestId) return;
             if (!used) scheduleFacetRefresh(facetReq);
