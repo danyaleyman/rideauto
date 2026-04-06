@@ -1,0 +1,22 @@
+[Unit]
+Description=Prod Encar Dongchedi catalog update (encar_china.db)
+After=network.target
+# Первый раз: полный прогон вручную (см. deploy/DEPLOY.md). Далее — ежедневно в полночь по Екатеринбургу (dongchedi-update.timer).
+# Права: как у encar-update — www-data пишет encar_china.db
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/prod-encar/backend
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/prod-encar/.venv/bin/python -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
+TimeoutStartSec=24h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/prod-encar
+
+[Install]
+WantedBy=multi-user.target

@@ -83,7 +83,7 @@ localStorage.setItem('encar_api_base', 'http://YOUR_HOST:8080');
 - `deploy/systemd/prod-encar-api.service`
 - `deploy/systemd/prod-encar-auto-update.service`
 - `deploy/systemd/prod-encar-auto-update.timer`
-- `deploy/systemd/dongchedi-update.service.example` и `dongchedi-update.timer.example` (отдельная **`encar_china.db`** для Dongchedi)
+- `deploy/systemd/dongchedi-update.service` + `dongchedi-update.timer` (или **`prod-dongchedi-update.*`** для пользователя `prod-encar`) — Китай в **`encar_china.db`**, полночь **Asia/Yekaterinburg**, как у корейского обновления
 - `deploy/deploy_prod.sh`
 
 Быстрый деплой на Linux VPS:

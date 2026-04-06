@@ -1,0 +1,24 @@
+[Unit]
+Description=Prod Encar Dongchedi catalog update (encar_china.db), prod-encar user
+After=network.target
+# Аналог dongchedi-update.service для стека prod-encar (см. prod-encar-auto-update.service).
+
+[Service]
+Type=oneshot
+User=prod-encar
+Group=prod-encar
+WorkingDirectory=/opt/prod-encar/backend
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/prod-encar
+ExecStart=/usr/bin/python3 -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
+TimeoutStartSec=24h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/prod-encar
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

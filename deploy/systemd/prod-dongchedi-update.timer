@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Dongchedi update daily (prod-encar, same time as Korea)
+
+[Timer]
+OnCalendar=*-*-* 00:00:00 Asia/Yekaterinburg
+Persistent=true
+Unit=prod-dongchedi-update.service
+
+[Install]
+WantedBy=timers.target
