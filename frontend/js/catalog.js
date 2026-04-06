@@ -68,6 +68,16 @@
       return API_BASE + path;
     }
 
+    /**
+     * Каталог не кладём в HTTP disk/memory cache: при 200 с пустым result после сбоя API
+     * страница «залипает» на 0 объявлений, пока не истечёт max-age (см. Cache-Control с бэкенда).
+     */
+    function catalogApiFetchInit(extra) {
+      var o = extra && typeof extra === 'object' ? Object.assign({}, extra) : {};
+      if (!('cache' in o)) o.cache = 'no-store';
+      return o;
+    }
+
     function withTimeout(promise, ms, label) {
       if (!ms || ms <= 0) return promise;
       return Promise.race([
@@ -1193,7 +1203,10 @@
       // catalog_facets.json — снимок под Корею (encar). Для Китая всегда только /api/facets с source.
       if (CATALOG_SOURCE !== 'encar') return false;
       var ac = new AbortController();
-      var apiP = fetch(apiUrl('/api/facets?' + buildCatalogFilterParams().toString()), { signal: ac.signal })
+      var apiP = fetch(
+        apiUrl('/api/facets?' + buildCatalogFilterParams().toString()),
+        catalogApiFetchInit({ signal: ac.signal })
+      )
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
       try {
@@ -1226,7 +1239,7 @@
       try {
         if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
         var params = buildCatalogFilterParams();
-        var res = await fetch(apiUrl('/api/facets?' + params.toString()));
+        var res = await fetch(apiUrl('/api/facets?' + params.toString()), catalogApiFetchInit());
         if (!res.ok) return;
         var data = await res.json();
         if (rid !== catalogRequestId) return;
@@ -1374,7 +1387,7 @@
       var sig = facetsListAbort.signal;
       var res;
       try {
-        res = await fetch(apiUrl('/api/facets?' + paramSnap), { signal: sig });
+        res = await fetch(apiUrl('/api/facets?' + paramSnap), catalogApiFetchInit({ signal: sig }));
       } catch (eFetch) {
         if (eFetch && eFetch.name === 'AbortError') return;
         throw eFetch;
@@ -1489,7 +1502,7 @@
           params.set('per_page', String(PER_PAGE));
           params.set('sort', currentSort || 'date_new');
           var url = apiUrl('/api/cars?' + params.toString());
-          var init = {};
+          var init = catalogApiFetchInit({});
           try {
             init.priority = 'low';
           } catch (e2) {}
@@ -1528,7 +1541,10 @@
         }, CATALOG_CARS_TIMEOUT_MS);
         var res;
         try {
-          res = await fetch(apiUrl('/api/cars?' + params.toString()), { signal: carsListAbort.signal });
+          res = await fetch(
+            apiUrl('/api/cars?' + params.toString()),
+            catalogApiFetchInit({ signal: carsListAbort.signal })
+          );
         } catch (eF) {
           clearTimeout(carsTimeoutId);
           if (eF && eF.name === 'AbortError') return;
@@ -2412,16 +2428,16 @@
         var todayEl = document.getElementById('bannerTodayCount');
         var statsPromise = todayEl
           ? withTimeout(
-              fetch(apiUrl('/api/counts'), { cache: 'default' })
+              fetch(apiUrl('/api/counts'), catalogApiFetchInit())
                 .then(function(cr) {
                   if (cr.ok) return cr.json();
-                  return fetch(apiUrl('/api/stats'), { cache: 'default' }).then(function(sr) {
+                  return fetch(apiUrl('/api/stats'), catalogApiFetchInit()).then(function(sr) {
                     if (!sr.ok) throw new Error('stats HTTP ' + sr.status);
                     return sr.json();
                   });
                 })
                 .catch(function() {
-                  return fetch(apiUrl('/api/stats'), { cache: 'default' })
+                  return fetch(apiUrl('/api/stats'), catalogApiFetchInit())
                     .then(function(sr) {
                       return sr.ok ? sr.json() : null;
                     })
