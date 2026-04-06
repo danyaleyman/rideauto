@@ -455,13 +455,47 @@
             var m = s.match(/_(\d+)\.(?:jpe?g|png|webp)/i);
             return m ? parseInt(m[1], 10) : 1e9;
         }
+        /** Encar: [{path,type}]; иногда JSON-массив строк или объекты с url — приводим к {path,type}. */
+        function coerceGalleryItems(rawList) {
+            var out = [];
+            if (!Array.isArray(rawList)) return out;
+            rawList.forEach(function(item) {
+                var path = '';
+                var typ = 'OUTER';
+                if (typeof item === 'string') {
+                    path = item.trim();
+                } else if (item && typeof item === 'object') {
+                    path = String(item.path || item.url || item.image || item.image_url || item.pic_url || '').trim();
+                    typ = item.type || 'OUTER';
+                }
+                if (!path) return;
+                if (path.indexOf('//') === 0) path = 'https:' + path;
+                out.push({ path: path, type: typ });
+            });
+            return out;
+        }
+        function parseDataImagesField(imagesField) {
+            if (imagesField == null || imagesField === '') return [];
+            var raw = imagesField;
+            if (typeof raw === 'string') {
+                try { raw = JSON.parse(raw); } catch (e) { return []; }
+            }
+            if (!Array.isArray(raw)) return [];
+            return raw.filter(function(u) { return typeof u === 'string' && u.trim(); }).map(function(u) {
+                var p = u.trim();
+                if (p.indexOf('//') === 0) p = 'https:' + p;
+                return { path: p, type: 'OUTER' };
+            });
+        }
         function preparePhotos(hImages) {
             const typePriority = { OUTER:1, INNER:2, OPTION:3, THUMBNAIL:4 };
+            const items = coerceGalleryItems(hImages);
             const map = new Map();
-            hImages.forEach(item => {
+            items.forEach(function(item) {
                 const path = item.path;
+                if (!path) return;
                 const prio = typePriority[item.type] || 5;
-                if (!map.has(path) || prio < map.get(path).priority) map.set(path, { ...item, priority: prio });
+                if (!map.has(path) || prio < map.get(path).priority) map.set(path, { path: path, type: item.type || 'OUTER', priority: prio });
             });
             let list = Array.from(map.values());
             list.sort(function(a, b) {
@@ -471,7 +505,7 @@
                 if (sA !== sB) return sA - sB;
                 return String(a.path).localeCompare(b.path);
             });
-            return list;
+            return list.map(function(x) { return { path: x.path, type: x.type }; });
         }
 
         // Глобальные переменные для модалки
@@ -1245,20 +1279,20 @@
             if (!d.extra) d.extra = {};
             d.extra.inspection_structured = insp;
 
-            // Фото (Encar: h_images; Dongchedi/прочие: data.images — JSON-массив URL)
-            let hImagesList = [];
-            try { hImagesList = JSON.parse(d.h_images || '[]'); } catch { hImagesList = []; }
-            if ((!Array.isArray(hImagesList) || !hImagesList.length) && d.images) {
-                try {
-                    const rawIm = JSON.parse(d.images || '[]');
-                    if (Array.isArray(rawIm)) {
-                        hImagesList = rawIm
-                            .filter(function(u) { return typeof u === 'string' && u.trim(); })
-                            .map(function(u) { return { path: u.trim(), type: 'OUTER' }; });
-                    }
-                } catch (eIm) { /* ignore */ }
-            }
-            const sortedPhotos = preparePhotos(hImagesList).filter(p => p.type !== 'THUMBNAIL');
+            // Фото: h_images (Encar) + data.images (Dongchedi и др.) — объединяем и убираем дубликаты по URL.
+            let hImagesRaw = [];
+            try { hImagesRaw = JSON.parse(d.h_images || '[]'); } catch (e0) { hImagesRaw = []; }
+            var galleryItems = coerceGalleryItems(hImagesRaw);
+            var fromDataImages = parseDataImagesField(d.images);
+            var seenGallery = Object.create(null);
+            galleryItems.forEach(function(p) { if (p.path) seenGallery[p.path] = true; });
+            fromDataImages.forEach(function(p) {
+                if (p.path && !seenGallery[p.path]) {
+                    seenGallery[p.path] = true;
+                    galleryItems.push(p);
+                }
+            });
+            const sortedPhotos = preparePhotos(galleryItems).filter(p => p.type !== 'THUMBNAIL');
 
             // Левая колонка (основная информация) – без верхнего блока titleHtml
             const manufacturerName = filterOptionLabel(d.manufacturerName || d.mark || '', 'mark');

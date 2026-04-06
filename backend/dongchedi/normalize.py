@@ -120,6 +120,15 @@ def _displacement_cc_from_label(s: str) -> Optional[str]:
     return None
 
 
+def _img_url_canonical(u: str) -> str:
+    s = (u or "").strip()
+    if not s:
+        return ""
+    if s.startswith("//"):
+        return "https:" + s
+    return s
+
+
 def _first_nonempty_str(*vals: Any) -> str:
     for v in vals:
         if v is None:
@@ -153,6 +162,10 @@ def _deep_collect_image_urls(detail: Dict[str, Any], *, max_urls: int = 80) -> l
                 "p9-dcd",
                 "p6-dcd",
                 "tos-cn",
+                "dcarimg",
+                "dcarstatic",
+                "motor.sh",
+                "sh.image",
                 "/image",
                 "img",
                 "photo",
@@ -164,7 +177,7 @@ def _deep_collect_image_urls(detail: Dict[str, Any], *, max_urls: int = 80) -> l
         if depth > 18 or len(out) >= max_urls:
             return
         if isinstance(o, str):
-            s = o.strip()
+            s = _img_url_canonical(o)
             if len(s) < 20 or not s.startswith("http"):
                 return
             low = s.lower()
@@ -192,7 +205,7 @@ def _image_urls_from_row_and_detail(
     dup: set[str] = set()
 
     def add(u: str) -> None:
-        s = (u or "").strip()
+        s = _img_url_canonical(str(u or ""))
         if s and s not in dup:
             dup.add(s)
             out.append(s)

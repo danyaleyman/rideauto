@@ -198,13 +198,19 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
     async with aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector) as session:
 
         async def detail_for(sku: str) -> Optional[Dict[str, Any]]:
-            async with detail_sem:
-                st, html = await fetch_usedcar_html(
-                    session, sku, timeout_s=cfg.request_timeout_s
-                )
-            if st != 200 or not html:
-                return None
-            return parse_sku_detail_from_html(html)
+            """Несколько попыток: антибот/обрыв отдачи часто дают HTML без skuDetail."""
+            for attempt in range(3):
+                async with detail_sem:
+                    st, html = await fetch_usedcar_html(
+                        session, sku, timeout_s=cfg.request_timeout_s
+                    )
+                if st == 200 and html:
+                    sd = parse_sku_detail_from_html(html)
+                    if sd:
+                        return sd
+                if attempt < 2:
+                    await asyncio.sleep(0.4 * float(attempt + 1))
+            return None
 
         for shard_i, brand_for_list in enumerate(brand_filters):
             if len(brand_filters) > 1 or brand_for_list:

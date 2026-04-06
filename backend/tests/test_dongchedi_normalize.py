@@ -94,6 +94,22 @@ def test_sku_row_detail_car_info_and_gallery():
     assert "https://example.com/extra.jpg" in imgs
 
 
+def test_row_protocol_relative_image_normalized():
+    row = {
+        "sku_id": 1,
+        "title": "T",
+        "brand_name": "B",
+        "series_name": "S",
+        "car_year": 2020,
+        "car_mileage": "1万公里",
+        "image": "//p3.dcarimg.com/img/motor/foo~1200x0.jpg",
+    }
+    out = sku_row_to_payload(row, detail=None, cny_to_rub=13.0)
+    imgs = json.loads(out["data"]["images"])
+    assert len(imgs) == 1
+    assert imgs[0].startswith("https://")
+
+
 def test_detail_other_params_car_config_and_listing_meta():
     row = {
         "sku_id": 55,
