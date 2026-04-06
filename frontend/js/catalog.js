@@ -371,14 +371,39 @@
       trigger.innerHTML = '<span class="trigger-tags">' + tagsHtml + moreHtml + '</span>';
     }
 
-    function checkboxTemplate(id, filterKey, value, labelHtml) {
+    function checkboxTemplate(id, filterKey, valueEscaped, labelHtml, facetVariants) {
+      var varAttr = '';
+      if (facetVariants && facetVariants.length > 1) {
+        var enc = facetVariants.map(function(v) { return encodeURIComponent(String(v)); }).join('|');
+        varAttr = ' data-facet-variants="' + String(enc).replace(/"/g, '&quot;') + '"';
+      }
       return (
         '<label class="checkbox" data-selected="false">' +
-          '<span class="checkbox__input-wrap"><input type="checkbox" id="' + id + '" data-filter="' + filterKey + '" value="' + value + '"></span>' +
+          '<span class="checkbox__input-wrap"><input type="checkbox" id="' + id + '" data-filter="' + filterKey + '" value="' + valueEscaped + '"' + varAttr + '></span>' +
           '<span class="checkbox__control"><span class="checkbox__indicator"><svg aria-hidden="true" viewBox="0 0 17 18" fill="none"><polyline points="1 9 7 14 15 4"/></svg></span></span>' +
           '<span class="checkbox__content"><span class="checkbox__label">' + labelHtml + '</span></span>' +
         '</label>'
       );
+    }
+    function expandFacetCheckboxValues(cb) {
+      if (!cb) return [];
+      var raw = cb.getAttribute('data-facet-variants');
+      if (!raw) return [cb.value];
+      return raw.split('|').map(function(s) {
+        try {
+          return decodeURIComponent(s);
+        } catch (e) {
+          return s;
+        }
+      });
+    }
+    function facetDisplayDedupKey(displayLabel, filterKey) {
+      var s = String(displayLabel || '').trim();
+      if (!s) return '';
+      if (filterKey === 'model' && /^[A-Za-z0-9.\-]+$/.test(s)) {
+        return s.toUpperCase();
+      }
+      return s.toLowerCase();
     }
 
     function syncCheckboxVisualStates(root) {
@@ -420,7 +445,8 @@
       if (!conf || !conf.list) return;
 
       conf.list.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
-        if (cb.value === value) cb.checked = false;
+        var expanded = expandFacetCheckboxValues(cb);
+        if (expanded.indexOf(value) !== -1) cb.checked = false;
       });
       syncCheckboxVisualStates(conf.list);
 
@@ -796,6 +822,11 @@
         '검정투톤': 'Black two-tone', '금색투톤': 'Gold two-tone', '은색투톤': 'Silver two-tone',
         '진주투톤': 'Pearl two-tone', '흰색투톤': 'White two-tone', '갈색투톤': 'Brown two-tone',
         '갈대색': 'Khaki', '담녹색': 'Light green', '명은색': 'Silver gray', '분홍색': 'Pink', '주황색': 'Orange', '청록색': 'Turquoise'
+      },
+      // Привод (drive_type / prep_drive_type); в encar_mapping «type» — другой смысл, эти ключи перекрывают при совпадении.
+      type: {
+        'AWD': 'AWD', '4WD': 'AWD', '4x4': 'AWD', '2WD': '2WD', 'FWD': 'FWD', 'RWD': 'RWD',
+        '사륜구동': 'AWD', '사륜': 'AWD', '전륜구동': 'FWD', '전륜': 'FWD', '후륜구동': 'RWD', '후륜': 'RWD'
       }
     };
     function toDisplayEn(val, category) {
@@ -1125,43 +1156,65 @@
       if (!container || !Array.isArray(rows)) return;
       const preserve = new Set();
       container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]:checked').forEach(function(cb) {
-        preserve.add(cb.value);
+        expandFacetCheckboxValues(cb).forEach(function(v) { preserve.add(v); });
       });
       const countMap = {};
       rows.forEach(function(r) {
         if (!r || r.value == null || r.value === '') return;
-        countMap[r.value] = (countMap[r.value] || 0) + Number(r.count || 0);
+        var v = String(r.value).trim().replace(/\u00A0/g, ' ');
+        if (!v) return;
+        countMap[v] = (countMap[v] || 0) + Number(r.count || 0);
       });
       let vals = Object.keys(countMap);
-      if (['mark', 'body', 'fuel', 'trans', 'color'].indexOf(filterKey) >= 0) {
-        const byLabel = {};
+      const dedupFilterKeys = ['mark', 'model', 'generation', 'trim', 'body', 'fuel', 'transmission', 'color'];
+      if (dedupFilterKeys.indexOf(filterKey) >= 0) {
+        const byGroup = {};
         vals.forEach(function(v) {
-          const label = String(labelCategory ? filterOptionLabel(v, labelCategory) : v).trim().toLowerCase();
-          if (!label) return;
-          if (!byLabel[label]) byLabel[label] = { value: v, count: 0 };
-          byLabel[label].count += Number(countMap[v] || 0);
-          if (preserve.has(v)) byLabel[label].value = v;
+          const display = String(labelCategory ? filterOptionLabel(v, labelCategory) : v).trim();
+          if (!display) return;
+          const dedupK = facetDisplayDedupKey(display, filterKey);
+          if (!dedupK) return;
+          if (!byGroup[dedupK]) byGroup[dedupK] = { values: [], count: 0 };
+          byGroup[dedupK].values.push(v);
+          byGroup[dedupK].count += Number(countMap[v] || 0);
         });
-        vals = Object.keys(byLabel).map(function(k) { return byLabel[k].value; });
-        vals.forEach(function(v) {
-          const key = String(labelCategory ? filterOptionLabel(v, labelCategory) : v).trim().toLowerCase();
-          if (byLabel[key]) countMap[v] = byLabel[key].count;
+        const merged = Object.keys(byGroup).map(function(dk) {
+          const g = byGroup[dk];
+          const sorted = g.values.slice().sort();
+          let rep = sorted[0];
+          for (var i = 0; i < sorted.length; i++) {
+            if (preserve.has(sorted[i])) {
+              rep = sorted[i];
+              break;
+            }
+          }
+          return { value: rep, variants: sorted, count: g.count };
         });
+        merged.sort(function(a, b) {
+          const la = labelCategory ? filterOptionLabel(a.value, labelCategory) : String(a.value);
+          const lb = labelCategory ? filterOptionLabel(b.value, labelCategory) : String(b.value);
+          return String(la).localeCompare(String(lb), 'ru');
+        });
+        renderCheckboxesWithCounts(container, merged, labelCategory, filterKey);
+        container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
+          var exp = expandFacetCheckboxValues(cb);
+          cb.checked = exp.some(function(v) { return preserve.has(v); });
+        });
+        syncCheckboxVisualStates(container);
+        return;
       }
       vals.sort(function(a, b) {
         const la = labelCategory ? filterOptionLabel(a, labelCategory) : String(a);
         const lb = labelCategory ? filterOptionLabel(b, labelCategory) : String(b);
         return String(la).localeCompare(String(lb), 'ru');
       });
-      renderCheckboxesWithCounts(
-        container,
-        vals,
-        function(v) { return labelCategory ? filterOptionLabel(v, labelCategory) : v; },
-        function(v) { return countMap[v] || 0; },
-        filterKey
-      );
+      const asMerged = vals.map(function(v) {
+        return { value: v, variants: [v], count: countMap[v] || 0 };
+      });
+      renderCheckboxesWithCounts(container, asMerged, labelCategory, filterKey);
       container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]').forEach(function(cb) {
-        cb.checked = preserve.has(cb.value);
+        var exp = expandFacetCheckboxValues(cb);
+        cb.checked = exp.some(function(v) { return preserve.has(v); });
       });
       syncCheckboxVisualStates(container);
     }
@@ -1204,7 +1257,7 @@
         const group = colorByLabel[String(labelText).trim().toLowerCase()];
         const cnt = group ? group.count : (countMap[val] || 0);
         const suffix = cnt != null ? (' <span class="opt-count">(' + Number(cnt).toLocaleString('ru-RU') + ')</span>') : '';
-        div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText) + suffix);
+        div.innerHTML = checkboxTemplate(id, 'color', escapeHtml(val), escapeHtml(labelText) + suffix, null);
         container.appendChild(div);
       }
       allColors.slice(0, 4).forEach(function(val) { appendColor(colorListVisible, val, 'filter-color-'); });
@@ -2273,7 +2326,7 @@
       const out = new Set();
       if (!container) return out;
       container.querySelectorAll('input[type=checkbox][data-filter="' + filterKey + '"]:checked').forEach(function(cb) {
-        out.add(cb.value);
+        expandFacetCheckboxValues(cb).forEach(function(v) { out.add(v); });
       });
       return out;
     }
@@ -2327,18 +2380,19 @@
       bindToggle('filterSectionHistoryBtn', 'filterSectionHistory', 'filterSectionHistoryBody');
     }
 
-    function renderCheckboxesWithCounts(container, values, labelFn, countFn, filterKey) {
+    function renderCheckboxesWithCounts(container, mergedRows, labelCategory, filterKey) {
       if (!container) return;
       container.innerHTML = '';
-      (values || []).forEach(function(val) {
+      (mergedRows || []).forEach(function(row, idx) {
         const div = document.createElement('div');
         div.className = 'checkbox-item';
-        const safe = String(val).replace(/\s/g, '_').replace(/[^\w\-]/g, '_');
-        const id = 'filter-' + filterKey + '-' + safe;
-        const label = labelFn ? labelFn(val) : val;
-        const cnt = countFn ? countFn(val) : null;
+        const val = row.value;
+        const variants = row.variants && row.variants.length ? row.variants : [val];
+        const id = 'filter-' + filterKey + '-' + idx + '-' + String(val).replace(/\s/g, '_').replace(/[^\w\-]/g, '_');
+        const label = labelCategory ? filterOptionLabel(val, labelCategory) : val;
+        const cnt = row.count != null ? row.count : null;
         const suffix = (cnt != null) ? (' <span class="opt-count">(' + Number(cnt).toLocaleString('ru-RU') + ')</span>') : '';
-        div.innerHTML = checkboxTemplate(id, filterKey, escapeHtml(val), escapeHtml(label) + suffix);
+        div.innerHTML = checkboxTemplate(id, filterKey, escapeHtml(val), escapeHtml(label) + suffix, variants);
         container.appendChild(div);
       });
       syncCheckboxVisualStates(container);
