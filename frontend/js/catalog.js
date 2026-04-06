@@ -964,6 +964,7 @@
       if (pvc && pvc.checked) p.set('passage_cars', '1');
 
       if (CATALOG_SOURCE) p.set('source', CATALOG_SOURCE);
+      if (CATALOG_REGION) p.set('region', CATALOG_REGION);
 
       return p;
     }
@@ -974,8 +975,14 @@
       if (CATALOG_REGION === 'korea' && p.get('source') === 'encar') {
         p.delete('source');
       }
+      if (CATALOG_REGION === 'korea' && p.get('region') === 'korea') {
+        p.delete('region');
+      }
       if (CATALOG_REGION === 'china' && (p.get('source') === 'dongchedi' || p.get('source') === 'china')) {
         p.delete('source');
+      }
+      if (CATALOG_REGION === 'china' && p.get('region') === 'china') {
+        p.delete('region');
       }
       return p;
     }

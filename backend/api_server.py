@@ -492,20 +492,25 @@ def _build_filter_sql(query: Dict[str, str]) -> Tuple[str, List[str]]:
         clauses.append(f"{age_expr} BETWEEN 3 AND 5")
 
     src = (query.get("source") or "").strip().lower()
-    # Вкладка «Китай» без source=… на фронте: и che168, и dongchedi (в БД часто только один из них).
-    if src == "china":
-        # Только явные китайские source; NULL/пусто/encar не попадают (иначе смешение с Кореей).
-        clauses.append(
-            "LOWER(TRIM(COALESCE(CAST(json_extract(data_json, '$.data.source') AS TEXT), ''))) IN ('dongchedi', 'che168')"
+    region = (query.get("region") or "").strip().lower()
+    # Только json_extract — совпадает с idx_wra_data_source; LOWER/TRIM по всей таблице даёт full scan и 504 на проде.
+    _china_market_sql = "json_extract(data_json, '$.data.source') IN ('che168', 'dongchedi')"
+    # Явный source=encar важнее region=china (на случай тестовых URL).
+    if src == "encar":
+        _src_norm = (
+            "COALESCE(NULLIF(TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')), ''), 'encar')"
         )
+        clauses.append(f"{_src_norm} = 'encar'")
     elif src == "che168":
         clauses.append("json_extract(data_json, '$.data.source') = ?")
         params.append("che168")
     elif src == "dongchedi":
         clauses.append("json_extract(data_json, '$.data.source') = ?")
         params.append("dongchedi")
-    elif src == "encar":
-        # Пустой/NULL source в данных считаем Encar; одно выражение проще для планировщика, чем OR из трёх веток.
+    elif src == "china" or region == "china":
+        # source=china ИЛИ только region=china (если прокси/кэш отрезал source — иначе отдаётся весь каталог = «Корея»).
+        clauses.append(_china_market_sql)
+    elif region == "korea":
         _src_norm = (
             "COALESCE(NULLIF(TRIM(COALESCE(json_extract(data_json, '$.data.source'), '')), ''), 'encar')"
         )
@@ -571,12 +576,17 @@ def _is_default_first_catalog_page(q: Dict[str, str]) -> bool:
         return False
     qd = dict(_catalog_query_dict(q))
     src_low = (qd.get("source") or "").strip().lower()
+    reg_low = (qd.get("region") or "").strip().lower()
     if src_low == "encar":
         qd.pop("source", None)
     if src_low == "dongchedi":
         qd.pop("source", None)
     if src_low == "china":
         qd.pop("source", None)
+    if reg_low == "china":
+        qd.pop("region", None)
+    if reg_low == "korea":
+        qd.pop("region", None)
     if qd:
         return False
     page = (q.get("page") or "1").strip() or "1"

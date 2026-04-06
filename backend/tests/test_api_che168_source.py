@@ -106,6 +106,29 @@ async def test_cars_source_china_union_che168_and_dongchedi(cars_db_mixed: str):
 
 
 @pytest.mark.asyncio
+async def test_cars_region_china_without_source_matches_china_market(cars_db_mixed: str):
+    """Если source= потерян, region=china всё равно сужает до китайских записей."""
+    app = create_app(cars_db_mixed)
+    async with TestClient(TestServer(app)) as client:
+        r = await client.get("/api/cars", params={"page": "1", "per_page": "20", "region": "china"})
+        assert r.status == 200
+        data = await r.json()
+        ids = {x.get("id") for x in (data.get("result") or [])}
+        assert ids == {"che168-99", "dongchedi-7"}
+
+
+@pytest.mark.asyncio
+async def test_cars_region_korea_without_source_is_encar(cars_db_mixed: str):
+    app = create_app(cars_db_mixed)
+    async with TestClient(TestServer(app)) as client:
+        r = await client.get("/api/cars", params={"page": "1", "per_page": "20", "region": "korea"})
+        assert r.status == 200
+        data = await r.json()
+        ids = {x.get("id") for x in (data.get("result") or [])}
+        assert ids == {"enc-1"}
+
+
+@pytest.mark.asyncio
 async def test_facets_respects_source_che168(cars_db_mixed: str):
     app = create_app(cars_db_mixed)
     async with TestClient(TestServer(app)) as client:
