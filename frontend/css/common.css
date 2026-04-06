@@ -181,31 +181,7 @@ body.wra-page-gray {
   background-color: var(--wra-gray-100);
 }
 
-/* ========== ЗАЩИТА ОТ КОПИРОВАНИЯ ========== */
-body,
-body * {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-body img,
-body svg {
-  -webkit-user-drag: none;
-  -khtml-user-drag: none;
-  -moz-user-drag: none;
-  -o-user-drag: none;
-  user-drag: none;
-  pointer-events: auto;
-}
-input,
-textarea,
-[contenteditable="true"] {
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
-}
+/* Copy-protection styles intentionally disabled for UI QA. */
 
 /* ========== ИНТЕРАКТИВНОСТЬ: ФОКУС ========== */
 :focus-visible {
