@@ -19,7 +19,9 @@
      */
     var CATALOG_REGION = 'korea';
     let CATALOG_SOURCE = 'encar';
-    (function initCatalogSource() {
+
+    /** Перед каждым API-запросом: рынок только из URL (и фолбэк WRA_*), иначе легко запросить Корею при ?region=china. */
+    function syncCatalogMarketFromLocation() {
       try {
         var sp = new URLSearchParams(window.location.search || '');
         var srcQ = (sp.get('source') || '').toLowerCase();
@@ -55,8 +57,9 @@
         CATALOG_REGION = 'korea';
         CATALOG_SOURCE = 'encar';
       }
-    })();
-    (function applyCatalogRegionUi() {
+    }
+
+    function applyCatalogRegionUi() {
       try {
         var h1 = document.querySelector('.catalog-header h1');
         if (h1) {
@@ -68,7 +71,10 @@
           hintNew.textContent = 'по дате в каталоге';
         }
       } catch (e) { /* ignore */ }
-    })();
+    }
+
+    syncCatalogMarketFromLocation();
+    applyCatalogRegionUi();
     /** Таймаут ответа списка (мс); при медленном API не держим браузер в вечном pending. */
     var CATALOG_CARS_TIMEOUT_MS =
       typeof window.WRA_CATALOG_CARS_TIMEOUT_MS === 'number' && window.WRA_CATALOG_CARS_TIMEOUT_MS > 5000
@@ -882,6 +888,7 @@
       return out || 'Прочее';
     }
     function buildCatalogFilterParams() {
+      syncCatalogMarketFromLocation();
       const p = new URLSearchParams();
       function addCsv(key, iterable) {
         const a = [...iterable].filter(Boolean);
@@ -1210,34 +1217,25 @@
     }
 
     /**
-     * Статика + API в духе pan-auto: json и фасеты стартуют параллельно с /api/cars (см. bootstrap prefetch).
-     * Если catalog_facets.json ок — отменяем лишний /api/facets; иначе ждём уже ушедший запрос к API.
+     * Сначала catalog_facets.json (Корея); если нет марок — один запрос /api/facets (без параллели → в DevTools не «canceled»).
      */
     async function tryHydrateFacetsWithWarmup(reqId, jsonPromise) {
       if (reqId !== catalogRequestId) return false;
-      // catalog_facets.json — снимок под Корею (encar). Для Китая всегда только /api/facets с source.
+      syncCatalogMarketFromLocation();
       if (CATALOG_SOURCE !== 'encar') return false;
-      var ac = new AbortController();
-      var apiP = fetch(
-        apiUrl('/api/facets?' + buildCatalogFilterParams().toString()),
-        catalogApiFetchInit({ signal: ac.signal })
-      )
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .catch(function() { return null; });
       try {
         var data = await jsonPromise;
-        if (reqId !== catalogRequestId) {
-          try { ac.abort(); } catch (eAbort) {}
-          return true;
-        }
+        if (reqId !== catalogRequestId) return true;
         if (data && typeof data === 'object' && Array.isArray(data.marks)) {
-          try { ac.abort(); } catch (eAbort2) {}
           applyFacetsApiPayload(data, reqId);
           return true;
         }
       } catch (e) {}
       try {
-        var fromApi = await apiP;
+        var res = await fetch(apiUrl('/api/facets?' + buildCatalogFilterParams().toString()), catalogApiFetchInit());
+        if (reqId !== catalogRequestId) return true;
+        if (!res.ok) return false;
+        var fromApi = await res.json();
         if (reqId !== catalogRequestId) return true;
         if (fromApi && typeof fromApi === 'object' && Array.isArray(fromApi.marks) && !fromApi.error) {
           applyFacetsApiPayload(fromApi, reqId);
@@ -1250,6 +1248,7 @@
     async function revalidateFacetsFromApiIfStillDefault(bootToken) {
       var rid = bootToken;
       if (rid !== catalogRequestId) return;
+      syncCatalogMarketFromLocation();
       if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) return;
       try {
         if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
@@ -2420,6 +2419,8 @@
 
     async function bootstrapCatalog() {
       try {
+        syncCatalogMarketFromLocation();
+        applyCatalogRegionUi();
         initCatalogFiltersUi();
 
         var savedScroll = null;
