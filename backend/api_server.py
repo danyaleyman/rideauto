@@ -43,8 +43,14 @@ _RATE_WINDOW_SEC = 60.0
 
 _CATALOG_INDEX_LOCK = threading.Lock()
 # Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
-_CATALOG_INDEX_VERSION = 5
+_CATALOG_INDEX_VERSION = 6
 _CATALOG_INDEX_STATE: dict[str, int] = {}
+
+_FACETS_CACHE_LOCK = threading.Lock()
+# In-process TTL cache: повторные /api/facets с тем же query мгновенны (как edge/SWR у крупных площадок).
+_FACETS_RESULT_CACHE: Dict[Tuple[str, Tuple[Tuple[str, str], ...]], Tuple[float, Dict[str, Any]]] = {}
+_FACETS_CACHE_TTL_SEC = float(os.environ.get("WRA_FACETS_CACHE_TTL", "120"))
+_FACETS_CACHE_MAX_ENTRIES = max(32, int(os.environ.get("WRA_FACETS_CACHE_MAX", "512")))
 
 # Должно совпадать с GROUP BY в _catalog_listing_max_ids_subquery (иначе планировщик не использует индекс).
 _LISTING_PARTITION_KEY_EXPR = (
@@ -188,6 +194,9 @@ def _ensure_catalog_indexes(db_path: str) -> None:
                         json_extract(data_json, '$.data.model')
                     );
                     CREATE INDEX IF NOT EXISTS idx_wra_data_color ON cars(json_extract(data_json, '$.data.color'));
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_body_type ON cars(json_extract(data_json, '$.data.body_type'));
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_engine_type ON cars(json_extract(data_json, '$.data.engine_type'));
+                    CREATE INDEX IF NOT EXISTS idx_wra_data_transmission_type ON cars(json_extract(data_json, '$.data.transmission_type'));
                     CREATE INDEX IF NOT EXISTS idx_wra_data_my_price ON cars(
                         CAST(json_extract(data_json, '$.data.my_price') AS REAL)
                     );
@@ -1037,6 +1046,40 @@ def _facets_catalog_sync(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
         conn.close()
 
 
+def _facets_cache_key(db_path: str, q: Dict[str, str]) -> Tuple[str, Tuple[Tuple[str, str], ...]]:
+    try:
+        rp = str(Path(db_path).resolve())
+    except Exception:
+        rp = db_path
+    frozen = tuple(sorted((str(k), str(v)) for k, v in q.items()))
+    return (rp, frozen)
+
+
+def _facets_cache_prune_unlocked(now: float) -> None:
+    ttl = _FACETS_CACHE_TTL_SEC
+    dead = [k for k, (ts, _) in _FACETS_RESULT_CACHE.items() if (now - ts) >= ttl]
+    for k in dead:
+        del _FACETS_RESULT_CACHE[k]
+    while len(_FACETS_RESULT_CACHE) > _FACETS_CACHE_MAX_ENTRIES:
+        oldest_k = min(_FACETS_RESULT_CACHE.items(), key=lambda kv: kv[1][0])[0]
+        del _FACETS_RESULT_CACHE[oldest_k]
+
+
+def _facets_catalog_sync_memo(db_path: str, q: Dict[str, str]) -> Dict[str, Any]:
+    """Тяжёлый SQL один раз на комбинацию параметров; далее до TTL — ответ из RAM воркера."""
+    key = _facets_cache_key(db_path, q)
+    now = time.monotonic()
+    with _FACETS_CACHE_LOCK:
+        ent = _FACETS_RESULT_CACHE.get(key)
+        if ent is not None and (now - ent[0]) < _FACETS_CACHE_TTL_SEC:
+            return ent[1]
+    payload = _facets_catalog_sync(db_path, q)
+    with _FACETS_CACHE_LOCK:
+        _FACETS_RESULT_CACHE[key] = (time.monotonic(), payload)
+        _facets_cache_prune_unlocked(time.monotonic())
+    return payload
+
+
 def _similar_rows(conn: sqlite3.Connection, current_car: Dict[str, Any], limit: int) -> List[sqlite3.Row]:
     d = current_car.get("data") if isinstance(current_car.get("data"), dict) else current_car
     if not isinstance(d, dict):
@@ -1135,14 +1178,15 @@ async def facets(request: web.Request) -> web.Response:
     china_db = (request.app.get(APP_CHINA_DB_PATH, "") or "").strip() or None
     db_path = _resolve_catalog_db_path(korea_db, china_db, q)
     try:
-        payload = await asyncio.to_thread(_facets_catalog_sync, db_path, q)
+        payload = await asyncio.to_thread(_facets_catalog_sync_memo, db_path, q)
     except Exception as e:
         return web.json_response(
             {"error": "facets_unavailable", "detail": str(e)[:500]},
             status=503,
             headers={"Cache-Control": "no-store"},
         )
-    return _json_public_cache(payload, "public, max-age=60, stale-while-revalidate=180")
+    # Долгий stale-while-revalidate: браузер/CDN отдают прошлый JSON мгновенно, пока идёт фоновое обновление.
+    return _json_public_cache(payload, "public, max-age=45, stale-while-revalidate=86400")
 
 
 async def catalog_stats(request: web.Request) -> web.Response:

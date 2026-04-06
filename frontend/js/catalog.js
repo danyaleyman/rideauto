@@ -255,7 +255,7 @@
       if (filtersOpenBtn) filtersOpenBtn.setAttribute('aria-expanded', 'true');
       document.body.classList.add('filters-drawer-open');
       if (markListEl && !markListEl.querySelector('input[type=checkbox]')) {
-        scheduleFacetRefresh(catalogRequestId);
+        scheduleFacetRefresh(catalogRequestId, true);
       }
     }
     if (filtersOpenBtn && filtersDrawerOverlay) {
@@ -1423,16 +1423,42 @@
         });
     }
 
-    /** Фасеты: параллельно сетке (/api/facets); опционально быстрый первый кадр из catalog_facets.json. */
-    function scheduleFacetRefresh(reqId) {
-      function run() {
-        refreshFacetBars(reqId).catch(function(e) {
+    /** Дебаунс фасетов: быстрый выбор нескольких кузов/цветов → один запрос к API. */
+    var facetDebounceTimer = null;
+    var pendingFacetReqId = null;
+    var FACET_DEBOUNCE_MS = 180;
+    /** @param {boolean} [immediate] без задержки (первый заход, открытие drawer, clamp страницы). */
+    function scheduleFacetRefresh(reqId, immediate) {
+      function runFacet(rid) {
+        refreshFacetBars(rid).catch(function(e) {
           if (e && e.name === 'AbortError') return;
-          if (reqId === catalogRequestId) console.warn('[catalog] facets failed', e);
+          if (rid === catalogRequestId) console.warn('[catalog] facets failed', e);
         });
       }
-      if (typeof queueMicrotask === 'function') queueMicrotask(run);
-      else setTimeout(run, 0);
+      if (immediate) {
+        if (facetDebounceTimer) {
+          clearTimeout(facetDebounceTimer);
+          facetDebounceTimer = null;
+        }
+        pendingFacetReqId = null;
+        var rid0 = reqId;
+        var run0 = function() {
+          if (rid0 !== catalogRequestId) return;
+          runFacet(rid0);
+        };
+        if (typeof queueMicrotask === 'function') queueMicrotask(run0);
+        else setTimeout(run0, 0);
+        return;
+      }
+      pendingFacetReqId = reqId;
+      if (facetDebounceTimer) clearTimeout(facetDebounceTimer);
+      facetDebounceTimer = setTimeout(function() {
+        facetDebounceTimer = null;
+        var rid = pendingFacetReqId;
+        pendingFacetReqId = null;
+        if (rid == null || rid !== catalogRequestId) return;
+        runFacet(rid);
+      }, FACET_DEBOUNCE_MS);
     }
 
     /** Короче ввод цены/пробега и т.д.; на change — немедленный apply; abort снимает гонки. */
@@ -1613,7 +1639,7 @@
               staticCatalogCache = dedupeCatalogCars(parsedInit.list);
               useStaticCatalog = true;
               loadCarsPageStatic(targetPage, reqId);
-              scheduleFacetRefresh(reqId);
+              scheduleFacetRefresh(reqId, true);
               return;
             }
           } catch (e2) { /* fall through */ }
@@ -2551,7 +2577,7 @@
         }
 
         prefetchStaticFacetsSnapshot(reqId);
-        scheduleFacetRefresh(reqId);
+        scheduleFacetRefresh(reqId, true);
         var facetBootstrapId = reqId;
         await loadCarsPage(wantPage, reqId);
         if (reqId !== catalogRequestId) return;
@@ -2561,7 +2587,7 @@
           if (facetBootstrapId !== catalogRequestId) return;
           if (facetBootstrapId !== reqId) {
             prefetchStaticFacetsSnapshot(facetBootstrapId);
-            scheduleFacetRefresh(facetBootstrapId);
+            scheduleFacetRefresh(facetBootstrapId, true);
           }
         }
 

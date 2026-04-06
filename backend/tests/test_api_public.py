@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
+import api_server
+
 
 @pytest.mark.asyncio
 async def test_health_ok(test_app):
@@ -90,6 +92,28 @@ async def test_facets_returns_mark_lists(test_app):
         values = {m.get("value") for m in marks if isinstance(m, dict)}
         assert "Hyundai" in values
         assert "Kia" in values
+        cc = resp.headers.get("Cache-Control", "").lower()
+        assert "stale-while-revalidate" in cc
+
+
+@pytest.mark.asyncio
+async def test_facets_memo_calls_heavy_sql_once(test_app, cars_db_path, monkeypatch):
+    calls = {"n": 0}
+    orig = api_server._facets_catalog_sync
+
+    def wrapped(db_path: str, q: dict):
+        calls["n"] += 1
+        return orig(db_path, q)
+
+    monkeypatch.setattr(api_server, "_facets_catalog_sync", wrapped)
+    with api_server._FACETS_CACHE_LOCK:
+        api_server._FACETS_RESULT_CACHE.clear()
+    async with TestClient(TestServer(test_app)) as client:
+        r1 = await client.get("/api/facets")
+        r2 = await client.get("/api/facets")
+        assert r1.status == 200 and r2.status == 200
+        assert await r1.json() == await r2.json()
+    assert calls["n"] == 1
 
 
 @pytest.mark.asyncio
