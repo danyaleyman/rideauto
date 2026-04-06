@@ -136,6 +136,20 @@ paths:
             application/json:
               schema: { type: object }
 
+  /api/catalog-totals:
+    get:
+      summary: Числа объявлений Корея/Китай для карточек рынка (без двух запросов /api/cars)
+      responses:
+        "200":
+          description: korea_listed / china_listed — тот же дедуп, что у каталога
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  korea_listed: { type: integer }
+                  china_listed: { type: integer }
+
   /api/sort:
     get:
       summary: Метаданные сортировки

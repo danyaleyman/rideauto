@@ -2424,32 +2424,22 @@
       }
     }).catch(function() {});
 
-    /** Числа «n авто» на карточках выбора рынка под баннером (лёгкие запросы meta.total). */
+    /** Числа «n авто» на карточках рынка: один /api/catalog-totals (не два параллельных /api/cars — иначе SQLite и пул потоков захлёбываются). */
     function hydrateMarketPickerCounts() {
       var ke = document.getElementById('marketKoreaCount');
       var ce = document.getElementById('marketChinaCount');
       if (!ke && !ce) return Promise.resolve();
-      function fmt(meta) {
-        if (!meta || typeof meta.total !== 'number' || !Number.isFinite(meta.total) || meta.total < 0) {
-          return '—';
-        }
-        return meta.total.toLocaleString('ru-RU');
+      function fmt(n) {
+        if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return '—';
+        return n.toLocaleString('ru-RU');
       }
-      var init = catalogApiFetchInit();
-      var base = apiUrl('/api/cars');
-      var u1 = base + '?' + new URLSearchParams({ source: 'encar', page: '1', per_page: '1' });
-      var u2 = base + '?' + new URLSearchParams({ source: 'china', page: '1', per_page: '1' });
-      return Promise.all([
-        fetch(u1, init).then(function(r) {
-          return r.ok ? r.json() : null;
-        }),
-        fetch(u2, init).then(function(r) {
+      return fetch(apiUrl('/api/catalog-totals'), catalogApiFetchInit())
+        .then(function(r) {
           return r.ok ? r.json() : null;
         })
-      ])
-        .then(function(pair) {
-          if (ke) ke.textContent = fmt(pair[0] && pair[0].meta);
-          if (ce) ce.textContent = fmt(pair[1] && pair[1].meta);
+        .then(function(d) {
+          if (ke) ke.textContent = fmt(d && d.korea_listed);
+          if (ce) ce.textContent = fmt(d && d.china_listed);
         })
         .catch(function() {
           if (ke) ke.textContent = '—';
@@ -2462,7 +2452,6 @@
         syncCatalogMarketFromLocation();
         applyCatalogRegionUi();
         initCatalogFiltersUi();
-        void hydrateMarketPickerCounts();
 
         var savedScroll = null;
         var savedPage = null;
@@ -2519,6 +2508,8 @@
           var reqClamp = ++catalogRequestId;
           await loadCarsPage(catalogPages, reqClamp);
         }
+
+        void hydrateMarketPickerCounts();
 
         var facetReq = catalogRequestId;
         if (useStaticCatalog && staticCatalogCache && staticCatalogCache.length) {

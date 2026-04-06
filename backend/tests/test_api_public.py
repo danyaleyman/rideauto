@@ -66,6 +66,16 @@ async def test_counts_matches_stats(test_app):
 
 
 @pytest.mark.asyncio
+async def test_catalog_totals_korea_china(test_app):
+    async with TestClient(TestServer(test_app)) as client:
+        resp = await client.get("/api/catalog-totals")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data.get("korea_listed") == 3
+        assert data.get("china_listed") == 0
+
+
+@pytest.mark.asyncio
 async def test_sort_meta_options(test_app):
     async with TestClient(TestServer(test_app)) as client:
         resp = await client.get("/api/sort")

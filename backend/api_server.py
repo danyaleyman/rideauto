@@ -765,6 +765,30 @@ def _catalog_stats_sync(db_path: str) -> Dict[str, Any]:
         conn.close()
 
 
+def _catalog_listing_count_sync(conn: sqlite3.Connection, query: Dict[str, str]) -> int:
+    """COUNT объявлений в каталоге с тем же дедупом, что /api/cars (без разбора JSON строк)."""
+    where, params = _build_filter_sql(query)
+    from_frag, params2 = _cars_dedup_from_fragment(where, params)
+    listing_ids = _catalog_listing_max_ids_subquery(from_frag)
+    row = conn.execute(
+        f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
+        params2,
+    ).fetchone()
+    return int(row["c"]) if row else 0
+
+
+def _catalog_market_totals_sync(db_path: str) -> Dict[str, Any]:
+    """Два числа для карточек «Из Кореи / Из Китая» — один поток, одно соединение (не два параллельных /api/cars)."""
+    _ensure_catalog_indexes(db_path)
+    conn = _db_connect(db_path)
+    try:
+        korea = _catalog_listing_count_sync(conn, {"source": "encar"})
+        china = _catalog_listing_count_sync(conn, {"source": "china"})
+        return {"korea_listed": korea, "china_listed": china}
+    finally:
+        conn.close()
+
+
 def _json_public_cache(data: Any, cache_control: str) -> web.Response:
     return web.json_response(data, headers={"Cache-Control": cache_control})
 
@@ -991,6 +1015,13 @@ async def catalog_stats(request: web.Request) -> web.Response:
 async def catalog_counts(request: web.Request) -> web.Response:
     """Как у конкурента: тот же payload, что /api/stats (+ total), отдельный URL для micro-cache."""
     return await catalog_stats(request)
+
+
+async def catalog_market_totals(request: web.Request) -> web.Response:
+    """Счётчики для UI «Из Кореи / Из Китая» без двух параллельных /api/cars."""
+    db_path: str = request.app[APP_DB_PATH]
+    payload = await asyncio.to_thread(_catalog_market_totals_sync, db_path)
+    return _json_public_cache(payload, "public, max-age=60, stale-while-revalidate=180")
 
 
 async def catalog_sort_meta(_: web.Request) -> web.Response:
@@ -1593,6 +1624,7 @@ def create_app(db_path: str) -> web.Application:
     app.router.add_get("/api/filters", facets)
     app.router.add_get("/api/stats", catalog_stats)
     app.router.add_get("/api/counts", catalog_counts)
+    app.router.add_get("/api/catalog-totals", catalog_market_totals)
     app.router.add_get("/api/sort", catalog_sort_meta)
     app.router.add_get("/api/car/{id}", car_by_id)
     app.router.add_get("/api/similar", similar)
