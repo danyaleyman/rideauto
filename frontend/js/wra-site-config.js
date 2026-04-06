@@ -15,6 +15,8 @@
     window.WRA_ASSET_VERSION = "20260405car";
   }
   /* Статический каталог без API: перед catalog.js задайте window.WRA_ALLOW_CATALOG_JSON_FALLBACK = true (см. catalog allowCarsJsonFallback). */
+  /* Таймаут fetch /api/cars (мс). По умолчанию 180000 в catalog.js; при очень тяжёлой БД можно поднять, задав число до подключения catalog.js. */
+  /* if (typeof window.WRA_CATALOG_CARS_TIMEOUT_MS !== "number") { window.WRA_CATALOG_CARS_TIMEOUT_MS = 240000; } */
 
   /** Публичный URL карточки: /detail/{id} (nginx отдаёт car.html). Фолбэк для старых ссылок — 301 на сервере. */
   window.wraCarDetailPath = function (id) {

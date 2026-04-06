@@ -41,8 +41,17 @@ _RATE_WINDOW_SEC = 60.0
 
 _CATALOG_INDEX_LOCK = threading.Lock()
 # Увеличивайте при добавлении индексов — существующие БД получат CREATE INDEX IF NOT EXISTS.
-_CATALOG_INDEX_VERSION = 3
+_CATALOG_INDEX_VERSION = 4
 _CATALOG_INDEX_STATE: dict[str, int] = {}
+
+# Должно совпадать с GROUP BY в _catalog_listing_max_ids_subquery (иначе планировщик не использует индекс).
+_LISTING_PARTITION_KEY_EXPR = (
+    "COALESCE("
+    "NULLIF(TRIM(json_extract(data_json, '$.data.inner_id')), ''), "
+    "NULLIF(TRIM(json_extract(data_json, '$.inner_id')), ''), "
+    "NULLIF(TRIM(json_extract(data_json, '$.data.id')), ''), "
+    "car_id)"
+)
 
 
 def _ensure_catalog_indexes(db_path: str) -> None:
@@ -104,6 +113,7 @@ def _ensure_catalog_indexes(db_path: str) -> None:
                         COALESCE(json_array_length(json_extract(data_json, '$.data.extra.record_open.accidents')), 0)
                     );
                     """
+                    + f"CREATE INDEX IF NOT EXISTS idx_wra_listing_partition_id ON cars ({_LISTING_PARTITION_KEY_EXPR}, id DESC);\n"
                 )
                 conn.commit()
             finally:
@@ -537,13 +547,7 @@ def _cars_dedup_from_fragment(where: str, params: List[str]) -> Tuple[str, List[
 
 def _sql_listing_partition_key_bare() -> str:
     """Одна строка каталога на объявление Encar: один inner id даже при разных car_id в БД."""
-    return (
-        "COALESCE("
-        "NULLIF(TRIM(json_extract(data_json, '$.data.inner_id')), ''), "
-        "NULLIF(TRIM(json_extract(data_json, '$.inner_id')), ''), "
-        "NULLIF(TRIM(json_extract(data_json, '$.data.id')), ''), "
-        "car_id)"
-    )
+    return _LISTING_PARTITION_KEY_EXPR
 
 
 def _sql_listing_partition_key_qualified(table_alias: str) -> str:
