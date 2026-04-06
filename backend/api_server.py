@@ -620,60 +620,86 @@ _CATALOG_SORT_META: Tuple[Tuple[str, str, str], ...] = (
 
 
 def _cars_catalog_sync(db_path: str, query: Dict[str, str], *, slim: bool) -> Dict[str, Any]:
+    t_wall0 = time.perf_counter()
     _ensure_catalog_indexes(db_path)
     conn = _db_connect(db_path)
+    interrupt_ms = _env_int("WRA_SQLITE_CATALOG_INTERRUPT_MS", 0)
+    src_log = (query.get("source") or "").strip() or (query.get("region") or "").strip() or "-"
     try:
-        page = max(1, int(query.get("page", "1") or "1"))
-        per_page = min(100, max(1, int(query.get("per_page", "12") or "12")))
-        offset = (page - 1) * per_page
+        if interrupt_ms > 0:
+            deadline = time.monotonic() + interrupt_ms / 1000.0
 
-        where, params = _build_filter_sql(query)
-        from_frag, params2 = _cars_dedup_from_fragment(where, params)
-        sort = (query.get("sort") or "date_new").strip()
-        order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
-        listing_ids = _catalog_listing_max_ids_subquery(from_frag)
-        total = conn.execute(
-            f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
-            params2,
-        ).fetchone()["c"]
-        order_c = _catalog_order_by_alias(order_sql, "c")
-        rows = conn.execute(
-            f"""
-            SELECT c.car_id, c.data_json
-            FROM cars AS c
-            INNER JOIN {listing_ids} AS x ON c.id = x.mid
-            ORDER BY {order_c}
-            LIMIT ? OFFSET ?
-            """,
-            [*params2, per_page, offset],
-        ).fetchall()
+            def _prog() -> int:
+                return 1 if time.monotonic() > deadline else 0
 
-        result: List[Dict[str, Any]] = []
-        for row in rows:
-            car = json.loads(row["data_json"])
-            car["id"] = row["car_id"]
-            if slim:
-                result.append(_slim_catalog_car(car, row["car_id"]))
-            else:
-                data = car.get("data") if isinstance(car.get("data"), dict) else car
-                if isinstance(data, dict):
-                    car["title"] = _car_title(data)
-                    car["price"] = _extract_num(data, "my_price")
-                    car["year_num"] = int(str(data.get("year") or 0)[:4] or 0)
-                result.append(car)
+            conn.set_progress_handler(_prog, 8000)
+        try:
+            page = max(1, int(query.get("page", "1") or "1"))
+            per_page = min(100, max(1, int(query.get("per_page", "12") or "12")))
+            offset = (page - 1) * per_page
 
-        pages = max(1, (int(total) + per_page - 1) // per_page)
-        return {
-            "result": result,
-            "meta": {
-                "page": page,
-                "per_page": per_page,
-                "total": int(total),
-                "pages": pages,
-                "next_page": page + 1 if page < pages else None,
-                "list_mode": "slim" if slim else "full",
-            },
-        }
+            where, params = _build_filter_sql(query)
+            from_frag, params2 = _cars_dedup_from_fragment(where, params)
+            sort = (query.get("sort") or "date_new").strip()
+            order_sql = _CATALOG_SORT_SQL.get(sort, _CATALOG_SORT_SQL["date_new"])
+            listing_ids = _catalog_listing_max_ids_subquery(from_frag)
+            t_count0 = time.perf_counter()
+            total = conn.execute(
+                f"SELECT COUNT(*) AS c FROM cars AS c INNER JOIN {listing_ids} AS x ON c.id = x.mid",
+                params2,
+            ).fetchone()["c"]
+            t_count1 = time.perf_counter()
+            order_c = _catalog_order_by_alias(order_sql, "c")
+            rows = conn.execute(
+                f"""
+                SELECT c.car_id, c.data_json
+                FROM cars AS c
+                INNER JOIN {listing_ids} AS x ON c.id = x.mid
+                ORDER BY {order_c}
+                LIMIT ? OFFSET ?
+                """,
+                [*params2, per_page, offset],
+            ).fetchall()
+            t_rows1 = time.perf_counter()
+
+            result: List[Dict[str, Any]] = []
+            for row in rows:
+                car = json.loads(row["data_json"])
+                car["id"] = row["car_id"]
+                if slim:
+                    result.append(_slim_catalog_car(car, row["car_id"]))
+                else:
+                    data = car.get("data") if isinstance(car.get("data"), dict) else car
+                    if isinstance(data, dict):
+                        car["title"] = _car_title(data)
+                        car["price"] = _extract_num(data, "my_price")
+                        car["year_num"] = int(str(data.get("year") or 0)[:4] or 0)
+                    result.append(car)
+
+            pages = max(1, (int(total) + per_page - 1) // per_page)
+            _LOG.info(
+                "catalog cars src=%s count_ms=%.0f select_ms=%.0f total=%s rows=%s wall_ms=%.0f",
+                src_log,
+                (t_count1 - t_count0) * 1000,
+                (t_rows1 - t_count1) * 1000,
+                int(total),
+                len(rows),
+                (time.perf_counter() - t_wall0) * 1000,
+            )
+            return {
+                "result": result,
+                "meta": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total": int(total),
+                    "pages": pages,
+                    "next_page": page + 1 if page < pages else None,
+                    "list_mode": "slim" if slim else "full",
+                },
+            }
+        finally:
+            if interrupt_ms > 0:
+                conn.set_progress_handler(None, 0)
     finally:
         conn.close()
 
@@ -922,7 +948,16 @@ async def cars(request: web.Request) -> web.Response:
     q = {k: str(v) if not isinstance(v, str) else v for k, v in request.rel_url.query.items()}
     slim = (q.get("full") or "").strip() != "1"
     db_path: str = request.app[APP_DB_PATH]
-    payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
+    try:
+        payload = await asyncio.to_thread(_cars_catalog_sync, db_path, q, slim=slim)
+    except sqlite3.OperationalError as e:
+        if "interrupted" in str(e).lower():
+            return web.json_response(
+                {"error": "catalog_query_timeout", "detail": "sqlite_interrupt"},
+                status=503,
+                headers={"Cache-Control": "no-store"},
+            )
+        raise
     # Первая страница без фильтров (как у конкурента с «мгновенным» списком после preload) — дольше SWR у клиента.
     if slim and _is_default_first_catalog_page(q):
         cache = "public, max-age=120, stale-while-revalidate=600"
