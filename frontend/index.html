@@ -16,7 +16,7 @@
     <!-- Не preload /api/*: при недоступном бэкенде браузер долго держит соединения и блокирует fetch из catalog.js (лимит HTTP/1.1). -->
     <link rel="preconnect" href="https://ci.encar.com" crossorigin>
     <link rel="dns-prefetch" href="https://ci.encar.com">
-    <link rel="preload" href="js/catalog.js?v=20260412" as="script">
+    <link rel="preload" href="js/catalog.js?v=20260413" as="script">
     <script>
       (function () {
         try {
@@ -1845,7 +1845,6 @@
       gap: var(--space-2);
       overflow: hidden;
     }
-    .hero-banner-brand .brand-name .flag { font-size: 1.35rem; line-height: 1; }
     .hero-banner-brand .brand-name.splitting { gap: 0.15em; }
     .hero-banner-brand .brand-name.splitting .line { overflow: hidden; display: block; }
     .hero-banner-brand .brand-name.splitting .word { display: inline-block; }
@@ -1855,66 +1854,104 @@
       color: var(--wra-primary);
       margin: 0 0 0 60px;
     }
-    html.wra-catalog-korea .wra-hero-brand-china,
     html.wra-catalog-korea .wra-hero-tagline-china {
       display: none !important;
     }
-    html.wra-catalog-china .wra-hero-brand-korea,
     html.wra-catalog-china .wra-hero-tagline-korea {
       display: none !important;
-    }
-    .hero-banner-brand .brand-name .wra-hero-brand-korea,
-    .hero-banner-brand .brand-name .wra-hero-brand-china {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-2);
-    }
-    .hero-region-switch {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin: 14px 0 0 60px;
-    }
-    .hero-region-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      border-radius: 999px;
-      font-size: 0.875rem;
-      font-weight: 600;
-      text-decoration: none;
-      border: 1px solid var(--wra-border);
-      background: var(--wra-surface);
-      color: var(--wra-gray-900);
-      box-shadow: var(--shadow);
-      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
-    }
-    .hero-region-btn:hover {
-      border-color: var(--wra-gray-400);
-      transform: translateY(-1px);
-    }
-    .hero-region-btn:focus-visible {
-      outline: none;
-      box-shadow: var(--shadow-focus);
-    }
-    html.wra-catalog-korea .hero-region-btn[data-wra-region='korea'],
-    html.wra-catalog-china .hero-region-btn[data-wra-region='china'] {
-      background: var(--wra-primary);
-      border-color: var(--wra-primary);
-      color: var(--wra-white);
     }
     html.wra-catalog-china .wra-filters-region--korea {
       display: none !important;
     }
-    html.wra-catalog-korea .wra-filters-region--china {
-      display: none !important;
+
+    /* Карточки выбора рынка под баннером */
+    .wra-market-picker-wrap {
+      max-width: 1280px;
+      margin: 0 auto 24px;
+      padding: 0 20px;
+      box-sizing: border-box;
     }
-    .wra-china-filters-hint {
-      margin: 0;
-      font-size: 0.8125rem;
-      line-height: 1.45;
-      color: var(--wra-text-muted);
+    .wra-market-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      align-items: center;
+    }
+    .wra-market-tile {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+      width: 200px;
+      height: 100px;
+      box-sizing: border-box;
+      padding: 14px 12px 10px 14px;
+      background: #f3f3f3;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #000;
+      border: 1px solid transparent;
+      transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+    }
+    .wra-market-tile:hover {
+      background: #ebebeb;
+      border-color: rgba(0, 0, 0, 0.06);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      transform: translateY(-2px);
+    }
+    .wra-market-tile:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+    .wra-market-tile__text {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-start;
+      justify-content: flex-start;
+      z-index: 1;
+      min-width: 0;
+    }
+    .wra-market-tile__title {
+      font-size: 14px;
+      line-height: 17px;
+      font-weight: 600;
+      color: #000;
+    }
+    .wra-market-tile__count {
+      font-size: 12px;
+      line-height: 14px;
+      font-weight: 600;
+      color: #bdbdbd;
+    }
+    .wra-market-tile__flag {
+      position: absolute;
+      right: -4px;
+      bottom: -6px;
+      line-height: 0;
+      pointer-events: none;
+      opacity: 0.92;
+      transition: transform 0.22s ease, opacity 0.22s ease;
+    }
+    .wra-market-tile__flag img {
+      display: block;
+      width: 92px;
+      height: auto;
+      max-height: 76px;
+      object-fit: contain;
+      object-position: bottom right;
+    }
+    .wra-market-tile:hover .wra-market-tile__flag {
+      transform: scale(1.07) translateY(-2px);
+      opacity: 1;
+    }
+    html.wra-catalog-korea .wra-market-tile[data-wra-region='korea'],
+    html.wra-catalog-china .wra-market-tile[data-wra-region='china'] {
+      border-color: var(--wra-primary);
+      box-shadow: 0 0 0 1px var(--wra-primary);
+      background: #fff;
     }
     .hero-banner-cards {
       flex: 1;
@@ -2113,7 +2150,7 @@
         max-width: 100%;
       }
       .hero-banner-brand .tagline { margin-left: 0; margin-right: 0; max-width: 100%; }
-      .hero-region-switch { margin-left: 0; margin-right: 0; justify-content: center; }
+      .wra-market-picker { justify-content: center; }
       .hero-banner-cards { flex-direction: column; max-width: 100%; min-width: 0; }
       .hero-banner-card-static { flex: 1 1 auto; max-width: none; }
       .hero-banner-slider-wrap {
@@ -2412,7 +2449,6 @@
       <nav class="nav-menu">
         <a href="/about">О компании</a>
         <a href="/catalog">Каталог</a>
-        <a href="/catalog?region=china">Китай (懂车帝)</a>
         <a href="/buy">Как купить</a>
         <a href="/contacts">Контакты</a>
       </nav>
@@ -2429,7 +2465,6 @@
     <nav class="mobile-header-menu" id="mobileHeaderMenu" aria-label="Мобильное меню">
       <a href="/about">О компании</a>
       <a href="/catalog">Каталог</a>
-      <a href="/catalog?region=china">Китай (懂车帝)</a>
       <a href="/buy">Как купить</a>
       <a href="/contacts">Контакты</a>
     </nav>
@@ -2439,16 +2474,9 @@
   <div class="hero-banner-wrap">
     <section class="hero-banner">
       <div class="hero-banner-brand">
-        <h2 class="brand-name">
-          <span class="wra-hero-brand-korea">World Ride Auto <span class="flag" aria-hidden="true">🇰🇷</span></span>
-          <span class="wra-hero-brand-china">World Ride Auto <span class="flag" aria-hidden="true">🇨🇳</span></span>
-        </h2>
+        <h2 class="brand-name">World Ride Auto</h2>
         <p class="tagline wra-hero-tagline-korea">Авто из Южной Кореи без посредников</p>
-        <p class="tagline wra-hero-tagline-china">Подбор с китайской площадки 懂车帝 (Dongchedi)</p>
-        <div class="hero-region-switch" role="navigation" aria-label="Выбор рынка каталога">
-          <a class="hero-region-btn" href="/catalog?region=korea" data-wra-region="korea"><span aria-hidden="true">🇰🇷</span> Корея (Encar)</a>
-          <a class="hero-region-btn" href="/catalog?region=china" data-wra-region="china"><span aria-hidden="true">🇨🇳</span> Китай (懂车帝)</a>
-        </div>
+        <p class="tagline wra-hero-tagline-china">Подбор с китайской площадки Dongchedi</p>
       </div>
       <div class="hero-banner-cards">
         <div class="hero-banner-card-static">
@@ -2493,6 +2521,29 @@
     </section>
   </div>
 
+  <div class="wra-market-picker-wrap" aria-label="Выбор рынка каталога">
+    <div class="wra-market-picker">
+      <a class="wra-market-tile" href="/catalog?region=korea" data-wra-region="korea">
+        <span class="wra-market-tile__text">
+          <span class="wra-market-tile__title">Из Кореи</span>
+          <span class="wra-market-tile__count"><span id="marketKoreaCount">—</span> авто</span>
+        </span>
+        <span class="wra-market-tile__flag" aria-hidden="true">
+          <img src="image/korea-market.png" alt="" width="88" height="56" loading="lazy" decoding="async">
+        </span>
+      </a>
+      <a class="wra-market-tile" href="/catalog?region=china" data-wra-region="china">
+        <span class="wra-market-tile__text">
+          <span class="wra-market-tile__title">Из Китая</span>
+          <span class="wra-market-tile__count"><span id="marketChinaCount">—</span> авто</span>
+        </span>
+        <span class="wra-market-tile__flag" aria-hidden="true">
+          <img src="image/china-market.png" alt="" width="88" height="56" loading="lazy" decoding="async">
+        </span>
+      </a>
+    </div>
+  </div>
+
 <div class="main-layout">
   <div class="filters-drawer-overlay" id="filtersDrawerOverlay" aria-hidden="true"></div>
   <!-- Левая панель фильтров (на мобиле показывается в drawer по кнопке «Фильтры») -->
@@ -2525,12 +2576,6 @@
             </div>
           </div>
         </div>
-      </div>
-      <div class="wra-filters-region wra-filters-region--china filter-group">
-        <h4>Каталог Китая</h4>
-        <p class="wra-china-filters-hint">
-          Доступны марка, модель, цена (₽, ориентир), пробег и год. Фильтры расширяем по мере наполнения базы 懂车帝.
-        </p>
       </div>
       <div class="wra-filters-region wra-filters-region--korea">
       <!-- 3. Поколение -->
@@ -2843,7 +2888,7 @@
   else scrollToCatalogIfPath();
 })();
 </script>
-<script src="js/catalog.js?v=20260412" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
+<script src="js/catalog.js?v=20260413" defer onerror="this.onerror=null;var g=document.getElementById('grid');if(g){g.setAttribute('aria-busy','false');g.innerHTML='<div style=&quot;text-align:center;padding:48px 24px;background:var(--wra-surface);border:1px solid var(--wra-border);border-radius:24px;max-width:520px;margin:0 auto&quot;><p style=&quot;margin:0 0 16px&quot;>Не удалось загрузить базу данных. Мы уже работаем над этим.</p><div style=&quot;display:flex;gap:10px;justify-content:center;flex-wrap:wrap&quot;><a href=&quot;https://t.me/nikits15&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;btn btn-secondary&quot;>Написать менеджеру</a><a href=&quot;#&quot; class=&quot;btn btn-primary&quot; onclick=&quot;event.preventDefault();location.reload()&quot;>Обновить</a></div></div>';}"></script>
 <script src="js/header-init.js?v=20260410" defer></script>
 <script src="js/cookie-consent.js?v=20260421" defer></script>
 

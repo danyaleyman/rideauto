@@ -64,7 +64,7 @@
         var h1 = document.querySelector('.catalog-header h1');
         if (h1) {
           h1.textContent =
-            CATALOG_REGION === 'china' ? 'Автомобили из Китая (懂车帝)' : 'Автомобили из Кореи (Encar)';
+            CATALOG_REGION === 'china' ? 'Автомобили из Китая' : 'Автомобили из Кореи (Encar)';
         }
         var hintNew = document.querySelector('.sort-option[data-value="date_new"] .sort-option-hint');
         if (hintNew && CATALOG_REGION === 'china') {
@@ -2424,11 +2424,45 @@
       }
     }).catch(function() {});
 
+    /** Числа «n авто» на карточках выбора рынка под баннером (лёгкие запросы meta.total). */
+    function hydrateMarketPickerCounts() {
+      var ke = document.getElementById('marketKoreaCount');
+      var ce = document.getElementById('marketChinaCount');
+      if (!ke && !ce) return Promise.resolve();
+      function fmt(meta) {
+        if (!meta || typeof meta.total !== 'number' || !Number.isFinite(meta.total) || meta.total < 0) {
+          return '—';
+        }
+        return meta.total.toLocaleString('ru-RU');
+      }
+      var init = catalogApiFetchInit();
+      var base = apiUrl('/api/cars');
+      var u1 = base + '?' + new URLSearchParams({ source: 'encar', page: '1', per_page: '1' });
+      var u2 = base + '?' + new URLSearchParams({ source: 'china', page: '1', per_page: '1' });
+      return Promise.all([
+        fetch(u1, init).then(function(r) {
+          return r.ok ? r.json() : null;
+        }),
+        fetch(u2, init).then(function(r) {
+          return r.ok ? r.json() : null;
+        })
+      ])
+        .then(function(pair) {
+          if (ke) ke.textContent = fmt(pair[0] && pair[0].meta);
+          if (ce) ce.textContent = fmt(pair[1] && pair[1].meta);
+        })
+        .catch(function() {
+          if (ke) ke.textContent = '—';
+          if (ce) ce.textContent = '—';
+        });
+    }
+
     async function bootstrapCatalog() {
       try {
         syncCatalogMarketFromLocation();
         applyCatalogRegionUi();
         initCatalogFiltersUi();
+        void hydrateMarketPickerCounts();
 
         var savedScroll = null;
         var savedPage = null;
