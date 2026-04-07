@@ -1,0 +1,28 @@
+# Правила для Prometheus. Порог 1% 5xx за 5m — как ориентир в docs/SLO.md.
+# Требует стабильного трафика: при очень низком RPS знаменатель маленький.
+
+groups:
+  - name: wra_api
+    interval: 30s
+    rules:
+      - alert: WraApi5xxRateHigh
+        expr: |
+          (
+            sum(rate(wra_http_requests_total{status_class="5xx"}[5m]))
+            /
+            clamp_min(sum(rate(wra_http_requests_total[5m])), 1e-6)
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "prod-encar API: доля 5xx > 1% за 5m"
+          description: "Проверь логи api и nginx. Выражение: ratio 5xx / all requests."
+
+      - alert: WraApiTargetDown
+        expr: up{job="prod-encar-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus не достучался до /metrics (prod-encar-api)"

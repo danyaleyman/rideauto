@@ -1,0 +1,21 @@
+# Минимальный Alertmanager. UI: http://127.0.0.1:9093
+# Добавь receivers (email, Telegram, Slack) под свои каналы.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: default
+    # Пока «тупик»: алерты видны в UI Alertmanager и в логе.
+    # Пример Telegram (заполни bot_token и chat_id):
+    # telegram_configs:
+    #   - bot_token: 'YOUR_BOT_TOKEN'
+    #     chat_id: YOUR_CHAT_ID
+
+inhibit_rules: []

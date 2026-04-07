@@ -53,9 +53,52 @@ rate(wra_http_requests_total{status_class="5xx"}[5m])
 histogram_quantile(0.95, sum(rate(wra_http_request_duration_seconds_bucket[5m])) by (le, path_group))
 ```
 
+Проверка из shell (есть ли серии):
+
+```bash
+curl -sG --data-urlencode 'query=up{job="prod-encar-api"}' http://127.0.0.1:9090/api/v1/query | head -c 400
+echo
+```
+
+### Шаг 6 — правила алертов + Alertmanager (опционально, но логично сразу после Prometheus)
+
+В репозитории:
+
+- **`deploy/monitoring/alert_rules.yml`** — алерты **5xx > 1%** (5m) и **target down**
+- **`deploy/monitoring/alertmanager.yml`** — минимальный маршрут (уведомления допиши под себя)
+
+Обнови код:
+
+```bash
+cd /opt/prod-encar && git pull
+```
+
+**Сначала Alertmanager** (слушает только localhost), затем Prometheus:
+
+```bash
+docker rm -f alertmanager 2>/dev/null || true
+docker run -d --name alertmanager --restart unless-stopped \
+  --network host \
+  -v /opt/prod-encar/deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro \
+  prom/alertmanager:latest \
+  --config.file=/etc/alertmanager/alertmanager.yml \
+  --web.listen-address=127.0.0.1:9093
+
+docker rm -f prometheus
+docker run -d --name prometheus --restart unless-stopped \
+  --network host \
+  -v /opt/prod-encar/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
+  -v /opt/prod-encar/deploy/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro \
+  prom/prometheus:latest \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --web.listen-address=127.0.0.1:9090
+```
+
+Проверка: **Prometheus** → **Alerts** (правила загружены); **Alertmanager** `http://127.0.0.1:9093` — вкладка **Alerts** после срабатывания.
+
 ### Дальше (следующие этапы)
 
-1. **Alertmanager** + правило «5xx rate > 1% за 5m» (или облачный мониторинг с агентом).
+1. **Подписать** `alertmanager.yml` (Telegram / email / Slack) и сделать **тестовый firing** (кратковременно уронить порог в `alert_rules.yml` или остановить api).
 2. **Копия бэкапов** с сервера (S3 / второй хост).
 3. **Тестовое восстановление** дампа на отдельной ВМ.
 
