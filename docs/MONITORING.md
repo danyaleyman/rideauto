@@ -65,13 +65,31 @@ echo
 В репозитории:
 
 - **`deploy/monitoring/alert_rules.yml`** — алерты **5xx > 1%** (5m) и **target down**
-- **`deploy/monitoring/alertmanager.yml`** — минимальный маршрут (уведомления допиши под себя)
+- **`deploy/monitoring/alertmanager.yml`** — маршрут в **Telegram** (токен и chat id — только в файлах на сервере)
 
 Обнови код:
 
 ```bash
 cd /opt/prod-encar && git pull
 ```
+
+#### Telegram для Alertmanager
+
+1. В Telegram: **@BotFather** → `/newbot` → сохрани **токен** бота.
+2. Напиши боту любое сообщение (или добавь бота в группу и отправь сообщение в группу).
+3. Узнай **chat_id**:
+   ```bash
+   curl -sS "https://api.telegram.org/bot<TOKEN>/getUpdates" | python3 -m json.tool
+   ```
+   В ответе смотри `message.chat.id` (для групп часто отрицательное число, например `-100…`).
+4. На сервере создай секреты (одна строка в файле, без лишних пробелов и переводов строки после числа по возможности):
+   ```bash
+   cd /opt/prod-encar/deploy/monitoring/secrets
+   sudo cp bot_token.example bot_token
+   sudo cp chat_id.example chat_id
+   sudo nano bot_token chat_id   # подставь реальные значения
+   sudo chmod 600 bot_token chat_id
+   ```
 
 **Сначала Alertmanager** (слушает только localhost), затем Prometheus:
 
@@ -80,6 +98,8 @@ docker rm -f alertmanager 2>/dev/null || true
 docker run -d --name alertmanager --restart unless-stopped \
   --network host \
   -v /opt/prod-encar/deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro \
+  -v /opt/prod-encar/deploy/monitoring/secrets/bot_token:/etc/alertmanager/secrets/bot_token:ro \
+  -v /opt/prod-encar/deploy/monitoring/secrets/chat_id:/etc/alertmanager/secrets/chat_id:ro \
   prom/alertmanager:latest \
   --config.file=/etc/alertmanager/alertmanager.yml \
   --web.listen-address=127.0.0.1:9093
@@ -96,9 +116,11 @@ docker run -d --name prometheus --restart unless-stopped \
 
 Проверка: **Prometheus** → **Alerts** (правила загружены); **Alertmanager** `http://127.0.0.1:9093` — вкладка **Alerts** после срабатывания.
 
+**Проверка Telegram:** временно останови **`api`** на пару минут или ослабь порог в **`alert_rules.yml`** — в чат должно прийти уведомление; после восстановления — сообщение о **resolved** (если включено `send_resolved`). После смены **`bot_token`** / **`chat_id`** пересоздай контейнер **`alertmanager`** с теми же volume.
+
 ### Дальше (следующие этапы)
 
-1. **Подписать** `alertmanager.yml` (Telegram / email / Slack) и сделать **тестовый firing** (кратковременно уронить порог в `alert_rules.yml` или остановить api).
+1. При необходимости — второй receiver (email / Slack) через `route` `continue` и отдельные `receiver`.
 2. **Копия бэкапов** с сервера (S3 / второй хост).
 3. **Тестовое восстановление** дампа на отдельной ВМ.
 

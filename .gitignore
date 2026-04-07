@@ -2,6 +2,10 @@
 
 # Server DB dumps (deploy/scripts/backup_postgres_compose.sh)
 backups/
+
+# Alertmanager Telegram secrets (копируй из *.example на сервере)
+deploy/monitoring/secrets/bot_token
+deploy/monitoring/secrets/chat_id
 __pycache__/
 *.pyc
 *.pyo
