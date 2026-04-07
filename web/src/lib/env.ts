@@ -1,4 +1,13 @@
 /**
+ * Канонический origin сайта (SEO, Open Graph). В проде задайте NEXT_PUBLIC_SITE_URL.
+ */
+export function getSiteUrl(): string {
+  const u = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (u) return u.replace(/\/+$/, "");
+  return "https://rideauto.ru";
+}
+
+/**
  * Серверные запросы (SSR) идут на внутренний базовый URL API.
  * Клиентские — на публичный (доступный из браузера).
  */

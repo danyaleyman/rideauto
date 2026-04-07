@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LegacyCarScripts } from "@/components/legacy-car/LegacyCarScripts";
+import { buildCarMetadata } from "@/lib/car-seo";
 import { fetchCar } from "@/lib/api";
 
 type PageProps = {
@@ -18,22 +19,6 @@ function readFrag(p: string): string {
   } catch {
     return "";
   }
-}
-
-function pickData(raw: Record<string, unknown>): Record<string, unknown> {
-  const inner = raw.data;
-  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-    return inner as Record<string, unknown>;
-  }
-  return raw;
-}
-
-function carHeading(raw: Record<string, unknown>): string {
-  const d = pickData(raw);
-  const parts = [d.mark, d.model, d.generation ?? d.configuration]
-    .filter((x): x is string => typeof x === "string" && x.length > 0);
-  if (parts.length) return parts.join(" ");
-  return typeof raw.title === "string" ? raw.title : "Автомобиль";
 }
 
 function bootstrapInline(ref: string): string {
@@ -52,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!result || Object.keys(result).length === 0) {
       return { title: "Не найдено" };
     }
-    return { title: carHeading(result) };
+    return buildCarMetadata(ref, result);
   } catch {
     return { title: "Карточка" };
   }

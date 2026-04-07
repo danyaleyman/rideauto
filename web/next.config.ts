@@ -7,6 +7,15 @@ const apiTarget =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  async redirects() {
+    return [
+      {
+        source: "/detail/:id",
+        destination: "/car/:id",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiTarget}/api/:path*` }];
   },

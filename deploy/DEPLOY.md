@@ -24,6 +24,21 @@ sudo systemctl enable --now encar-api.service       # активный юнит
 
 Проксируйте префикс `/api/` на тот же upstream, что уже используется для каталога. Отдельный `location` для `/api/version` не обязателен.
 
+## Next.js (`web`)
+
+- **Стек:** страницы `/`, `/catalog`, `/car/[id]` на Next.js 15 (SSR для метаданных и первого HTML; каталог гидрируется на клиенте; карточка авто подтягивает легаси `car-page.js` и статику из `frontend/` через `web/scripts/sync-legacy-assets.mjs`).
+- **Данные:** поиск и фасеты — FastAPI + Meilisearch; карточка и гидратация — **PostgreSQL** (и Redis-кэш при настройке), не «старый» один только SQLite, если у вас в проде задан `WRA_PG_DSN`.
+- **Сборка Docker:** контекст сборки образа `web` — **корень репозитория** (`docker-compose.yml`: `context: .`, `dockerfile: web/Dockerfile`); в образ копируется `frontend/` для sync в `public/` перед `next build`.
+- **Прокси API:** в `next.config.ts` запросы браузера к `/api/*` на origin Next проксируются на `WRA_API_INTERNAL` (в compose по умолчанию `http://api:8080`). За **nginx** чаще `/api/` отдают сразу на uvicorn — тогда rewrite Next не используется, это нормально.
+- **Редирект:** с Next приходит постоянный редирект **`/detail/:id` → `/car/:id`**. Если nginx по-прежнему отдаёт статический `car.html` на `/detail/`, настройте там **301 на `/car/`** или прокси на Next, чтобы не было дубля. Пример для nginx (если запросы к `/detail/` не попадают в Next):
+
+```nginx
+location ~ ^/detail/([^/]+)/?$ {
+    return 301 /car/$1;
+}
+```
+- **Переменные:** `NEXT_PUBLIC_API_BASE` (браузер), `WRA_API_INTERNAL` (SSR и rewrite при dev/standalone), **`NEXT_PUBLIC_SITE_URL`** (канонический домен для SEO, например `https://rideauto.ru`).
+
 ## Docker (опционально)
 
 Из корня репозитория:
