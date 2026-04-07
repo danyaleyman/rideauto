@@ -416,8 +416,109 @@ RETURNING id
 def apply_schema(conn: Any, schema_path: Path) -> None:
     """Apply multi-statement schema (psycopg2 executes one statement per call)."""
     text = schema_path.read_text(encoding="utf-8")
+
+    def split_sql_statements(script_text: str) -> List[str]:
+        """Split SQL script by semicolon, skipping strings/comments."""
+        stmts: List[str] = []
+        cur: List[str] = []
+        i = 0
+        n = len(script_text)
+        in_single = False
+        in_double = False
+        in_line_comment = False
+        in_block_comment = False
+        in_dollar: Optional[str] = None
+        while i < n:
+            ch = script_text[i]
+            nxt = script_text[i + 1] if i + 1 < n else ""
+            if in_line_comment:
+                cur.append(ch)
+                if ch == "\n":
+                    in_line_comment = False
+                i += 1
+                continue
+            if in_block_comment:
+                cur.append(ch)
+                if ch == "*" and nxt == "/":
+                    cur.append(nxt)
+                    i += 2
+                    in_block_comment = False
+                    continue
+                i += 1
+                continue
+            if in_dollar is not None:
+                cur.append(ch)
+                if script_text.startswith(in_dollar, i):
+                    for j in range(1, len(in_dollar)):
+                        cur.append(script_text[i + j])
+                    i += len(in_dollar)
+                    in_dollar = None
+                    continue
+                i += 1
+                continue
+            if in_single:
+                cur.append(ch)
+                if ch == "'" and nxt == "'":
+                    cur.append(nxt)
+                    i += 2
+                    continue
+                if ch == "'":
+                    in_single = False
+                i += 1
+                continue
+            if in_double:
+                cur.append(ch)
+                if ch == '"':
+                    in_double = False
+                i += 1
+                continue
+            if ch == "-" and nxt == "-":
+                cur.append(ch)
+                cur.append(nxt)
+                i += 2
+                in_line_comment = True
+                continue
+            if ch == "/" and nxt == "*":
+                cur.append(ch)
+                cur.append(nxt)
+                i += 2
+                in_block_comment = True
+                continue
+            if ch == "$":
+                j = i + 1
+                while j < n and (script_text[j].isalnum() or script_text[j] == "_"):
+                    j += 1
+                if j < n and script_text[j] == "$":
+                    tag = script_text[i : j + 1]
+                    cur.append(tag)
+                    i = j + 1
+                    in_dollar = tag
+                    continue
+            if ch == "'":
+                cur.append(ch)
+                in_single = True
+                i += 1
+                continue
+            if ch == '"':
+                cur.append(ch)
+                in_double = True
+                i += 1
+                continue
+            if ch == ";":
+                stmt = "".join(cur).strip()
+                if stmt:
+                    stmts.append(stmt)
+                cur = []
+                i += 1
+                continue
+            cur.append(ch)
+            i += 1
+        tail = "".join(cur).strip()
+        if tail:
+            stmts.append(tail)
+        return stmts
+
     buf: List[str] = []
-    in_stmt = False
     with conn.cursor() as cur:
         for line in text.splitlines():
             t = line.strip()
@@ -427,7 +528,7 @@ def apply_schema(conn: Any, schema_path: Path) -> None:
                 continue
             buf.append(line)
         script = "\n".join(buf)
-        parts = [p.strip() for p in script.split(";") if p.strip()]
+        parts = split_sql_statements(script)
         for part in parts:
             first_noncomment = "\n".join(
                 ln for ln in part.splitlines() if ln.strip() and not ln.strip().startswith("--")
