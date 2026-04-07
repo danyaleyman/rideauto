@@ -35,6 +35,17 @@ export type CarDetailResponse = {
   result: Record<string, unknown>;
 };
 
+export type SimilarMeta = {
+  car_id: string;
+  limit: number;
+  total_candidates: number;
+};
+
+export type SimilarResponse = {
+  result: SlimCar[];
+  meta: SimilarMeta;
+};
+
 export type FacetRow = {
   value: string;
   count: number;

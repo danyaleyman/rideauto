@@ -1,5 +1,5 @@
 import { getServerApiBase } from "./env";
-import type { CarDetailResponse, SearchResponse } from "./types";
+import type { CarDetailResponse, SearchResponse, SimilarResponse } from "./types";
 
 function buildQuery(
   params: Record<string, string | string[] | undefined>,
@@ -58,4 +58,31 @@ export async function fetchCar(
     throw new Error(`car failed: ${res.status} ${res.statusText}`);
   }
   return res.json() as Promise<CarDetailResponse>;
+}
+
+export async function fetchSimilar(
+  carId: string,
+  limit = 8,
+  options?: { revalidate?: number },
+): Promise<SimilarResponse> {
+  const base = getServerApiBase();
+  const qs = new URLSearchParams({
+    car_id: carId,
+    limit: String(limit),
+  });
+  const url = `${base}/api/similar?${qs.toString()}`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    next: { revalidate: options?.revalidate ?? 60 },
+  });
+  if (res.status === 404) {
+    return {
+      result: [],
+      meta: { car_id: carId, limit, total_candidates: 0 },
+    };
+  }
+  if (!res.ok) {
+    throw new Error(`similar failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<SimilarResponse>;
 }

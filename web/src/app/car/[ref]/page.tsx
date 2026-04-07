@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { fetchCar, fetchSearch } from "@/lib/api";
+import { fetchCar, fetchSimilar } from "@/lib/api";
 import { buildCarMetadata, carHeading, pickCarData } from "@/lib/car-seo";
 import type { SlimCar } from "@/lib/types";
 
@@ -19,7 +19,11 @@ function asPrice(v: unknown): number | null {
 function formatPrice(v: unknown): string {
   const n = asPrice(v);
   if (n == null) return "Price on request";
-  return new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency: "RUB",
+    maximumFractionDigits: 0,
+  }).format(n);
 }
 
 function imageUrls(raw: Record<string, unknown>): string[] {
@@ -54,19 +58,6 @@ function specs(raw: Record<string, unknown>): Array<[string, string]> {
   return rows.filter((x): x is [string, string] => Boolean(x[1]));
 }
 
-async function fetchSimilar(raw: Record<string, unknown>, selfId: string): Promise<SlimCar[]> {
-  const d = pickCarData(raw);
-  const mark = typeof d.mark === "string" ? d.mark : undefined;
-  const model = typeof d.model === "string" ? d.model : undefined;
-  if (!mark) return [];
-  try {
-    const body = await fetchSearch({ mark, model, per_page: "8", sort: "date_new" }, { revalidate: 60 });
-    return body.result.filter((x) => String(x.id) !== String(selfId)).slice(0, 6);
-  } catch {
-    return [];
-  }
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { ref } = await params;
   try {
@@ -88,12 +79,15 @@ export default async function CarPage({ params }: PageProps) {
   const title = carHeading(raw);
   const imgs = imageUrls(raw);
   const carId = typeof raw.id === "string" ? raw.id : ref;
-  const similar = await fetchSimilar(raw, carId);
+  const similarPayload = await fetchSimilar(carId, 8, { revalidate: 60 }).catch(() => ({ result: [] }));
+  const similar = (similarPayload.result || []) as SlimCar[];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <nav className="mb-6 text-sm">
-        <Link href="/catalog" className="text-blue-600 hover:underline dark:text-blue-400">Back to catalog</Link>
+        <Link href="/catalog" className="text-blue-600 hover:underline dark:text-blue-400">
+          Back to catalog
+        </Link>
       </nav>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -101,7 +95,14 @@ export default async function CarPage({ params }: PageProps) {
         <p className="mt-1 text-sm text-zinc-500">ID: {carId}</p>
         <p className="mt-3 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{formatPrice(d.my_price ?? d.price)}</p>
         {typeof d.url === "string" && d.url.trim() ? (
-          <a href={d.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-blue-600 hover:underline dark:text-blue-400">Original listing</a>
+          <a
+            href={d.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-block text-sm text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Original listing
+          </a>
         ) : null}
       </section>
 

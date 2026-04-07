@@ -33,6 +33,21 @@ class CarDetailResponse(BaseModel):
     result: Dict[str, Any]
 
 
+class SimilarMeta(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    car_id: str
+    limit: int
+    total_candidates: int = 0
+
+
+class SimilarResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    result: List[Dict[str, Any]]
+    meta: SimilarMeta
+
+
 class FacetsResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 

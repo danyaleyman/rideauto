@@ -12,8 +12,8 @@ from fastapi_app.catalog_slim import slim_catalog_car
 from fastapi_app.config import Settings, get_settings
 from fastapi_app.cursor import decode_offset_cursor, encode_offset_cursor
 from fastapi_app.meilisearch_query import build_meilisearch_filter, meilisearch_sort_list
-from fastapi_app.pg_catalog import fetch_cars_by_ids
-from fastapi_app.schemas.api import SearchMeta, SearchResponse
+from fastapi_app.pg_catalog import fetch_car_any_id, fetch_cars_by_ids
+from fastapi_app.schemas.api import SearchMeta, SearchResponse, SimilarMeta, SimilarResponse
 
 router = APIRouter(tags=["catalog"])
 
@@ -121,6 +121,70 @@ async def _search_maybe_cached(request: Request) -> Dict[str, Any]:
     )
 
 
+def _meili_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarResponse:
+    pool: asyncpg.Pool = request.app.state.pg_pool
+    meili: Client = request.app.state.meili
+    settings: Settings = get_settings()
+
+    current = await fetch_car_any_id(pool, car_id)
+    if not current:
+        raise HTTPException(status_code=404, detail="not found")
+
+    inner = current.get("data")
+    d = inner if isinstance(inner, dict) else current
+    mark = str(d.get("mark") or "").strip()
+    model = str(d.get("model") or "").strip()
+    if not mark:
+        meta = SimilarMeta(car_id=car_id, limit=limit, total_candidates=0)
+        return SimilarResponse(result=[], meta=meta)
+
+    filt_parts = [f'mark = "{_meili_escape(mark)}"']
+    if model:
+        filt_parts.append(f'model = "{_meili_escape(model)}"')
+    filt = " AND ".join(filt_parts)
+
+    idx = meili.index(settings.meilisearch_index)
+    opts: Dict[str, Any] = {
+        "limit": min(100, max(limit + 8, 12)),
+        "offset": 0,
+        "sort": meilisearch_sort_list("date_new"),
+        "filter": filt,
+    }
+
+    def _run_search():
+        return idx.search("", opts)
+
+    ms = await asyncio.to_thread(_run_search)
+    hits = ms.get("hits") or []
+    seen: set[str] = set()
+    ordered_ids: list[str] = []
+    for h in hits:
+        cid = str(h.get("id") or h.get("car_id") or "").strip()
+        if not cid or cid == car_id or cid in seen:
+            continue
+        seen.add(cid)
+        ordered_ids.append(cid)
+        if len(ordered_ids) >= limit:
+            break
+
+    by_id = await fetch_cars_by_ids(pool, ordered_ids)
+    result: list[Dict[str, Any]] = []
+    for cid in ordered_ids:
+        car = by_id.get(cid)
+        if not car:
+            continue
+        result.append(slim_catalog_car(car, cid))
+
+    total_raw = int(ms.get("estimatedTotalHits") or ms.get("totalHits") or 0)
+    total_candidates = max(0, total_raw - 1)
+    meta = SimilarMeta(car_id=car_id, limit=limit, total_candidates=total_candidates)
+    return SimilarResponse(result=result, meta=meta)
+
+
 @router.get("/search", response_model=SearchResponse)
 async def search(request: Request) -> Dict[str, Any]:
     """Каталог через Meilisearch + гидратация карточек из PostgreSQL (как legacy `/api/cars`)."""
@@ -131,3 +195,23 @@ async def search(request: Request) -> Dict[str, Any]:
 async def cars_alias(request: Request) -> Dict[str, Any]:
     """Алиас для существующего фронта / nginx (`/api/cars`)."""
     return await _search_maybe_cached(request)
+
+
+@router.get("/similar", response_model=SimilarResponse)
+async def similar(car_id: str, request: Request, limit: int = 8) -> Dict[str, Any]:
+    """Похожие авто для карточки Next: по марке/модели, исключая текущий car_id."""
+    lim = min(24, max(1, int(limit)))
+    settings = get_settings()
+    flat = {"car_id": str(car_id), "limit": str(lim)}
+
+    async def compute() -> Dict[str, Any]:
+        body = await _similar_cars(request=request, car_id=str(car_id), limit=lim)
+        return body.model_dump()
+
+    return await serve_cached_json(
+        request,
+        segment="similar",
+        ttl_sec=settings.cache_ttl_search_sec,
+        flat=flat,
+        compute=compute,
+    )

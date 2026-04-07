@@ -12,15 +12,15 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "node e2e/serve-api.mjs",
+      command: "node e2e/serve-mock-api.mjs",
       url: "http://127.0.0.1:28765/api/health",
-      timeout: 120_000,
+      timeout: 30_000,
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: "node e2e/serve-static.mjs",
-      url: "http://127.0.0.1:24173/index.html",
-      timeout: 60_000,
+      command: "node e2e/serve-next.mjs",
+      url: "http://127.0.0.1:24173/",
+      timeout: 120_000,
       reuseExistingServer: !process.env.CI,
     },
   ],
