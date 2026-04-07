@@ -74,3 +74,32 @@ docker-compose logs --tail=200 api
 
 3. Apply top SQL/index actions from `pg_index_audit.sql` output.
 4. Re-run standard 50/100/200 profile and compare p95/p99 deltas to baseline from `2026-04-07`.
+
+## 6) Compose V2 + Next.js `web` (ops)
+
+1. Install the Compose plugin on the server (Ubuntu): see **`deploy/DEPLOY.md`** → «Установка Compose V2».
+
+2. Build and start `web` after `api` is healthy:
+
+```bash
+cd /opt/prod-encar
+git pull
+docker compose build web
+docker compose up -d web
+docker compose ps
+```
+
+3. Smoke (replace host if nginx terminates TLS elsewhere):
+
+```bash
+curl -fsS "http://127.0.0.1:8080/api/health"
+curl -sS -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:3000/catalog"
+curl -sS -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:3000/"
+```
+
+4. Sprint B remainder (after API+web are green):
+
+- Record **top 3** follow-ups from `pg_index_audit.sql` (even if «no change now»).
+- If you applied SQL/index changes, **re-run** `load_profile.py` and append a short note under `docs/SLO.md` or your runbook.
+
+Throughout this doc, **`docker compose`** (v2) and **`docker-compose`** (v1) use the same subcommands; prefer v2 to avoid `ContainerConfig` recreate bugs.

@@ -63,6 +63,26 @@ docker-compose up -d api
 
 Надёжнее поставить **[Compose V2](https://docs.docker.com/compose/install/linux/)** и вызывать **`docker compose`** (без дефиса).
 
+### Установка Compose V2 на Ubuntu (plugin)
+
+Нужен Docker из официального репозитория Docker (`apt` уже знает пакет `docker-compose-plugin`).
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker-compose-plugin
+docker compose version
+```
+
+Должно показать что-то вроде `Docker Compose version v2.x.x`. Дальше из `/opt/prod-encar` используйте **`docker compose`** вместо **`docker-compose`**:
+
+```bash
+docker compose ps
+docker compose build api web
+docker compose up -d api web
+```
+
+Старый бинарник **`docker-compose`** (v1) можно оставить или удалить пакетом `docker-compose` из репозитория Ubuntu, если он ставился отдельно — на работу **`docker compose`** это не влияет.
+
 В томе `encar_data` лежат два каталога: **`/data/encar_cars.db`** (Корея / Encar) и **`/data/encar_china.db`** (Китай / Dongchedi). Переменная **`WRA_CHINA_DB_PATH`** в `docker-compose.yml` по умолчанию указывает на `/data/encar_china.db`. Чтобы подставить файлы с хоста, смонтируйте оба, например: `./encar_cars.db:/data/encar_cars.db` и `./encar_china.db:/data/encar_china.db`.
 
 См. также [BACKUP-SQLITE.md](BACKUP-SQLITE.md).
@@ -77,7 +97,7 @@ docker-compose up -d api
 cd /opt/prod-encar
 git fetch --all
 git pull --ff-only
-docker-compose up -d --build api web
+docker compose up -d --build api web
 ```
 
 2. Проверить smoke:
@@ -110,7 +130,7 @@ git checkout <PREVIOUS_GOOD_SHA>
 2. Пересобрать и поднять только приложение:
 
 ```bash
-docker-compose up -d --build api web
+docker compose up -d --build api web
 ```
 
 3. Проверить health и поиск:
