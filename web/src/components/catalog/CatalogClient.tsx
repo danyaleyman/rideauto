@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -74,6 +75,32 @@ function FacetGroup({
         ))}
       </div>
     </fieldset>
+  );
+}
+
+function FacetSkeleton() {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+      <div className="mb-2 h-4 w-24 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+      <div className="space-y-2">
+        <div className="h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-4 w-5/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-4 w-4/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+      </div>
+    </div>
+  );
+}
+
+function CardSkeleton() {
+  return (
+    <li className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="aspect-[16/10] animate-pulse bg-zinc-200 dark:bg-zinc-800" />
+      <div className="space-y-2 p-4">
+        <div className="h-4 w-11/12 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-5 w-1/3 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+      </div>
+    </li>
   );
 }
 
@@ -509,7 +536,11 @@ export function CatalogClient({
               />
             </div>
           ) : (
-            <p className="text-sm text-zinc-500">Загрузка фильтров…</p>
+            <div className="space-y-3">
+              <FacetSkeleton />
+              <FacetSkeleton />
+              <FacetSkeleton />
+            </div>
           )}
 
           <button
@@ -527,9 +558,9 @@ export function CatalogClient({
               const img = firstImageUrl(car);
               return (
                 <li key={car.id}>
-                  {/* Полная перезагрузка: легаси car-page подключает скрипты один раз. */}
-                  <a
+                  <Link
                     href={`/car/${encodeURIComponent(car.id)}`}
+                    prefetch
                     className="group block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
                   >
                     <div className="aspect-[16/10] bg-zinc-100 dark:bg-zinc-900">
@@ -564,10 +595,13 @@ export function CatalogClient({
                         {formatPrice(car.price)}
                       </p>
                     </div>
-                  </a>
+                  </Link>
                 </li>
               );
             })}
+            {loading && search.result.length === 0
+              ? Array.from({ length: PER_PAGE }).map((_, i) => <CardSkeleton key={`sk-${i}`} />)
+              : null}
           </ul>
 
           {search.result.length === 0 && !loading ? (
