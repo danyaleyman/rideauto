@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+PROJECT_DIR="${PROJECT_DIR:-/opt/prod-encar}"
+API_URL="${API_URL:-http://127.0.0.1:8080}"
+MEILI_URL="${MEILI_URL:-http://127.0.0.1:7700}"
+POSTGRES_USER="${POSTGRES_USER:-wra}"
+POSTGRES_DB="${POSTGRES_DB:-wra}"
+MEILI_INDEX="${MEILI_INDEX:-cars}"
+MEILI_MASTER_KEY="${MEILI_MASTER_KEY:-}"
+
+cd "$PROJECT_DIR"
+
+echo "==> 1) Containers status"
+docker-compose ps
+
+echo "==> 2) API smoke"
+curl -fsS "$API_URL/api/health" >/dev/null
+curl -fsS "$API_URL/api/search?per_page=2" >/dev/null
+echo "API health/search: OK"
+
+echo "==> 3) PostgreSQL cars count"
+PG_COUNT="$(
+  docker-compose exec -T postgres \
+    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM cars;"
+)"
+echo "cars in PostgreSQL: $PG_COUNT"
+
+echo "==> 4) Pick one random car id from PostgreSQL"
+SAMPLE_CAR_ID="$(
+  docker-compose exec -T postgres \
+    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT car_id FROM cars ORDER BY random() LIMIT 1;"
+)"
+if [[ -z "${SAMPLE_CAR_ID}" ]]; then
+  echo "ERROR: cannot sample car_id from PostgreSQL"
+  exit 1
+fi
+echo "sample car_id: $SAMPLE_CAR_ID"
+
+echo "==> 5) Validate /api/car/{id}"
+python3 - <<PY
+import json
+import urllib.request
+import urllib.parse
+import sys
+
+api = "${API_URL}"
+cid = "${SAMPLE_CAR_ID}"
+url = f"{api}/api/car/{urllib.parse.quote(cid)}"
+try:
+    with urllib.request.urlopen(url, timeout=20) as r:
+        body = json.loads(r.read().decode("utf-8"))
+except Exception as e:
+    print(f"ERROR: /api/car check failed: {e}")
+    sys.exit(1)
+
+obj = body.get("result") or {}
+if not isinstance(obj, dict) or not obj:
+    print("ERROR: /api/car returned empty result")
+    sys.exit(1)
+print("api/car sample check: OK")
+PY
+
+echo "==> 6) Meili index stats"
+MEILI_HEADERS=()
+if [[ -n "$MEILI_MASTER_KEY" ]]; then
+  MEILI_HEADERS=(-H "Authorization: Bearer ${MEILI_MASTER_KEY}")
+fi
+MEILI_STATS="$(curl -fsS "${MEILI_HEADERS[@]}" "$MEILI_URL/indexes/$MEILI_INDEX/stats")"
+echo "$MEILI_STATS" | python3 - <<'PY'
+import json,sys
+s=json.load(sys.stdin)
+print(f"meili numberOfDocuments: {s.get('numberOfDocuments')}")
+PY
+
+echo "==> 7) Summary"
+echo "Post-migration smoke checks passed."

@@ -53,6 +53,61 @@ docker compose up -d
 
 См. также [BACKUP-SQLITE.md](BACKUP-SQLITE.md).
 
+## Cutover + Rollback (после миграции БД)
+
+### Cutover checklist
+
+1. Подтянуть актуальный код и поднять сервисы:
+
+```bash
+cd /opt/prod-encar
+git fetch --all
+git pull --ff-only
+docker-compose up -d --build api web
+```
+
+2. Проверить smoke:
+
+```bash
+curl -fsS "http://127.0.0.1:8080/api/health"
+curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
+curl -I "http://127.0.0.1:3000/catalog"
+```
+
+3. Прогнать пост-миграционную сверку:
+
+```bash
+chmod +x deploy/scripts/post_migration_check.sh
+deploy/scripts/post_migration_check.sh
+```
+
+### Rollback (быстрый)
+
+Если после релиза выросли 5xx/latency:
+
+1. Вернуть предыдущий коммит:
+
+```bash
+cd /opt/prod-encar
+git log --oneline -n 5
+git checkout <PREVIOUS_GOOD_SHA>
+```
+
+2. Пересобрать и поднять только приложение:
+
+```bash
+docker-compose up -d --build api web
+```
+
+3. Проверить health и поиск:
+
+```bash
+curl -fsS "http://127.0.0.1:8080/api/health"
+curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
+```
+
+4. После стабилизации зафиксировать hotfix или вернуть `main` и повторить деплой.
+
 ## Китайский каталог (Dongchedi, отдельная SQLite)
 
 Корейский каталог остаётся в **`encar_cars.db`** (аргумент **`--db`**). Китайский — в отдельном файле, чтобы не смешивать выдачу.
