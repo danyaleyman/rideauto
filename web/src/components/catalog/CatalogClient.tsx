@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   catalogStateKey,
   parseCatalogUrl,
@@ -195,6 +196,7 @@ export function CatalogClient({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [qDraft, setQDraft] = useState(state.q);
+  const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
 
   useEffect(() => {
     setQDraft(state.q);
@@ -216,30 +218,72 @@ export function CatalogClient({
   );
 
   useEffect(() => {
-    let alive = true;
+    const nextQ = qDraft.trim();
+    if (nextQ === state.q) return;
+    if (nextQ.length > 0 && nextQ.length < 2) return;
+    const t = window.setTimeout(() => {
+      navigate({ ...state, q: nextQ, page: 1 });
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [qDraft, state, navigate]);
+
+  const facetState = useMemo(
+    () => ({
+      ...state,
+      page: 1,
+      // Facets are independent from sort; avoid refetch on sort switch.
+      sort: "date_new",
+    }),
+    [state],
+  );
+  const facetKey = useMemo(() => catalogStateKey(facetState), [facetState]);
+
+  useEffect(() => {
+    const ac = new AbortController();
     (async () => {
       try {
         setErr(null);
         setLoading(true);
         const sq = toApiSearchParams(state);
-        const fq = toFacetApiParams(state);
         const searchP =
-          key === ssrKey ? Promise.resolve(initialSearch) : fetchSearchClient(sq);
-        const [sRes, fRes] = await Promise.all([searchP, fetchFacetsClient(fq)]);
-        if (!alive) return;
+          key === ssrKey
+            ? Promise.resolve(initialSearch)
+            : fetchSearchClient(sq, { signal: ac.signal });
+        const sRes = await searchP;
+        if (ac.signal.aborted) return;
         setSearch(sRes);
-        setFacets(fRes);
       } catch (e) {
-        if (!alive) return;
+        if (ac.signal.aborted) return;
         setErr(e instanceof Error ? e.message : "Ошибка загрузки");
       } finally {
-        if (alive) setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     })();
     return () => {
-      alive = false;
+      ac.abort();
     };
   }, [key, ssrKey, state, initialSearch]);
+
+  useEffect(() => {
+    const cached = facetsCacheRef.current.get(facetKey);
+    if (cached) {
+      setFacets(cached);
+      return;
+    }
+    const ac = new AbortController();
+    (async () => {
+      try {
+        const fq = toFacetApiParams(facetState);
+        const fRes = await fetchFacetsClient(fq, { signal: ac.signal });
+        if (ac.signal.aborted) return;
+        facetsCacheRef.current.set(facetKey, fRes);
+        setFacets(fRes);
+      } catch {
+        // Keep previous facets silently on transient facet errors.
+      }
+    })();
+    return () => ac.abort();
+  }, [facetKey, facetState]);
 
   const toggle = (field: keyof CatalogUrlState, value: string) => {
     const cur = state[field];
@@ -479,7 +523,7 @@ export function CatalogClient({
 
         <div className="min-w-0 flex-1">
           <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {search.result.map((car) => {
+            {search.result.map((car, idx) => {
               const img = firstImageUrl(car);
               return (
                 <li key={car.id}>
@@ -490,12 +534,17 @@ export function CatalogClient({
                   >
                     <div className="aspect-[16/10] bg-zinc-100 dark:bg-zinc-900">
                       {img ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={img}
                           alt=""
+                          width={640}
+                          height={400}
+                          sizes="(min-width: 1280px) 28vw, (min-width: 640px) 45vw, 94vw"
                           className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                          loading="lazy"
+                          loading={idx < 3 ? "eager" : undefined}
+                          fetchPriority={idx === 0 ? "high" : "auto"}
+                          decoding="async"
+                          unoptimized={false}
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-sm text-zinc-400">

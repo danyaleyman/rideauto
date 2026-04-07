@@ -3,10 +3,11 @@
 import { getPublicApiBase } from "./env";
 import type { FacetsResponse, SearchResponse } from "./types";
 
-async function readJson<T>(url: string): Promise<T> {
+async function readJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, {
     cache: "no-store",
     headers: { Accept: "application/json" },
+    signal,
   });
   if (!res.ok) {
     throw new Error(`${res.status} ${res.statusText}`);
@@ -24,10 +25,16 @@ export function clientFacetsUrl(searchParams: URLSearchParams): string {
   return `${base}/api/facets?${searchParams.toString()}`;
 }
 
-export async function fetchSearchClient(params: URLSearchParams): Promise<SearchResponse> {
-  return readJson<SearchResponse>(clientSearchUrl(params));
+export async function fetchSearchClient(
+  params: URLSearchParams,
+  options?: { signal?: AbortSignal },
+): Promise<SearchResponse> {
+  return readJson<SearchResponse>(clientSearchUrl(params), options?.signal);
 }
 
-export async function fetchFacetsClient(params: URLSearchParams): Promise<FacetsResponse> {
-  return readJson<FacetsResponse>(clientFacetsUrl(params));
+export async function fetchFacetsClient(
+  params: URLSearchParams,
+  options?: { signal?: AbortSignal },
+): Promise<FacetsResponse> {
+  return readJson<FacetsResponse>(clientFacetsUrl(params), options?.signal);
 }

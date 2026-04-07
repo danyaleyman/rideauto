@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+﻿import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchCar, fetchSimilar } from "@/lib/api";
@@ -108,10 +109,18 @@ export default async function CarPage({ params }: PageProps) {
 
       {imgs.length ? (
         <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {imgs.slice(0, 18).map((src) => (
+          {imgs.slice(0, 18).map((src, idx) => (
             <div key={src} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={title} className="h-56 w-full object-cover" loading="lazy" />
+              <Image
+                src={src}
+                alt={title}
+                width={960}
+                height={560}
+                sizes="(min-width: 1024px) 31vw, (min-width: 640px) 47vw, 96vw"
+                className="h-56 w-full object-cover"
+                loading={idx < 2 ? "eager" : undefined}
+                decoding="async"
+              />
             </div>
           ))}
         </section>
@@ -140,8 +149,16 @@ export default async function CarPage({ params }: PageProps) {
                   <Link href={`/car/${encodeURIComponent(car.id)}`} className="block">
                     <div className="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900">
                       {img ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={img} alt={car.title || car.id} className="h-40 w-full object-cover" loading="lazy" />
+                        <Image
+                          src={img}
+                          alt={car.title || car.id}
+                          width={640}
+                          height={320}
+                          sizes="(min-width: 1024px) 30vw, (min-width: 640px) 46vw, 96vw"
+                          className="h-40 w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
                       ) : (
                         <div className="flex h-40 items-center justify-center text-sm text-zinc-400">No image</div>
                       )}

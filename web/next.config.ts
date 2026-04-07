@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createBundleAnalyzer from "@next/bundle-analyzer";
 
 const apiTarget =
   process.env.WRA_API_INTERNAL?.trim().replace(/\/+$/, "") ||
@@ -7,6 +8,19 @@ const apiTarget =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
+      },
+    ],
+    formats: ["image/avif", "image/webp"],
+  },
   async redirects() {
     return [
       {
@@ -33,4 +47,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const withBundleAnalyzer = createBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
+
+export default withBundleAnalyzer(nextConfig);
