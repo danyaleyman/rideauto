@@ -16,6 +16,9 @@ import {
 import { fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
 import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
 
+const BLUR_DATA_URL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
 function formatPrice(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
   try {
@@ -575,6 +578,8 @@ export function CatalogClient({
                           loading={idx < 3 ? "eager" : undefined}
                           fetchPriority={idx === 0 ? "high" : "auto"}
                           decoding="async"
+                          placeholder="blur"
+                          blurDataURL={BLUR_DATA_URL}
                           unoptimized={false}
                         />
                       ) : (
@@ -584,7 +589,7 @@ export function CatalogClient({
                       )}
                     </div>
                     <div className="space-y-1 p-4">
-                      <p className="line-clamp-2 text-sm font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+                      <p className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-snug text-zinc-900 dark:text-zinc-100">
                         {car.title || car.id}
                       </p>
                       <p className="text-xs text-zinc-500">

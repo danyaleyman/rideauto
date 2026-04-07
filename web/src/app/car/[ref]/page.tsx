@@ -6,6 +6,9 @@ import { fetchCar, fetchSimilar } from "@/lib/api";
 import { buildCarMetadata, carHeading, pickCarData } from "@/lib/car-seo";
 import type { SlimCar } from "@/lib/types";
 
+const BLUR_DATA_URL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
 type PageProps = { params: Promise<{ ref: string }> };
 
 function asPrice(v: unknown): number | null {
@@ -120,6 +123,8 @@ export default async function CarPage({ params }: PageProps) {
                 className="h-56 w-full object-cover"
                 loading={idx < 2 ? "eager" : undefined}
                 decoding="async"
+                placeholder="blur"
+                blurDataURL={BLUR_DATA_URL}
               />
             </div>
           ))}
@@ -158,6 +163,8 @@ export default async function CarPage({ params }: PageProps) {
                           className="h-40 w-full object-cover"
                           loading="lazy"
                           decoding="async"
+                          placeholder="blur"
+                          blurDataURL={BLUR_DATA_URL}
                         />
                       ) : (
                         <div className="flex h-40 items-center justify-center text-sm text-zinc-400">No image</div>
