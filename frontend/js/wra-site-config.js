@@ -19,11 +19,14 @@
   /* Таймаут fetch /api/cars (мс). По умолчанию 180000 в catalog.js; при очень тяжёлой БД можно поднять, задав число до подключения catalog.js. */
   /* if (typeof window.WRA_CATALOG_CARS_TIMEOUT_MS !== "number") { window.WRA_CATALOG_CARS_TIMEOUT_MS = 240000; } */
 
-  /** Публичный URL карточки: /detail/{id} (nginx отдаёт car.html). Фолбэк для старых ссылок — 301 на сервере. */
+  /** Публичный URL карточки: /detail/{id} (nginx отдаёт car.html). На Next — window.WRA_USE_NEXT_CAR_ROUTES = true → /car/{id}. */
   window.wraCarDetailPath = function (id) {
     if (id == null || id === "") return "/";
     var s = String(id).trim();
     if (!s) return "/";
+    if (window.WRA_USE_NEXT_CAR_ROUTES === true) {
+      return "/car/" + encodeURIComponent(s);
+    }
     return "/detail/" + encodeURIComponent(s);
   };
   window.wraCarDetailUrl = function (id) {

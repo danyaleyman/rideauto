@@ -1,0 +1,115 @@
+<a href="#main-content" class="skip-link">К содержанию</a>
+
+<header class="header">
+    <div class="header-content">
+        <a href="/" class="logo"><img src="/image/logo.svg" alt="World Ride Auto"></a>
+        <button type="button" class="header-burger" id="headerBurgerBtn" aria-expanded="false" aria-controls="mobileHeaderMenu" aria-label="Открыть меню">
+            <span></span><span></span><span></span>
+        </button>
+        <nav class="nav-menu" aria-label="Разделы сайта">
+            <a href="/about">О компании</a>
+            <a href="/catalog">Каталог</a>
+            <a href="/buy">Как купить</a>
+            <a href="/contacts">Контакты</a>
+        </nav>
+        <div class="header-buttons">
+            <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank" rel="noopener">Связаться с менеджером</a>
+            <button type="button" id="headerFavoritesBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Избранные автомобили">Избранное <span class="auth-fav-count">0</span></button>
+            <button type="button" id="headerAccountBtn" class="auth-fav-btn auth-fav-hidden" aria-label="Личный кабинет">Кабинет</button>
+            <button type="button" id="headerLoginBtn" class="btn btn-secondary">Войти</button>
+        </div>
+    </div>
+    <nav class="mobile-header-menu" id="mobileHeaderMenu" aria-label="Мобильное меню"></nav>
+    <div class="car-subnav" aria-label="Разделы объявления">
+        <div class="car-subnav-inner">
+            <ul class="gnb"></ul>
+        </div>
+    </div>
+</header>
+
+<div class="wra-context-bar" id="wraContextBar" hidden>
+    <div class="wra-context-bar__inner wra-container">
+        <div class="wra-context-bar__block">
+            <span class="wra-context-bar__label">Недавно:</span>
+            <span id="wraContextRecent" class="wra-context-bar__links" hidden></span>
+        </div>
+        <div class="wra-context-bar__block" id="wraContextCompare" hidden></div>
+    </div>
+</div>
+
+<main id="main-content" tabindex="-1">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="app">
+    <!-- Контент-шапка: хлебные крошки -->
+    <div class="content-header">
+        <div class="content-header-inner">
+            <nav class="breadcrumbs" aria-label="Хлебные крошки">
+                <a href="/catalog">Каталог</a>
+                <span class="sep">›</span>
+                <span class="current" id="breadcrumb-title">Загрузка...</span>
+                <span class="sep">›</span>
+                <span class="current" id="breadcrumb-id">ID</span>
+            </nav>
+        </div>
+    </div>
+
+    <!-- динамический контент (две колонки) -->
+    <div id="car-content" class="space-y-8" aria-busy="true">
+        <div class="car-loading-skeleton">
+            <div class="car-skeleton-block" style="height:400px; border-radius:16px; background:linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size:200% 100%; animation:car-skeleton-pulse 1.2s ease-in-out infinite;"></div>
+            <div class="car-skeleton-block" style="height:120px; margin-top:24px; border-radius:12px; background:linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size:200% 100%; animation:car-skeleton-pulse 1.2s ease-in-out infinite;"></div>
+            <div class="car-skeleton-block" style="height:200px; margin-top:24px; border-radius:12px; background:linear-gradient(90deg, var(--wra-gray-200) 25%, var(--wra-gray-100) 50%, var(--wra-gray-200) 75%); background-size:200% 100%; animation:car-skeleton-pulse 1.2s ease-in-out infinite;"></div>
+        </div>
+    </div>
+</div>
+</main>
+<style>@keyframes car-skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
+
+<!-- Модальное окно галереи -->
+<div id="galleryModal" class="modal">
+    <div class="modal-content">
+        <button type="button" class="modal-close" id="modalClose" aria-label="Закрыть галерею"><img src="/image/Close_LG.svg" alt="" width="24" height="24"></button>
+        <div class="modal-main" id="modalMain">
+            <div class="modal-main-img-wrap" id="modalMainImgWrap"></div>
+            <button type="button" class="modal-nav left" id="modalPrev" aria-label="Предыдущее фото"><img src="/image/Chevron_Left.svg" alt="" width="28" height="28"></button>
+            <button type="button" class="modal-nav right" id="modalNext" aria-label="Следующее фото"><img src="/image/Chevron_Right.svg" alt="" width="28" height="28"></button>
+        </div>
+        <div class="modal-thumbs-row" id="modalThumbs"></div>
+        <div class="modal-counter" id="modalCounter"></div>
+    </div>
+</div>
+
+<!-- Модальное окно: Расчёт цены -->
+<div class="calc-modal-overlay" id="calcModalOverlay" aria-hidden="true">
+    <div class="calc-modal-panel" role="dialog" aria-labelledby="calcModalTitle" onclick="event.stopPropagation()">
+        <div class="calc-modal-header">
+            <span id="calcModalTitle">Расчёт цены</span>
+            <button type="button" class="calc-modal-close" id="calcModalClose" aria-label="Закрыть">×</button>
+        </div>
+        <div class="calc-modal-body" id="calcModalBody"></div>
+        <div class="calc-modal-footer">
+            <div class="total-main">Под ключ до Владивостока: <strong id="calcModalTotal">—</strong> <span class="info-dot" style="vertical-align:middle;cursor:help" title="Итоговая сумма с учётом всех расходов">i</span></div>
+            <div class="total-formula" id="calcModalFormula">—</div>
+            <a href="https://t.me/nikits15" id="calcModalTelegram" class="order-btn-manager" style="margin-bottom:0" target="_blank" rel="noopener"><i class="fa-regular fa-paper-plane"></i> Написать менеджеру</a>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно: Как оформить заказ -->
+<div class="howto-modal-overlay" id="howtoModalOverlay" aria-hidden="true">
+    <div class="howto-modal-panel" role="dialog" aria-labelledby="howtoModalTitle" onclick="event.stopPropagation()">
+        <div class="howto-modal-header">
+            <span id="howtoModalTitle">Как оформить заказ?</span>
+            <button type="button" class="howto-modal-close" id="howtoModalClose" aria-label="Закрыть">×</button>
+        </div>
+        <div class="howto-modal-body">
+            <ol>
+                <li>Выберите автомобиль на нашем сайте и нажмите «Написать в Telegram».</li>
+                <li>Обсудите с менеджером детали: комплектацию, сроки доставки, способ оплаты.</li>
+                <li>Заключите договор и внесите предоплату (обычно 30–50%).</li>
+                <li>Мы покупаем авто в Корее, оформляем документы и отправляем во Владивосток.</li>
+                <li>После постановки на учёт вы получаете автомобиль и доплачиваете оставшуюся сумму.</li>
+            </ol>
+            <p>Все расчёты и документы прозрачны. Остались вопросы? Напишите нам в Telegram.</p>
+        </div>
+    </div>
+</div>

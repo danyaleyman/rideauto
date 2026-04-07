@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -484,7 +483,8 @@ export function CatalogClient({
               const img = firstImageUrl(car);
               return (
                 <li key={car.id}>
-                  <Link
+                  {/* Полная перезагрузка: легаси car-page подключает скрипты один раз. */}
+                  <a
                     href={`/car/${encodeURIComponent(car.id)}`}
                     className="group block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
                   >
@@ -515,7 +515,7 @@ export function CatalogClient({
                         {formatPrice(car.price)}
                       </p>
                     </div>
-                  </Link>
+                  </a>
                 </li>
               );
             })}

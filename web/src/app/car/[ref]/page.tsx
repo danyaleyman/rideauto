@@ -1,11 +1,24 @@
-import Link from "next/link";
+import fs from "node:fs";
+import path from "node:path";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { LegacyCarScripts } from "@/components/legacy-car/LegacyCarScripts";
 import { fetchCar } from "@/lib/api";
 
 type PageProps = {
   params: Promise<{ ref: string }>;
 };
+
+const TOP = path.join(process.cwd(), "src/legacy/car-top.fragment.html");
+const FOOTER = path.join(process.cwd(), "src/legacy/car-footer.fragment.html");
+
+function readFrag(p: string): string {
+  try {
+    return fs.readFileSync(p, "utf8");
+  } catch {
+    return "";
+  }
+}
 
 function pickData(raw: Record<string, unknown>): Record<string, unknown> {
   const inner = raw.data;
@@ -23,22 +36,13 @@ function carHeading(raw: Record<string, unknown>): string {
   return typeof raw.title === "string" ? raw.title : "Автомобиль";
 }
 
-function numPrice(raw: Record<string, unknown>): number | undefined {
-  const d = pickData(raw);
-  const v = d.my_price;
-  if (typeof v === "number" && !Number.isNaN(v)) return v;
-  if (typeof v === "string") {
-    const n = Number(v.replace(/\s/g, ""));
-    if (!Number.isNaN(n)) return n;
-  }
-  return undefined;
+function bootstrapInline(ref: string): string {
+  const idJson = JSON.stringify(ref);
+  return `(function(){try{window.WRA_USE_NEXT_CAR_ROUTES=true;var id=${idJson};window.__WRA_NEXT_CAR_ID__=id;function pre(href){var l=document.createElement("link");l.rel="preload";l.as="fetch";l.crossOrigin="anonymous";l.href=href;document.head.appendChild(l);}pre("/api/car/"+encodeURIComponent(id));pre("/api/similar?car_id="+encodeURIComponent(id)+"&limit=8");}catch(e){}})();`;
 }
 
-function imageUrls(raw: Record<string, unknown>): string[] {
-  const d = pickData(raw);
-  const imgs = d.images;
-  if (!Array.isArray(imgs)) return [];
-  return imgs.filter((x): x is string => typeof x === "string" && x.length > 0);
+function adminInline(): string {
+  return "window.WRA_ADMIN_TELEGRAM_IDS=window.WRA_ADMIN_TELEGRAM_IDS||[377261863];window.WRA_ADMIN_TELEGRAM_USERNAMES=window.WRA_ADMIN_TELEGRAM_USERNAMES||[\"daniilleyman\"];window.WRA_CHANNEL_EXPORT_REPORT_BASE=window.WRA_CHANNEL_EXPORT_REPORT_BASE||\"\";";
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -48,14 +52,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!result || Object.keys(result).length === 0) {
       return { title: "Не найдено" };
     }
-    const h = carHeading(result);
-    return { title: h };
+    return { title: carHeading(result) };
   } catch {
     return { title: "Карточка" };
   }
 }
 
-export default async function CarPage({ params }: PageProps) {
+export default async function LegacyCarPage({ params }: PageProps) {
   const { ref } = await params;
   let result: Record<string, unknown>;
   try {
@@ -68,111 +71,21 @@ export default async function CarPage({ params }: PageProps) {
     notFound();
   }
 
-  const id =
-    typeof result.id === "string"
-      ? result.id
-      : typeof result.car_id === "string"
-        ? result.car_id
-        : ref;
-  const heading = carHeading(result);
-  const price = numPrice(result);
-  const imgs = imageUrls(result);
-  const d = pickData(result);
-  const origUrl =
-    typeof d.url === "string" && d.url.trim() ? d.url.trim() : "";
-  const specRows: { k: string; v: string }[] = [];
-  const push = (k: string, v: unknown) => {
-    if (v == null || v === "") return;
-    specRows.push({ k, v: String(v) });
-  };
-  push("Год", d.year);
-  push("Пробег, км", d.km_age);
-  push("Двигатель", d.engine_type);
-  push("КПП", d.transmission_type);
-  push("Кузов", d.body_type);
-  push("Цвет", d.color);
-  push("Привод", d.drive_type ?? d.prep_drive_type);
-  push("VIN / номер", d.vehicle_no ?? d.vin);
-  push("inner_id", d.inner_id);
+  const topHtml = readFrag(TOP);
+  const footerHtml = readFrag(FOOTER);
+  if (!topHtml) {
+    throw new Error(
+      "Нет src/legacy/car-top.fragment.html — выполните npm run sync-legacy в каталоге web/",
+    );
+  }
 
   return (
-    <div className="mx-auto min-h-screen max-w-4xl px-4 py-8">
-      <nav className="mb-6">
-        <Link
-          href="/catalog"
-          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-        >
-          ← В каталог
-        </Link>
-      </nav>
-
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {heading}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">id: {id}</p>
-        {price != null ? (
-          <p className="mt-3 text-xl font-semibold">
-            {new Intl.NumberFormat("ru-RU", {
-              style: "currency",
-              currency: "RUB",
-              maximumFractionDigits: 0,
-            }).format(price)}
-          </p>
-        ) : null}
-        {origUrl ? (
-          <a
-            href={origUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            Оригинальное объявление →
-          </a>
-        ) : null}
-      </header>
-
-      {imgs.length ? (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {imgs.slice(0, 12).map((src) => (
-            <li key={src} className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="h-auto w-full object-cover" loading="lazy" />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-zinc-500">Нет изображений в карточке.</p>
-      )}
-
-      {specRows.length ? (
-        <section className="mt-10">
-          <h2 className="mb-3 text-lg font-semibold">Характеристики</h2>
-          <table className="w-full border-collapse text-sm">
-            <tbody>
-              {specRows.map((row) => (
-                <tr
-                  key={row.k}
-                  className="border-b border-zinc-200 dark:border-zinc-800"
-                >
-                  <th className="py-2 pr-4 text-left font-medium text-zinc-500">
-                    {row.k}
-                  </th>
-                  <td className="py-2 text-zinc-900 dark:text-zinc-100">{row.v}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ) : null}
-
-      <section className="mt-10 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
-        <p>
-          Данные из PostgreSQL (
-          <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">GET /api/car/&lt;ref&gt;</code>
-          ), каталог — Meilisearch + гидратация.
-        </p>
-      </section>
-    </div>
+    <>
+      <script dangerouslySetInnerHTML={{ __html: bootstrapInline(ref) }} />
+      <script dangerouslySetInnerHTML={{ __html: adminInline() }} />
+      <div dangerouslySetInnerHTML={{ __html: topHtml }} />
+      <LegacyCarScripts carRef={ref} />
+      {footerHtml ? <div dangerouslySetInnerHTML={{ __html: footerHtml }} /> : null}
+    </>
   );
 }

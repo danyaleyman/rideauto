@@ -857,10 +857,13 @@
                 var priceUnav = !hasEncarPrice || cd.price_calc_failed || (cd.my_price == null || cd.my_price === '');
                 var price = priceUnav ? 'Мало данных для расчёта цены' : (Math.round(Number(cd.my_price)).toLocaleString() + ' ₽');
                 var linkId = car.id != null ? car.id : (car.inner_id != null ? car.inner_id : (cd.inner_id != null ? cd.inner_id : ''));
+                var simPath = typeof window.wraCarDetailPath === 'function'
+                    ? window.wraCarDetailPath(linkId)
+                    : ('/detail/' + encodeURIComponent(linkId));
 
                 html += `
                         <div class="similar-car-card">
-                            <a href="/detail/${encodeURIComponent(linkId)}" class="similar-car-link">
+                            <a href="${simPath}" class="similar-car-link">
                                 <div class="similar-car-image">
                                     <img src="${mainImg}" alt="${title}" loading="lazy" decoding="async">
                                 </div>
@@ -1818,11 +1821,18 @@
         // ---------- Загрузка данных ----------
         function wraGetCarIdFromUrl() {
             try {
+                if (typeof window.__WRA_NEXT_CAR_ID__ === 'string' && window.__WRA_NEXT_CAR_ID__.trim()) {
+                    return window.__WRA_NEXT_CAR_ID__.trim();
+                }
+            } catch (eN) {}
+            try {
                 var q = new URLSearchParams(window.location.search || '').get('id');
                 if (q && String(q).trim()) return String(q).trim();
             } catch (e0) {}
             try {
                 var path = window.location.pathname || '';
+                var mCar = path.match(/\/car\/([^/]+)\/?$/);
+                if (mCar && mCar[1]) return decodeURIComponent(mCar[1]);
                 var m = path.match(/\/detail\/([^/]+)\/?$/);
                 if (m && m[1]) return decodeURIComponent(m[1]);
             } catch (e1) {}

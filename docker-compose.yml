@@ -106,8 +106,8 @@ services:
 
   web:
     build:
-      context: ./web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: web/Dockerfile
       args:
         WRA_API_INTERNAL: http://api:8080
     restart: unless-stopped

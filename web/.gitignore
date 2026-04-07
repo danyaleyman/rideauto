@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Зеркало легаси из ../frontend (npm run sync-legacy / prebuild)
+/public/css/
+/public/js/
+/public/image/
+/public/data/
