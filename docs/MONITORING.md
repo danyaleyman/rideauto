@@ -2,6 +2,65 @@
 
 Связано с **`docs/SLO.md`**. Цель: снимать SLI с **`GET /metrics`**, гонять **`load_profile.py`** по публичному URL и не светить метрики в интернет без защиты.
 
+## Порядок на сервере (делай по шагам)
+
+### Шаг 1 — убедиться, что API отдаёт метрики
+
+```bash
+curl -sS http://127.0.0.1:8080/metrics | head -30
+```
+
+Должны быть строки с префиксом **`wra_`**. Если пусто или 404 — проверь **`WRA_METRICS_ENABLED=true`** и контейнер **`api`**.
+
+### Шаг 2 — подтянуть конфиг из репозитория
+
+```bash
+cd /opt/prod-encar
+git pull
+```
+
+Готовый конфиг: **`deploy/monitoring/prometheus.yml`** (scrapes `127.0.0.1:8080/metrics`).
+
+### Шаг 3 — запустить Prometheus (Docker, только localhost UI)
+
+Один контейнер с **host network** — так Prometheus видит тот же `127.0.0.1:8080`, что и API на хосте.
+
+```bash
+docker rm -f prometheus 2>/dev/null || true
+docker run -d --name prometheus --restart unless-stopped \
+  --network host \
+  -v /opt/prod-encar/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
+  prom/prometheus:latest \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --web.listen-address=127.0.0.1:9090
+```
+
+Интерфейс: **`http://127.0.0.1:9090`** (с сервера или через SSH tunnel). **Не** открывай 9090 в интернет без auth.
+
+### Шаг 4 — проверить, что цель UP
+
+В UI: **Status → Targets** — job **`prod-encar-api`** должен быть **UP**.
+
+### Шаг 5 — пробный запрос в Graph
+
+Примеры PromQL:
+
+```promql
+rate(wra_http_requests_total{status_class="5xx"}[5m])
+```
+
+```promql
+histogram_quantile(0.95, sum(rate(wra_http_request_duration_seconds_bucket[5m])) by (le, path_group))
+```
+
+### Дальше (следующие этапы)
+
+1. **Alertmanager** + правило «5xx rate > 1% за 5m» (или облачный мониторинг с агентом).
+2. **Копия бэкапов** с сервера (S3 / второй хост).
+3. **Тестовое восстановление** дампа на отдельной ВМ.
+
+---
+
 ## 1) Эндпоинт Prometheus
 
 - **`GET /metrics`** (включается **`WRA_METRICS_ENABLED=true`**, по умолчанию так).
