@@ -118,3 +118,13 @@ docker compose build web
 2. Configure **nginx** (see `deploy/nginx/`) — site → `127.0.0.1:3000`, `/api/` → `127.0.0.1:8080` or your upstreams.
 3. Smoke from outside: `/`, `/catalog`, `/api/health`.
 4. Optional: add **`/api/similar`** to a small synthetic check or extend `load_profile.py` later.
+
+## Sprint B closeout (recorded)
+
+DB audit snapshot (`pg_index_audit.sql`) — **топ‑3 наблюдения**, действия при необходимости:
+
+1. **`brands`**: высокий `seq_scan_pct` (~95%) при ~220 строках — для нагрузки **несущественно**, отдельная оптимизация не обязательна.
+2. **`cars`**: много индексов с **`idx_scan = 0`** (в т.ч. крупный `idx_cars_data_gin`) — не удалять «вслепую»; пересмотр после стабильного прод‑трафика (при необходимости `EXPLAIN` по горячим запросам).
+3. **`car_images`**: `dead_rows` порядка десятков тысяч — **autovacuum** уже активен; при росте мёртвых строк держать на контроле `last_autovacuum` / нагрузку диска.
+
+Формально Sprint B закрыт, когда: baseline load зафиксирован, аудит прогнан, список выше принят, прод‑чеклист из **`deploy/DEPLOY.md`** (`.env` + nginx + внешний smoke) выполнен или назначен ответственным.

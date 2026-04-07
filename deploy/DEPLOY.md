@@ -39,6 +39,37 @@ location ~ ^/detail/([^/]+)/?$ {
 ```
 
 - **Переменные:** `NEXT_PUBLIC_API_BASE`, `WRA_API_INTERNAL`, **`NEXT_PUBLIC_SITE_URL`**.
+- **Важно для Docker:** `NEXT_PUBLIC_*` подставляются на этапе **`docker compose build web`** (см. `web/Dockerfile` и `build.args` в `docker-compose.yml`). После смены публичного URL в `.env` выполните **`docker compose build web`** и **`docker compose up -d web`**.
+
+### Чеклист: прод (один домен, nginx → Next + API)
+
+1. **`.env`** на сервере (пример для `https://rideauto.ru`, API снаружи только через nginx):
+
+   ```env
+   WRA_API_INTERNAL=http://api:8080
+   NEXT_PUBLIC_API_BASE=https://rideauto.ru
+   NEXT_PUBLIC_SITE_URL=https://rideauto.ru
+   ```
+
+   Браузер ходит на `https://rideauto.ru/api/...`; nginx, как в **`deploy/nginx/prod-encar.conf`**, проксирует `/api/` на **`127.0.0.1:8080`**.
+
+2. **Пересобрать и поднять `web`** после правок `NEXT_PUBLIC_*`:
+
+   ```bash
+   cd /opt/prod-encar
+   docker compose build web
+   docker compose up -d web
+   ```
+
+3. **Nginx:** включить маршруты из **`deploy/nginx/nextjs-frontend.snippet.conf`** *выше* общего `location /` и `location = /` в **`prod-encar.conf`**: закомментировать старый `location = /` с `try_files /index.html` и вставить сниппет; в **`location @wra_extensionless`** убрать `rewrite ^/catalog$ /index.html`. Те же `location` продублировать в `server { listen 443 ssl; }`. См. комментарии в сниппете и **`TROUBLESHOOT-HTTPS.txt`**.
+
+4. **Дым с сервера** (подставьте домен):
+
+   ```bash
+   curl -sS -o /dev/null -w "%{http_code}\n" "https://rideauto.ru/api/health"
+   curl -sS -o /dev/null -w "%{http_code}\n" "https://rideauto.ru/"
+   curl -sS -o /dev/null -w "%{http_code}\n" "https://rideauto.ru/catalog"
+   ```
 
 ## Docker (опционально)
 

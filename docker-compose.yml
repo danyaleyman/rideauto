@@ -107,12 +107,14 @@ services:
       context: .
       dockerfile: web/Dockerfile
       args:
-        WRA_API_INTERNAL: http://api:8080
+        WRA_API_INTERNAL: ${WRA_API_INTERNAL:-http://api:8080}
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://127.0.0.1:8080}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://rideauto.ru}
     restart: unless-stopped
     environment:
-      WRA_API_INTERNAL: http://api:8080
-      # Абсолютный URL API для браузера (клиентские запросы / будущая гидратация).
+      WRA_API_INTERNAL: ${WRA_API_INTERNAL:-http://api:8080}
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://127.0.0.1:8080}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://rideauto.ru}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:
