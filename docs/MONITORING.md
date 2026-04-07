@@ -88,8 +88,10 @@ cd /opt/prod-encar && git pull
    sudo cp bot_token.example bot_token
    sudo cp chat_id.example chat_id
    sudo nano bot_token chat_id   # подставь реальные значения
-   sudo chmod 600 bot_token chat_id
+   sudo chmod 644 bot_token chat_id
    ```
+
+   Образ **`prom/alertmanager`** работает **не от root**; при **`chmod 600`** и владельце **root** смонтированные файлы дают **`permission denied`** внутри контейнера. Поэтому на секретах нужно **`644`** (чтение для «остальных») либо **`chown`** под UID пользователя из `docker exec alertmanager id`.
 
 **Сначала Alertmanager** (слушает только localhost), затем Prometheus:
 
