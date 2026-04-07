@@ -1,7 +1,6 @@
 /**
- * Копирует легаси-статику (css/js/image/data) из frontend/ в public/
-                              и вытягивает фрагменты car.html для Next /car/[ref].
- * Локально: frontend рядом с web/. В Docker: задайте WRA_FRONTEND_ROOT (путь к копии frontend).
+ * Копирует легаси-статику (css/js/image/data, seo, howtobuy.html) из frontend/ в public/
+ * и вытягивает фрагменты для Next (car, маркетинговые страницы).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -29,6 +28,19 @@ function extractFirstStyleBlock(html) {
   const j = html.indexOf("</style>", i);
   if (j === -1) return "";
   return html.slice(i + "<style>".length, j).trim();
+}
+
+function extractMainBlock(html, mainClassWord) {
+  const re = new RegExp(
+    `<main[^>]*class="[^"]*\\b${mainClassWord}\\b[^"]*"[^>]*>`,
+    "i",
+  );
+  const m = html.match(re);
+  if (!m || m.index === undefined) return "";
+  const innerStart = m.index + m[0].length;
+  const close = html.indexOf("</main>", innerStart);
+  if (close === -1) return "";
+  return html.slice(m.index, close + "</main>".length);
 }
 
 function extractCarFragments(html) {
@@ -62,11 +74,31 @@ function extractCarFragments(html) {
   return { top, bottom };
 }
 
+function writeMarketingPage(slug, htmlFile, mainClassWord) {
+  const fp = path.join(FRONTEND, htmlFile);
+  if (!fs.existsSync(fp)) {
+    console.warn(`[sync-legacy-assets] нет ${fp}`);
+    return;
+  }
+  const html = fs.readFileSync(fp, "utf8");
+  const style = extractFirstStyleBlock(html);
+  const main = extractMainBlock(html, mainClassWord);
+  if (!main) {
+    console.warn(
+      `[sync-legacy-assets] не найден <main … class="…${mainClassWord}…"> в ${htmlFile}`,
+    );
+    return;
+  }
+  const outDir = path.join(WEB_ROOT, "src", "legacy", "marketing", slug);
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, "styles.css"), style + "\n", "utf8");
+  fs.writeFileSync(path.join(outDir, "main.html"), main.trim() + "\n", "utf8");
+}
+
 function main() {
   if (!fs.existsSync(FRONTEND)) {
     console.warn(
-      `[sync-legacy-assets] Пропуск копирования: нет каталога frontend (${FRONTEND}).\n` +
-        `Укажите WRA_FRONTEND_ROOT или положите репозиторий так, чтобы существовал ../frontend.`,
+      `[sync-legacy-assets] Пропуск: нет frontend (${FRONTEND}). Задайте WRA_FRONTEND_ROOT.`,
     );
     return;
   }
@@ -88,27 +120,42 @@ function main() {
     console.warn(`[sync-legacy-assets] нет ${engineMapSrc}`);
   }
 
+  const seoSrc = path.join(FRONTEND, "seo");
+  if (fs.existsSync(seoSrc)) copyDir(seoSrc, path.join(pub, "seo"));
+  else console.warn(`[sync-legacy-assets] нет ${seoSrc}`);
+
+  const howtobuySrc = path.join(FRONTEND, "howtobuy.html");
+  if (fs.existsSync(howtobuySrc)) {
+    fs.copyFileSync(howtobuySrc, path.join(pub, "howtobuy.html"));
+  } else {
+    console.warn(`[sync-legacy-assets] нет ${howtobuySrc}`);
+  }
+
   const carHtmlPath = path.join(FRONTEND, "car.html");
-  if (!fs.existsSync(carHtmlPath)) {
-    console.warn(`[sync-legacy-assets] нет ${carHtmlPath} — фрагменты и inline CSS не обновлены`);
-    return;
+  if (fs.existsSync(carHtmlPath)) {
+    const carHtml = fs.readFileSync(carHtmlPath, "utf8");
+    const css = extractFirstStyleBlock(carHtml);
+    if (css) {
+      fs.mkdirSync(path.join(pub, "css"), { recursive: true });
+      fs.writeFileSync(path.join(pub, "css", "car-page-inline.css"), css + "\n", "utf8");
+    }
+    try {
+      const { top, bottom } = extractCarFragments(carHtml);
+      const legDir = path.join(WEB_ROOT, "src", "legacy");
+      fs.mkdirSync(legDir, { recursive: true });
+      fs.writeFileSync(path.join(legDir, "car-top.fragment.html"), top + "\n", "utf8");
+      fs.writeFileSync(path.join(legDir, "car-footer.fragment.html"), bottom + "\n", "utf8");
+    } catch (e) {
+      console.warn("[sync-legacy-assets] car.html:", e.message || e);
+    }
+  } else {
+    console.warn(`[sync-legacy-assets] нет ${carHtmlPath}`);
   }
 
-  const carHtml = fs.readFileSync(carHtmlPath, "utf8");
+  writeMarketingPage("about", "about.html", "about-main");
+  writeMarketingPage("contacts", "contacts.html", "contacts-main");
 
-  const css = extractFirstStyleBlock(carHtml);
-  if (css) {
-    fs.mkdirSync(path.join(pub, "css"), { recursive: true });
-    fs.writeFileSync(path.join(pub, "css", "car-page-inline.css"), css + "\n", "utf8");
-  }
-
-  const { top, bottom } = extractCarFragments(carHtml);
-  const legDir = path.join(WEB_ROOT, "src", "legacy");
-  fs.mkdirSync(legDir, { recursive: true });
-  fs.writeFileSync(path.join(legDir, "car-top.fragment.html"), top + "\n", "utf8");
-  fs.writeFileSync(path.join(legDir, "car-footer.fragment.html"), bottom + "\n", "utf8");
-
-  console.log("[sync-legacy-assets] ok: public/* + src/legacy/*.fragment.html");
+  console.log("[sync-legacy-assets] ok");
 }
 
 main();

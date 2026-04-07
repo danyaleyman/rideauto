@@ -64,12 +64,12 @@ export default function Home() {
             >
               Открыть каталог
             </Link>
-            <a
+            <Link
               className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              href="/howtobuy.html"
+              href="/buy"
             >
               Как купить
-            </a>
+            </Link>
             <a
               className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
               href="https://t.me/nikits15"
@@ -132,12 +132,13 @@ export default function Home() {
         </section>
 
         <p className="mt-10 text-center text-sm text-zinc-500">
-          Полная лента каталога с фильтрами как на классическом сайте — сейчас в разделе{" "}
+          Каталог с фильтрами и поиском — в разделе{" "}
           <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" href="/catalog">
             Каталог
           </Link>
-          . Статические HTML-страницы по-прежнему в{" "}
-          <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">frontend/</code>.
+          . SEO-посадки доступны по путям{" "}
+          <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">/seo/korea/…</code> (статика из
+          сборки).
         </p>
       </div>
     </>

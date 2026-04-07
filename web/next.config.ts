@@ -14,6 +14,18 @@ const nextConfig: NextConfig = {
         destination: "/car/:id",
         permanent: true,
       },
+      { source: "/index.html", destination: "/", permanent: true },
+      { source: "/about.html", destination: "/about", permanent: true },
+      { source: "/howtobuy.html", destination: "/buy", permanent: true },
+      { source: "/contacts.html", destination: "/contacts", permanent: true },
+      { source: "/privacy.html", destination: "/privacy", permanent: true },
+      { source: "/cookies.html", destination: "/cookies", permanent: true },
+      { source: "/agreement.html", destination: "/agreement", permanent: true },
+      {
+        source: "/catalog-che168.html",
+        destination: "/catalog?region=china",
+        permanent: true,
+      },
     ];
   },
   async rewrites() {
