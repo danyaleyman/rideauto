@@ -117,6 +117,28 @@ def run_scenario(base_url: str, car_id: str, scenario: Scenario) -> Dict[str, fl
     }
 
 
+def preflight(base_url: str, car_id: str) -> None:
+    checks = [
+        ("health", f"{base_url}/api/health"),
+        ("search", f"{base_url}/api/search?per_page=1"),
+        ("car", f"{base_url}/api/car/{car_id}"),
+    ]
+    print("==> preflight", flush=True)
+    for name, url in checks:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        t0 = time.perf_counter()
+        try:
+            with urllib.request.urlopen(req, timeout=10.0) as resp:
+                _ = resp.read(128)
+                dt = (time.perf_counter() - t0) * 1000.0
+                print(f"  {name}: {resp.status} ({dt:.1f} ms)", flush=True)
+        except urllib.error.HTTPError as e:
+            dt = (time.perf_counter() - t0) * 1000.0
+            print(f"  {name}: HTTP {e.code} ({dt:.1f} ms)", flush=True)
+        except Exception as e:
+            raise RuntimeError(f"preflight failed for {name} at {url}: {e}") from e
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run pragmatic load profile for /api/search and /api/car.")
     ap.add_argument("--base-url", default="http://127.0.0.1:8080")
@@ -125,6 +147,7 @@ def main() -> None:
     base = args.base_url.rstrip("/")
 
     print(f"load profile base_url={base} car_id={args.car_id}", flush=True)
+    preflight(base, args.car_id)
     results: Dict[str, Dict[str, float]] = {}
     for sc in SCENARIOS:
         print(f"\n==> scenario {sc.name} rps={sc.rps} duration={sc.seconds}s", flush=True)
