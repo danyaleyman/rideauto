@@ -1,13 +1,42 @@
-import type { Metadata } from "next";
-import { LegacyMarketingPage } from "@/components/legacy-marketing/LegacyMarketingPage";
+﻿import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Контакты",
-  description:
-    "Связь с World Ride Auto: Telegram, ВКонтакте, Авито. Подбор авто из Кореи и Китая.",
+  title: "Contacts",
+  description: "World Ride Auto contacts: Telegram, VK and Avito.",
   alternates: { canonical: "/contacts" },
 };
 
 export default function ContactsPage() {
-  return <LegacyMarketingPage slug="contacts" wrapClassName="contacts-wrap" />;
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Contacts</h1>
+      <p className="mt-3 max-w-2xl text-zinc-600 dark:text-zinc-400">
+        Reach us in messenger or social channels to discuss budget and options.
+      </p>
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-lg font-semibold">Telegram</h2>
+          <p className="mt-2 text-sm">
+            Manager: <a className="text-blue-600 hover:underline" href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">@nikits15</a>
+          </p>
+          <p className="mt-1 text-sm">
+            Channel: <a className="text-blue-600 hover:underline" href="https://t.me/worldrideauto" target="_blank" rel="noopener noreferrer">@worldrideauto</a>
+          </p>
+        </article>
+        <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-lg font-semibold">VK</h2>
+          <p className="mt-2 text-sm">
+            <a className="text-blue-600 hover:underline" href="https://vk.com/ride_auto" target="_blank" rel="noopener noreferrer">vk.com/ride_auto</a>
+          </p>
+        </article>
+        <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-lg font-semibold">Avito</h2>
+          <p className="mt-2 text-sm">
+            <a className="text-blue-600 hover:underline" href="https://www.avito.ru/brands/8a805bbde7bfbfcc9b9e810b88bb4382?src=sharing" target="_blank" rel="noopener noreferrer">Company profile</a>
+          </p>
+        </article>
+      </div>
+    </div>
+  );
 }

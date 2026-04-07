@@ -1,4 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+﻿# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
@@ -40,10 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Зеркало легаси из ../frontend (npm run sync-legacy / prebuild)
+# Р—РµСЂРєР°Р»Рѕ Р»РµРіР°СЃРё РёР· ../frontend (npm run sync-legacy / prebuild)
 /public/css/
 /public/js/
 /public/image/
 /public/data/
 /public/seo/
-/public/howtobuy.html
+
