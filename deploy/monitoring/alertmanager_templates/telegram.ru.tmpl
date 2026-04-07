@@ -1,0 +1,19 @@
+{{ define "telegram.ru.message" -}}
+{{- if eq .Status "firing" -}}
+🔴 <b>Сработал мониторинг</b>
+{{- else if eq .Status "resolved" -}}
+🟢 <b>Проблема устранена</b>
+{{- else -}}
+⚠️ <b>{{ .Status }}</b>
+{{- end -}}
+{{- range .Alerts }}
+
+{{ if .Annotations.summary -}}<b>{{ .Annotations.summary }}</b>{{ else -}}<code>{{ .Labels.alertname }}</code>{{ end -}}
+{{- if .Annotations.description }}
+
+{{ .Annotations.description }}{{ end -}}
+{{- if .Labels.severity }} · уровень: <i>{{ .Labels.severity }}</i>{{ end -}}
+{{- if .Labels.instance }}
+цель: <code>{{ .Labels.instance }}</code>{{ end -}}
+{{ end -}}
+{{- end }}

@@ -100,6 +100,7 @@ docker rm -f alertmanager 2>/dev/null || true
 docker run -d --name alertmanager --restart unless-stopped \
   --network host \
   -v /opt/prod-encar/deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro \
+  -v /opt/prod-encar/deploy/monitoring/alertmanager_templates:/etc/alertmanager/templates:ro \
   -v /opt/prod-encar/deploy/monitoring/secrets/bot_token:/etc/alertmanager/secrets/bot_token:ro \
   -v /opt/prod-encar/deploy/monitoring/secrets/chat_id:/etc/alertmanager/secrets/chat_id:ro \
   prom/alertmanager:latest \
