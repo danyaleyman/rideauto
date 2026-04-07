@@ -1,3 +1,7 @@
+Часть Prod Encar на **Next.js (App Router, SSR)**. Полный каталог с фильтрами пока в репозитории в `frontend/` (Vanilla JS); здесь — базовые `/catalog` и `/car/[ref]` + документация в [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
+
+Ниже — шаблонный README `create-next-app`.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

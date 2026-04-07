@@ -108,13 +108,15 @@ checkpoint:
   max_pending_ids: 500000
 
 # Output storage
+# Целевой production (docker-compose / FastAPI / Meilisearch): backend: postgres и DSN (или DATABASE_URL в .env).
+# Локально без Postgres оставляйте sqlite.
 storage:
   # "sqlite" | "chunked_json" | "postgres"
   backend: "sqlite"
   sqlite:
     path: "encar_cars.db"
   postgres:
-    # Или переменная окружения DATABASE_URL
+    # Или переменная окружения DATABASE_URL (см. .env.example)
     dsn: ""
   chunked_json:
     dir: "output_chunks"

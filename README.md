@@ -1,9 +1,10 @@
 # Prod Encar
 
-Проект разделён на два слоя:
+Проект разделён на слои:
 
-- **Frontend (статические страницы)**: папка `frontend/` (открывается напрямую в браузере).
-- **Backend (парсер/обновления/экспорт/БД)**: папка `backend/` (Python).
+- **Современный фронт (Next.js, SSR)**: папка `web/` — целевая связка с FastAPI (см. `docs/ARCHITECTURE.md`, `docker-compose.yml`).
+- **Легаси-фронт (Vanilla JS, статика)**: папка `frontend/` — полный каталог и карточка; может ходить в FastAPI или в старый `api_server` + SQLite.
+- **Backend**: папка `backend/` — FastAPI (`fastapi_app`), легаси `api_server.py`, скраперы, Postgres/SQLite.
 
 ## Быстрый старт (backend)
 

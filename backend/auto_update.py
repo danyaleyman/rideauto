@@ -73,8 +73,8 @@ class AutoUpdateManager:
             'update_config': {
                 'max_workers': 5,
                 'update_type': 'daily',  # 'daily' or 'full'
-                # После успешного PostgreSQL-цикла гоняет encar_daily_update (обновляет encar_cars.db + экспорт).
-                # Сайт на SQLite (api_server --db encar_cars.db) без этого не увидит ночное обновление.
+                # После цикла Postgres дополнительно: encar_daily_update → encar_cars.db + cars.json (легаси).
+                # Для стека FastAPI + Postgres + Meilisearch можно выключить; для api_server + SQLite оставьте true.
                 'catalog_sync_sqlite': True,
             },
             'notification_config': {
