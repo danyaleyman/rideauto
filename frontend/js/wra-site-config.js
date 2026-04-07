@@ -19,6 +19,14 @@
   /* Таймаут fetch /api/cars (мс). По умолчанию 180000 в catalog.js; при очень тяжёлой БД можно поднять, задав число до подключения catalog.js. */
   /* if (typeof window.WRA_CATALOG_CARS_TIMEOUT_MS !== "number") { window.WRA_CATALOG_CARS_TIMEOUT_MS = 240000; } */
 
+  /**
+   * VK Реклама: код пикселя ретаргетинга из кабинета (строка вида VK-RTRG-…).
+   * Пусто — блок VK в wra-mkt-pixels.js не грузится.
+   */
+  if (typeof window.WRA_VK_RTRG_ID !== "string") {
+    window.WRA_VK_RTRG_ID = "";
+  }
+
   /** Публичный URL карточки: /detail/{id} (nginx отдаёт car.html). На Next — window.WRA_USE_NEXT_CAR_ROUTES = true → /car/{id}. */
   window.wraCarDetailPath = function (id) {
     if (id == null || id === "") return "/";

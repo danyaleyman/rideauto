@@ -33,6 +33,13 @@
       document.head.appendChild(script);
       node.setAttribute("data-cookie-loaded", "1");
     });
+    if (!window.__wraMktPixelsRequested) {
+      window.__wraMktPixelsRequested = true;
+      var mkt = document.createElement("script");
+      mkt.src = "/js/wra-mkt-pixels.js?v=20260407";
+      mkt.async = true;
+      document.head.appendChild(mkt);
+    }
     window.dispatchEvent(new CustomEvent("cookie-consent:accepted"));
   }
 
@@ -50,7 +57,7 @@
     el.innerHTML =
       '<div class="cookie-consent__inner">' +
       '  <div class="cookie-consent__top">' +
-      '    <img class="cookie-consent__icon" src="image/Cookie.png" alt="" width="30" height="30" loading="lazy" decoding="async">' +
+      '    <img class="cookie-consent__icon" src="/image/Cookie.png" alt="" width="30" height="30" loading="lazy" decoding="async">' +
       '    <div class="cookie-consent__copy">' +
       '      <p class="cookie-consent__headline">Мы используем файлы cookie</p>' +
       '      <p class="cookie-consent__text">Мы используем файлы cookie, чтобы улучшить ваш опыт. Продолжая использовать наш сайт, вы соглашаетесь с нашей <a class="cookie-consent__link" href="/privacy">Политикой конфиденциальности</a>, <a class="cookie-consent__link" href="/cookies">Политикой cookie</a> и <a class="cookie-consent__link" href="/agreement">Пользовательским соглашением</a>.</p>' +
