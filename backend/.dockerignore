@@ -1,0 +1,11 @@
+# Build context is `backend/` only; keep wheelhouse and venvs out if present.
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+venv
+*.egg-info
+.git

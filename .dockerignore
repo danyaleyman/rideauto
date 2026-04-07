@@ -3,3 +3,13 @@
 *.pyc
 .pytest_cache
 .cursor
+.github
+
+# Not used by web/Dockerfile COPY web + frontend (shrinks `docker compose build web` context)
+deploy/
+docs/
+e2e/
+infrastructure/
+playwright.config.mjs
+Prod Encar.code-workspace
+README.md

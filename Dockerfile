@@ -1,5 +1,5 @@
-# API: FastAPI (uvicorn). Docker Compose: см. docker-compose.yml и .env.example.
-# Легаси-сервер: docker run ... python -m api_server --host 0.0.0.0 --port 8080 --db /data/encar_cars.db
+# Legacy / manual builds from repo root still send the whole tree as context (slow).
+# Prefer: `docker compose build api` (context `backend/`, see docker-compose.yml).
 FROM python:3.12-slim
 
 WORKDIR /app

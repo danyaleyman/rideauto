@@ -49,6 +49,20 @@ docker compose build
 docker compose up -d
 ```
 
+Сервис **`api`** собирается с контекстом **`backend/`** (не весь репозиторий), чтобы образ собирался быстро.
+
+### docker-compose 1.29 + Docker Engine: `KeyError: 'ContainerConfig'`
+
+Старый **`docker-compose`** (Python 1.29.x) при пересоздании контейнера иногда падает с этой ошибкой. Обход:
+
+```bash
+cd /opt/prod-encar
+docker-compose rm -f api
+docker-compose up -d api
+```
+
+Надёжнее поставить **[Compose V2](https://docs.docker.com/compose/install/linux/)** и вызывать **`docker compose`** (без дефиса).
+
 В томе `encar_data` лежат два каталога: **`/data/encar_cars.db`** (Корея / Encar) и **`/data/encar_china.db`** (Китай / Dongchedi). Переменная **`WRA_CHINA_DB_PATH`** в `docker-compose.yml` по умолчанию указывает на `/data/encar_china.db`. Чтобы подставить файлы с хоста, смонтируйте оба, например: `./encar_cars.db:/data/encar_cars.db` и `./encar_china.db:/data/encar_china.db`.
 
 См. также [BACKUP-SQLITE.md](BACKUP-SQLITE.md).
