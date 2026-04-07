@@ -59,3 +59,16 @@ class FacetsResponse(BaseModel):
     fuels: List[Dict[str, Any]] = Field(default_factory=list)
     transmissions: List[Dict[str, Any]] = Field(default_factory=list)
     colors: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class WebVitalEvent(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    name: str
+    value: float
+    rating: Optional[str] = None
+    delta: Optional[float] = None
+    navigation_type: Optional[str] = None
+    pathname: Optional[str] = None
+    user_agent: Optional[str] = None
