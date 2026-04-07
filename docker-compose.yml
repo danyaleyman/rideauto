@@ -2,8 +2,6 @@
 # Запуск из корня репозитория: docker compose up -d
 # Скопируйте .env.example → .env и при необходимости измените секреты.
 
-name: prod-encar
-
 services:
   postgres:
     image: postgres:16-alpine
