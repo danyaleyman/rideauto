@@ -49,3 +49,28 @@ Look for:
   - `/api/car/{id}` < 250ms
 - DB index/vacuum action list prepared (top 3 SQL fixes).
 - Re-run load profile after tuning and record before/after deltas.
+
+## 5) Next execution steps (after first green baseline)
+
+1. Run a stability soak by repeating the standard profile 10 times:
+
+```bash
+cd /opt/prod-encar
+for i in $(seq 1 10); do
+  echo "==> run $i/10"
+  python3 deploy/scripts/load_profile.py \
+    --base-url http://127.0.0.1:8080 \
+    --car-id "<SAMPLE_CAR_ID>"
+done
+```
+
+2. During soak, monitor API errors and container restarts:
+
+```bash
+cd /opt/prod-encar
+docker-compose ps
+docker-compose logs --tail=200 api
+```
+
+3. Apply top SQL/index actions from `pg_index_audit.sql` output.
+4. Re-run standard 50/100/200 profile and compare p95/p99 deltas to baseline from `2026-04-07`.

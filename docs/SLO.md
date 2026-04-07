@@ -33,3 +33,31 @@
 - Monitoring dashboards expose p95 + 5xx + cache hit ratio
 - Alerts configured and test-triggered at least once
 - Runbook includes cutover and rollback with command-level steps
+
+## Baseline Run (2026-04-07)
+
+Load profile command:
+
+```bash
+python3 deploy/scripts/load_profile.py \
+  --base-url http://127.0.0.1:8080 \
+  --car-id "dongchedi-22752383"
+```
+
+Preflight:
+
+- `GET /api/health`: `200`
+- `GET /api/search?per_page=1`: `200`
+- `GET /api/car/dongchedi-22752383`: `200`
+
+Scenarios:
+
+- `warmup` (20 RPS, 20s): requests `400`, ok `100%`, p95 `47.0ms`, p99 `116.5ms`
+- `rps-50` (50 RPS, 60s): requests `3000`, ok `100%`, p95 `49.0ms`, p99 `106.2ms`
+- `rps-100` (100 RPS, 60s): requests `6000`, ok `100%`, p95 `49.3ms`, p99 `66.9ms`
+- `rps-200` (200 RPS, 60s): requests `12000`, ok `100%`, p95 `44.7ms`, p99 `50.1ms`
+
+Outcome:
+
+- `err_5xx_rate = 0%`, `err_4xx_rate = 0%`, `net_err_rate = 0%` on all stages.
+- Current baseline is comfortably within Sprint A latency/error targets.
