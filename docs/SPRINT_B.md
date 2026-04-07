@@ -103,3 +103,18 @@ curl -sS -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:3000/"
 - If you applied SQL/index changes, **re-run** `load_profile.py` and append a short note under `docs/SLO.md` or your runbook.
 
 Throughout this doc, **`docker compose`** (v2) and **`docker-compose`** (v1) use the same subcommands; prefer v2 to avoid `ContainerConfig` recreate bugs.
+
+## 7) Shrink `web` build context
+
+Root **`.dockerignore`** excludes host **`web/node_modules`**, unused **`frontend/*.html`** and heavy **`frontend/data/*`** except **`engine_map.json`** (see comments in that file). After changing ignore rules, rebuild:
+
+```bash
+docker compose build web
+```
+
+## 8) After Sprint B (prod edge)
+
+1. Set **`.env`**: `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SITE_URL` for the public domain.
+2. Configure **nginx** (see `deploy/nginx/`) — site → `127.0.0.1:3000`, `/api/` → `127.0.0.1:8080` or your upstreams.
+3. Smoke from outside: `/`, `/catalog`, `/api/health`.
+4. Optional: add **`/api/similar`** to a small synthetic check or extend `load_profile.py` later.

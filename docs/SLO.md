@@ -61,3 +61,7 @@ Outcome:
 
 - `err_5xx_rate = 0%`, `err_4xx_rate = 0%`, `net_err_rate = 0%` on all stages.
 - Current baseline is comfortably within Sprint A latency/error targets.
+
+## Stack note (API + Next `web`)
+
+Docker Compose brings up **`api`** (`:8080`) and **`web`** (`:3000`). External SLO applies to what users hit via **nginx** (or equivalent): confirm **`NEXT_PUBLIC_API_BASE`**, **`NEXT_PUBLIC_SITE_URL`**, and TLS after cutover. Re-run `load_profile.py` against the API URL that nginx forwards to, if that path differs from loopback.
