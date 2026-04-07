@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from dongchedi.normalize import row_matches_filters, sku_row_to_payload
+from dongchedi.parse_detail import parse_sku_detail_from_html
 
 
 def test_sku_row_to_payload_with_detail_fen():
@@ -94,6 +95,83 @@ def test_sku_row_detail_car_info_and_gallery():
     assert "https://example.com/extra.jpg" in imgs
 
 
+def test_km_from_important_text_and_spaced_wan_km():
+    row = {
+        "sku_id": 23134642,
+        "title": "福睿斯",
+        "brand_name": "福特",
+        "series_name": "福睿斯",
+        "car_year": 2015,
+        "car_mileage": "",
+        "image": "https://example.com/c.jpg",
+    }
+    detail = {
+        "important_text": "2015|06 · 【行驶里程】6.68万 公里 · 南宁",
+        "other_params": [{"name": "内饰颜色", "value": "浅色"}],
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    assert out["data"]["km_age"] == 66800
+
+
+def test_km_from_other_params_and_plain_km():
+    row = {
+        "sku_id": 2,
+        "title": "T",
+        "brand_name": "B",
+        "series_name": "S",
+        "car_year": 2020,
+        "car_mileage": "",
+        "image": "https://example.com/x.jpg",
+    }
+    detail = {"other_params": [{"name": "行驶里程", "value": "120500公里"}]}
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    assert out["data"]["km_age"] == 120500
+
+
+def test_parse_detail_injects_mileage_hint_from_raw_html():
+    payload = {
+        "props": {
+            "pageProps": {
+                "skuDetail": {"car_info": {}},
+            }
+        }
+    }
+    html = (
+        '<script id="__NEXT_DATA__" type="application/json">'
+        + json.dumps(payload, ensure_ascii=False)
+        + "</script>车况【行驶里程】6.68万公里介绍"
+    )
+    sd = parse_sku_detail_from_html(html)
+    assert sd is not None
+    assert sd.get("_mileage_hint_km") == 66800
+    row = {
+        "sku_id": 99,
+        "title": "X",
+        "brand_name": "B",
+        "series_name": "S",
+        "car_year": 2015,
+        "car_mileage": "",
+        "image": "https://example.com/z.jpg",
+    }
+    out = sku_row_to_payload(row, detail=sd, cny_to_rub=13.0)
+    assert out["data"]["km_age"] == 66800
+
+
+def test_km_from_car_info_mileage_int():
+    row = {
+        "sku_id": 3,
+        "title": "T",
+        "brand_name": "B",
+        "series_name": "S",
+        "car_year": 2019,
+        "car_mileage": "",
+        "image": "https://example.com/y.jpg",
+    }
+    detail = {"car_info": {"mileage": 45600}}
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    assert out["data"]["km_age"] == 45600
+
+
 def test_row_protocol_relative_image_normalized():
     row = {
         "sku_id": 1,
@@ -159,3 +237,42 @@ def test_detail_other_params_car_config_and_listing_meta():
     assert d["dongchedi_summary"] == "2019年上牌 | 7.06万公里 | 北京车源"
     imgs = json.loads(d["images"])
     assert "https://example.com/h1.jpg" in imgs
+
+
+def test_sku_row_params_raw_merges_msrp_and_specs_url():
+    row = {
+        "sku_id": 23134642,
+        "title": "福睿斯",
+        "brand_name": "福特",
+        "series_name": "福睿斯",
+        "car_year": 2015,
+        "car_mileage": "6.68万公里",
+        "image": "https://example.com/c.jpg",
+    }
+    detail = {
+        "source_sh_price": 15000000,
+        "car_info": {"car_id": 8520},
+        "_params_raw": {
+            "car_info": {
+                "car_id": 8520,
+                "car_name": "福睿斯 2015款 1.5L 自动时尚型",
+                "car_year": 2015,
+                "official_price": "11.98万",
+                "info": {
+                    "market_time": {"value": "2014.12"},
+                    "wheelbase": {"value": "2687"},
+                    "gearbox_description": {"value": "6挡手自一体"},
+                },
+            }
+        },
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    d = out["data"]
+    assert d["dongchedi_specs_url"] == "https://www.dongchedi.com/auto/params-carIds-8520"
+    assert d["configuration"] == "福睿斯 2015款 1.5L 自动时尚型"
+    assert d["dongchedi_model_year"] == "2015"
+    assert d["dongchedi_market_time"] == "2014.12"
+    assert d["dongchedi_msrp_cny"] == 119800.0
+    assert d["dongchedi_msrp_rub"] == 1557400
+    hl = json.loads(d["dongchedi_specs_highlights"])
+    assert any(x["key"] == "wheelbase" for x in hl)

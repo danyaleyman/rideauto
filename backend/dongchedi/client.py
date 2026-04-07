@@ -87,8 +87,34 @@ async def fetch_usedcar_html(
 ) -> Tuple[int, Optional[str]]:
     url = f"https://www.dongchedi.com/usedcar/{sku_id}"
     timeout = aiohttp.ClientTimeout(total=timeout_s + 15)
+    headers = {"Referer": url}
     try:
-        async with session.get(url, timeout=timeout) as resp:
+        async with session.get(url, timeout=timeout, headers=headers) as resp:
+            status = resp.status
+            if status != 200:
+                return status, None
+            return status, await resp.text(encoding="utf-8", errors="replace")
+    except (aiohttp.ClientError, asyncio.TimeoutError):
+        return 0, None
+
+
+async def fetch_params_car_html(
+    session: aiohttp.ClientSession,
+    car_spec_id: str,
+    *,
+    referer_sku_id: str,
+    timeout_s: float = 45.0,
+) -> Tuple[int, Optional[str]]:
+    """HTML страницы параметров комплектации (新车指导价, полная комплектация)."""
+    sid = str(car_spec_id).strip()
+    if not sid:
+        return 0, None
+    url = f"https://www.dongchedi.com/auto/params-carIds-{sid}"
+    ref = f"https://www.dongchedi.com/usedcar/{str(referer_sku_id).strip()}"
+    timeout = aiohttp.ClientTimeout(total=timeout_s + 15)
+    headers = {"Referer": ref}
+    try:
+        async with session.get(url, timeout=timeout, headers=headers) as resp:
             status = resp.status
             if status != 200:
                 return status, None

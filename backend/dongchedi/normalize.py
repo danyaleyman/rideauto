@@ -7,7 +7,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-_WAN_KM_RE = re.compile(r"([\d.]+)\s*万公里")
+_WAN_KM_RE = re.compile(r"([\d.]+)\s*万\s*公里")
+_PLAIN_KM_RE = re.compile(r"(?<![\d.])(\d{3,7})\s*公里")
 _WAN_PRICE_RE = re.compile(r"([\d]+(?:\.[\d]+)?)\s*万")
 _HP_RE = re.compile(r"(\d+)\s*马力")
 _TRANSFER_CNT_RE = re.compile(r"(\d+)\s*次")
@@ -41,15 +42,112 @@ def _parse_wan_price_text(s: str) -> Optional[float]:
 
 
 def _km_from_mileage_str(raw: str) -> Optional[int]:
+    """«6.68万公里» / «6.68万 公里» / «66800公里» → км (целое)."""
     if not raw:
         return None
-    m = _WAN_KM_RE.search(raw)
-    if not m:
+    s = str(raw).strip()
+    m = _WAN_KM_RE.search(s)
+    if m:
+        try:
+            return int(float(m.group(1)) * 10000)
+        except ValueError:
+            return None
+    m = _PLAIN_KM_RE.search(s)
+    if m:
+        try:
+            v = int(m.group(1))
+            if 100 <= v <= 3_000_000:
+                return v
+        except ValueError:
+            return None
+    return None
+
+
+def _km_from_car_info_mileage_value(raw: Any) -> Optional[int]:
+    if raw is None or raw == "":
         return None
-    try:
-        return int(float(m.group(1)) * 10000)
-    except ValueError:
+    if isinstance(raw, bool):
         return None
+    if isinstance(raw, (int, float)):
+        try:
+            v = int(raw)
+        except (TypeError, ValueError):
+            return None
+        if 300 <= v <= 2_000_000:
+            return v
+        return None
+    return _km_from_mileage_str(str(raw))
+
+
+def _km_from_param_pairs(params: Dict[str, str]) -> Optional[int]:
+    for key in ("行驶里程", "里程", "表显里程", "公里数"):
+        pv = params.get(key)
+        if pv:
+            k = _km_from_mileage_str(str(pv))
+            if k is not None:
+                return k
+    return None
+
+
+_DETAIL_STR_KEYS_FOR_KM = (
+    "important_text",
+    "subtitle",
+    "share_title",
+    "seo_description",
+    "description",
+    "brief",
+)
+
+_KM_WALK_SKIP_KEYS = frozenset(
+    {
+        "image_list",
+        "head_images",
+        "pics",
+        "images",
+        "url",
+        "image",
+        "avatar",
+        "icon",
+        "logo",
+    }
+)
+
+
+def _km_from_detail_known_strings(detail: Optional[Dict[str, Any]]) -> Optional[int]:
+    if not detail or not isinstance(detail, dict):
+        return None
+    for k in _DETAIL_STR_KEYS_FOR_KM:
+        v = detail.get(k)
+        if isinstance(v, str) and v.strip():
+            k0 = _km_from_mileage_str(v)
+            if k0 is not None:
+                return k0
+    return None
+
+
+def _km_walk_detail_for_mileage(obj: Any, depth: int = 0) -> Optional[int]:
+    """Последний fallback: любой короткий фрагмент JSON карточки с «万公里»."""
+    if depth > 12 or obj is None:
+        return None
+    if isinstance(obj, str):
+        if len(obj) > 800:
+            return None
+        return _km_from_mileage_str(obj)
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k in _KM_WALK_SKIP_KEYS:
+                continue
+            r = _km_walk_detail_for_mileage(v, depth + 1)
+            if r is not None:
+                return r
+    elif isinstance(obj, list):
+        for i, it in enumerate(obj):
+            if i > 120:
+                break
+            r = _km_walk_detail_for_mileage(it, depth + 1)
+            if r is not None:
+                return r
+    return None
 
 
 def _param_pairs_from_detail(detail: Optional[Dict[str, Any]]) -> Dict[str, str]:
@@ -250,6 +348,90 @@ def _image_urls_from_row_and_detail(
     return out
 
 
+def dongchedi_spec_car_id(detail: Optional[Dict[str, Any]]) -> Optional[str]:
+    """ID комплектации для /auto/params-carIds-{id} — из карточки б/у."""
+    if not detail or not isinstance(detail, dict):
+        return None
+    for key in ("car_info", "car_config_overview"):
+        block = detail.get(key)
+        if isinstance(block, dict):
+            cid = block.get("car_id")
+            if cid is not None and str(cid).strip():
+                return str(cid).strip()
+    return None
+
+
+def _params_info_cell_value(info: Any, item_key: str) -> str:
+    if not isinstance(info, dict):
+        return ""
+    cell = info.get(item_key)
+    if isinstance(cell, dict):
+        return str(cell.get("value") or "").strip()
+    return str(cell or "").strip()
+
+
+def _apply_params_raw_to_data(
+    data: Dict[str, Any],
+    params_raw: Optional[Dict[str, Any]],
+    *,
+    cny_to_rub: float,
+) -> None:
+    """Данные с страницы параметров (МСРП нового, год модели, краткая комплектация)."""
+    if not params_raw or not isinstance(params_raw, dict):
+        return
+    ci_top = params_raw.get("car_info")
+    if not isinstance(ci_top, dict):
+        return
+    car_id = str(ci_top.get("car_id") or "").strip()
+    if car_id:
+        data["dongchedi_specs_car_id"] = car_id
+        data["dongchedi_specs_url"] = f"https://www.dongchedi.com/auto/params-carIds-{car_id}"
+
+    cn = _first_nonempty_str(ci_top.get("car_name"))
+    if cn:
+        data["configuration"] = cn
+        data["gradeName"] = cn
+
+    cy = ci_top.get("car_year")
+    if isinstance(cy, str) and cy.isdigit() and len(cy) == 4:
+        data["dongchedi_model_year"] = cy
+    elif isinstance(cy, int) and 1990 <= cy <= 2035:
+        data["dongchedi_model_year"] = str(cy)
+
+    op = _first_nonempty_str(ci_top.get("official_price"), ci_top.get("dealer_price"))
+    msrp = _parse_wan_price_text(op)
+    if msrp is not None and msrp > 0:
+        data["dongchedi_msrp_cny"] = round(msrp, 2)
+        data["dongchedi_msrp_rub"] = round(float(msrp) * float(cny_to_rub))
+
+    info = ci_top.get("info")
+    mt = _params_info_cell_value(info, "market_time")
+    if mt:
+        data["dongchedi_market_time"] = mt
+
+    highlights: list[Dict[str, str]] = []
+    for key, label in (
+        ("length", "Длина (мм)"),
+        ("width", "Ширина (мм)"),
+        ("height", "Высота (мм)"),
+        ("wheelbase", "Колёсная база (мм)"),
+        ("engine_model", "Двигатель (модель)"),
+        ("engine_description", "Двигатель"),
+        ("gearbox_description", "Коробка"),
+        ("driver_form", "Привод"),
+        ("fuel_label", "Топливо"),
+        ("environmental_standards", "Экостандарт"),
+        ("fuel_comprehensive", "Расход NEDC (л/100км)"),
+        ("body_struct", "Кузов"),
+        ("max_speed", "Vmax (км/ч)"),
+    ):
+        v = _params_info_cell_value(info, key)
+        if v and len(v) < 200:
+            highlights.append({"key": key, "label": label, "value": v})
+    if highlights:
+        data["dongchedi_specs_highlights"] = json.dumps(highlights, ensure_ascii=False)
+
+
 def sku_row_to_payload(
     row: Dict[str, Any],
     *,
@@ -259,6 +441,7 @@ def sku_row_to_payload(
     """
     row — элемент search_sh_sku_info_list.
     detail — объект skuDetail из __NEXT_DATA__ (опционально, для цены в CNY).
+    Опционально detail['_params_raw'] — pageProps.rawData со страницы params-carIds.
     """
     sku_id = row.get("sku_id")
     if sku_id is None:
@@ -266,6 +449,11 @@ def sku_row_to_payload(
     sid = str(sku_id).strip()
     if not sid:
         return {"data": {}}
+
+    params_raw: Optional[Dict[str, Any]] = None
+    if detail and isinstance(detail, dict) and isinstance(detail.get("_params_raw"), dict):
+        detail = dict(detail)
+        params_raw = detail.pop("_params_raw", None)
 
     title = str(row.get("title") or "").strip()
     brand_name = str(row.get("brand_name") or "").strip()
@@ -288,7 +476,7 @@ def sku_row_to_payload(
 
     km_age = _km_from_mileage_str(str(row.get("car_mileage") or ""))
     if km_age is None and ci:
-        km_age = _km_from_mileage_str(str(ci.get("mileage") or ""))
+        km_age = _km_from_car_info_mileage_value(ci.get("mileage"))
 
     img = str(row.get("image") or "").strip()
     urls = _image_urls_from_row_and_detail(img, detail)
@@ -313,6 +501,7 @@ def sku_row_to_payload(
         "dongchedi_sku_id": sid,
         "inner_id": sid,
         "url": url,
+        "dongchedi_usedcar_url": url,
         "mark": mark,
         "model": model,
         "offer_created": _utc_date_tag(),
@@ -322,8 +511,6 @@ def sku_row_to_payload(
         data["year"] = year
     if year_month:
         data["yearMonth"] = year_month
-    if km_age is not None:
-        data["km_age"] = km_age
     if my_price is not None:
         data["my_price"] = my_price
     if price_cny is not None and price_cny > 0:
@@ -421,10 +608,24 @@ def sku_row_to_payload(
         pv = params.get("内饰颜色")
         if pv:
             data["interior_color"] = str(pv).strip()
+        if km_age is None:
+            km2 = _km_from_param_pairs(params)
+            if km2 is not None:
+                km_age = km2
 
     itext = _first_nonempty_str((detail or {}).get("important_text")) if detail else ""
     if itext:
         data["dongchedi_summary"] = itext
+    if km_age is None and itext:
+        km_age = _km_from_mileage_str(itext)
+    if km_age is None:
+        km_age = _km_from_detail_known_strings(detail)
+    if km_age is None and detail:
+        km_age = _km_walk_detail_for_mileage(detail)
+    if km_age is None and detail and isinstance(detail.get("_mileage_hint_km"), (int, float)):
+        hint = int(detail["_mileage_hint_km"])
+        if 300 <= hint <= 2_000_000:
+            km_age = hint
 
     cc_over = (detail or {}).get("car_config_overview") if detail else None
     if isinstance(cc_over, dict):
@@ -458,6 +659,11 @@ def sku_row_to_payload(
                         data["displacement"] = cc2
                     else:
                         data["dongchedi_displacement_label"] = cap
+
+    if km_age is not None:
+        data["km_age"] = km_age
+
+    _apply_params_raw_to_data(data, params_raw, cny_to_rub=cny_to_rub)
 
     return {"data": data}
 

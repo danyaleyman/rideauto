@@ -642,9 +642,14 @@
             const priceWon = d.price_won;
             const myPrice = d.my_price;
             const hasEncarPrice = d.price_won != null && Number(d.price_won) > 0;
-            const priceUnavailable = !hasEncarPrice || d.price_calc_failed || (myPrice == null || myPrice === '');
+            const isDongchedi = d.source === 'dongchedi' || (d.dongchedi_sku_id != null && String(d.dongchedi_sku_id).trim() !== '');
+            const hasChinaPrice = isDongchedi && myPrice != null && myPrice !== '' && Number(myPrice) > 0;
+            const hasAnyCarPrice = hasEncarPrice || hasChinaPrice;
+            const priceUnavailable = !hasAnyCarPrice || d.price_calc_failed || (myPrice == null || myPrice === '');
             const PRICE_FALLBACK = 'Мало данных для расчёта цены. Обратитесь к менеджеру.';
             const myPriceFormatted = priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽');
+            const priceCnyWan = (d.price_cny != null && Number(d.price_cny) > 0) ? (Number(d.price_cny) / 10000) : null;
+            const msrpCnyWan = (d.dongchedi_msrp_cny != null && Number(d.dongchedi_msrp_cny) > 0) ? (Number(d.dongchedi_msrp_cny) / 10000) : null;
 
             const priceRub = d.price_rub_estimate;
             const freightRub = d.freight_rub;
@@ -749,7 +754,13 @@
             const metaParts = [year + ' г.', km, address].filter(Boolean);
             if (sellerType) metaParts.push(sellerType);
             const metaHtml = metaParts.length ? metaParts.join(' · ') : '—';
-            const originalUrl = (d.url || '').trim() || '#';
+            const originalUrl = (d.dongchedi_usedcar_url || d.url || '').trim() || '#';
+            const specsUrl = (d.dongchedi_specs_url || '').trim();
+            const priceSubChina = hasChinaPrice && priceCnyWan != null
+                ? ('объявл. ≈ ' + priceCnyWan.toFixed(2) + ' 万 CNY · ориентир в ₽ по курсу')
+                : '';
+            const priceSubEncar = 'под ключ до Владивостока <span class="info-icon-wrap" data-tooltip="Цена под ключ до Владивостока с учётом всех платежей"><img src="/image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span>';
+            const priceSubLine = isDongchedi && hasChinaPrice ? priceSubChina : priceSubEncar;
 
             return `
                 <div class="order-card" id="orderCard">
@@ -778,9 +789,11 @@
                     ${metaHtml !== '—' ? `<p class="order-card-meta text-muted">${metaHtml}</p>` : ''}
                     <div class="order-price-block${priceUnavailable ? ' order-price-block--fallback' : ''}">
                         <div class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽')}</div>
-                        <div class="order-price-sub">под ключ до Владивостока <span class="info-icon-wrap" data-tooltip="Цена под ключ до Владивостока с учётом всех платежей"><img src="/image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>
+                        <div class="order-price-sub">${priceSubLine}</div>
                     </div>
-                    ${!priceUnavailable && totalForBar ? `
+                    ${msrpCnyWan != null ? `<div class="order-china-msrp text-sm opacity-90 mt-2">Новый (ориентир МСРП КНР): ${msrpCnyWan.toFixed(2)} 万 CNY${d.dongchedi_msrp_rub != null && Number(d.dongchedi_msrp_rub) > 0 ? ' · ≈ ' + Math.round(Number(d.dongchedi_msrp_rub)).toLocaleString() + ' ₽' : ''}</div>` : ''}
+                    ${specsUrl ? `<div class="mt-2"><a href="${specsUrl.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" class="text-sm underline opacity-90">Полная комплектация на Dongchedi</a></div>` : ''}
+                    ${!priceUnavailable && totalForBar && hasEncarPrice ? `
                     <div class="order-breakdown-wrap">
                         <div class="order-breakdown-pills" role="img" aria-label="Доли в стоимости">
                             <span class="pill p1" style="flex:${pCar} 1 0" title="Стоимость авто ${pCar}%"><span class="pill-pct">${pCar}%</span></span>
@@ -1319,6 +1332,22 @@
                 d.transfer_count != null && d.transfer_count !== '' ? [{ label: 'Перерегистраций (КНР)', value: String(d.transfer_count) }] : []
             ).concat(
                 d.interior_color ? [{ label: 'Цвет салона', value: d.interior_color }] : []
+            ).concat(
+                d.source === 'dongchedi' && d.dongchedi_model_year ? [{ label: 'Год модели (комплектация)', value: String(d.dongchedi_model_year) }] : []
+            ).concat(
+                d.source === 'dongchedi' && d.dongchedi_market_time ? [{ label: 'Выход на рынок (КНР)', value: String(d.dongchedi_market_time) }] : []
+            ).concat(
+                (d.source === 'dongchedi' && d.price_cny != null && Number(d.price_cny) > 0)
+                    ? [{ label: 'Цена на площадке (CNY)', value: (Number(d.price_cny) / 10000).toFixed(2) + ' 万' }]
+                    : []
+            ).concat(
+                (d.source === 'dongchedi' && d.dongchedi_msrp_cny != null && Number(d.dongchedi_msrp_cny) > 0)
+                    ? [{
+                        label: 'МСРП нового (КНР)',
+                        value: (Number(d.dongchedi_msrp_cny) / 10000).toFixed(2) + ' 万'
+                            + (d.dongchedi_msrp_rub != null && Number(d.dongchedi_msrp_rub) > 0 ? ' (≈ ' + Math.round(Number(d.dongchedi_msrp_rub)).toLocaleString('ru-RU') + ' ₽)' : ''),
+                    }]
+                    : []
             );
             var specHtml = '<div class="detail-section"><h2>Основные характеристики</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">';
             specs.forEach(function(s) {
@@ -1328,6 +1357,21 @@
             if (d.dongchedi_summary) {
                 var sumTxt = String(d.dongchedi_summary).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 specHtml += '<div class="detail-section"><h2>Сводка на площадке</h2><p class="text-sm opacity-90">' + sumTxt + '</p></div>';
+            }
+            if (d.source === 'dongchedi' && d.dongchedi_specs_highlights) {
+                var hl = [];
+                try { hl = JSON.parse(d.dongchedi_specs_highlights); } catch (eHl) { hl = []; }
+                if (Array.isArray(hl) && hl.length) {
+                    var rows = hl.map(function(it) {
+                        var lab = String(it.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        var val = String(it.value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return '<tr><td>' + lab + '</td><td>' + val + '</td></tr>';
+                    }).join('');
+                    var specsL = (d.dongchedi_specs_url || '').replace(/"/g, '&quot;');
+                    specHtml += '<div class="detail-section"><h2>Комплектация (Dongchedi)</h2><table class="w-full text-sm data-table">' + rows + '</table>'
+                        + (specsL ? '<p class="text-sm mt-2"><a href="' + specsL + '" target="_blank" rel="noopener">Все параметры на Dongchedi</a></p>' : '')
+                        + '</div>';
+                }
             }
 
             const optionsHtml = renderOptionsGrouped(d.options?.standard || []);

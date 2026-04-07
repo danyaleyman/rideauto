@@ -20,9 +20,9 @@ import aiohttp
 import yaml
 
 from dongchedi.brand_shards import DEFAULT_BRAND_SHARD_IDS
-from dongchedi.client import DEFAULT_HEADERS, fetch_usedcar_html, post_sku_list
-from dongchedi.normalize import row_matches_filters, sku_row_to_payload
-from dongchedi.parse_detail import parse_sku_detail_from_html
+from dongchedi.client import DEFAULT_HEADERS, fetch_params_car_html, fetch_usedcar_html, post_sku_list
+from dongchedi.normalize import dongchedi_spec_car_id, row_matches_filters, sku_row_to_payload
+from dongchedi.parse_detail import parse_params_raw_data_from_html, parse_sku_detail_from_html
 
 log = logging.getLogger("dongchedi.scraper")
 
@@ -297,6 +297,7 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
 
         async def detail_for(sku: str) -> Optional[Dict[str, Any]]:
             """Несколько попыток: антибот/обрыв отдачи часто дают HTML без skuDetail."""
+            sd: Optional[Dict[str, Any]] = None
             for attempt in range(3):
                 async with detail_sem:
                     st, html = await fetch_usedcar_html(
@@ -305,10 +306,32 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                 if st == 200 and html:
                     sd = parse_sku_detail_from_html(html)
                     if sd:
-                        return sd
+                        break
                 if attempt < 2:
                     await asyncio.sleep(0.4 * float(attempt + 1))
-            return None
+            if not sd:
+                return None
+            cid = dongchedi_spec_car_id(sd)
+            if cid:
+                raw: Optional[Dict[str, Any]] = None
+                for attempt in range(2):
+                    async with detail_sem:
+                        st2, phtml = await fetch_params_car_html(
+                            session,
+                            cid,
+                            referer_sku_id=sku,
+                            timeout_s=cfg.request_timeout_s,
+                        )
+                    if st2 == 200 and phtml:
+                        raw = parse_params_raw_data_from_html(phtml)
+                        if raw:
+                            break
+                    if attempt < 1:
+                        await asyncio.sleep(0.35)
+                if raw:
+                    sd = dict(sd)
+                    sd["_params_raw"] = raw
+            return sd
 
         first_shard_in_run = True
         for shard_i, brand_for_list in enumerate(brand_filters):
