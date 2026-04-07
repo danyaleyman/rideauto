@@ -2,8 +2,8 @@
 
 Проект разделён на слои:
 
-- **Современный фронт (Next.js, SSR)**: папка `web/` — целевая связка с FastAPI (см. `docs/ARCHITECTURE.md`, `docker-compose.yml`).
-- **Легаси-фронт (Vanilla JS, статика)**: папка `frontend/` — полный каталог и карточка; может ходить в FastAPI или в старый `api_server` + SQLite.
+- **Основной фронт (Next.js, SSR + фильтры)**: папка `web/` — каталог и карточка через FastAPI + Meilisearch + Postgres (см. `docs/ARCHITECTURE.md`, `docker-compose.yml`).
+- **Легаси-фронт (Vanilla JS)**: папка `frontend/` — детальная карточка `car.html`, SEO-лендинги, статические страницы; в шапке Next есть ссылка «Классический сайт» на `index.html` при совместном деплое.
 - **Backend**: папка `backend/` — FastAPI (`fastapi_app`), легаси `api_server.py`, скраперы, Postgres/SQLite.
 
 ## Быстрый старт (backend)

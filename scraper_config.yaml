@@ -108,11 +108,11 @@ checkpoint:
   max_pending_ids: 500000
 
 # Output storage
-# Целевой production (docker-compose / FastAPI / Meilisearch): backend: postgres и DSN (или DATABASE_URL в .env).
-# Локально без Postgres оставляйте sqlite.
+# Production: postgres + DATABASE_URL или storage.postgres.dsn.
+# Локально без Postgres: SCRAPER_STORAGE_BACKEND=sqlite (см. .env.example).
 storage:
   # "sqlite" | "chunked_json" | "postgres"
-  backend: "sqlite"
+  backend: "postgres"
   sqlite:
     path: "encar_cars.db"
   postgres:

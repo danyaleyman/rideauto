@@ -34,3 +34,19 @@ export type SearchResponse = {
 export type CarDetailResponse = {
   result: Record<string, unknown>;
 };
+
+export type FacetRow = {
+  value: string;
+  count: number;
+};
+
+export type FacetsResponse = {
+  marks: FacetRow[];
+  models: FacetRow[];
+  generations: FacetRow[];
+  trims: FacetRow[];
+  bodies: FacetRow[];
+  fuels: FacetRow[];
+  transmissions: FacetRow[];
+  colors: FacetRow[];
+};

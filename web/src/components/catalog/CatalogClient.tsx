@@ -1,0 +1,553 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  catalogStateKey,
+  parseCatalogUrl,
+  PER_PAGE,
+  stateToBrowserUrl,
+  type CatalogUrlState,
+  toApiSearchParams,
+  toFacetApiParams,
+} from "@/lib/catalog-url";
+import { fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
+import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
+
+function formatPrice(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return "—";
+  try {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: "RUB",
+      maximumFractionDigits: 0,
+    }).format(n);
+  } catch {
+    return `${n} ₽`;
+  }
+}
+
+function firstImageUrl(car: SlimCar): string | undefined {
+  const imgs = car.data?.images;
+  if (!Array.isArray(imgs) || !imgs.length) return undefined;
+  const u = imgs[0];
+  return typeof u === "string" ? u : undefined;
+}
+
+function FacetGroup({
+  title,
+  rows,
+  selected,
+  onToggle,
+}: {
+  title: string;
+  rows: FacetRow[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+}) {
+  if (!rows.length) return null;
+  return (
+    <fieldset className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+      <legend className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {title}
+      </legend>
+      <div className="max-h-44 space-y-1 overflow-y-auto pr-1 text-sm">
+        {rows.map((r) => (
+          <label
+            key={r.value}
+            className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <input
+              type="checkbox"
+              checked={selected.has(r.value)}
+              onChange={() => onToggle(r.value)}
+              className="rounded border-zinc-300"
+            />
+            <span className="min-w-0 flex-1 truncate" title={r.value}>
+              {r.value}
+            </span>
+            <span className="shrink-0 text-xs tabular-nums text-zinc-400">
+              {r.count.toLocaleString("ru-RU")}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function RangeBlock({
+  state,
+  navigate,
+}: {
+  state: CatalogUrlState;
+  navigate: (s: CatalogUrlState) => void;
+}) {
+  const [draft, setDraft] = useState({
+    price_from: state.price_from,
+    price_to: state.price_to,
+    mileage_from: state.mileage_from,
+    mileage_to: state.mileage_to,
+    year_from: state.year_from,
+    year_to: state.year_to,
+  });
+  useEffect(() => {
+    setDraft({
+      price_from: state.price_from,
+      price_to: state.price_to,
+      mileage_from: state.mileage_from,
+      mileage_to: state.mileage_to,
+      year_from: state.year_from,
+      year_to: state.year_to,
+    });
+  }, [
+    state.price_from,
+    state.price_to,
+    state.mileage_from,
+    state.mileage_to,
+    state.year_from,
+    state.year_to,
+  ]);
+  const apply = () => {
+    navigate({
+      ...state,
+      ...draft,
+      page: 1,
+    });
+  };
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <input
+          placeholder="Цена от"
+          value={draft.price_from}
+          onChange={(e) => setDraft((d) => ({ ...d, price_from: e.target.value }))}
+          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+        />
+        <input
+          placeholder="Цена до"
+          value={draft.price_to}
+          onChange={(e) => setDraft((d) => ({ ...d, price_to: e.target.value }))}
+          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+        />
+        <input
+          placeholder="Пробег от"
+          value={draft.mileage_from}
+          onChange={(e) => setDraft((d) => ({ ...d, mileage_from: e.target.value }))}
+          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+        />
+        <input
+          placeholder="Пробег до"
+          value={draft.mileage_to}
+          onChange={(e) => setDraft((d) => ({ ...d, mileage_to: e.target.value }))}
+          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+        />
+        <input
+          placeholder="Год от"
+          value={draft.year_from}
+          onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
+          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+        />
+        <input
+          placeholder="Год до"
+          value={draft.year_to}
+          onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
+          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={apply}
+        className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-white"
+      >
+        Применить диапазоны
+      </button>
+    </>
+  );
+}
+
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: "date_new", label: "Сначала новые" },
+  { value: "date_old", label: "Сначала старые" },
+  { value: "year_new", label: "Год: новее" },
+  { value: "year_old", label: "Год: старше" },
+  { value: "price_low", label: "Цена: дешевле" },
+  { value: "price_high", label: "Цена: дороже" },
+  { value: "mileage_low", label: "Пробег: меньше" },
+  { value: "mileage_high", label: "Пробег: больше" },
+];
+
+export function CatalogClient({
+  initialSearch,
+  ssrKey,
+}: {
+  initialSearch: SearchResponse;
+  ssrKey: string;
+}) {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const spStr = sp.toString();
+  const state = useMemo(() => parseCatalogUrl(new URLSearchParams(spStr)), [spStr]);
+  const key = useMemo(() => catalogStateKey(state), [state]);
+
+  const [search, setSearch] = useState<SearchResponse>(initialSearch);
+  const [facets, setFacets] = useState<FacetsResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [qDraft, setQDraft] = useState(state.q);
+
+  useEffect(() => {
+    setQDraft(state.q);
+  }, [state.q]);
+
+  useEffect(() => {
+    if (!spStr.trim()) {
+      const qs = stateToBrowserUrl(parseCatalogUrl(new URLSearchParams()));
+      router.replace(`/catalog?${qs}`, { scroll: false });
+    }
+  }, [spStr, router]);
+
+  const navigate = useCallback(
+    (next: CatalogUrlState) => {
+      const qs = stateToBrowserUrl(next);
+      router.push(qs ? `/catalog?${qs}` : "/catalog", { scroll: false });
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setErr(null);
+        setLoading(true);
+        const sq = toApiSearchParams(state);
+        const fq = toFacetApiParams(state);
+        const searchP =
+          key === ssrKey ? Promise.resolve(initialSearch) : fetchSearchClient(sq);
+        const [sRes, fRes] = await Promise.all([searchP, fetchFacetsClient(fq)]);
+        if (!alive) return;
+        setSearch(sRes);
+        setFacets(fRes);
+      } catch (e) {
+        if (!alive) return;
+        setErr(e instanceof Error ? e.message : "Ошибка загрузки");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [key, ssrKey, state, initialSearch]);
+
+  const toggle = (field: keyof CatalogUrlState, value: string) => {
+    const cur = state[field];
+    if (!Array.isArray(cur)) return;
+    const arr = [...cur];
+    const i = arr.indexOf(value);
+    if (i >= 0) arr.splice(i, 1);
+    else arr.push(value);
+    navigate({ ...state, [field]: arr, page: 1 });
+  };
+
+  const reset = () => {
+    navigate({
+      market: state.market,
+      q: "",
+      marks: [],
+      models: [],
+      generations: [],
+      trims: [],
+      body: [],
+      fuel: [],
+      trans: [],
+      color: [],
+      price_from: "",
+      price_to: "",
+      mileage_from: "",
+      mileage_to: "",
+      year_from: "",
+      year_to: "",
+      drive_awd: false,
+      sort: "date_new",
+      page: 1,
+    });
+  };
+
+  const switchMarket = (market: CatalogUrlState["market"]) => {
+    navigate({
+      market,
+      q: state.q,
+      sort: state.sort,
+      marks: [],
+      models: [],
+      generations: [],
+      trims: [],
+      body: [],
+      fuel: [],
+      trans: [],
+      color: [],
+      price_from: "",
+      price_to: "",
+      mileage_from: "",
+      mileage_to: "",
+      year_from: "",
+      year_to: "",
+      drive_awd: false,
+      page: 1,
+    });
+  };
+
+  const title =
+    state.market === "china" ? "Автомобили из Китая" : "Автомобили из Кореи";
+
+  const pages =
+    search.meta.pages > 0
+      ? search.meta.pages
+      : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-6 dark:border-zinc-800 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Найдено:{" "}
+            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+              {search.meta.total.toLocaleString("ru-RU")}
+            </span>
+            {search.meta.processing_time_ms != null
+              ? ` · ${search.meta.processing_time_ms} ms`
+              : ""}
+            {loading ? " · обновление…" : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => switchMarket("korea")}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              state.market === "korea"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            Корея
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMarket("china")}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              state.market === "china"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            Китай
+          </button>
+        </div>
+      </div>
+
+      {err ? (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          {err} — проверьте{" "}
+          <code className="rounded bg-white/60 px-1 dark:bg-zinc-900">NEXT_PUBLIC_API_BASE</code> и
+          доступность API.
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-8 lg:flex-row">
+        <aside className="w-full shrink-0 space-y-3 lg:w-72">
+          <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+            <label className="text-xs  font-medium text-zinc-500">Поиск</label>
+            <div className="flex gap-2">
+              <input
+                value={qDraft}
+                onChange={(e) => setQDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    navigate({ ...state, q: qDraft.trim(), page: 1 });
+                  }
+                }}
+                placeholder="Марка, модель…"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+              />
+              <button
+                type="button"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
+              >
+                Найти
+              </button>
+            </div>
+            <label className="mt-2 text-xs font-medium text-zinc-500">Сортировка</label>
+            <select
+              value={state.sort}
+              onChange={(e) => navigate({ ...state, sort: e.target.value, page: 1 })}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Диапазоны</h2>
+            <RangeBlock
+              state={state}
+              navigate={navigate}
+            />
+            <label className="mt-1 flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={state.drive_awd}
+                onChange={(e) =>
+                  navigate({ ...state, drive_awd: e.target.checked, page: 1 })
+                }
+              />
+              Полный привод (AWD)
+            </label>
+          </div>
+
+          {facets ? (
+            <div className="space-y-3">
+              <FacetGroup
+                title="Марка"
+                rows={facets.marks}
+                selected={new Set(state.marks)}
+                onToggle={(v) => toggle("marks", v)}
+              />
+              <FacetGroup
+                title="Модель"
+                rows={facets.models}
+                selected={new Set(state.models)}
+                onToggle={(v) => toggle("models", v)}
+              />
+              <FacetGroup
+                title="Поколение"
+                rows={facets.generations}
+                selected={new Set(state.generations)}
+                onToggle={(v) => toggle("generations", v)}
+              />
+              <FacetGroup
+                title="Комплектация"
+                rows={facets.trims}
+                selected={new Set(state.trims)}
+                onToggle={(v) => toggle("trims", v)}
+              />
+              <FacetGroup
+                title="Кузов"
+                rows={facets.bodies}
+                selected={new Set(state.body)}
+                onToggle={(v) => toggle("body", v)}
+              />
+              <FacetGroup
+                title="Топливо"
+                rows={facets.fuels}
+                selected={new Set(state.fuel)}
+                onToggle={(v) => toggle("fuel", v)}
+              />
+              <FacetGroup
+                title="КПП"
+                rows={facets.transmissions}
+                selected={new Set(state.trans)}
+                onToggle={(v) => toggle("trans", v)}
+              />
+              <FacetGroup
+                title="Цвет"
+                rows={facets.colors}
+                selected={new Set(state.color)}
+                onToggle={(v) => toggle("color", v)}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">Загрузка фильтров…</p>
+          )}
+
+          <button
+            type="button"
+            onClick={reset}
+            className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            Сбросить фильтры
+          </button>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {search.result.map((car) => {
+              const img = firstImageUrl(car);
+              return (
+                <li key={car.id}>
+                  <Link
+                    href={`/car/${encodeURIComponent(car.id)}`}
+                    className="group block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                  >
+                    <div className="aspect-[16/10] bg-zinc-100 dark:bg-zinc-900">
+                      {img ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={img}
+                          alt=""
+                          className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+                          Нет фото
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1 p-4">
+                      <p className="line-clamp-2 text-sm font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+                        {car.title || car.id}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {car.year_num ? `${car.year_num} · ` : ""}
+                        {car.id}
+                      </p>
+                      <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                        {formatPrice(car.price)}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          {search.result.length === 0 && !loading ? (
+            <p className="mt-16 text-center text-zinc-500">Ничего не найдено по текущим фильтрам.</p>
+          ) : null}
+
+          <nav className="mt-10 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              disabled={state.page <= 1}
+              onClick={() => navigate({ ...state, page: state.page - 1 })}
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40 dark:border-zinc-600"
+            >
+              Назад
+            </button>
+            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              Стр. {state.page} из {pages}
+            </span>
+            <button
+              type="button"
+              disabled={!search.meta.next_cursor}
+              onClick={() => navigate({ ...state, page: state.page + 1 })}
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40 dark:border-zinc-600"
+            >
+              Вперёд
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  );
+}

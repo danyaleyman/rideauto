@@ -6,8 +6,8 @@
 
 | Поток | Состояние |
 |--------|------------|
-| **Vanilla JS → Next.js + SSR** | **Частично.** В `web/` — Next.js (SSR): главная, список каталога, страница авто. Полный UX каталога (фильтры, китайский рынок, поведение как в легаси) пока в `frontend/` + `catalog.js` / `car-page.js`. |
-| **SQLite → PostgreSQL** | **В стеке Docker — да:** Postgres + FastAPI. **Легаси сохраняется:** `api_server.py` (SQLite), экспорт `cars.json`, `catalog_sync_sqlite` в `auto_update`, в `scraper_config.yaml` по умолчанию `storage.backend: sqlite`. |
+| **Vanilla JS → Next.js + SSR** | **Основной каталог в Next.js.** В `web/` — SSR + клиент: маркет Корея/Китай, поиск, фасеты (марка→цвет), диапазоны, сортировка, пагинация (cursor), карточка авто. Легаси `frontend/` остаётся для SEO-лендингов, старых путей и полной карточки Encar (сложный UI), пока не перенесены. |
+| **SQLite → PostgreSQL** | **Целевой путь — Postgres:** в `scraper_config.yaml` по умолчанию `storage.backend: postgres` (нужен `DATABASE_URL` или DSN). Для локального режима без Postgres: `SCRAPER_STORAGE_BACKEND=sqlite`. Легаси: `api_server.py`, `catalog_sync_sqlite`, экспорт `cars.json`. |
 | **Схема ниже** | Реализуется, если трафик идёт на FastAPI + Meilisearch + Postgres, скрапер пишет в **Postgres** (`storage.backend: postgres` + DSN), после импорта запускается **sync Meilisearch**. |
 | **Cloudflare** | Заголовки кеша в FastAPI есть; проксирование в зоне CF — вне репозитория. |
 

@@ -77,6 +77,23 @@ export default async function CarPage({ params }: PageProps) {
   const heading = carHeading(result);
   const price = numPrice(result);
   const imgs = imageUrls(result);
+  const d = pickData(result);
+  const origUrl =
+    typeof d.url === "string" && d.url.trim() ? d.url.trim() : "";
+  const specRows: { k: string; v: string }[] = [];
+  const push = (k: string, v: unknown) => {
+    if (v == null || v === "") return;
+    specRows.push({ k, v: String(v) });
+  };
+  push("Год", d.year);
+  push("Пробег, км", d.km_age);
+  push("Двигатель", d.engine_type);
+  push("КПП", d.transmission_type);
+  push("Кузов", d.body_type);
+  push("Цвет", d.color);
+  push("Привод", d.drive_type ?? d.prep_drive_type);
+  push("VIN / номер", d.vehicle_no ?? d.vin);
+  push("inner_id", d.inner_id);
 
   return (
     <div className="mx-auto min-h-screen max-w-4xl px-4 py-8">
@@ -103,6 +120,16 @@ export default async function CarPage({ params }: PageProps) {
             }).format(price)}
           </p>
         ) : null}
+        {origUrl ? (
+          <a
+            href={origUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Оригинальное объявление →
+          </a>
+        ) : null}
       </header>
 
       {imgs.length ? (
@@ -118,11 +145,32 @@ export default async function CarPage({ params }: PageProps) {
         <p className="text-sm text-zinc-500">Нет изображений в карточке.</p>
       )}
 
+      {specRows.length ? (
+        <section className="mt-10">
+          <h2 className="mb-3 text-lg font-semibold">Характеристики</h2>
+          <table className="w-full border-collapse text-sm">
+            <tbody>
+              {specRows.map((row) => (
+                <tr
+                  key={row.k}
+                  className="border-b border-zinc-200 dark:border-zinc-800"
+                >
+                  <th className="py-2 pr-4 text-left font-medium text-zinc-500">
+                    {row.k}
+                  </th>
+                  <td className="py-2 text-zinc-900 dark:text-zinc-100">{row.v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+
       <section className="mt-10 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
         <p>
-          Полные данные приходят из PostgreSQL через{" "}
+          Данные из PostgreSQL (
           <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">GET /api/car/&lt;ref&gt;</code>
-          ; список каталога — Meilisearch + гидратация.
+          ), каталог — Meilisearch + гидратация.
         </p>
       </section>
     </div>
