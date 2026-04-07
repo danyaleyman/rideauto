@@ -1,19 +1,128 @@
+# Prod Encar — API + PostgreSQL + Redis + Meilisearch + Next.js (web)
+# Запуск из корня репозитория: docker compose up -d
+# Скопируйте .env.example → .env и при необходимости измените секреты.
+
+name: prod-encar
+
 services:
-  api:
-    build: .
-    ports:
-      - "8080:8080"
-    volumes:
-      - encar_data:/data
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      WRA_GIT_SHA: ${WRA_GIT_SHA:-}
-      # Корея: /data/encar_cars.db (--db в Dockerfile). Китай (Dongchedi): отдельный SQLite в том же томе.
-      WRA_CHINA_DB_PATH: ${WRA_CHINA_DB_PATH:-/data/encar_china.db}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      WRA_RATE_LIMIT_POST_PER_MINUTE: ${WRA_RATE_LIMIT_POST_PER_MINUTE:-0}
-      WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE: ${WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE:-0}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-}
+      POSTGRES_USER: ${POSTGRES_USER:-wra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wra}
+      POSTGRES_DB: ${POSTGRES_DB:-wra}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infrastructure/postgresql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11.3
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: ${MEILI_ENV:-development}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_DB_PATH: /meili_data
+      MEILI_HTTP_ADDR: 0.0.0.0:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
+    volumes:
+      - meili_data:/meili_data
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:7700/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Хост ``postgres`` — DNS внутри compose. Значение по умолчанию совпадает с POSTGRES_* ниже; при смене пароля задайте WRA_PG_DSN в .env явно.
+      WRA_PG_DSN: ${WRA_PG_DSN:-postgresql://wra:wra@postgres:5432/wra}
+      WRA_REDIS_URL: ${WRA_REDIS_URL:-redis://redis:6379/0}
+      WRA_MEILISEARCH_URL: ${WRA_MEILISEARCH_URL:-http://meilisearch:7700}
+      WRA_MEILISEARCH_KEY: ${MEILI_MASTER_KEY:-}
+      WRA_MEILISEARCH_INDEX: ${WRA_MEILISEARCH_INDEX:-cars}
+      WRA_IMAGE_CACHE_DIR: ${WRA_IMAGE_CACHE_DIR:-/app/var/image_cache}
+      WRA_CACHE_INVALIDATE_SECRET: ${WRA_CACHE_INVALIDATE_SECRET:-}
+      WRA_METRICS_ENABLED: ${WRA_METRICS_ENABLED:-true}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - api_image_cache:/app/var/image_cache
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5).read()\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    command:
+      [
+        "uvicorn",
+        "fastapi_app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+      ]
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        WRA_API_INTERNAL: http://api:8080
+    restart: unless-stopped
+    environment:
+      WRA_API_INTERNAL: http://api:8080
+      # Абсолютный URL API для браузера (клиентские запросы / будущая гидратация).
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://127.0.0.1:8080}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
-  encar_data:
+  pg_data:
+  redis_data:
+  meili_data:
+  api_image_cache:

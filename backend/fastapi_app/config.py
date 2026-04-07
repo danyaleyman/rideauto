@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="WRA_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    pg_dsn: str = Field(
+        default="postgresql://postgres:postgres@127.0.0.1:5432/wra",
+        description="PostgreSQL DSN (asyncpg), переменная WRA_PG_DSN",
+    )
+    meilisearch_url: str = Field(default="http://127.0.0.1:7700")
+    meilisearch_key: str = Field(default="")
+    meilisearch_index: str = Field(default="cars")
+
+    redis_url: Optional[str] = Field(default=None, description="WRA_REDIS_URL — redis://…")
+    redis_cache_prefix: str = Field(
+        default="wra:api:cache",
+        description="Префикс ключей; смена префикса = «мягкая» полная инвалидация без SCAN",
+    )
+    cache_ttl_search_sec: int = Field(default=10, ge=0, description="Кэш /api/search и /api/cars")
+    cache_ttl_facets_sec: int = Field(default=30, ge=0, description="Кэш /api/facets и /api/filters")
+    cache_ttl_car_sec: int = Field(default=60, ge=0, description="Кэш /api/car/{id}")
+
+    cache_invalidate_secret: Optional[str] = Field(
+        default=None,
+        description="Секрет для POST /api/internal/cache/invalidate (заголовок X-WRA-Admin-Key)",
+    )
+
+    # --- Image proxy (/api/images/{sha256}) ---
+    image_cache_dir: str = Field(
+        default="var/image_cache",
+        description="Каталог WebP-кэша (относительно cwd или абсолютный путь)",
+    )
+    image_allowed_hosts: str = Field(
+        default="ci.encar.com,imgcar.encar.com,fem.encar.com,www.encar.com",
+        description="Список разрешённых хостов для src=, через запятую",
+    )
+    image_fetch_timeout_sec: float = Field(default=30.0, ge=1.0, le=120.0)
+    image_max_fetch_bytes: int = Field(
+        default=15_000_000,
+        ge=500_000,
+        le=80_000_000,
+        description="Лимит размера скачиваемого оригинала (байт)",
+    )
+    image_src_redis_ttl_sec: int = Field(
+        default=604800,
+        ge=60,
+        description="TTL привязки digest→src в Redis (сек)",
+    )
+    image_encar_referer: str = Field(
+        default="https://www.encar.com/",
+        description="Referer для запросов к хостам *.encar.com",
+    )
+    image_response_cache_control: str = Field(
+        default="public, max-age=604800, stale-while-revalidate=86400, immutable",
+        description="Заголовок Cache-Control для ответа image/webp",
+    )
+
+    # --- CDN / edge cache (middleware) ---
+    cdn_cc_search: str = Field(
+        default="public, max-age=60, stale-while-revalidate=180",
+        description="Cache-Control для GET /api/search, /api/cars",
+    )
+    cdn_cc_facets: str = Field(
+        default="public, max-age=120, stale-while-revalidate=86400",
+        description="Cache-Control для GET /api/facets, /api/filters",
+    )
+    cdn_cc_car: str = Field(
+        default="public, max-age=60, stale-while-revalidate=300",
+        description="Cache-Control для GET /api/car/*",
+    )
+    cdn_cc_health: str = Field(
+        default="public, max-age=30, stale-while-revalidate=120",
+        description="Cache-Control для GET /api/health",
+    )
+    cdn_cc_default_json: str = Field(
+        default="public, max-age=30, stale-while-revalidate=120",
+        description="Fallback Cache-Control для 304 JSON, если нет специфики пути",
+    )
+    cdn_etag_enabled: bool = Field(default=True, description="Weak ETag для публичных JSON GET")
+    cdn_strip_set_cookie: bool = Field(
+        default=True,
+        description="Убирать Set-Cookie с публичных GET (/api/search, /api/car, …)",
+    )
+
+    metrics_enabled: bool = Field(default=True, description="WRA_METRICS_ENABLED — /metrics и HTTP middleware")
+    metrics_path: str = Field(default="/metrics", description="Путь exposition Prometheus")
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

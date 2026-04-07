@@ -1,8 +1,14 @@
   (function() {
     const PER_PAGE = 12;
+    /** Список каталога: алиас FastAPI ``/api/cars`` → ``/api/search``. */
+    const CATALOG_LIST_API_PATH = '/api/search';
     let page = 1;
-    /** Keyset «вперёд» для /api/cars (стабильнее offset при обновлении БД). */
+    /** Keyset «вперёд» для /api/search (стабильнее offset при обновлении БД). */
     let catalogForwardCursor = null;
+    /** Поколение префетча: инкремент при смене фильтров, чтобы отбрасывать устаревший prefetch. */
+    let catalogPrefetchGen = 0;
+    /** Отложенный ответ следующей страницы: { gen, key, data } или null. */
+    let catalogPrefetchStore = null;
     let pageCars = [];
     let catalogTotal = 0;
     let catalogPages = 1;
@@ -16,8 +22,6 @@
     /** Параметры из URL, пока DOM фасетов не совпал (как у агрегаторов: шаринг ссылки на поиск). */
     let catalogUrlBootstrapMerge = null;
     var catalogUrlSyncSuppressed = false;
-    /** Новая запись в history при смене страницы / фильтров / сортировки (не при первом replace). */
-    var catalogHistoryPushPending = false;
     /** Макс. карточек в сетке при режиме «Показать ещё» (производительность). */
     var CATALOG_MAX_GRID_CARDS =
       typeof window.WRA_CATALOG_MAX_GRID_CARDS === 'number' && window.WRA_CATALOG_MAX_GRID_CARDS >= 24
@@ -106,6 +110,15 @@
         : 90000;
     function apiUrl(path) {
       return API_BASE + path;
+    }
+
+    function invalidateCatalogPrefetch() {
+      catalogPrefetchGen++;
+      catalogPrefetchStore = null;
+    }
+
+    function catalogListFetchUrl(params) {
+      return apiUrl(CATALOG_LIST_API_PATH + '?' + params.toString());
     }
 
     /**
@@ -265,9 +278,19 @@
     function showSkeleton() {
       if (!gridEl) return;
       gridEl.setAttribute('aria-busy', 'true');
+      var n = Math.min(PER_PAGE, catalogMobileFeedPreferred() ? 8 : PER_PAGE);
       var html = '';
-      for (var i = 0; i < 6; i++) {
-        html += '<div class="skeleton-card"><div class="skeleton-preview"></div><div class="skeleton-body"><div class="skeleton-line wide"></div><div class="skeleton-line narrow"></div><div class="skeleton-line narrow"></div><div class="skeleton-line wide"></div></div></div>';
+      for (var i = 0; i < n; i++) {
+        html +=
+          '<div class="skeleton-card" aria-hidden="true">' +
+          '<div class="skeleton-preview"></div>' +
+          '<div class="skeleton-body">' +
+          '<div class="skeleton-line wide"></div>' +
+          '<div class="skeleton-line narrow"></div>' +
+          '<div class="skeleton-line narrow"></div>' +
+          '<div class="skeleton-line medium"></div>' +
+          '<div class="skeleton-line wide"></div>' +
+          '</div></div>';
       }
       gridEl.innerHTML = html;
     }
@@ -508,7 +531,7 @@
     function facetDisplayDedupKey(displayLabel, filterKey) {
       var s = String(displayLabel || '').trim();
       if (!s) return '';
-      if (filterKey === 'model' && /^[A-Za-z0-9.\-]+$/.test(s)) {
+      if (filterKey === 'model' && /^[A-Za-z0-9.-]+$/.test(s)) {
         return s.toUpperCase();
       }
       return s.toLowerCase();
@@ -757,8 +780,6 @@
       }
       var sk = sortKey || 'date_new';
       arr.sort(function(a, b) {
-        var da = a.data || a;
-        var db = b.data || b;
         if (sk === 'date_new') return dateVal(b) - dateVal(a);
         if (sk === 'date_old') return dateVal(a) - dateVal(b);
         if (sk === 'year_new') return yearNum(b) - yearNum(a);
@@ -880,10 +901,6 @@
     function formatKm(km) {
       if (!km) return '—';
       return Number(km).toLocaleString('ru-RU') + ' км';
-    }
-    function formatPrice(p) {
-      if (p === undefined || p === null) return '';
-      return Number(p).toLocaleString('ru-RU') + ' вон';
     }
     // Маппинг корейский → английский (для фильтров и данных)
     const filterMappingKoEn = {
@@ -1206,7 +1223,7 @@
       return p;
     }
 
-    /** Плитка «Из Китая»: при медленном /api/stats подставляем meta.total из первого безфильтрового запроса /api/cars. */
+    /** Плитка «Из Китая»: при медленном /api/stats подставляем meta.total из первого безфильтрового запроса /api/search. */
     function maybeSyncMarketChinaCountFromCarsMeta(metaTotal) {
       if (CATALOG_REGION !== 'china') return;
       var el = document.getElementById('marketChinaCount');
@@ -1412,7 +1429,7 @@
       function appendColor(container, val, idPrefix, idx) {
         const div = document.createElement('div');
         div.className = 'checkbox-item';
-        const safe = String(val).replace(/[^\w\-]/g, '_').slice(0, 80);
+        const safe = String(val).replace(/[^\w-]/g, '_').slice(0, 80);
         const id = idPrefix + idx + '_' + safe;
         const labelText = filterOptionLabel(val, 'color');
         const group = colorByLabel[String(labelText).trim().toLowerCase()];
@@ -1587,7 +1604,7 @@
     /** Дебаунс фасетов: быстрый выбор нескольких кузов/цветов → один запрос к API. */
     var facetDebounceTimer = null;
     var pendingFacetReqId = null;
-    var FACET_DEBOUNCE_MS = 180;
+    var FACET_DEBOUNCE_MS = 320;
     /** @param {boolean} [immediate] без задержки (первый заход, открытие drawer, clamp страницы). */
     function scheduleFacetRefresh(reqId, immediate) {
       function runFacet(rid) {
@@ -1622,8 +1639,8 @@
       }, FACET_DEBOUNCE_MS);
     }
 
-    /** Короче ввод цены/пробега и т.д.; на change — немедленный apply; abort снимает гонки. */
-    const APPLY_DEBOUNCE_MS = 120;
+    /** Ввод цены/пробега и быстрые переключения чекбоксов — на change всё ещё flush; abort снимает гонки. */
+    const APPLY_DEBOUNCE_MS = 320;
     let debouncedApplyTimer = null;
     function scheduleDebouncedApplyFilters() {
       if (debouncedApplyTimer) clearTimeout(debouncedApplyTimer);
@@ -1753,34 +1770,46 @@
       }
     }
 
-    function scheduleIdlePrefetchCatalogPage2() {
-      if (useStaticCatalog || catalogPages < 2) return;
-      try {
-        if (buildCatalogFilterParamsSansDefaultSource().toString() !== '') return;
-      } catch (e) {
-        return;
-      }
+    /**
+     * Префетч следующей страницы списка (тот же query, что и у следующего «Далее»), низкий приоритет.
+     * Результат подхватывается в loadCarsPage при совпадении ключа (поколение prefetch не устарело).
+     */
+    function scheduleIdlePrefetchNextCatalogPage() {
+      if (useStaticCatalog || page >= catalogPages) return;
+      var startGen = catalogPrefetchGen;
       function run() {
+        if (startGen !== catalogPrefetchGen) return;
         try {
           var params = buildCatalogFilterParams();
-          params.set('page', '2');
+          var nextPage = page + 1;
+          params.set('page', String(nextPage));
           params.set('per_page', String(PER_PAGE));
           params.set('sort', currentSort || 'date_new');
           if (catalogForwardCursor) {
             params.set('cursor', catalogForwardCursor);
           }
-          var url = apiUrl('/api/cars?' + params.toString());
+          var key = params.toString();
+          var url = catalogListFetchUrl(params);
           var init = catalogApiFetchInit({});
           try {
             init.priority = 'low';
           } catch (e2) {}
-          fetch(url, init).catch(function() {});
+          fetch(url, init)
+            .then(function(r) {
+              if (startGen !== catalogPrefetchGen) return null;
+              return r && r.ok ? r.json() : null;
+            })
+            .then(function(data) {
+              if (startGen !== catalogPrefetchGen || !data) return;
+              catalogPrefetchStore = { gen: startGen, key: key, data: data };
+            })
+            .catch(function() {});
         } catch (e3) {}
       }
       if (typeof requestIdleCallback === 'function') {
         requestIdleCallback(run, { timeout: 5000 });
       } else {
-        setTimeout(run, 2500);
+        setTimeout(run, 400);
       }
     }
 
@@ -1805,10 +1834,12 @@
         var useListCursor = false;
         if (!append && targetPage === 1) {
           catalogForwardCursor = null;
+          invalidateCatalogPrefetch();
         } else if (targetPage === page + 1 && catalogForwardCursor) {
           useListCursor = true;
         } else if (!append && targetPage !== page + 1 && targetPage !== page) {
           catalogForwardCursor = null;
+          invalidateCatalogPrefetch();
         }
         if (useListCursor) {
           params.set('cursor', catalogForwardCursor);
@@ -1816,37 +1847,50 @@
         params.set('page', String(targetPage));
         params.set('per_page', String(PER_PAGE));
         params.set('sort', currentSort || 'date_new');
-        if (carsListAbort) {
-          try {
-            carsListAbort.abort();
-          } catch (eCa) {}
-        }
-        carsListAbort = new AbortController();
-        var carsTimeoutId = setTimeout(function() {
-          try {
-            carsListAbort.abort();
-          } catch (eAb) {}
-        }, CATALOG_CARS_TIMEOUT_MS);
-        var res;
-        try {
-          res = await fetch(
-            apiUrl('/api/cars?' + params.toString()),
-            catalogApiFetchInit({ signal: carsListAbort.signal })
-          );
-        } catch (eF) {
-          clearTimeout(carsTimeoutId);
-          if (eF && eF.name === 'AbortError') return;
-          throw eF;
-        }
-        clearTimeout(carsTimeoutId);
+        var listQueryKey = params.toString();
+        var prefHit =
+          !append &&
+          !useStaticCatalog &&
+          catalogPrefetchStore &&
+          catalogPrefetchStore.gen === catalogPrefetchGen &&
+          catalogPrefetchStore.key === listQueryKey;
         var data;
-        try {
-          data = await res.json();
-        } catch (eJson) {
-          if (!res.ok) throw new Error('cars HTTP ' + res.status);
-          throw eJson;
+        var res = null;
+        if (prefHit) {
+          data = catalogPrefetchStore.data;
+          catalogPrefetchStore = null;
+        } else {
+          if (!append) catalogPrefetchStore = null;
+          if (carsListAbort) {
+            try {
+              carsListAbort.abort();
+            } catch (eCa) {}
+          }
+          carsListAbort = new AbortController();
+          var carsTimeoutId = setTimeout(function() {
+            try {
+              carsListAbort.abort();
+            } catch (eAb) {}
+          }, CATALOG_CARS_TIMEOUT_MS);
+          try {
+            res = await fetch(
+              catalogListFetchUrl(params),
+              catalogApiFetchInit({ signal: carsListAbort.signal })
+            );
+          } catch (eF) {
+            clearTimeout(carsTimeoutId);
+            if (eF && eF.name === 'AbortError') return;
+            throw eF;
+          }
+          clearTimeout(carsTimeoutId);
+          try {
+            data = await res.json();
+          } catch (eJson) {
+            if (!res.ok) throw new Error('cars HTTP ' + res.status);
+            throw eJson;
+          }
         }
-        if (!res.ok) {
+        if (res && !res.ok) {
           var msg = 'cars HTTP ' + res.status;
           if (data && typeof data === 'object' && data.error === 'deep_pagination_requires_cursor') {
             msg =
@@ -1893,7 +1937,7 @@
           draw();
         }
         syncCatalogAddressBar(usePush);
-        if (targetPage === 1 && !append) scheduleIdlePrefetchCatalogPage2();
+        if (page < catalogPages) scheduleIdlePrefetchNextCatalogPage();
       } catch (err) {
         if (reqId !== catalogRequestId) return;
         if (err && err.name === 'AbortError') return;
@@ -1936,7 +1980,7 @@
           (/fetch|сеть|network|load failed|failed to fetch/i.test(emRaw) || emRaw === '')
         ) {
           errMsg =
-            'API недоступен (нет ответа от /api/…). На сервере: запущен ли процесс с api_server, в nginx настроен ли proxy_pass для /api/ и совпадает ли WRA_API_BASE с реальным URL API.';
+            'API недоступен (нет ответа от /api/…). На сервере: запущен ли бэкенд (FastAPI /api/search), в nginx настроен ли proxy_pass для /api/ и совпадает ли WRA_API_BASE с реальным URL API.';
         }
         showCatalogErrorBanner(errMsg);
         if (paginationEl) paginationEl.innerHTML = '';
@@ -1956,6 +2000,7 @@
 
     async function runApplyFilters() {
       const reqId = ++catalogRequestId;
+      invalidateCatalogPrefetch();
       catalogForwardCursor = null;
       page = 1;
       syncCascadeSlotVisibility();
@@ -2227,10 +2272,10 @@
           <div class="preview">
             ${isToday ? '<span class="card-badge card-badge-today">Добавлен сегодня</span>' : ''}
             ${images.map(function(img, i) {
-              var hero = eagerHeroImage && cardIdx < 2 && i === 0;
+              var hero = eagerHeroImage && cardIdx === 0 && i === 0;
               var attrs = hero
                 ? 'fetchpriority="high" decoding="async"'
-                : 'loading="lazy" decoding="async"';
+                : 'loading="lazy" decoding="async" fetchpriority="low"';
               var enc = encarCatalogImageVariants(img);
               var srcEsc = escapeImgAttr(img);
               var rw = enc ? (' srcset="' + enc.srcset + '" sizes="' + enc.sizes + '"') : '';
@@ -2242,9 +2287,9 @@
               <div class="car-info-header">
                 <h2>${fullTitle}</h2>
                 <div class="car-actions">
-                  <button type="button" class="icon-btn icon-btn--share" aria-label="Поделиться" title="Поделиться"><img src="image/External_Link.svg" alt="" width="18" height="18"></button>
-                  <button type="button" class="icon-btn icon-btn--compare" aria-label="В сравнение" title="В сравнение"><img src="image/exchange.svg" alt="" width="18" height="18"></button>
-                  <button type="button" class="icon-btn icon-btn--fav" aria-label="В избранное" title="В избранное"><img src="image/Heart_01.svg" alt="" width="18" height="18" class="fav-icon"></button>
+                  <button type="button" class="icon-btn icon-btn--share" aria-label="Поделиться" title="Поделиться"><img src="image/External_Link.svg" alt="" width="18" height="18" loading="lazy" decoding="async"></button>
+                  <button type="button" class="icon-btn icon-btn--compare" aria-label="В сравнение" title="В сравнение"><img src="image/exchange.svg" alt="" width="18" height="18" loading="lazy" decoding="async"></button>
+                  <button type="button" class="icon-btn icon-btn--fav" aria-label="В избранное" title="В избранное"><img src="image/Heart_01.svg" alt="" width="18" height="18" loading="lazy" decoding="async" class="fav-icon"></button>
                 </div>
               </div>
               <div class="meta meta-strong">
@@ -2259,7 +2304,7 @@
                 <span class="price-rub ${(d.my_price == null || d.my_price === '' || d.price_calc_failed) ? 'price-rub-fallback' : ''}" ${(d.my_price == null || d.my_price === '' || d.price_calc_failed) && (d.price_calc_failed || d.price_won) ? ' title="Обратитесь к менеджеру для просчёта"' : ''}>
                   ${(d.my_price != null && d.my_price !== '' && !d.price_calc_failed) ? Math.round(Number(d.my_price)).toLocaleString() + ' ₽' : ((d.price_calc_failed || (d.price_won != null && (d.my_price == null || d.my_price === ''))) ? 'Цена по запросу' : '—')}
                 </span>
-                <span class="delivery-line">до Владивостока <span class="info-icon-wrap" title="Доставка до Владивостока"><img src="image/Info.svg" alt="i" width="12" height="12" class="info-icon-img"></span></span>
+                <span class="delivery-line">до Владивостока <span class="info-icon-wrap" title="Доставка до Владивостока"><img src="image/Info.svg" alt="i" width="12" height="12" loading="lazy" decoding="async" class="info-icon-img"></span></span>
               </div>
               <a href="${carUrl}" target="_blank" rel="noopener noreferrer" class="tax-btn ${tax.cls}">${tax.text}</a>
             </div>
@@ -2755,11 +2800,11 @@
           if (df === 'color') {
             syncAllColorCheckboxStates();
             updateFilterCountBadge();
-            void runApplyFilters();
+            scheduleDebouncedApplyFilters();
             return;
           }
           if (t.id === 'filterPassageCars') {
-            void runApplyFilters();
+            scheduleDebouncedApplyFilters();
             return;
           }
           if (
@@ -2770,11 +2815,11 @@
             t.id === 'filterNoInsurancePayouts' ||
             t.id === 'filterNoDamaged'
           ) {
-            void runApplyFilters();
+            scheduleDebouncedApplyFilters();
             return;
           }
           if (t.closest('#bodyList') || t.closest('#fuelList') || t.closest('#transmissionList') || t.closest('.drive-checkbox-wrap')) {
-            void runApplyFilters();
+            scheduleDebouncedApplyFilters();
           }
         });
       }
@@ -2884,7 +2929,7 @@
         if (!t.closest('#colorModalList')) return;
         syncAllColorCheckboxStates();
         updateFilterCountBadge();
-        void runApplyFilters();
+        scheduleDebouncedApplyFilters();
       });
     }
 
@@ -2916,19 +2961,6 @@
         cb.checked = !!byValue[cb.value];
       });
       syncCheckboxVisualStates(document);
-    }
-
-    function closeFilterDropdownPair(trigger, panel) {
-      if (!trigger || !panel) return;
-      if (panel.classList.contains('is-open')) {
-        panel.classList.remove('filter-dropdown-panel--floating');
-        ['--wra-float-left', '--wra-float-top', '--wra-float-width', '--wra-float-max-height'].forEach(function(prop) {
-          panel.style.removeProperty(prop);
-        });
-        panel.classList.remove('is-open');
-        trigger.classList.remove('active');
-        trigger.setAttribute('aria-expanded', 'false');
-      }
     }
 
     function syncCascadeSlotVisibility() {
@@ -3001,7 +3033,7 @@
         div.className = 'checkbox-item';
         const val = row.value;
         const variants = row.variants && row.variants.length ? row.variants : [val];
-        const id = 'filter-' + filterKey + '-' + idx + '-' + String(val).replace(/\s/g, '_').replace(/[^\w\-]/g, '_');
+        const id = 'filter-' + filterKey + '-' + idx + '-' + String(val).replace(/\s/g, '_').replace(/[^\w-]/g, '_');
         const label = labelCategory ? filterOptionLabel(val, labelCategory) : val;
         const cnt = row.count != null ? row.count : null;
         const suffix = (cnt != null) ? (' <span class="opt-count">(' + Number(cnt).toLocaleString('ru-RU') + ')</span>') : '';
@@ -3209,7 +3241,7 @@
       } catch (err) {
         console.error('Ошибка загрузки каталога', err);
         showCatalogErrorBanner(
-          'Не удалось загрузить каталог. Проверьте, что API доступен по тому же домену (например /api/cars).'
+          'Не удалось загрузить каталог. Проверьте, что API доступен по тому же домену (например /api/search).'
         );
       }
     }
@@ -3363,7 +3395,7 @@
       countInfoIcon.addEventListener('blur', hideCountTip);
     }
 
-    // Hero: Swiper + Splitting + Anime подгружаются после первого экрана (меньше конкуренции с /api/cars и JSON).
+    // Hero: Swiper + Splitting + Anime подгружаются после первого экрана (меньше конкуренции с /api/search и JSON).
     var heroSwiper = null;
     function loadStylesheetOnce(href) {
       return new Promise(function(res) {

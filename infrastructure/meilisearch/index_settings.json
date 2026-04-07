@@ -1,0 +1,44 @@
+{
+  "searchableAttributes": [
+    "brand",
+    "model",
+    "generation",
+    "trim",
+    "price",
+    "year",
+    "year_month",
+    "color",
+    "body_type",
+    "mileage"
+  ],
+  "filterableAttributes": [
+    "brand",
+    "model",
+    "price",
+    "year",
+    "year_month",
+    "fuel",
+    "color",
+    "body_type",
+    "mileage",
+    "generation",
+    "trim",
+    "transmission",
+    "drive_type",
+    "source"
+  ],
+  "sortableAttributes": [
+    "price",
+    "year",
+    "year_month",
+    "mileage",
+    "updated_at"
+  ],
+  "displayedAttributes": ["*"],
+  "faceting": {
+    "maxValuesPerFacet": 200,
+    "sortFacetValuesBy": {
+      "*": "count"
+    }
+  }
+}

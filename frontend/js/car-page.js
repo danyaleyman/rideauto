@@ -67,6 +67,7 @@
 
             document.addEventListener('click', function(e) {
                 if (e.target.closest('#openCalcModal')) { openCalcModal(); return; }
+                if (e.target.closest('#openHowToModal')) { openHowToModal(e); return; }
                 if (e.target.id === 'calcModalClose' || e.target.closest('#calcModalClose')) closeCalcModal();
                 if (e.target.id === 'howtoModalClose' || e.target.closest('#howtoModalClose')) closeHowToModal();
                 if (e.target === calcOverlay) closeCalcModal();
@@ -88,29 +89,13 @@
         }
         var partNamesRu = D.partNamesRu;
         var statusRu = D.statusRu;
-        var displayRu = D.displayRu;
-        var toDisplayRu = D.toDisplayRu;
-        var filterMappingKoEn = D.filterMappingKoEn;
-        var toDisplayEn = D.toDisplayEn;
-        var koreanPhraseToEn = D.koreanPhraseToEn;
-        var applyKoreanPhraseFallback = D.applyKoreanPhraseFallback;
-        var containsHangul = D.containsHangul;
-        var stripKoreanForTitlePart = D.stripKoreanForTitlePart;
-        var sanitizeUiLabel = D.sanitizeUiLabel;
         var filterOptionLabel = D.filterOptionLabel;
-        var optionRu = D.optionRu;
-        var categoryRu = D.categoryRu;
-        var optionMaster = D.optionMaster;
-        var optionTypeMap = D.optionTypeMap;
         var groupOptionsRu = D.groupOptionsRu;
         var renderOptionsGrouped = D.renderOptionsGrouped;
 
 
         // ---------- Общие функции ----------
-        function formatPrice(w) { return w ? (w/100).toFixed(1)+' млн вон' : '—'; }
         function formatKm(km) { return km ? Number(km).toLocaleString() + ' км' : '—'; }
-        function formatDate(iso) { return iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
-        function formatNumber(num) { return num?.toLocaleString() ?? '—'; }
         /** Сумма в вонах → строка в рублях по курсу ЦБ (rubPerWon = руб за 1 вон). */
         function formatWonToRub(won, rubPerWon) {
             if (rubPerWon <= 0) return '—';
@@ -547,8 +532,6 @@
         function openModal(index, sourcePhotos) {
             modalPhotosArray = (sourcePhotos && sourcePhotos.length) ? sourcePhotos : photosArray;
             const modal = document.getElementById('galleryModal');
-            const modalMain = document.getElementById('modalMain');
-            const modalCounter = document.getElementById('modalCounter');
             if (!modal || !modalPhotosArray.length) return;
             var carContent = document.getElementById('car-content');
             if (carContent) carContent.querySelectorAll('.condition-zone.tooltip-visible').forEach(function(z) { z.classList.remove('tooltip-visible'); });
@@ -657,7 +640,6 @@
             const sellerType = d.seller_type || '';
 
             const priceWon = d.price_won;
-            const priceWonFormatted = priceWon ? (priceWon * 10000).toLocaleString() + ' вон' : '—';
             const myPrice = d.my_price;
             const hasEncarPrice = d.price_won != null && Number(d.price_won) > 0;
             const priceUnavailable = !hasEncarPrice || d.price_calc_failed || (myPrice == null || myPrice === '');
@@ -665,7 +647,6 @@
             const myPriceFormatted = priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽');
 
             const priceRub = d.price_rub_estimate;
-            const documentsKrwRub = d.documents_krw_rub;
             const freightRub = d.freight_rub;
             const customsFee = d.customs_fee_rub;
             const duty = d.duty_rub;
@@ -674,7 +655,6 @@
             const customsTotal = d.customs_total_rub;
             const brokerRub = d.broker_rub;
             const commissionRub = d.commission_rub;
-            const vehicleSum = d.vehicle_sum_rub;
 
             const fmt = function(v) { return (v != null && v !== '') ? Math.round(Number(v)).toLocaleString() + ' ₽' : '—'; };
             const totalForBar = (myPrice && Number(myPrice) > 0) ? Number(myPrice) : 0;
@@ -682,8 +662,6 @@
             const freightOnly = Number(freightRub) || 0;
             const vladRub = Number(brokerRub) || 0;
             const customsRub = Number(customsTotal) || 0;
-            const commissionNum = Number(commissionRub) || 0;
-            const russiaPart = vladRub + commissionNum;
             const pCar = totalForBar ? Math.round((carCost / totalForBar) * 100) : 25;
             const pKorea = totalForBar ? Math.round((freightOnly / totalForBar) * 100) : 25;
             const pCustoms = totalForBar ? Math.round((customsRub / totalForBar) * 100) : 25;
@@ -797,6 +775,7 @@
                     <div class="order-title-row">
                         <h3 class="order-title">${fullName}</h3>
                     </div>
+                    ${metaHtml !== '—' ? `<p class="order-card-meta text-muted">${metaHtml}</p>` : ''}
                     <div class="order-price-block${priceUnavailable ? ' order-price-block--fallback' : ''}">
                         <div class="order-price-main" id="orderPriceMain">${priceUnavailable ? PRICE_FALLBACK : (Math.round(Number(myPrice)).toLocaleString() + ' ₽')}</div>
                         <div class="order-price-sub">под ключ до Владивостока <span class="info-icon-wrap" data-tooltip="Цена под ключ до Владивостока с учётом всех платежей"><img src="/image/Info.svg" alt="" class="info-icon-img" width="14" height="14"></span></div>
@@ -956,16 +935,6 @@
                 return a.u.localeCompare(b.u);
             });
             return scored.slice(0, 4).map(function(x) { return x.u; });
-        }
-
-        function guessImageType(url) {
-            const u = String(url || '').toLowerCase();
-            if (u.includes('front') || u.includes('перед') || u.includes('frontview') || u.includes('front_view')) return 'FRONT';
-            if (u.includes('rear') || u.includes('зад') || u.includes('back') || u.includes('rearview') || u.includes('rear_view')) return 'REAR';
-            if (u.includes('side') || u.includes('бок') || u.includes('profile') || u.includes('sideview') || u.includes('side_view')) return 'SIDE';
-            if (u.includes('interior') || u.includes('салон') || u.includes('inside') || u.includes('cabin') || u.includes('interiorview') || u.includes('interior_view')) return 'INTERIOR';
-            if (u.includes('wheel') || u.includes('tire') || u.includes('rim') || u.includes('диск')) return 'WHEEL';
-            return 'SIDE';
         }
 
         var motorHpByCodeCar = {};

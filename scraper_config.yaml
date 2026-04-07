@@ -109,10 +109,13 @@ checkpoint:
 
 # Output storage
 storage:
-  # "sqlite" | "chunked_json"
+  # "sqlite" | "chunked_json" | "postgres"
   backend: "sqlite"
   sqlite:
     path: "encar_cars.db"
+  postgres:
+    # Или переменная окружения DATABASE_URL
+    dsn: ""
   chunked_json:
     dir: "output_chunks"
     cars_per_file: 1000
