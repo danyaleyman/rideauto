@@ -6,6 +6,14 @@ Usage:
   python3 deploy/scripts/load_profile.py \
     --base-url http://127.0.0.1:8080 \
     --car-id dongchedi-23175150
+
+  # Through public nginx + TLS:
+  python3 deploy/scripts/load_profile.py \
+    --base-url https://rideauto.ru \
+    --car-id dongchedi-22752383
+
+  # Self-signed CA:
+  ... --insecure
 """
 from __future__ import annotations
 
@@ -13,13 +21,25 @@ import argparse
 import json
 import math
 import random
+import ssl
 import statistics
 import threading
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
+
+
+def _ssl_context(insecure: bool) -> Optional[ssl.SSLContext]:
+    if insecure:
+        return ssl._create_unverified_context()
+    return None
+
+
+def _urlopen(req: urllib.request.Request, *, timeout: float, insecure: bool):
+    ctx = _ssl_context(insecure)
+    return urllib.request.urlopen(req, timeout=timeout, context=ctx)
 
 
 @dataclass
@@ -50,7 +70,15 @@ def pct(sorted_values: List[float], p: float) -> float:
     return sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * (i - lo)
 
 
-def worker(base_url: str, car_id: str, stop_at: float, rps: int, out: List[Tuple[float, int]], lock: threading.Lock) -> None:
+def worker(
+    base_url: str,
+    car_id: str,
+    stop_at: float,
+    rps: int,
+    out: List[Tuple[float, int]],
+    lock: threading.Lock,
+    insecure: bool,
+) -> None:
     search_url = f"{base_url}/api/search?per_page=12&source=encar&sort=date_new"
     car_url = f"{base_url}/api/car/{car_id}"
     timeout = 10.0
@@ -62,7 +90,7 @@ def worker(base_url: str, car_id: str, stop_at: float, rps: int, out: List[Tuple
         status = 0
         try:
             req = urllib.request.Request(target, headers={"Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with _urlopen(req, timeout=timeout, insecure=insecure) as resp:
                 _ = resp.read(128)
                 status = int(resp.status)
         except urllib.error.HTTPError as e:
@@ -78,7 +106,7 @@ def worker(base_url: str, car_id: str, stop_at: float, rps: int, out: List[Tuple
             time.sleep(sleep_for)
 
 
-def run_scenario(base_url: str, car_id: str, scenario: Scenario) -> Dict[str, float]:
+def run_scenario(base_url: str, car_id: str, scenario: Scenario, *, insecure: bool) -> Dict[str, float]:
     threads: List[threading.Thread] = []
     data: List[Tuple[float, int]] = []
     lock = threading.Lock()
@@ -89,7 +117,7 @@ def run_scenario(base_url: str, car_id: str, scenario: Scenario) -> Dict[str, fl
     for _ in range(workers):
         t = threading.Thread(
             target=worker,
-            args=(base_url, car_id, stop_at, rps_per_worker, data, lock),
+            args=(base_url, car_id, stop_at, rps_per_worker, data, lock, insecure),
             daemon=True,
         )
         threads.append(t)
@@ -117,7 +145,7 @@ def run_scenario(base_url: str, car_id: str, scenario: Scenario) -> Dict[str, fl
     }
 
 
-def preflight(base_url: str, car_id: str) -> None:
+def preflight(base_url: str, car_id: str, *, insecure: bool) -> None:
     checks = [
         ("health", f"{base_url}/api/health"),
         ("search", f"{base_url}/api/search?per_page=1"),
@@ -128,7 +156,7 @@ def preflight(base_url: str, car_id: str) -> None:
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
         t0 = time.perf_counter()
         try:
-            with urllib.request.urlopen(req, timeout=10.0) as resp:
+            with _urlopen(req, timeout=10.0, insecure=insecure) as resp:
                 _ = resp.read(128)
                 dt = (time.perf_counter() - t0) * 1000.0
                 print(f"  {name}: {resp.status} ({dt:.1f} ms)", flush=True)
@@ -143,11 +171,16 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Run pragmatic load profile for /api/search and /api/car.")
     ap.add_argument("--base-url", default="http://127.0.0.1:8080")
     ap.add_argument("--car-id", required=True, help="Existing car_id for /api/car/{id} checks")
+    ap.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Skip TLS certificate verification (e.g. self-signed or corporate CA).",
+    )
     args = ap.parse_args()
     base = args.base_url.rstrip("/")
 
     print(f"load profile base_url={base} car_id={args.car_id}", flush=True)
-    preflight(base, args.car_id)
+    preflight(base, args.car_id, insecure=args.insecure)
     results: Dict[str, Dict[str, float]] = {}
     for sc in SCENARIOS:
         print(f"\n==> scenario {sc.name} rps={sc.rps} duration={sc.seconds}s", flush=True)

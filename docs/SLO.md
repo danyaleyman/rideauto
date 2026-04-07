@@ -9,7 +9,7 @@
 
 ## SLI Sources
 
-- FastAPI + middleware metrics: `GET /metrics`
+- FastAPI + middleware metrics: `GET /metrics` (плейбук: **`docs/MONITORING.md`**)
 - HTTP health checks: `GET /api/health`
 - Synthetic smoke checks from server side (`deploy/scripts/post_migration_check.sh`)
 - Frontend RUM: `POST /api/web-vitals`, summary via `GET /api/ops/web-vitals-summary`

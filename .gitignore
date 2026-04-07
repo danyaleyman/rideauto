@@ -1,4 +1,7 @@
 .env
+
+# Server DB dumps (deploy/scripts/backup_postgres_compose.sh)
+backups/
 __pycache__/
 *.pyc
 *.pyo
