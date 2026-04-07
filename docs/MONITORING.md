@@ -60,10 +60,20 @@ python3 deploy/scripts/load_profile.py \
 
 ```bash
 cd /opt/prod-encar
+chmod +x deploy/scripts/backup_postgres_compose.sh
 ./deploy/scripts/backup_postgres_compose.sh
 ```
 
-По умолчанию каталог **`./backups/`** (создаётся скриптом). Крон: раз в сутки + ротация старых файлов на ваше усмотрение.
+По умолчанию каталог **`./backups/`** (в `.gitignore`). Логи крона удобно писать в `/var/log/prod-encar-backup.log`.
+
+**Cron (ежедневный бэкап + хранить 7 дней):**
+
+```cron
+15 3 * * * cd /opt/prod-encar && ./deploy/scripts/backup_postgres_compose.sh >> /var/log/prod-encar-backup.log 2>&1
+20 3 * * * find /opt/prod-encar/backups -maxdepth 1 -type f -name 'wra_*.dump' -mtime +7 -delete
+```
+
+`-mtime +7` удаляет дампы **старше 7 суток**. Путь `/opt/prod-encar` при необходимости замените.
 
 ## 6) Секреты и пароли
 
