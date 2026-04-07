@@ -40,5 +40,8 @@
     "sortFacetValuesBy": {
       "*": "count"
     }
+  },
+  "pagination": {
+    "maxTotalHits": 1000000
   }
 }
