@@ -19,6 +19,7 @@ import aiohttp
 import yaml
 
 from dongchedi.brand_shards import DEFAULT_BRAND_SHARD_IDS
+from dongchedi.browser_fetch import fetch_usedcar_html_playwright
 from dongchedi.client import DEFAULT_HEADERS, fetch_params_car_html, fetch_usedcar_html, post_sku_list
 from dongchedi.normalize import dongchedi_spec_car_id, row_matches_filters, sku_row_to_payload
 from dongchedi.parse_detail import parse_params_raw_data_from_html, parse_sku_detail_from_html
@@ -59,6 +60,10 @@ class ScrapeConfig:
     persist_checkpoint: bool = True
     resume: bool = False
     checkpoint_path: Optional[str] = None
+    # Optional anti-bot fallback: render card page in headless browser.
+    browser_fallback: bool = False
+    browser_timeout_s: float = 25.0
+    browser_concurrency: int = 2
 
 
 def _clamp_limit(v: int) -> int:
@@ -221,6 +226,7 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
 
     list_sem = asyncio.Semaphore(max(1, cfg.concurrency))
     detail_sem = asyncio.Semaphore(max(1, cfg.detail_concurrency))
+    browser_sem = asyncio.Semaphore(max(1, cfg.browser_concurrency))
     headers = _headers_with_cookie(cfg.cookie)
     timeout = aiohttp.ClientTimeout(total=cfg.request_timeout_s + 35)
     connector = aiohttp.TCPConnector(limit=max(12, cfg.concurrency + cfg.detail_concurrency))
@@ -287,7 +293,16 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                 if attempt < 2:
                     await asyncio.sleep(0.4 * float(attempt + 1))
             if not sd:
-                return None
+                if cfg.browser_fallback:
+                    async with browser_sem:
+                        st3, html3 = await fetch_usedcar_html_playwright(
+                            sku,
+                            timeout_s=cfg.browser_timeout_s,
+                        )
+                    if st3 == 200 and html3:
+                        sd = parse_sku_detail_from_html(html3)
+                if not sd:
+                    return None
             cid = dongchedi_spec_car_id(sd)
             if cid:
                 raw: Optional[Dict[str, Any]] = None
@@ -505,6 +520,13 @@ def main(argv: Optional[List[str]] = None) -> None:
     p.add_argument("--concurrency", type=int, default=None)
     p.add_argument("--detail-concurrency", type=int, default=None)
     p.add_argument("--no-enrich-detail", action="store_true", help="Без запроса карточек (без my_price)")
+    p.add_argument(
+        "--browser-fallback",
+        action="store_true",
+        help="Fallback через Playwright, если карточка отдает пустой HTML",
+    )
+    p.add_argument("--browser-timeout", type=float, default=None, help="Timeout браузерного fallback (сек)")
+    p.add_argument("--browser-concurrency", type=int, default=None, help="Параллелизм браузерного fallback")
     p.add_argument("--cny-to-rub", type=float, default=None)
     p.add_argument("--log-level", type=str, default="INFO")
     args = p.parse_args(argv)
@@ -556,6 +578,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         cfg.detail_concurrency = args.detail_concurrency
     if args.no_enrich_detail:
         cfg.enrich_detail = False
+    if args.browser_fallback:
+        cfg.browser_fallback = True
+    if args.browser_timeout is not None:
+        cfg.browser_timeout_s = float(args.browser_timeout)
+    if args.browser_concurrency is not None:
+        cfg.browser_concurrency = max(1, int(args.browser_concurrency))
     if args.cny_to_rub is not None:
         cfg.cny_to_rub = args.cny_to_rub
 
