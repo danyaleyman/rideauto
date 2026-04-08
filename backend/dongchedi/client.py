@@ -87,7 +87,19 @@ async def fetch_usedcar_html(
 ) -> Tuple[int, Optional[str]]:
     url = f"https://www.dongchedi.com/usedcar/{sku_id}"
     timeout = aiohttp.ClientTimeout(total=timeout_s + 15)
-    headers = {"Referer": url}
+    # Listing endpoint uses JSON headers, but card endpoint is sensitive to browser-like HTML headers.
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
+        "Referer": "https://www.dongchedi.com/usedcar/x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x",
+    }
     try:
         async with session.get(url, timeout=timeout, headers=headers) as resp:
             status = resp.status
