@@ -14,6 +14,9 @@ import {
   toFacetApiParams,
 } from "@/lib/catalog-url";
 import { fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
+import { extractCarImageUrls } from "@/lib/car-images";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
 
 function formatPrice(n: number | null | undefined): string {
@@ -29,39 +32,8 @@ function formatPrice(n: number | null | undefined): string {
   }
 }
 
-function parseJsonMaybe(v: unknown): unknown {
-  if (typeof v !== "string") return v;
-  try {
-    return JSON.parse(v);
-  } catch {
-    return v;
-  }
-}
-
 function firstImageUrl(car: SlimCar): string | undefined {
-  const candidates: unknown[] = [
-    car.data?.image,
-    car.data?.img,
-    car.data?.photo,
-    car.data?.images,
-    car.data?.h_images,
-  ];
-
-  for (const raw of candidates) {
-    const value = parseJsonMaybe(raw);
-    if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
-    if (!Array.isArray(value)) continue;
-    for (const item of value) {
-      if (typeof item === "string" && /^https?:\/\//i.test(item)) return item;
-      if (!item || typeof item !== "object") continue;
-      const maybeUrl =
-        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).url ??
-        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).imageUrl ??
-        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).src;
-      if (typeof maybeUrl === "string" && /^https?:\/\//i.test(maybeUrl)) return maybeUrl;
-    }
-  }
-  return undefined;
+  return extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
 }
 
 function metaText(car: SlimCar): string {
@@ -92,26 +64,26 @@ function FacetGroup({
 }) {
   if (!rows.length) return null;
   return (
-    <fieldset className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-      <legend className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+    <fieldset className="rounded-xl border border-border bg-muted/25 p-3">
+      <legend className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </legend>
       <div className="max-h-44 space-y-1 overflow-y-auto pr-1 text-sm">
         {rows.map((r) => (
           <label
             key={r.value}
-            className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5"
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-muted/50"
           >
             <input
               type="checkbox"
               checked={selected.has(r.value)}
               onChange={() => onToggle(r.value)}
-              className="rounded border-zinc-300"
+              className="size-3.5 rounded border-border accent-primary"
             />
             <span className="min-w-0 flex-1 truncate" title={r.value}>
               {r.value}
             </span>
-            <span className="shrink-0 text-xs tabular-nums text-zinc-400">
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
               {r.count.toLocaleString("ru-RU")}
             </span>
           </label>
@@ -123,12 +95,12 @@ function FacetGroup({
 
 function FacetSkeleton() {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-      <div className="mb-2 h-4 w-24  rounded bg-zinc-200" />
+    <div className="rounded-xl border border-border bg-muted/25 p-3">
+      <div className="mb-2 h-4 w-24 rounded bg-muted" />
       <div className="space-y-2">
-        <div className="h-4 w-full  rounded bg-zinc-200" />
-        <div className="h-4 w-5/6  rounded bg-zinc-200" />
-        <div className="h-4 w-4/6  rounded bg-zinc-200" />
+        <div className="h-4 w-full rounded bg-muted" />
+        <div className="h-4 w-5/6 rounded bg-muted" />
+        <div className="h-4 w-4/6 rounded bg-muted" />
       </div>
     </div>
   );
@@ -136,12 +108,12 @@ function FacetSkeleton() {
 
 function CardSkeleton() {
   return (
-    <li className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-      <div className="aspect-[16/10] animate-pulse bg-zinc-200" />
+    <li className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="aspect-[16/10] animate-pulse bg-muted" />
       <div className="space-y-2 p-4">
-        <div className="h-4 w-11/12 animate-pulse rounded bg-zinc-200" />
-        <div className="h-3 w-3/4 animate-pulse rounded bg-zinc-200" />
-        <div className="h-6 w-2/5 animate-pulse rounded bg-zinc-200" />
+        <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
+        <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
+        <div className="h-6 w-2/5 animate-pulse rounded bg-muted" />
       </div>
     </li>
   );
@@ -189,50 +161,40 @@ function RangeBlock({
   return (
     <>
       <div className="grid grid-cols-2 gap-2 text-sm">
-        <input
+        <Input
           placeholder="Цена от"
           value={draft.price_from}
           onChange={(e) => setDraft((d) => ({ ...d, price_from: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5"
         />
-        <input
+        <Input
           placeholder="Цена до"
           value={draft.price_to}
           onChange={(e) => setDraft((d) => ({ ...d, price_to: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5"
         />
-        <input
+        <Input
           placeholder="Пробег от"
           value={draft.mileage_from}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_from: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5"
         />
-        <input
+        <Input
           placeholder="Пробег до"
           value={draft.mileage_to}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_to: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5"
         />
-        <input
+        <Input
           placeholder="Год от"
           value={draft.year_from}
           onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5"
         />
-        <input
+        <Input
           placeholder="Год до"
           value={draft.year_to}
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5"
         />
       </div>
-      <button
-        type="button"
-        onClick={apply}
-        className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-sm font-medium text-white"
-      >
+      <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
         Применить диапазоны
-      </button>
+      </Button>
     </>
   );
 }
@@ -389,30 +351,6 @@ export function CatalogClient({
     });
   };
 
-  const switchMarket = (market: CatalogUrlState["market"]) => {
-    navigate({
-      market,
-      q: state.q,
-      sort: state.sort,
-      marks: [],
-      models: [],
-      generations: [],
-      trims: [],
-      body: [],
-      fuel: [],
-      trans: [],
-      color: [],
-      price_from: "",
-      price_to: "",
-      mileage_from: "",
-      mileage_to: "",
-      year_from: "",
-      year_to: "",
-      drive_awd: false,
-      page: 1,
-    });
-  };
-
   const title =
     state.market === "china" ? "Автомобили из Китая" : "Автомобили из Кореи";
 
@@ -466,203 +404,171 @@ export function CatalogClient({
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
-      <div className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="mt-1 text-sm text-zinc-600">
-            Найдено:{" "}
-            <span className="font-medium text-zinc-900">
-              {search.meta.total.toLocaleString("ru-RU")}
-            </span>
-            {search.meta.processing_time_ms != null
-              ? ` · ${search.meta.processing_time_ms} ms`
-              : ""}
-            {loading ? " · обновление…" : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => switchMarket("korea")}
-            className={`rounded-full px-4 py-2 text-sm font-medium ${
-              state.market === "korea"
-                ? "bg-zinc-900 text-white"
-                : "border border-zinc-300 bg-white text-zinc-800"
-            }`}
-          >
-            Корея
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMarket("china")}
-            className={`rounded-full px-4 py-2 text-sm font-medium ${
-              state.market === "china"
-                ? "bg-zinc-900 text-white"
-                : "border border-zinc-300 bg-white text-zinc-800"
-            }`}
-          >
-            Китай
-          </button>
-        </div>
-      </div>
-
-      {activeChips.length ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {activeChips.map((chip, idx) => (
-            <button
-              key={`${chip.key}-${chip.value ?? idx}`}
-              type="button"
-              onClick={() => removeChip(chip)}
-              className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700"
-              title="Убрать фильтр"
-            >
-              {chip.label} ×
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs font-medium text-white"
-          >
-            Сбросить все
-          </button>
-        </div>
-      ) : null}
-
+    <div className="mx-auto max-w-[1600px] px-3 pb-10 pt-4 sm:px-4 lg:px-6">
       {err ? (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {err} — проверьте{" "}
-          <code className="rounded bg-white/60 px-1">NEXT_PUBLIC_API_BASE</code> и
-          доступность API.
+          <code className="rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE</code> и доступность API.
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-8 lg:flex-row">
-        <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-4 lg:h-fit lg:w-72">
-          <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4">
-            <label className="text-xs  font-medium text-zinc-500">Поиск</label>
-            <div className="flex gap-2">
-              <input
-                value={qDraft}
-                onChange={(e) => setQDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    navigate({ ...state, q: qDraft.trim(), page: 1 });
-                  }
-                }}
-                placeholder="Марка, модель…"
-                className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-              />
-              <button
-                type="button"
-                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white "
-                onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+        <aside className="w-full shrink-0 lg:sticky lg:top-24 lg:w-80 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto lg:pe-1">
+          <div className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Поиск</label>
+              <div className="mt-2 flex gap-2">
+                <Input
+                  value={qDraft}
+                  onChange={(e) => setQDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      navigate({ ...state, q: qDraft.trim(), page: 1 });
+                    }
+                  }}
+                  placeholder="Марка, модель…"
+                  className="min-w-0 flex-1"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
+                >
+                  Найти
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <label className="text-xs font-medium text-muted-foreground">Сортировка</label>
+              <select
+                value={state.sort}
+                onChange={(e) => navigate({ ...state, sort: e.target.value, page: 1 })}
+                className="mt-2 flex h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
               >
-                Найти
-              </button>
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <label className="mt-2 text-xs font-medium text-zinc-500">Сортировка</label>
-            <select
-              value={state.sort}
-              onChange={(e) => navigate({ ...state, sort: e.target.value, page: 1 })}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+
+            <div className="border-t border-border pt-4">
+              <h2 className="text-sm font-semibold">Цена, пробег, год</h2>
+              <div className="mt-3">
+                <RangeBlock state={state} navigate={navigate} />
+              </div>
+              <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={state.drive_awd}
+                  onChange={(e) => navigate({ ...state, drive_awd: e.target.checked, page: 1 })}
+                  className="size-3.5 rounded border-border accent-primary"
+                />
+                Полный привод (AWD)
+              </label>
+            </div>
+
+            {facets ? (
+              <div className="space-y-3 border-t border-border pt-4">
+                <FacetGroup
+                  title="Марка"
+                  rows={facets.marks}
+                  selected={new Set(state.marks)}
+                  onToggle={(v) => toggle("marks", v)}
+                />
+                <FacetGroup
+                  title="Модель"
+                  rows={facets.models}
+                  selected={new Set(state.models)}
+                  onToggle={(v) => toggle("models", v)}
+                />
+                <FacetGroup
+                  title="Поколение"
+                  rows={facets.generations}
+                  selected={new Set(state.generations)}
+                  onToggle={(v) => toggle("generations", v)}
+                />
+                <FacetGroup
+                  title="Комплектация"
+                  rows={facets.trims}
+                  selected={new Set(state.trims)}
+                  onToggle={(v) => toggle("trims", v)}
+                />
+                <FacetGroup
+                  title="Кузов"
+                  rows={facets.bodies}
+                  selected={new Set(state.body)}
+                  onToggle={(v) => toggle("body", v)}
+                />
+                <FacetGroup
+                  title="Топливо"
+                  rows={facets.fuels}
+                  selected={new Set(state.fuel)}
+                  onToggle={(v) => toggle("fuel", v)}
+                />
+                <FacetGroup
+                  title="КПП"
+                  rows={facets.transmissions}
+                  selected={new Set(state.trans)}
+                  onToggle={(v) => toggle("trans", v)}
+                />
+                <FacetGroup
+                  title="Цвет"
+                  rows={facets.colors}
+                  selected={new Set(state.color)}
+                  onToggle={(v) => toggle("color", v)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-3 border-t border-border pt-4">
+                <FacetSkeleton />
+                <FacetSkeleton />
+                <FacetSkeleton />
+              </div>
+            )}
+
+            <Button type="button" variant="outline" className="w-full" onClick={reset}>
+              Сбросить фильтры
+            </Button>
           </div>
-
-          <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-zinc-800">Диапазоны</h2>
-            <RangeBlock
-              state={state}
-              navigate={navigate}
-            />
-            <label className="mt-1 flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={state.drive_awd}
-                onChange={(e) =>
-                  navigate({ ...state, drive_awd: e.target.checked, page: 1 })
-                }
-              />
-              Полный привод (AWD)
-            </label>
-          </div>
-
-          {facets ? (
-            <div className="space-y-3">
-              <FacetGroup
-                title="Марка"
-                rows={facets.marks}
-                selected={new Set(state.marks)}
-                onToggle={(v) => toggle("marks", v)}
-              />
-              <FacetGroup
-                title="Модель"
-                rows={facets.models}
-                selected={new Set(state.models)}
-                onToggle={(v) => toggle("models", v)}
-              />
-              <FacetGroup
-                title="Поколение"
-                rows={facets.generations}
-                selected={new Set(state.generations)}
-                onToggle={(v) => toggle("generations", v)}
-              />
-              <FacetGroup
-                title="Комплектация"
-                rows={facets.trims}
-                selected={new Set(state.trims)}
-                onToggle={(v) => toggle("trims", v)}
-              />
-              <FacetGroup
-                title="Кузов"
-                rows={facets.bodies}
-                selected={new Set(state.body)}
-                onToggle={(v) => toggle("body", v)}
-              />
-              <FacetGroup
-                title="Топливо"
-                rows={facets.fuels}
-                selected={new Set(state.fuel)}
-                onToggle={(v) => toggle("fuel", v)}
-              />
-              <FacetGroup
-                title="КПП"
-                rows={facets.transmissions}
-                selected={new Set(state.trans)}
-                onToggle={(v) => toggle("trans", v)}
-              />
-              <FacetGroup
-                title="Цвет"
-                rows={facets.colors}
-                selected={new Set(state.color)}
-                onToggle={(v) => toggle("color", v)}
-              />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <FacetSkeleton />
-              <FacetSkeleton />
-              <FacetSkeleton />
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={reset}
-            className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-800"
-          >
-            Сбросить фильтры
-          </button>
         </aside>
 
         <div className="min-w-0 flex-1">
+          <div className="mb-5 border-b border-border pb-5">
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Найдено:{" "}
+              <span className="font-medium text-foreground">
+                {search.meta.total.toLocaleString("ru-RU")}
+              </span>
+              {search.meta.processing_time_ms != null ? ` · ${search.meta.processing_time_ms} ms` : ""}
+              {loading ? " · обновление…" : ""}
+            </p>
+            {activeChips.length ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {activeChips.map((chip, idx) => (
+                  <Button
+                    key={`${chip.key}-${chip.value ?? idx}`}
+                    type="button"
+                    variant="secondary"
+                    size="xs"
+                    className="h-7 rounded-full px-2.5 text-xs font-normal"
+                    onClick={() => removeChip(chip)}
+                    title="Убрать фильтр"
+                  >
+                    {chip.label} ×
+                  </Button>
+                ))}
+                <Button type="button" size="xs" className="h-7 rounded-full px-3" onClick={reset}>
+                  Сбросить все
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {search.result.map((car, idx) => {
               const img = firstImageUrl(car);
@@ -672,16 +578,16 @@ export function CatalogClient({
                   <Link
                     href={`/car/${encodeURIComponent(car.id)}`}
                     prefetch
-                    className="block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm"
+                    className="block overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
                   >
-                    <div className="relative aspect-[16/10] bg-zinc-100">
+                    <div className="relative aspect-[16/10] bg-muted">
                       {img ? (
                         <Image
                           src={img}
                           alt=""
                           width={640}
                           height={400}
-                          sizes="(min-width: 1280px) 28vw, (min-width: 640px) 45vw, 94vw"
+                          sizes="(min-width: 1280px) 26vw, (min-width: 640px) 44vw, 94vw"
                           className="h-full w-full object-cover"
                           loading={idx < 3 ? "eager" : undefined}
                           fetchPriority={idx === 0 ? "high" : "auto"}
@@ -689,22 +595,20 @@ export function CatalogClient({
                           unoptimized
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center bg-zinc-100 text-sm text-zinc-400">
+                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                           Нет фото
                         </div>
                       )}
-                      <div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white">
+                      <div className="absolute bottom-2 start-2 rounded-md bg-foreground/85 px-2 py-0.5 text-xs font-medium text-background">
                         {car.year_num ? `${car.year_num}` : "Год не указан"}
                       </div>
                     </div>
                     <div className="space-y-2 p-4">
-                      <p className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-snug text-zinc-900">
+                      <p className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-snug">
                         {car.title || car.id}
                       </p>
-                      <p className="line-clamp-1 text-xs text-zinc-500">{meta || car.id}</p>
-                      <p className="text-xl font-semibold text-zinc-900">
-                        {formatPrice(car.price)}
-                      </p>
+                      <p className="line-clamp-1 text-xs text-muted-foreground">{meta || car.id}</p>
+                      <p className="text-xl font-semibold">{formatPrice(car.price)}</p>
                     </div>
                   </Link>
                 </li>
@@ -716,29 +620,33 @@ export function CatalogClient({
           </ul>
 
           {search.result.length === 0 && !loading ? (
-            <p className="mt-16 text-center text-zinc-500">Ничего не найдено по текущим фильтрам.</p>
+            <p className="mt-16 text-center text-muted-foreground">Ничего не найдено по текущим фильтрам.</p>
           ) : null}
 
           <nav className="mt-10 flex flex-wrap items-center justify-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
               disabled={state.page <= 1}
               onClick={() => navigate({ ...state, page: state.page - 1 })}
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40"
             >
               Назад
-            </button>
-            <span className="text-sm text-zinc-600">
+            </Button>
+            <span className="px-2 text-sm text-muted-foreground">
               Стр. {state.page} из {pages}
             </span>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
               disabled={!search.meta.next_cursor}
               onClick={() => navigate({ ...state, page: state.page + 1 })}
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40"
             >
               Вперёд
-            </button>
+            </Button>
           </nav>
         </div>
       </div>
