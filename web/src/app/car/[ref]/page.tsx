@@ -19,7 +19,7 @@ function asPrice(v: unknown): number | null {
 
 function formatPrice(v: unknown): string {
   const n = asPrice(v);
-  if (n == null) return "Price on request";
+  if (n == null) return "Цена по запросу";
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency: "RUB",
@@ -29,16 +29,34 @@ function formatPrice(v: unknown): string {
 
 function imageUrls(raw: Record<string, unknown>): string[] {
   const d = pickCarData(raw);
-  let imgs: unknown = d.images;
-  if (typeof imgs === "string") {
-    try {
-      imgs = JSON.parse(imgs);
-    } catch {
-      return [];
+  const fields: unknown[] = [d.image, d.img, d.photo, d.images, d.h_images];
+  const out: string[] = [];
+  for (const field of fields) {
+    let v: unknown = field;
+    if (typeof v === "string") {
+      try {
+        v = JSON.parse(v);
+      } catch {
+        const directUrl = v;
+        if (typeof directUrl === "string" && /^https?:\/\//i.test(directUrl)) out.push(directUrl);
+        continue;
+      }
+    }
+    if (!Array.isArray(v)) continue;
+    for (const item of v) {
+      if (typeof item === "string" && /^https?:\/\//i.test(item)) {
+        out.push(item);
+        continue;
+      }
+      if (!item || typeof item !== "object") continue;
+      const maybeUrl =
+        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).url ??
+        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).imageUrl ??
+        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).src;
+      if (typeof maybeUrl === "string" && /^https?:\/\//i.test(maybeUrl)) out.push(maybeUrl);
     }
   }
-  if (!Array.isArray(imgs)) return [];
-  return imgs.filter((x): x is string => typeof x === "string" && x.length > 0);
+  return Array.from(new Set(out));
 }
 
 function text(v: unknown): string | null {
@@ -50,18 +68,33 @@ function text(v: unknown): string | null {
 function specs(raw: Record<string, unknown>): Array<[string, string]> {
   const d = pickCarData(raw);
   const rows: Array<[string, string | null]> = [
-    ["Make", text(d.mark)],
-    ["Model", text(d.model)],
-    ["Generation", text(d.generation ?? d.configuration)],
-    ["Year", text(d.year)],
-    ["Mileage", text(d.km_age) ? `${d.km_age} km` : null],
-    ["Engine", text(d.engine_type)],
-    ["Displacement", text(d.engine_displacement_cc) ? `${d.engine_displacement_cc} cc` : null],
-    ["Transmission", text(d.transmission_type)],
-    ["Drive", text(d.drive_type ?? d.prep_drive_type)],
-    ["Body", text(d.body_type)],
-    ["Color", text(d.color)],
-    ["VIN / Number", text(d.vehicle_no ?? d.vin)],
+    ["Марка", text(d.mark)],
+    ["Модель", text(d.model)],
+    ["Поколение / комплектация", text(d.generation ?? d.configuration)],
+    ["Год", text(d.year)],
+    ["Пробег", text(d.km_age) ? `${d.km_age} км` : null],
+    ["Двигатель", text(d.engine_type)],
+    ["Объем двигателя", text(d.engine_displacement_cc) ? `${d.engine_displacement_cc} cc` : null],
+    ["КПП", text(d.transmission_type)],
+    ["Привод", text(d.drive_type ?? d.prep_drive_type)],
+    ["Кузов", text(d.body_type)],
+    ["Цвет", text(d.color)],
+    ["VIN / номер", text(d.vehicle_no ?? d.vin)],
+  ];
+  return rows.filter((x): x is [string, string] => Boolean(x[1]));
+}
+
+function scraperFacts(raw: Record<string, unknown>): Array<[string, string]> {
+  const d = pickCarData(raw);
+  const rows: Array<[string, string | null]> = [
+    ["ДТП / страховые случаи", text(d.insurance_cases)],
+    ["Страховые выплаты (KRW)", text(d.insurance_payout_krw)],
+    ["Страховые выплаты (RUB)", text(d.insurance_payout_rub)],
+    ["Поврежденных элементов", text(d.damaged_parts_count)],
+    ["Статус лота", text(d.status ?? d.offer_status)],
+    ["Дата объявления", text(d.offer_created ?? d.created_at)],
+    ["VIN", text(d.vin)],
+    ["Номер кузова", text(d.vehicle_no)],
   ];
   return rows.filter((x): x is [string, string] => Boolean(x[1]));
 }
@@ -70,10 +103,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { ref } = await params;
   try {
     const { result } = await fetchCar(ref, { revalidate: 120 });
-    if (!result || Object.keys(result).length === 0) return { title: "Not found" };
+    if (!result || Object.keys(result).length === 0) return { title: "Не найдено" };
     return buildCarMetadata(ref, result);
   } catch {
-    return { title: "Car" };
+    return { title: "Автомобиль" };
   }
 }
 
@@ -94,7 +127,7 @@ export default async function CarPage({ params }: PageProps) {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <nav className="mb-6 text-sm">
         <Link href="/catalog" className="text-blue-600">
-          Back to catalog
+          Назад в каталог
         </Link>
       </nav>
 
@@ -123,7 +156,7 @@ export default async function CarPage({ params }: PageProps) {
             rel="noopener noreferrer"
             className="mt-3 inline-block text-sm text-blue-600"
           >
-            Original listing
+            Оригинальное объявление
           </a>
         ) : null}
         {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
@@ -151,6 +184,7 @@ export default async function CarPage({ params }: PageProps) {
                 className="h-56 w-full object-cover"
                 loading={idx < 2 ? "eager" : undefined}
                 decoding="async"
+                unoptimized
               />
             </div>
           ))}
@@ -158,7 +192,7 @@ export default async function CarPage({ params }: PageProps) {
       ) : null}
 
       <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 ">
-        <h2 className="text-lg font-semibold text-zinc-900">Specs</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">Общая информация</h2>
         <dl className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
           {specs(raw).map(([k, v]) => (
             <div key={k} className="flex items-start justify-between gap-4 border-b border-zinc-200 py-2">
@@ -169,9 +203,30 @@ export default async function CarPage({ params }: PageProps) {
         </dl>
       </section>
 
+      {scraperFacts(raw).length ? (
+        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 ">
+          <h2 className="text-lg font-semibold text-zinc-900">ДТП и состояние</h2>
+          <dl className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+            {scraperFacts(raw).map(([k, v]) => (
+              <div key={k} className="flex items-start justify-between gap-4 border-b border-zinc-200 py-2">
+                <dt className="text-sm text-zinc-500">{k}</dt>
+                <dd className="text-sm text-right text-zinc-900">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+
+      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 ">
+        <h2 className="text-lg font-semibold text-zinc-900">Данные скрапера (полные)</h2>
+        <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700">
+          {JSON.stringify(d, null, 2)}
+        </pre>
+      </section>
+
       {similar.length ? (
         <section className="mt-6">
-          <h2 className="mb-3 text-lg font-semibold text-zinc-900">Similar cars</h2>
+          <h2 className="mb-3 text-lg font-semibold text-zinc-900">Похожие автомобили</h2>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {similar.map((car) => {
               let rawImgs: unknown = car.data?.images;
@@ -198,9 +253,10 @@ export default async function CarPage({ params }: PageProps) {
                           className="h-40 w-full object-cover"
                           loading="lazy"
                           decoding="async"
+                          unoptimized
                         />
                       ) : (
-                        <div className="flex h-40 items-center justify-center text-sm text-zinc-400">No image</div>
+                        <div className="flex h-40 items-center justify-center text-sm text-zinc-400">Нет фото</div>
                       )}
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm font-medium text-zinc-900">{car.title || car.id}</p>

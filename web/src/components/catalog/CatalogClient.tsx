@@ -29,11 +29,39 @@ function formatPrice(n: number | null | undefined): string {
   }
 }
 
+function parseJsonMaybe(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
+}
+
 function firstImageUrl(car: SlimCar): string | undefined {
-  const imgs = car.data?.images;
-  if (!Array.isArray(imgs) || !imgs.length) return undefined;
-  const u = imgs[0];
-  return typeof u === "string" ? u : undefined;
+  const candidates: unknown[] = [
+    car.data?.image,
+    car.data?.img,
+    car.data?.photo,
+    car.data?.images,
+    car.data?.h_images,
+  ];
+
+  for (const raw of candidates) {
+    const value = parseJsonMaybe(raw);
+    if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
+    if (!Array.isArray(value)) continue;
+    for (const item of value) {
+      if (typeof item === "string" && /^https?:\/\//i.test(item)) return item;
+      if (!item || typeof item !== "object") continue;
+      const maybeUrl =
+        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).url ??
+        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).imageUrl ??
+        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).src;
+      if (typeof maybeUrl === "string" && /^https?:\/\//i.test(maybeUrl)) return maybeUrl;
+    }
+  }
+  return undefined;
 }
 
 function FacetGroup({
@@ -575,7 +603,7 @@ export function CatalogClient({
                           loading={idx < 3 ? "eager" : undefined}
                           fetchPriority={idx === 0 ? "high" : "auto"}
                           decoding="async"
-                          unoptimized={false}
+                          unoptimized
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-sm text-zinc-400">
