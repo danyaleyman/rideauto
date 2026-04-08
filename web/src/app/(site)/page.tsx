@@ -45,20 +45,20 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }}
       />
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-zinc-200 bg-white px-6 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <section className="rounded-2xl border border-zinc-200 bg-white px-6 py-10 shadow-sm">
           <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
             World Ride Auto
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
             Авто из Южной Кореи и Китая
           </h1>
-          <p className="mt-3 max-w-2xl text-lg text-zinc-600">
+          <p className="mt-3 max-w-2xl text-base text-zinc-600 sm:text-lg">
             Каталог на Next.js: первая отрисовка с сервера, поиск и фильтры в браузере через FastAPI,
             Meilisearch и PostgreSQL.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-center text-sm font-semibold text-white" href="/catalog">
+            <Link className="inline-flex items-center justify-center rounded-xl bg-blue-700 px-6 py-3 text-center text-sm font-semibold text-white" href="/catalog">
               Открыть каталог
             </Link>
             <Link className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800" href="/buy">
@@ -81,7 +81,7 @@ export default function Home() {
         >
           <Link
             href="/catalog?region=korea"
-            className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5"
+            className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
           >
             <span>
               <span className="block text-lg font-semibold text-zinc-900">
@@ -103,7 +103,7 @@ export default function Home() {
           </Link>
           <Link
             href="/catalog?region=china"
-            className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5"
+            className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
           >
             <span>
               <span className="block text-lg font-semibold text-zinc-900">

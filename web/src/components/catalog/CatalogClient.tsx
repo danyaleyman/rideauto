@@ -64,6 +64,21 @@ function firstImageUrl(car: SlimCar): string | undefined {
   return undefined;
 }
 
+function metaText(car: SlimCar): string {
+  const d = car.data ?? {};
+  const parts: string[] = [];
+  const mark = typeof d.mark === "string" ? d.mark.trim() : "";
+  const model = typeof d.model === "string" ? d.model.trim() : "";
+  if (mark || model) parts.push([mark, model].filter(Boolean).join(" "));
+  const km = d.km_age;
+  if (typeof km === "number" && Number.isFinite(km)) {
+    parts.push(`${km.toLocaleString("ru-RU")} км`);
+  } else if (typeof km === "string" && km.trim()) {
+    parts.push(`${km.trim()} км`);
+  }
+  return parts.join(" · ");
+}
+
 function FacetGroup({
   title,
   rows,
@@ -121,12 +136,12 @@ function FacetSkeleton() {
 
 function CardSkeleton() {
   return (
-    <li className="overflow-hidden rounded-xl border border-zinc-200 bg-white ">
-      <div className="aspect-[16/10]  bg-zinc-200" />
+    <li className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="aspect-[16/10] animate-pulse bg-zinc-200" />
       <div className="space-y-2 p-4">
-        <div className="h-4 w-11/12  rounded bg-zinc-200" />
-        <div className="h-3 w-1/2  rounded bg-zinc-200" />
-        <div className="h-5 w-1/3  rounded bg-zinc-200" />
+        <div className="h-4 w-11/12 animate-pulse rounded bg-zinc-200" />
+        <div className="h-3 w-3/4 animate-pulse rounded bg-zinc-200" />
+        <div className="h-6 w-2/5 animate-pulse rounded bg-zinc-200" />
       </div>
     </li>
   );
@@ -406,6 +421,50 @@ export function CatalogClient({
       ? search.meta.pages
       : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
 
+  const activeChips = useMemo(() => {
+    const chips: Array<{ key: keyof CatalogUrlState; label: string; value?: string }> = [];
+    state.marks.forEach((v) => chips.push({ key: "marks", label: `Марка: ${v}`, value: v }));
+    state.models.forEach((v) => chips.push({ key: "models", label: `Модель: ${v}`, value: v }));
+    state.generations.forEach((v) =>
+      chips.push({ key: "generations", label: `Поколение: ${v}`, value: v }),
+    );
+    state.trims.forEach((v) => chips.push({ key: "trims", label: `Комплектация: ${v}`, value: v }));
+    state.body.forEach((v) => chips.push({ key: "body", label: `Кузов: ${v}`, value: v }));
+    state.fuel.forEach((v) => chips.push({ key: "fuel", label: `Топливо: ${v}`, value: v }));
+    state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${v}`, value: v }));
+    state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${v}`, value: v }));
+    if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
+    if (state.price_from) chips.push({ key: "price_from", label: `Цена от: ${state.price_from}` });
+    if (state.price_to) chips.push({ key: "price_to", label: `Цена до: ${state.price_to}` });
+    if (state.mileage_from) chips.push({ key: "mileage_from", label: `Пробег от: ${state.mileage_from}` });
+    if (state.mileage_to) chips.push({ key: "mileage_to", label: `Пробег до: ${state.mileage_to}` });
+    if (state.year_from) chips.push({ key: "year_from", label: `Год от: ${state.year_from}` });
+    if (state.year_to) chips.push({ key: "year_to", label: `Год до: ${state.year_to}` });
+    return chips;
+  }, [state]);
+
+  const removeChip = (chip: { key: keyof CatalogUrlState; value?: string }) => {
+    if (
+      chip.key === "marks" ||
+      chip.key === "models" ||
+      chip.key === "generations" ||
+      chip.key === "trims" ||
+      chip.key === "body" ||
+      chip.key === "fuel" ||
+      chip.key === "trans" ||
+      chip.key === "color"
+    ) {
+      if (!chip.value) return;
+      toggle(chip.key, chip.value);
+      return;
+    }
+    if (chip.key === "drive_awd") {
+      navigate({ ...state, drive_awd: false, page: 1 });
+      return;
+    }
+    navigate({ ...state, [chip.key]: "", page: 1 });
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <div className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-6 lg:flex-row lg:items-end lg:justify-between">
@@ -448,6 +507,29 @@ export function CatalogClient({
         </div>
       </div>
 
+      {activeChips.length ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {activeChips.map((chip, idx) => (
+            <button
+              key={`${chip.key}-${chip.value ?? idx}`}
+              type="button"
+              onClick={() => removeChip(chip)}
+              className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700"
+              title="Убрать фильтр"
+            >
+              {chip.label} ×
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs font-medium text-white"
+          >
+            Сбросить все
+          </button>
+        </div>
+      ) : null}
+
       {err ? (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {err} — проверьте{" "}
@@ -457,7 +539,7 @@ export function CatalogClient({
       ) : null}
 
       <div className="flex flex-col gap-8 lg:flex-row">
-        <aside className="w-full shrink-0 space-y-3 lg:w-72">
+        <aside className="w-full shrink-0 space-y-3 lg:sticky lg:top-4 lg:h-fit lg:w-72">
           <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4">
             <label className="text-xs  font-medium text-zinc-500">Поиск</label>
             <div className="flex gap-2">
@@ -581,17 +663,18 @@ export function CatalogClient({
         </aside>
 
         <div className="min-w-0 flex-1">
-          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {search.result.map((car, idx) => {
               const img = firstImageUrl(car);
+              const meta = metaText(car);
               return (
                 <li key={car.id}>
                   <Link
                     href={`/car/${encodeURIComponent(car.id)}`}
                     prefetch
-                    className="block overflow-hidden rounded-xl border border-zinc-200 bg-white"
+                    className="block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm"
                   >
-                    <div className="aspect-[16/10] bg-zinc-100">
+                    <div className="relative aspect-[16/10] bg-zinc-100">
                       {img ? (
                         <Image
                           src={img}
@@ -606,20 +689,20 @@ export function CatalogClient({
                           unoptimized
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+                        <div className="flex h-full items-center justify-center bg-zinc-100 text-sm text-zinc-400">
                           Нет фото
                         </div>
                       )}
+                      <div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white">
+                        {car.year_num ? `${car.year_num}` : "Год не указан"}
+                      </div>
                     </div>
-                    <div className="space-y-1 p-4">
+                    <div className="space-y-2 p-4">
                       <p className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-snug text-zinc-900">
                         {car.title || car.id}
                       </p>
-                      <p className="text-xs text-zinc-500">
-                        {car.year_num ? `${car.year_num} · ` : ""}
-                        {car.id}
-                      </p>
-                      <p className="text-lg font-semibold text-zinc-900">
+                      <p className="line-clamp-1 text-xs text-zinc-500">{meta || car.id}</p>
+                      <p className="text-xl font-semibold text-zinc-900">
                         {formatPrice(car.price)}
                       </p>
                     </div>

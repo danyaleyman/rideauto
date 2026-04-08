@@ -5,13 +5,13 @@ export function SiteFooter() {
     <footer className="border-t border-zinc-200 bg-zinc-50 py-8 text-sm text-zinc-600">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <nav className="flex flex-wrap gap-x-4 gap-y-1">
-          <Link href="/privacy">
+          <Link className="hover:text-zinc-900" href="/privacy">
             Конфиденциальность
           </Link>
-          <Link href="/cookies">
+          <Link className="hover:text-zinc-900" href="/cookies">
             Cookie
           </Link>
-          <Link href="/agreement">
+          <Link className="hover:text-zinc-900" href="/agreement">
             Соглашение
           </Link>
         </nav>

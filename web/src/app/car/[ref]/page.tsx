@@ -131,50 +131,56 @@ export default async function CarPage({ params }: PageProps) {
         </Link>
       </nav>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 ">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">ID: {carId}</p>
-        <p className="mt-3 text-xl font-semibold text-zinc-900">{formatPrice(d.my_price ?? d.price)}</p>
-        {typeof d.dongchedi_msrp_rub === "number" && d.dongchedi_msrp_rub > 0 ? (
-          <p className="mt-1 text-sm text-zinc-600">
-            Ориентир новой (КНР, MSRP): {formatPrice(d.dongchedi_msrp_rub)}
-          </p>
-        ) : null}
-        {typeof d.dongchedi_usedcar_url === "string" && d.dongchedi_usedcar_url.trim() ? (
-          <a
-            href={d.dongchedi_usedcar_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block text-sm text-blue-600"
-          >
-            Карточка на Dongchedi
-          </a>
-        ) : typeof d.url === "string" && d.url.trim() ? (
-          <a
-            href={d.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block text-sm text-blue-600"
-          >
-            Оригинальное объявление
-          </a>
-        ) : null}
-        {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
-          <a
-            href={d.dongchedi_specs_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-block text-sm text-blue-600"
-          >
-            Параметры модели (Dongchedi)
-          </a>
-        ) : null}
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{title}</h1>
+            <p className="mt-1 text-sm text-zinc-500">ID: {carId}</p>
+            <p className="mt-3 text-2xl font-semibold text-zinc-900">{formatPrice(d.my_price ?? d.price)}</p>
+            {typeof d.dongchedi_msrp_rub === "number" && d.dongchedi_msrp_rub > 0 ? (
+              <p className="mt-1 text-sm text-zinc-600">
+                Ориентир новой (КНР, MSRP): {formatPrice(d.dongchedi_msrp_rub)}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {typeof d.dongchedi_usedcar_url === "string" && d.dongchedi_usedcar_url.trim() ? (
+              <a
+                href={d.dongchedi_usedcar_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700"
+              >
+                Карточка Dongchedi
+              </a>
+            ) : typeof d.url === "string" && d.url.trim() ? (
+              <a
+                href={d.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700"
+              >
+                Оригинал
+              </a>
+            ) : null}
+            {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
+              <a
+                href={d.dongchedi_specs_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700"
+              >
+                Параметры модели
+              </a>
+            ) : null}
+          </div>
+        </div>
       </section>
 
       {imgs.length ? (
         <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {imgs.slice(0, 18).map((src, idx) => (
-            <div key={src} className="overflow-hidden rounded-xl border border-zinc-200">
+            <div key={src} className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50">
               <Image
                 src={src}
                 alt={title}
@@ -191,7 +197,7 @@ export default async function CarPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 ">
+      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Общая информация</h2>
         <dl className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
           {specs(raw).map(([k, v]) => (
@@ -204,7 +210,7 @@ export default async function CarPage({ params }: PageProps) {
       </section>
 
       {scraperFacts(raw).length ? (
-        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 ">
+        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">ДТП и состояние</h2>
           <dl className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
             {scraperFacts(raw).map(([k, v]) => (
@@ -216,13 +222,6 @@ export default async function CarPage({ params }: PageProps) {
           </dl>
         </section>
       ) : null}
-
-      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 ">
-        <h2 className="text-lg font-semibold text-zinc-900">Данные скрапера (полные)</h2>
-        <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700">
-          {JSON.stringify(d, null, 2)}
-        </pre>
-      </section>
 
       {similar.length ? (
         <section className="mt-6">
@@ -240,7 +239,7 @@ export default async function CarPage({ params }: PageProps) {
               const img =
                 Array.isArray(rawImgs) && typeof rawImgs[0] === "string" ? rawImgs[0] : undefined;
               return (
-                <li key={car.id} className="rounded-xl border border-zinc-200 bg-white p-3 ">
+                <li key={car.id} className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
                   <Link href={`/car/${encodeURIComponent(car.id)}`} className="block">
                     <div className="overflow-hidden rounded-lg bg-zinc-100">
                       {img ? (
