@@ -39,27 +39,27 @@ export function BuyCalculator() {
   }, [ageGroup, currency, engineCc, fuel, horsePower, price]);
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Rough calculator</h2>
+    <section className="rounded-2xl border border-zinc-200 bg-white p-6">
+      <h2 className="text-xl font-semibold text-zinc-900">Rough calculator</h2>
       <p className="mt-1 text-sm text-zinc-500">Estimate only, final quote depends on market and logistics.</p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <label className="text-sm">Car price
-          <input className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" type="number" value={price} onChange={(e) => setPrice(Number(e.target.value || 0))} />
+          <input className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2" type="number" value={price} onChange={(e) => setPrice(Number(e.target.value || 0))} />
         </label>
         <label className="text-sm">Currency
-          <select className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+          <select className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
             <option value="KRW">KRW</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="RUB">RUB</option>
           </select>
         </label>
         <label className="text-sm">Engine cc
-          <input className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" type="number" value={engineCc} onChange={(e) => setEngineCc(Number(e.target.value || 0))} />
+          <input className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2" type="number" value={engineCc} onChange={(e) => setEngineCc(Number(e.target.value || 0))} />
         </label>
         <label className="text-sm">Horse power
-          <input className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" type="number" value={horsePower} onChange={(e) => setHorsePower(Number(e.target.value || 0))} />
+          <input className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2" type="number" value={horsePower} onChange={(e) => setHorsePower(Number(e.target.value || 0))} />
         </label>
         <label className="text-sm">Car age
-          <select className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" value={ageGroup} onChange={(e) => setAgeGroup(e.target.value as AgeGroup)}>
+          <select className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2" value={ageGroup} onChange={(e) => setAgeGroup(e.target.value as AgeGroup)}>
             <option value="lt3">less than 3 years</option>
             <option value="3to5">3-5 years</option>
             <option value="5to7">5-7 years</option>
@@ -67,13 +67,13 @@ export function BuyCalculator() {
           </select>
         </label>
         <label className="text-sm">Fuel type
-          <select className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900" value={fuel} onChange={(e) => setFuel(e.target.value as Fuel)}>
+          <select className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2" value={fuel} onChange={(e) => setFuel(e.target.value as Fuel)}>
             <option value="petrol">petrol</option><option value="diesel">diesel</option><option value="hybrid">hybrid</option><option value="electric">electric</option>
           </select>
         </label>
       </div>
 
-      <dl className="mt-6 grid gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+      <dl className="mt-6 grid gap-2 text-sm text-zinc-600">
         <div className="flex justify-between"><dt>Price in RUB</dt><dd>{money(result.baseRub)}</dd></div>
         <div className="flex justify-between"><dt>Logistics</dt><dd>{money(result.logistics)}</dd></div>
         <div className="flex justify-between"><dt>Customs</dt><dd>{money(result.customs)}</dd></div>
@@ -83,7 +83,7 @@ export function BuyCalculator() {
         <div className="flex justify-between"><dt>Service fee (3%)</dt><dd>{money(result.service)}</dd></div>
       </dl>
 
-      <p className="mt-5 rounded-xl bg-zinc-100 px-4 py-3 text-lg font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50">
+      <p className="mt-5 rounded-xl bg-zinc-100 px-4 py-3 text-lg font-semibold text-zinc-900">
         Estimated total: {money(result.total)}
       </p>
     </section>

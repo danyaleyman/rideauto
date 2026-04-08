@@ -78,7 +78,7 @@ sudo systemctl restart encar-api.service
 ### Telegram Login (виджет «Войти через Telegram»)
 
 1. В @BotFather у вашего бота включите **Login** и укажите домен **`rideauto.ru`** (без `https://`).
-2. Виджет на сайте использует **username бота** (без `@`). Задайте его в `frontend/js/wra-site-config.js` (поле по умолчанию можно заменить на username нового бота) или переопределите до загрузки скрипта: `window.WRA_TELEGRAM_LOGIN_BOT = 'my_bot_username';`
+2. Виджет на сайте использует **username бота** (без `@`). Задайте его в `web/public/js/wra-site-config.js` или переопределите до загрузки скрипта: `window.WRA_TELEGRAM_LOGIN_BOT = 'my_bot_username';`
 3. **HTTPS обязателен** для реального входа — сначала получите сертификат (шаг ниже).
 
 ## 4) nginx
@@ -116,33 +116,26 @@ sudo nginx -t && sudo systemctl reload nginx
 
 Убедитесь, что `PUBLIC_SITE_URL` в `/etc/default/prod-encar` совпадает с публичным URL (**https://**).
 
-## Пайплайн Encar (как всё крутится без ручных нажатий)
+## Пайплайн Encar (Postgres + Next + FastAPI)
 
-Продакшен без PostgreSQL использует **SQLite** (`encar_cars.db`) и `backend/config.json` с недоступным Postgres — тогда `auto_update.py` вызывает **`encar_daily_update.py --once`**.
+Целевой продакшен — **PostgreSQL**; без доступного Postgres **`auto_update.py`** завершается ошибкой.
 
-1. **Первый раз на сервере** — полная выгрузка каталога (импорт **`for`** + местные **`kor`**, как две вкладки на encar.com). В `scraper_config.yaml`: `car_types: [for, kor]`, **`max_cars: 0`** (без лимита). Команда:
+1. **Первый раз** — полная выгрузка (**`for`** + **`kor`**). В `scraper_config.yaml`: `storage.backend: postgres`, DSN / `DATABASE_URL`, `car_types: [for, kor]`, **`max_cars: 0`**. Команда:
    ```bash
    chmod +x deploy/scripts/first_full_encar_import.sh
    ./deploy/scripts/first_full_encar_import.sh /opt/prod-encar
    ```
-   Либо вручную: `.venv/bin/python backend/encar_scraper.py --config scraper_config.yaml`. В конце скрапер сам вызывает экспорт в `frontend/` (**`export_from_scraper_db.py`**, внутри — **`price.py`**, курсы Binance и поля `my_price` и т.д.).
+   Либо: `.venv/bin/python backend/encar_scraper.py --config scraper_config.yaml`. Затем при необходимости **`postgres_catalog_sync`**, обновление **Meilisearch**.
 
-2. **Каждый день в 00:00 (полночь) Asia/Yekaterinburg** срабатывает таймер обновления:
-   - в репозитории: **`encar-update.timer`** → **`encar-update.service`** *или* **`prod-encar-auto-update.timer`** → **`prod-encar-auto-update.service`** (не включайте **оба**, будет двойной прогон);
-   - **`auto_update.py --type daily`** → без PostgreSQL сразу **`encar_daily_update.py --once`**, с PostgreSQL — после PG-цикла при **`catalog_sync_sqlite: true`** тот же SQLite-цикл.
-   В `backend/config.json` в `update_config` держите **`"catalog_sync_sqlite": true`**, если каталог на `encar_cars.db` должен совпадать с сайтом. Цикл SQLite:
-   - новые объявления по свежим страницам списка **for/kor**;
-   - случайная выборка `sold_check_sample` из БД → деталь Encar → **404 / sold** → удаление из SQLite и чекпоинта;
-   - догрузка деталей **`encar_scraper.py --only-pending`**;
-   - **`export_from_scraper_db`** ( **`price.py`** внутри экспорта, `my_price` обратно в SQLite + `cars.json`, chunks, `catalog_facets.json`).
+2. **Каждый день 00:00 Asia/Yekaterinburg** — **`encar-update.timer`** / **`prod-encar-auto-update.timer`** (не оба сразу). **`auto_update.py --type daily`**: цикл EncarSystem в Postgres; при **`catalog_encar_nightly: true`** — **`encar_daily_update.py --once`**.
 
-3. **Сайт** отдаёт статику из `frontend/`; **API** читает **`encar_cars.db`** (Корея) и при настроенном **`--db-china`** / **`WRA_CHINA_DB_PATH`** — **`encar_china.db`** (Dongchedi). После шага 2 корейские данные в БД уже новые; китайский каталог: сначала полный ручной прогон **`dongchedi.scraper`**, затем ежедневно в полночь **Asia/Yekaterinburg** — **`dongchedi-update.timer`** / **`prod-dongchedi-update.timer`** (см. `deploy/DEPLOY.md`). Микрокэш nginx для **`/api/cars`** и фасетов может отдавать ответ до **~60 s** после записи; при необходимости очистите зону **`proxy_cache_path`** или дождитесь TTL.
+3. **Сайт** — Next (`web/`); **API** — FastAPI, Postgres + Meilisearch. Китай — `dongchedi.scraper` в ту же БД; **`dongchedi-update.timer`**. Микрокэш nginx для **`/api/cars`** может отдавать устаревший ответ до ~60 s.
 
 Если systemd не знает `Asia/Yekaterinburg` в `OnCalendar`, либо обновите systemd, либо задайте UTC-эквивалент: **00:00 Екатеринбурга (UTC+5) = 19:00 UTC предыдущего календарного дня** (запись вида `OnCalendar=*-*-* 19:00:00` в **UTC** требует сдвига при переходе ЛО‑времени — предпочтительно починить timezone в таймере).
 
 ## 5) Права на файлы
 
-`encar-api.service` работает от `www-data` и нуждается в чтении/записи БД и каталога проекта (`ReadWritePaths=/opt/prod-encar`). Выдайте права на `encar_cars.db`, **`encar_china.db`** (если используете Dongchedi) и при необходимости на `frontend/` так, чтобы `www-data` мог обновлять артефакты скрапера (или запускайте обновление каталога от того же пользователя). Удобно: `deploy/scripts/ensure_scraper_runtime_permissions.sh`.
+`encar-api.service` работает от `www-data` и нуждается в доступе к каталогу репозитория и переменным с DSN Postgres (`ReadWritePaths=/opt/prod-encar`). Локальные `*.db` на диске могут остаться только после миграции. Удобно: `deploy/scripts/ensure_scraper_runtime_permissions.sh` (логи + опциональные файлы).
 
 ## 6) Verify
 
@@ -158,14 +151,7 @@ source .venv/bin/activate
 python backend/auto_update.py --config backend/config.json --type daily --workers 8
 ```
 
-После обновления появляются/обновляются:
-
-- `frontend/cars.json`
-- `frontend/data/cars.index.json`
-- `frontend/data/chunks/cars_*.json`
-- при необходимости `.gz` варианты
-
-Каталог в браузере при сотнях тысяч объявлений идёт через **API** (`/api/cars`), а не через полный `cars.json`.
+Опционально для CDN/отладки: **`postgres_catalog_sync --write-legacy-json`** пишет `web/public/cars.json` и чанки в `web/public/data/`. В проде листинг идёт через **API** + Meilisearch, а не через полный JSON.
 
 ## Sitemap на диск (~500k URL)
 

@@ -20,14 +20,14 @@ __pycache__/
 *.db-shm
 *.db-wal
 
-# Выгрузка каталога на фронт (генерируется export / скрапером)
-frontend/cars.json
-frontend/cars.json.gz
-frontend/data/cars.index.json
-frontend/data/cars.index.json.gz
-frontend/data/chunks/*.json
-frontend/data/chunks/*.json.gz
-frontend/data/chunks/*.tmp
+# Опциональная статическая выгрузка каталога
+web/public/cars.json
+web/public/cars.json.gz
+web/public/data/cars.index.json
+web/public/data/cars.index.json.gz
+web/public/data/chunks/*.json
+web/public/data/chunks/*.json.gz
+web/public/data/chunks/*.tmp
 
 # Python venv
 .venv/

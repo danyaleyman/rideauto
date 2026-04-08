@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Полный перескрейп Китая: все марки (--shard-brands), enrich (карточка + фото + params), с нуля без resume.
-# Перед запуском лучше остановить таймер, чтобы не писали в одну БД два процесса:
+# Полный перескрейп Китая: все марки (--shard-brands), enrich → PostgreSQL (dongchedi_scraper.yaml).
+# Нужен DATABASE_URL / storage.postgres.dsn при backend=postgres.
+# После прогона при необходимости: infrastructure/meilisearch/sync_meilisearch.py (или ночной общий sync).
+# Перед запуском остановите таймер, чтобы не писали в одну БД два процесса:
 #   sudo systemctl stop dongchedi-update.timer prod-dongchedi-update.timer 2>/dev/null || true
 set -euo pipefail
 

@@ -2,7 +2,7 @@
 Description=Run Prod Encar update daily
 
 [Timer]
-# Полночь Asia/Yekaterinburg — см. encar_daily_update.py + export_from_scraper_db (цены, chunks, catalog_facets.json)
+# Полночь Asia/Yekaterinburg — encar_daily_update / auto_update (Postgres; опционально postgres_catalog_sync)
 OnCalendar=*-*-* 00:00:00 Asia/Yekaterinburg
 Persistent=true
 Unit=encar-update.service

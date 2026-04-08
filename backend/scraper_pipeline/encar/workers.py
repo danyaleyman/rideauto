@@ -9,7 +9,7 @@ from typing import Any, List, Optional, Tuple
 
 from parser_full import EncarFullParser
 
-from scraper_pipeline.checkpoint_sqlite import Checkpoint
+from scraper_pipeline.checkpoint_pg import Checkpoint
 from scraper_pipeline.encar.client import AsyncEncarClient
 from scraper_pipeline.encar.parser import parse_one_car_async
 from scraper_pipeline.encar.savers import CarSaver

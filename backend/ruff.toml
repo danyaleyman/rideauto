@@ -8,6 +8,5 @@ exclude = [
   "run_system.py",
   "main_system.py",
   "postgresql_database.py",
-  "export_from_scraper_db.py",
   "scripts",
 ]

@@ -1,5 +1,5 @@
 [Unit]
-Description=Write shard XML sitemaps to disk (Korea + China DB), prod-encar
+Description=Write shard XML sitemaps to disk (PostgreSQL catalog), prod-encar
 After=network.target
 
 [Service]
@@ -9,7 +9,8 @@ Group=prod-encar
 WorkingDirectory=/opt/prod-encar
 Environment=PYTHONUNBUFFERED=1
 Environment=PUBLIC_SITE_URL=https://rideauto.ru
-ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/scripts/generate_sitemap_files.py --db /opt/prod-encar/encar_cars.db --db-china /opt/prod-encar/encar_china.db --out /var/www/sitemap --base-url https://rideauto.ru --web-path /sitemap-gen/
+EnvironmentFile=-/etc/default/prod-encar
+ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/scripts/generate_sitemap_files.py --out /var/www/sitemap --base-url https://rideauto.ru --web-path /sitemap-gen/
 TimeoutStartSec=6h
 NoNewPrivileges=true
 PrivateTmp=true

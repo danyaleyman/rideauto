@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "frontend" / "data"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 POWER_LOOKUP_PATH = DATA_DIR / "power_lookup.json"
 
 

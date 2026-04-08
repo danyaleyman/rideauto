@@ -46,32 +46,26 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }}
       />
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-zinc-200 bg-gradient-to-b from-white to-zinc-50 px-6 py-10 shadow-sm dark:border-zinc-800 dark:from-zinc-950 dark:to-zinc-900">
-          <p className="text-sm font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">
+        <section className="rounded-2xl border border-zinc-200 bg-white px-6 py-10">
+          <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
             World Ride Auto
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
             Авто из Южной Кореи и Китая
           </h1>
-          <p className="mt-3 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-3 max-w-2xl text-lg text-zinc-600">
             Каталог на Next.js: первая отрисовка с сервера, поиск и фильтры в браузере через FastAPI,
             Meilisearch и PostgreSQL.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-center text-sm font-semibold text-white shadow hover:bg-blue-700"
-              href="/catalog"
-            >
+            <Link className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-center text-sm font-semibold text-white" href="/catalog">
               Открыть каталог
             </Link>
-            <Link
-              className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              href="/buy"
-            >
+            <Link className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800" href="/buy">
               Как купить
             </Link>
             <a
-              className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800"
               href="https://t.me/nikits15"
               target="_blank"
               rel="noopener noreferrer"
@@ -87,17 +81,17 @@ export default function Home() {
         >
           <Link
             href="/catalog?region=korea"
-            className="group flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-blue-900"
+            className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5"
           >
             <span>
-              <span className="block text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              <span className="block text-lg font-semibold text-zinc-900">
                 Из Кореи
               </span>
               <span className="mt-1 block text-sm text-zinc-500">
                 Фильтры, Encar, расчёт «под ключ»
               </span>
             </span>
-            <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+            <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
               <Image
                 src="/image/korea-market.png"
                 alt=""
@@ -109,17 +103,17 @@ export default function Home() {
           </Link>
           <Link
             href="/catalog?region=china"
-            className="group flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-blue-900"
+            className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5"
           >
             <span>
-              <span className="block text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              <span className="block text-lg font-semibold text-zinc-900">
                 Из Китая
               </span>
               <span className="mt-1 block text-sm text-zinc-500">
                 Dongchedi / Che168, отдельный индекс в поиске
               </span>
             </span>
-            <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+            <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
               <Image
                 src="/image/china-market.png"
                 alt=""
@@ -133,11 +127,11 @@ export default function Home() {
 
         <p className="mt-10 text-center text-sm text-zinc-500">
           Каталог с фильтрами и поиском — в разделе{" "}
-          <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" href="/catalog">
+          <Link className="font-medium text-blue-600" href="/catalog">
             Каталог
           </Link>
           . SEO-посадки доступны по путям{" "}
-          <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">/seo/korea/…</code> (статика из
+          <code className="rounded bg-zinc-100 px-1">/seo/korea/…</code> (статика из
           сборки).
         </p>
       </div>

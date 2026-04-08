@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """
-Генерация XML sitemap на диск для cron (большие каталоги: не держать 500k URL в памяти API).
+Генерация XML sitemap на диск для cron (каталог в PostgreSQL).
 
-  python scripts/generate_sitemap_files.py --db encar_cars.db --out /var/www/sitemap \\
+  python scripts/generate_sitemap_files.py --dsn "$DATABASE_URL" --out /var/www/sitemap \\
     --base-url https://rideauto.ru --web-path /sitemap-gen/
 
-Затем в nginx: location /sitemap-gen/ { alias /var/www/sitemap/; }
-robots.txt / основной индекс могут ссылаться на …/sitemap-gen/sitemap-index.xml
-(скопируйте сгенерированный sitemap-index.xml или включите в деплой).
-
-Требуется тот же Python-окружение, что и для backend (aiohttp не нужен).
+Требуется: pip install psycopg2-binary
 """
 from __future__ import annotations
 
@@ -17,22 +13,59 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from xml.sax.saxutils import escape as xml_escape_text
+
+try:
+    import psycopg2
+except ImportError:
+    print("Install psycopg2-binary", file=sys.stderr)
+    sys.exit(1)
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
 
-from api_server import (  # noqa: E402
-    _sitemap_catalog_xml_body,
-    _sitemap_collect_car_ids_slice,
-    _sitemap_count_rows,
-)
-from xml.sax.saxutils import escape as xml_escape_text  # noqa: E402
+
+def _sitemap_catalog_xml_body(base: str, car_ids: list[str]) -> str:
+    from urllib.parse import quote
+
+    base = base.rstrip("/")
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for cid in car_ids:
+        loc = f"{base}/car/{quote(cid, safe='')}"
+        lines.append("  <url>")
+        lines.append(f"    <loc>{xml_escape_text(loc)}</loc>")
+        lines.append("    <changefreq>weekly</changefreq>")
+        lines.append("    <priority>0.7</priority>")
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    return "\n".join(lines) + "\n"
+
+
+def _count_rows(dsn: str) -> int:
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM cars")
+            r = cur.fetchone()
+            return int(r[0]) if r and r[0] is not None else 0
+
+
+def _ids_slice(dsn: str, offset: int, limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT car_id FROM cars ORDER BY id DESC LIMIT %s OFFSET %s",
+                (limit, max(0, offset)),
+            )
+            return [str(r[0]).strip() for r in cur.fetchall() if r and r[0]]
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Записать шардированные sitemap-catalog-*.xml на диск")
-    p.add_argument("--db", required=True, help="SQLite Корея (encar_cars.db)")
-    p.add_argument("--db-china", default="", help="Китайский каталог (опционально)")
+    p = argparse.ArgumentParser(description="Sitemap shards из PostgreSQL cars")
+    p.add_argument("--dsn", default=os.environ.get("DATABASE_URL", "").strip(), help="PostgreSQL DSN")
     p.add_argument("--out", required=True, help="Каталог вывода")
     p.add_argument(
         "--base-url",
@@ -42,7 +75,7 @@ def main() -> None:
     p.add_argument(
         "--web-path",
         default="/sitemap-gen/",
-        help="Публичный префикс URL, под которым nginx отдаёт файлы из --out (со слэшем на конце)",
+        help="Публичный префикс URL для шардов",
     )
     p.add_argument(
         "--shard",
@@ -51,9 +84,10 @@ def main() -> None:
         help="URL на шард (макс. 45000)",
     )
     args = p.parse_args()
+    dsn = (args.dsn or "").strip()
+    if not dsn:
+        p.error("--dsn or DATABASE_URL required")
     cap = min(45000, max(1, args.shard))
-    china_arg = args.db_china.strip() or None
-    db_k = str(Path(args.db).expanduser().resolve())
     out = Path(args.out).expanduser().resolve()
     out.mkdir(parents=True, exist_ok=True)
 
@@ -64,15 +98,12 @@ def main() -> None:
     if not web_prefix.endswith("/"):
         web_prefix += "/"
 
-    china_path = str(Path(china_arg).expanduser().resolve()) if china_arg else ""
-    nk = _sitemap_count_rows(db_k)
-    nc = _sitemap_count_rows(china_path) if china_path else 0
-    total = nk + nc
+    total = _count_rows(dsn)
     n_parts = max(1, (total + cap - 1) // cap) if total > 0 else 1
 
     for part in range(1, n_parts + 1):
         offset = (part - 1) * cap
-        ids = _sitemap_collect_car_ids_slice(db_k, china_arg, offset, cap)
+        ids = _ids_slice(dsn, offset, cap)
         (out / f"sitemap-catalog-{part}.xml").write_text(
             _sitemap_catalog_xml_body(base, ids), encoding="utf-8"
         )

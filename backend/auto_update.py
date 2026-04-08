@@ -73,9 +73,7 @@ class AutoUpdateManager:
             'update_config': {
                 'max_workers': 5,
                 'update_type': 'daily',  # 'daily' or 'full'
-                # После цикла Postgres дополнительно: encar_daily_update → encar_cars.db + cars.json (легаси).
-                # Для стека FastAPI + Postgres + Meilisearch можно выключить; для api_server + SQLite оставьте true.
-                'catalog_sync_sqlite': True,
+                'catalog_encar_nightly': True,
             },
             'notification_config': {
                 'enabled': False,
@@ -289,33 +287,21 @@ class AutoUpdateManager:
         try:
             # Настройка системы
             db_ok = self.setup_database()
-            # Если PostgreSQL недоступен — запускаем обновление через SQLite-based пайплайн
+            # Если PostgreSQL недоступен — обновление пропускается (Postgres-only каталог/чекпоинт).
             if not db_ok:
-                logger.warning("PostgreSQL недоступен. Запускаю обновление через encar_daily_update.py (SQLite checkpoint).")
-                backend_dir = Path(__file__).resolve().parent
-                repo_dir = backend_dir.parent
-                config_path = repo_dir / "scraper_config.yaml"
-                daily_update_path = backend_dir / "encar_daily_update.py"
-
-                cmd = [sys.executable, str(daily_update_path), "--once", "--config", str(config_path)]
-                proc = subprocess.run(cmd, cwd=str(repo_dir))
+                logger.error("PostgreSQL недоступен — автообновление каталога Encar пропущено (нужен DB для чекпоинта и каталога).")
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds()
-                status = "success" if proc.returncode == 0 else "error"
-                # Экспорт в cars.json + расчёт цен (price.py) уже выполняется в конце encar_daily_update.run_one_cycle
-                if proc.returncode == 0:
-                    logger.info("SQLite daily: encar_daily_update завершил цикл (БД + экспорт на фронт).")
-                report = {
-                    "status": status,
-                    "update_type": "daily_sqlite",
+                return {
+                    "status": "error",
+                    "update_type": update_type,
                     "duration_seconds": duration,
                     "start_time": start_time.isoformat(),
                     "end_time": end_time.isoformat(),
                     "backup_file": None,
-                    "result": {"returncode": proc.returncode},
-                    "health_check": {"status": "warning", "message": "PostgreSQL not connected; used SQLite pipeline"},
+                    "result": {},
+                    "health_check": {"status": "error", "message": "PostgreSQL not connected"},
                 }
-                return report
 
             self.setup_system()
             
@@ -378,21 +364,23 @@ class AutoUpdateManager:
             
             logger.info("Автоматическое обновление завершено успешно!")
 
-            if self.config.get("update_config", {}).get("catalog_sync_sqlite", True):
+            uc = self.config.get("update_config") or {}
+            # Backward-compat: старое поле config `catalog_sync_sqlite` трактуем как nightly флаг.
+            if uc.get("catalog_encar_nightly", uc.get("catalog_sync_sqlite", True)):
                 backend_dir = Path(__file__).resolve().parent
                 repo_dir = backend_dir.parent
                 config_path = repo_dir / "scraper_config.yaml"
                 daily_update_path = backend_dir / "encar_daily_update.py"
-                logger.info("Синхронизация каталога SQLite (encar_daily_update --once) для совпадения с API…")
-                proc_sqlite = subprocess.run(
+                logger.info("Ночной цикл Encar (encar_daily_update --once): discover, sold, scraper…")
+                proc_encar = subprocess.run(
                     [sys.executable, str(daily_update_path), "--once", "--config", str(config_path)],
                     cwd=str(repo_dir),
                 )
-                if proc_sqlite.returncode != 0:
+                if proc_encar.returncode != 0:
                     raise RuntimeError(
-                        f"encar_daily_update завершился с кодом {proc_sqlite.returncode}; каталог encar_cars.db не обновлён"
+                        f"encar_daily_update завершился с кодом {proc_encar.returncode}"
                     )
-                report["catalog_sqlite_sync"] = {"status": "ok", "returncode": 0}
+                report["catalog_encar_nightly"] = {"status": "ok", "returncode": 0}
 
             return report
             
@@ -467,7 +455,7 @@ def main():
     if result['status'] == 'success':
         res = result.get("result") or {}
         if isinstance(res, dict):
-            print(f"Обработано автомобилей: {res.get('total_processed', '— (sqlite: см. лог encar_daily_update)')}")
+            print(f"Обработано автомобилей: {res.get('total_processed', '— (см. лог encar_daily_update)')}")
         else:
             print(f"Результат: {res}")
     else:

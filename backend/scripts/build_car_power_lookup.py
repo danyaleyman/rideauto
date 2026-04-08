@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = REPO_ROOT / "frontend" / "data"
+DATA_DIR = REPO_ROOT / "data"
 CSV_PATH = DATA_DIR / "encar_api_flat_for_mapping.csv"
 OUT_PATH = DATA_DIR / "car_power_lookup.json"
 

@@ -1,4 +1,6 @@
-# Резервное копирование SQLite (каталог Encar)
+# Резервное копирование SQLite (миграция / старые снимки)
+
+Актуальный продакшен каталога — **PostgreSQL**. Этот документ полезен, если у вас остались файлы `encar_*.db` или вы делаете off-line снимок перед `migrate_sqlite_to_postgres.py`.
 
 ## Режим WAL
 
@@ -43,19 +45,14 @@ sqlite3 /path/to/encar_cars.db ".backup '/path/to/backup/encar_cars_$(date +%Y%m
 
 Если обновляли каталог в обход штатного API (сырой `INSERT`/восстановление), имеет смысл один раз открыть БД и выполнить `ANALYZE cars;` — планировщик SQLite лучше оценит селективность (в штатном старте API индексы и `ANALYZE` поднимаются через `_ensure_catalog_indexes`).
 
-## Хранилище каталога в API
-
-Публичные `/api/cars` и `/api/facets` читают **SQLite** на VPS (отдельный файл для Китая). PostgreSQL в проекте используется конвейером обновления; перенос чтения каталога в PG — отдельный объём работ (дублирование SQL/JSON под второй движок). Пока упираетесь в latency — наращивайте кэш nginx, `meta.next_cursor`, лимиты `page`, cron sitemap на диск.
-
-## Расписание
+## Расписание (если ещё ведёте SQLite)
 
 Настройте `cron` или systemd timer: ежедневный `.backup` в отдельный каталог + ротация (удаление копий старше N дней).
 
-Файловый sitemap: `deploy/systemd/prod-encar-sitemap-gen.timer` (или cron с тем же `generate_sitemap_files.py` и **`--db-china`**). После успешного прогона проверяйте наличие свежих `sitemap-index.xml` и `sitemap-catalog-*.xml` в `--out` (алерт по mtime).
+Файловый sitemap из **Postgres**: `deploy/systemd/prod-encar-sitemap-gen.timer` и `scripts/generate_sitemap_files.py` (в окружении — `DATABASE_URL`). Проверяйте свежесть `sitemap-index.xml` и шардов в каталоге `--out`.
 
-## Проверка восстановления (рекомендуется раз в квартал)
+## Проверка после восстановления / миграции
 
-1. На тестовой машине или временном каталоге разверните копию бэкапа `.db` (и при необходимости `encar_china.db`).
-2. Запустите API с этими путями (`--db`, `--db-china`) и выполните `GET /api/health?deep=1`: поля `catalog_db.readable`, `cars_rows` должны быть в порядке.
-3. Выборочно откройте `/api/cars?page=1` и `/api/car/{id}` по известному id из бэкапа.
-4. Зафиксируйте время прохождения и отклонения (если бэкап не поднялся — исправляйте процесс, а не только файл).
+1. Импортируйте снимок `.db` в Postgres через `migrate_sqlite_to_postgres.py` (копия на тестовой машине).
+2. Проверьте FastAPI: `GET /api/health`, `/api/cars?per_page=2`, `/api/car/{id}`.
+3. Зафиксируйте время прохождения и отклонения в runbook.

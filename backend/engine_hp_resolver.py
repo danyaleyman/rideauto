@@ -13,7 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "frontend" / "data"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 ENGINE_MAP_PATH = DATA_DIR / "engine_map.json"
 ENC_MAPPING_PATH = DATA_DIR / "encar_mapping.json"
 

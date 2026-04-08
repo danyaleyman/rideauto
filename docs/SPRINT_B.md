@@ -106,7 +106,7 @@ Throughout this doc, **`docker compose`** (v2) and **`docker-compose`** (v1) use
 
 ## 7) Shrink `web` build context
 
-Root **`.dockerignore`** excludes host **`web/node_modules`**, unused **`frontend/*.html`** and heavy **`frontend/data/*`** except **`engine_map.json`** (see comments in that file). After changing ignore rules, rebuild:
+Root **`.dockerignore`** shrinks the Docker build context: **`web/node_modules`**, **`web/.next`**, тяжёлые каталоги вроде **`deploy/`**, **`docs/`**, **`infrastructure/`** (см. файл). After changing ignore rules, rebuild:
 
 ```bash
 docker compose build web

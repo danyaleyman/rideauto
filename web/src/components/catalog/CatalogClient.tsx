@@ -16,9 +16,6 @@ import {
 import { fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
 import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
 
-const BLUR_DATA_URL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-
 function formatPrice(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
   try {
@@ -52,7 +49,7 @@ function FacetGroup({
 }) {
   if (!rows.length) return null;
   return (
-    <fieldset className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+    <fieldset className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
       <legend className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {title}
       </legend>
@@ -60,7 +57,7 @@ function FacetGroup({
         {rows.map((r) => (
           <label
             key={r.value}
-            className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5"
           >
             <input
               type="checkbox"
@@ -83,12 +80,12 @@ function FacetGroup({
 
 function FacetSkeleton() {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
-      <div className="mb-2 h-4 w-24 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+      <div className="mb-2 h-4 w-24  rounded bg-zinc-200" />
       <div className="space-y-2">
-        <div className="h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-        <div className="h-4 w-5/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-        <div className="h-4 w-4/6 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-4 w-full  rounded bg-zinc-200" />
+        <div className="h-4 w-5/6  rounded bg-zinc-200" />
+        <div className="h-4 w-4/6  rounded bg-zinc-200" />
       </div>
     </div>
   );
@@ -96,12 +93,12 @@ function FacetSkeleton() {
 
 function CardSkeleton() {
   return (
-    <li className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="aspect-[16/10] animate-pulse bg-zinc-200 dark:bg-zinc-800" />
+    <li className="overflow-hidden rounded-xl border border-zinc-200 bg-white ">
+      <div className="aspect-[16/10]  bg-zinc-200" />
       <div className="space-y-2 p-4">
-        <div className="h-4 w-11/12 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-        <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-        <div className="h-5 w-1/3 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-4 w-11/12  rounded bg-zinc-200" />
+        <div className="h-3 w-1/2  rounded bg-zinc-200" />
+        <div className="h-5 w-1/3  rounded bg-zinc-200" />
       </div>
     </li>
   );
@@ -153,43 +150,43 @@ function RangeBlock({
           placeholder="Цена от"
           value={draft.price_from}
           onChange={(e) => setDraft((d) => ({ ...d, price_from: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+          className="rounded border border-zinc-300 px-2 py-1.5"
         />
         <input
           placeholder="Цена до"
           value={draft.price_to}
           onChange={(e) => setDraft((d) => ({ ...d, price_to: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+          className="rounded border border-zinc-300 px-2 py-1.5"
         />
         <input
           placeholder="Пробег от"
           value={draft.mileage_from}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_from: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+          className="rounded border border-zinc-300 px-2 py-1.5"
         />
         <input
           placeholder="Пробег до"
           value={draft.mileage_to}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_to: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+          className="rounded border border-zinc-300 px-2 py-1.5"
         />
         <input
           placeholder="Год от"
           value={draft.year_from}
           onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+          className="rounded border border-zinc-300 px-2 py-1.5"
         />
         <input
           placeholder="Год до"
           value={draft.year_to}
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
-          className="rounded border border-zinc-300 px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-900"
+          className="rounded border border-zinc-300 px-2 py-1.5"
         />
       </div>
       <button
         type="button"
         onClick={apply}
-        className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-white"
+        className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-sm font-medium text-white"
       >
         Применить диапазоны
       </button>
@@ -383,12 +380,12 @@ export function CatalogClient({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
-      <div className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-6 dark:border-zinc-800 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-zinc-600">
             Найдено:{" "}
-            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+            <span className="font-medium text-zinc-900">
               {search.meta.total.toLocaleString("ru-RU")}
             </span>
             {search.meta.processing_time_ms != null
@@ -401,10 +398,10 @@ export function CatalogClient({
           <button
             type="button"
             onClick={() => switchMarket("korea")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            className={`rounded-full px-4 py-2 text-sm font-medium ${
               state.market === "korea"
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                ? "bg-zinc-900 text-white"
+                : "border border-zinc-300 bg-white text-zinc-800"
             }`}
           >
             Корея
@@ -412,10 +409,10 @@ export function CatalogClient({
           <button
             type="button"
             onClick={() => switchMarket("china")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            className={`rounded-full px-4 py-2 text-sm font-medium ${
               state.market === "china"
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                ? "bg-zinc-900 text-white"
+                : "border border-zinc-300 bg-white text-zinc-800"
             }`}
           >
             Китай
@@ -424,16 +421,16 @@ export function CatalogClient({
       </div>
 
       {err ? (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {err} — проверьте{" "}
-          <code className="rounded bg-white/60 px-1 dark:bg-zinc-900">NEXT_PUBLIC_API_BASE</code> и
+          <code className="rounded bg-white/60 px-1">NEXT_PUBLIC_API_BASE</code> и
           доступность API.
         </div>
       ) : null}
 
       <div className="flex flex-col gap-8 lg:flex-row">
         <aside className="w-full shrink-0 space-y-3 lg:w-72">
-          <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4">
             <label className="text-xs  font-medium text-zinc-500">Поиск</label>
             <div className="flex gap-2">
               <input
@@ -445,11 +442,11 @@ export function CatalogClient({
                   }
                 }}
                 placeholder="Марка, модель…"
-                className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
               />
               <button
                 type="button"
-                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white "
                 onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
               >
                 Найти
@@ -459,7 +456,7 @@ export function CatalogClient({
             <select
               value={state.sort}
               onChange={(e) => navigate({ ...state, sort: e.target.value, page: 1 })}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -469,8 +466,8 @@ export function CatalogClient({
             </select>
           </div>
 
-          <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Диапазоны</h2>
+          <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-zinc-800">Диапазоны</h2>
             <RangeBlock
               state={state}
               navigate={navigate}
@@ -549,7 +546,7 @@ export function CatalogClient({
           <button
             type="button"
             onClick={reset}
-            className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-800"
           >
             Сбросить фильтры
           </button>
@@ -564,9 +561,9 @@ export function CatalogClient({
                   <Link
                     href={`/car/${encodeURIComponent(car.id)}`}
                     prefetch
-                    className="group block overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                    className="block overflow-hidden rounded-xl border border-zinc-200 bg-white"
                   >
-                    <div className="aspect-[16/10] bg-zinc-100 dark:bg-zinc-900">
+                    <div className="aspect-[16/10] bg-zinc-100">
                       {img ? (
                         <Image
                           src={img}
@@ -574,12 +571,10 @@ export function CatalogClient({
                           width={640}
                           height={400}
                           sizes="(min-width: 1280px) 28vw, (min-width: 640px) 45vw, 94vw"
-                          className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                          className="h-full w-full object-cover"
                           loading={idx < 3 ? "eager" : undefined}
                           fetchPriority={idx === 0 ? "high" : "auto"}
                           decoding="async"
-                          placeholder="blur"
-                          blurDataURL={BLUR_DATA_URL}
                           unoptimized={false}
                         />
                       ) : (
@@ -589,14 +584,14 @@ export function CatalogClient({
                       )}
                     </div>
                     <div className="space-y-1 p-4">
-                      <p className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+                      <p className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-snug text-zinc-900">
                         {car.title || car.id}
                       </p>
                       <p className="text-xs text-zinc-500">
                         {car.year_num ? `${car.year_num} · ` : ""}
                         {car.id}
                       </p>
-                      <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                      <p className="text-lg font-semibold text-zinc-900">
                         {formatPrice(car.price)}
                       </p>
                     </div>
@@ -618,18 +613,18 @@ export function CatalogClient({
               type="button"
               disabled={state.page <= 1}
               onClick={() => navigate({ ...state, page: state.page - 1 })}
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40 dark:border-zinc-600"
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40"
             >
               Назад
             </button>
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="text-sm text-zinc-600">
               Стр. {state.page} из {pages}
             </span>
             <button
               type="button"
               disabled={!search.meta.next_cursor}
               onClick={() => navigate({ ...state, page: state.page + 1 })}
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40 dark:border-zinc-600"
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium disabled:opacity-40"
             >
               Вперёд
             </button>

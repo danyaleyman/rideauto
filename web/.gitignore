@@ -40,10 +40,3 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Р—РµСЂРєР°Р»Рѕ Р»РµРіР°СЃРё РёР· ../frontend (npm run sync-legacy / prebuild)
-/public/css/
-/public/js/
-/public/image/
-/public/data/
-/public/seo/
-

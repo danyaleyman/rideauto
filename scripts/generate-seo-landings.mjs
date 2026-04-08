@@ -4,8 +4,8 @@
  *
  *   node scripts/generate-seo-landings.mjs
  *
- * Читает frontend/data/seo-landings.json, пишет HTML в frontend/seo/korea/<mark>/<model>/index.html
- * и обновляет блок URL в frontend/sitemap-pages.xml.
+ * Читает data/seo-landings.json, пишет HTML в web/public/seo/korea/<mark>/<model>/index.html
+ * и обновляет блок URL в web/public/sitemap-pages.xml.
  */
 import fs from "fs";
 import path from "path";
@@ -13,9 +13,10 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
-const DATA_PATH = path.join(ROOT, "frontend", "data", "seo-landings.json");
-const OUT_ROOT = path.join(ROOT, "frontend", "seo", "korea");
-const SITEMAP_PATH = path.join(ROOT, "frontend", "sitemap-pages.xml");
+const DATA_PATH = path.join(ROOT, "data", "seo-landings.json");
+const OUT_ROOT = path.join(ROOT, "web", "public", "seo", "korea");
+const SITEMAP_PATH = path.join(ROOT, "web", "public", "sitemap-pages.xml");
+const SITEMAP_FALLBACK = path.join(ROOT, "web", "public", "sitemap-pages.xml");
 
 function slug(s) {
   return String(s || "")
@@ -109,6 +110,24 @@ function ensureDir(d) {
 }
 
 function main() {
+  ensureDir(path.dirname(SITEMAP_PATH));
+  if (!fs.existsSync(SITEMAP_PATH)) {
+    if (fs.existsSync(SITEMAP_FALLBACK)) {
+      fs.copyFileSync(SITEMAP_FALLBACK, SITEMAP_PATH);
+    } else {
+      fs.writeFileSync(
+        SITEMAP_PATH,
+        `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- WRA_SEO_KOREA_LANDINGS_BEGIN -->
+  <!-- WRA_SEO_KOREA_LANDINGS_END -->
+</urlset>
+`,
+        "utf8"
+      );
+    }
+  }
+
   const raw = fs.readFileSync(DATA_PATH, "utf8");
   const data = JSON.parse(raw);
   const base = (data.baseUrl || "https://rideauto.ru").replace(/\/+$/, "");

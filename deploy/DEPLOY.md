@@ -26,7 +26,7 @@ sudo systemctl enable --now encar-api.service       # активный юнит
 
 ## Next.js (`web`)
 
-- **Публичный сайт:** Next.js 15 — **`/`**, **`/catalog`**, **`/car/[id]`**, **`/about`**, **`/contacts`**, **`/buy`** (iframe с легаси-калькулятором `howtobuy.html`), **`/privacy`**, **`/cookies`**, **`/agreement`**. Главная **больше не** `frontend/index.html` в проде: nginx проксирует **`/`** и перечисленные пути на процесс Next (см. **`deploy/nginx/nextjs-frontend.snippet.conf`**). В `@wra_extensionless` уберите **`rewrite ^/catalog$ /index.html`**.
+- **Публичный сайт:** Next.js 15 — **`/`**, **`/catalog`**, **`/car/[id]`**, **`/about`**, **`/contacts`**, **`/buy`**, **`/privacy`**, **`/cookies`**, **`/agreement`**. Nginx проксирует **`/`** и эти пути на процесс Next (см. **`deploy/nginx/nextjs-frontend.snippet.conf`**). В `@wra_extensionless` уберите **`rewrite ^/catalog$ /index.html`**, если осталось от старой статики.
 - **Данные:** Meilisearch + FastAPI; в проде с **`WRA_PG_DSN`** — **PostgreSQL** (каталог и карточки), не только SQLite.
 - **Сборка:** `sync-legacy-assets.mjs` зеркалирует статику, **`seo/`**, **`howtobuy.html`**, фрагменты **car**, **about/contacts**. Docker образ `web`: контекст **корень репозитория**, см. `web/Dockerfile`.
 - **Прокси API:** на origin Next `/api/*` → `WRA_API_INTERNAL`; у вас на nginx `/api/` может идти сразу на uvicorn — ок.
@@ -114,9 +114,7 @@ docker compose up -d api web
 
 Старый бинарник **`docker-compose`** (v1) можно оставить или удалить пакетом `docker-compose` из репозитория Ubuntu, если он ставился отдельно — на работу **`docker compose`** это не влияет.
 
-В томе `encar_data` лежат два каталога: **`/data/encar_cars.db`** (Корея / Encar) и **`/data/encar_china.db`** (Китай / Dongchedi). Переменная **`WRA_CHINA_DB_PATH`** в `docker-compose.yml` по умолчанию указывает на `/data/encar_china.db`. Чтобы подставить файлы с хоста, смонтируйте оба, например: `./encar_cars.db:/data/encar_cars.db` и `./encar_china.db:/data/encar_china.db`.
-
-См. также [BACKUP-SQLITE.md](BACKUP-SQLITE.md).
+Рабочий каталог — **PostgreSQL** (том `postgres` / `DATABASE_URL`). Файлы `encar_*.db` нуж разве что для **одноразовой миграции** (`migrate_sqlite_to_postgres.py`) или бэкапов; см. [BACKUP-SQLITE.md](BACKUP-SQLITE.md).
 
 ## Cutover + Rollback (после миграции БД)
 
@@ -173,28 +171,28 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 
 4. После стабилизации зафиксировать hotfix или вернуть `main` и повторить деплой.
 
-## Китайский каталог (Dongchedi, отдельная SQLite)
+## Китайский каталог (Dongchedi, Postgres)
 
-Корейский каталог остаётся в **`encar_cars.db`** (аргумент **`--db`**). Китайский — в отдельном файле, чтобы не смешивать выдачу.
+И Корея, и Китай лежат в **одной** базе Postgres (различаются полями `source` / регион в JSON).
 
-- Скрапер: из `backend/` выполните `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (в YAML по умолчанию **`db_path: encar_china.db`** в каталоге `backend/`). На сервере задайте **`--db /opt/prod-encar/encar_china.db`**, чтобы путь совпадал с API. При обрыве прогона повторите с **`--resume`**: читается **`encar_china.scraper.checkpoint.json`** рядом с БД (номер shard и страницы листинга); после успешного окончания файл удаляется.
+- Скрапер: из `backend/` выполните `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (в YAML — `storage.postgres.dsn` или `DATABASE_URL`; `db_path` — только префикс имени **checkpoint**-файла рядом с репо). При обрыве: **`--resume`** и тот же `db_path`.
 - Расписание: **`deploy/systemd/dongchedi-update.timer`** (или **`prod-dongchedi-update.timer`**) — **00:00 Asia/Yekaterinburg**, как **`encar-update.timer`**. Сначала один раз полный прогон вручную, затем включите timer.
-- API: задайте **`WRA_CHINA_DB_PATH`** / **`--db-china`**, либо положите **`encar_china.db` в ту же папку, что и `encar_cars.db`**, или в **`backend/encar_china.db`** — тогда `api_server` подхватит файл сам. Проверка: **`GET /api/health`** → **`china_catalog_db": true`**. После первой выгрузки перезапустите API; при кэше nginx для `/api/cars` может понадобиться сброс зоны или ждать TTL.
+- API: **FastAPI** читает Postgres и Meilisearch; отдельный `WRA_CHINA_DB_PATH` для каталога не требуется. После прогона при необходимости обновите индекс Meilisearch и сбросьте кэш nginx для `/api/*`.
 
 ### Ночное обновление не сработало — диагностика и ручной запуск
 
 - Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u encar-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
-- Частая причина по Корее: в **`auto_update.py`** при работающем PostgreSQL в конце всё равно вызывается **`encar_daily_update.py --once`** (синхронизация SQLite); при **ненулевом коде** весь **`encar-update.service`** падает — смотрите сообщение `encar_daily_update завершился с кодом` в журнале.
-- Если в логе **`password authentication failed for user "postgres"`**, затем **`ImportError: cannot import name 'ChunkedJSONStorage' from 'encar_scraper'`** — падение из‑за fallback на SQLite при неверном пароле в **`backend/config.json`**: либо поправьте `db_config` под реальный Postgres, либо оставьте только SQLite-пайплайн (убедитесь, что на сервере актуальный **`encar_daily_update.py`**, где storage импортируется из **`scraper_pipeline.encar.savers`**).
-- Корея вручную + сразу выгрузка на фронт (**`cars.json`**, chunks, фасеты при `storage.backend != sqlite`): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо (например `/opt/prod-encar`). От **`www-data`**: задайте **`ENCAR_RUN_USER`** при необходимости; **`SKIP_LEARN_ENGINE_MAP=1`** — без долгого `auto_learn_engine_map`; **`FORCE_EXPORT=1`** — повторить экспорт даже при `backend: sqlite`.
-- Китай полный перескрейп (все марки, enrich, сброс checkpoint): остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
-- Китай **тест одной страницы** (enrich, several photos, `dongchedi_specs_url`): **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/prod-encar` (лимит объявлений: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом перезапуск API и каталог **`?region=china`** — Китай в **`cars.json` не попадает**, только **`encar_china.db`** + API.
+- Частая причина по Корее: в **`auto_update.py`** при работающем PostgreSQL и **`catalog_encar_nightly: true`** в конце вызывается **`encar_daily_update.py --once`**; при **ненулевом коде** весь **`encar-update.service`** падает — смотрите сообщение `encar_daily_update завершился с кодом` в журнале.
+- Если в логе **`password authentication failed for user "postgres"`** — без рабочего Postgres ночной цикл Encar не выполнится (отдельного SQLite-пайплайна нет). Проверьте `db_config` в **`backend/config.json`** и `DATABASE_URL` у скрапера.
+- Корея вручную (discover + pending): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо. При необходимости **`SKIP_LEARN_ENGINE_MAP=1`** — без долгого `auto_learn_engine_map`.
+- Китай полный перескрейп: остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
+- Китай **тест одной страницы**: **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/prod-encar` (лимит: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом обновите Meilisearch и проверьте каталог **`?region=china`**.
 
 ## Заголовки безопасности (nginx)
 
 Пример готовых директив: [nginx-security-headers.example.conf](nginx-security-headers.example.conf).
 
-Для проксирования **`/api/`** на aiohttp задайте запас по времени (иначе при тяжёлом первом запросе к SQLite или большой БД клиент увидит обрыв ~50–60 с). Пример:
+Для проксирования **`/api/`** на uvicorn/FastAPI задайте запас по времени (иначе при тяжёлом первом запросе клиент увидит обрыв ~50–60 с). Пример:
 
 ```nginx
 location /api/ {
@@ -205,19 +203,19 @@ location /api/ {
 }
 ```
 
-## Статика фронтенда
+## Статика фронтенда (Next + public)
 
-После выноса скрипта страницы авто убедитесь, что файл `frontend/js/car-page.js` отдаётся по пути `/js/car-page.js` (как и остальные `js/*`). Если подключён `car-page-dicts.js`, он должен идти **перед** `car-page.js`.
+Статические ассеты раздаёт Next из **`web/public`** (`/js/*`, `/css/*`, …). Для SEO-HTML после генерации проверьте порядок скриптов в шаблоне (если используете legacy вставки в статические страницы).
 
 ### SEO-посадки марка/модель (пререндер)
 
-Источник данных — `frontend/data/seo-landings.json`. Сгенерировать HTML и обновить блок URL в `frontend/sitemap-pages.xml`:
+Источник данных — `data/seo-landings.json`. Сгенерировать HTML и обновить блок URL в `web/public/sitemap-pages.xml`:
 
 ```bash
 npm run generate:seo-landings
 ```
 
-Файлы появляются в `frontend/seo/korea/<марка>/<модель>/index.html`. В nginx нужен префикс **`location ^~ /seo/korea/`** (см. `deploy/nginx/prod-encar.conf`). После деплоя перезагрузите nginx при изменении конфига.
+Файлы появляются в `web/public/seo/korea/<марка>/<модель>/index.html`. В nginx нужен префикс **`location ^~ /seo/korea/`** (см. `deploy/nginx/prod-encar.conf`).
 
 ## Версии query-параметра `?v=` у JS/CSS
 
@@ -225,13 +223,13 @@ npm run generate:seo-landings
 
 ## Логи и лимиты API
 
-- **`LOG_LEVEL`** — уровень логирования при запуске `python -m api_server` (по умолчанию `INFO`). В лог пишется строка на запрос: метод, путь, статус, длительность, `rid` (совпадает с заголовком ответа **`X-Request-Id`**). Клиент может прислать свой `X-Request-Id` (8–64 символа, `[a-zA-Z0-9-]`).
+- Уровень логирования uvicorn задаётся флагами запуска / переменными окружения (см. unit systemd для API). Для распределённой трассировки можно использовать стандартные заголовки прокси.
 - **`WRA_RATE_LIMIT_POST_PER_MINUTE`** — лимит **POST** на IP за скользящее окно 60 с. `0` или не задано — **без лимита**. За IP при работе за nginx берётся первый адрес из **`X-Forwarded-For`**, иначе `request.remote`.
 - **`WRA_RATE_LIMIT_TELEGRAM_AUTH_PER_MINUTE`** — отдельный лимит только для **`POST /api/auth/telegram`** (если > 0). При превышении ответ **429** и JSON `{"error":"rate_limit"}`, заголовок **`Retry-After: 60`**.
 
 ## Каталог: `ERR_CONNECTION_TIMED_OUT` к `/api/cars`
 
-**`curl http://127.0.0.1:8080/api/health` с сервера** проверяет только процесс aiohttp. Браузер ходит на **ваш домен по HTTPS** — туда должен попасть **тот же** upstream через nginx.
+**`curl http://127.0.0.1:8080/api/health` с сервера** проверяет только процесс API. Браузер ходит на **ваш домен по HTTPS** — туда должен попасть **тот же** upstream через nginx.
 
 ### 1. Проверка «как браузер» (с сервера)
 

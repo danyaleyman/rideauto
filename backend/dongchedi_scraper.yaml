@@ -1,8 +1,11 @@
-# 懂车帝 → SQLite: python -m dongchedi.scraper --config dongchedi_scraper.yaml
+# 懂车帝 → PostgreSQL (общий каталог). DATABASE_URL или storage.postgres.dsn.
+# db_path — только имя для checkpoint (*.scraper.checkpoint.json).
 #
-# Локально: cd backend && python -m dongchedi.scraper --config dongchedi_scraper.yaml
-#   → файл backend/encar_china.db (или переопределите --db).
-# Прод (рядом с encar_cars.db): добавьте --db /opt/prod-encar/encar_china.db или задайте тот же путь в db_path ниже.
+#   cd backend && python -m dongchedi.scraper --config dongchedi_scraper.yaml
+
+storage:
+  postgres:
+    dsn: ""
 
 db_path: encar_china.db
 # Один прогон без brand на API даёт ~10k объявлений (has_more обрывается). Чтобы добрать каталог:

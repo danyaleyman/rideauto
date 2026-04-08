@@ -1,11 +1,16 @@
 /**
  * Вставляет баннер cookie + подгрузку маркетинговых пикселей на все .html без cookie-consent.
- * SEO-страницы (/frontend/seo/) — абсолютные пути /js/ /css/; остальные в корне frontend — относительные.
+ * Обходит web/public/**/*.html (сгенерированные SEO и статика).
  */
 import fs from "node:fs";
 import path from "node:path";
 
-const frontend = path.join(process.cwd(), "frontend");
+const frontend = path.join(process.cwd(), "web", "public");
+
+if (!fs.existsSync(frontend)) {
+  console.warn("skip: web/public not found");
+  process.exit(0);
+}
 
 function walk(dir, out = []) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {

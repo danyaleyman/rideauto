@@ -3,7 +3,7 @@
 Load SQLite catalog DBs (encar_cars.db, encar_china.db) into PostgreSQL using
 `infrastructure/postgresql/schema.sql`.
 
-Derivations mirror backend/api_server.py::_build_filter_sql where applicable.
+Derivations mirror catalog filter fields (mark, model, price_rub, …) where applicable.
 
 Usage:
   python migrate_sqlite_to_postgres.py --dsn "postgresql://user:pass@localhost:5432/wra" \\

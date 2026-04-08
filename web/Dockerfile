@@ -9,9 +9,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY web/ .
-COPY frontend ./frontend-legacy
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV WRA_FRONTEND_ROOT=/app/frontend-legacy
 ARG WRA_API_INTERNAL=http://api:8080
 ENV WRA_API_INTERNAL=$WRA_API_INTERNAL
 # Inlined at `next build` into the client bundle — pass real prod URLs from compose/build, not only runtime env.
@@ -19,7 +17,6 @@ ARG NEXT_PUBLIC_API_BASE=http://127.0.0.1:8080
 ARG NEXT_PUBLIC_SITE_URL=https://rideauto.ru
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-RUN node scripts/sync-legacy-assets.mjs
 RUN npm run build
 
 FROM node:22-alpine AS runner

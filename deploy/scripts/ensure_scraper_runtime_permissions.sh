@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Однократно на проде: права для encar-update.service (User=www-data) на SQLite и логи.
+# Однократно на проде: права для encar-update.service (User=www-data) на логи и локальные артефакты.
 # Запуск: sudo bash deploy/scripts/ensure_scraper_runtime_permissions.sh
 set -euo pipefail
 ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
@@ -14,6 +14,7 @@ fi
 install -d -m 0755 -o "$OWNER" -g "$GROUP" "$ROOT/logs"
 
 for f in encar_cars.db encar_china.db scraper_checkpoint.db scraper.log auto_update.log; do
+  # *.db — только если остались после миграции; чекпоинт сейчас в Postgres.
   if [[ -e "$ROOT/$f" ]]; then
     chown "$OWNER:$GROUP" "$ROOT/$f" || true
     chmod u+rw,g+rw "$ROOT/$f" 2>/dev/null || chmod 664 "$ROOT/$f" || true
@@ -28,4 +29,4 @@ for f in "$ROOT"/encar_cars.db-* "$ROOT"/encar_china.db-* "$ROOT"/scraper_checkp
 done
 shopt -u nullglob
 
-echo "OK: $ROOT — logs/ и *.db для $OWNER:$GROUP"
+echo "OK: $ROOT — logs/ и локальные *.db (если есть) для $OWNER:$GROUP"

@@ -4,7 +4,7 @@ info:
   version: "1.0"
   description: |
     Минимальное описание read-only API каталога и служебных маршрутов.
-    Полный набор query-параметров для `/api/cars` и ответы см. в коде `backend/api_server.py`.
+    Полный набор query-параметров для `/api/cars` и ответы см. в `backend/fastapi_app/routers/search.py` и схемах Pydantic.
     Лимиты GET по IP: `WRA_RATE_LIMIT_GET_CARS_PER_MINUTE`, `WRA_RATE_LIMIT_GET_FACETS_PER_MINUTE` (0 = без лимита).
     Курсорная пагинация: query `cursor` в `/api/cars` для сортировок date_*, year_*, mileage_*, price_high / price_low; см. `meta.next_cursor`.
     Без `cursor`: глубокий `page` ограничен для анонимов (`WRA_CATALOG_MAX_PAGE_OFFSET_ANON`, по умолчанию 80; `-1` = выкл.); при сессии Bearer — `WRA_CATALOG_MAX_PAGE_OFFSET_AUTH` (0 = без лимита).
@@ -41,7 +41,7 @@ paths:
       parameters:
         - name: deep
           in: query
-          description: "1 — проверка чтения SQLite каталога (размер файла, wal/shm при наличии, COUNT cars)"
+          description: "1 — углублённая проверка каталога (доступность БД и COUNT cars)"
           schema: { type: string, enum: ["1"] }
       responses:
         "200":

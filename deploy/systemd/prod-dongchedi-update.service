@@ -1,5 +1,5 @@
 [Unit]
-Description=Prod Encar Dongchedi catalog update (encar_china.db), prod-encar user
+Description=Prod Encar Dongchedi catalog → PostgreSQL or encar_china.db (see dongchedi_scraper.yaml storage)
 After=network.target
 # Аналог dongchedi-update.service для стека prod-encar (см. prod-encar-auto-update.service).
 
@@ -11,6 +11,7 @@ WorkingDirectory=/opt/prod-encar/backend
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-/etc/default/prod-encar
 ExecStart=/usr/bin/python3 -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
+# DATABASE_URL в EnvironmentFile (prod-encar) для storage.backend=postgres; --db задаёт имя checkpoint (*.scraper.checkpoint.json).
 TimeoutStartSec=24h
 NoNewPrivileges=true
 PrivateTmp=true

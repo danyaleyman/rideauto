@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Первичная полная выгрузка каталога Encar на сервере (импорт + местные, см. scraper_config.yaml car_types / max_cars).
-# После завершения: encar_cars.db, экспорт в frontend/*.json, расчёт цен (внутри export_from_scraper_db → price.py).
+# Первичная полная выгрузка Encar (storage.backend=postgres + DATABASE_URL / dsn в scraper_config.yaml).
+# После прогона: строки в Postgres, опционально postgres_catalog_sync / Meilisearch (см. encar_scraper.py).
 set -euo pipefail
 REPO_ROOT="${1:-/opt/prod-encar}"
 cd "$REPO_ROOT"
@@ -13,6 +13,6 @@ export PYTHONUNBUFFERED=1
 CONFIG="${ENCAR_SCRAPER_CONFIG:-$REPO_ROOT/scraper_config.yaml}"
 echo "Репозиторий: $REPO_ROOT"
 echo "Конфиг: $CONFIG"
-echo "Запуск encar_scraper.py (полный list + детали; в конце — экспорт на фронт с ценами)..."
+echo "Запуск encar_scraper.py (полный list + детали; запись в Postgres)..."
 "$PY" "$REPO_ROOT/backend/encar_scraper.py" --config "$CONFIG"
 echo "Первичная выгрузка завершена."

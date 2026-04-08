@@ -76,7 +76,7 @@ async def _facets_cached(request: Request) -> Dict[str, Any]:
 
 @router.get("/facets", response_model=FacetsResponse)
 async def facets(request: Request) -> Dict[str, Any]:
-    """Фасеты каталога через Meilisearch (omit-паттерн как в legacy SQLite)."""
+    """Фасеты каталога через Meilisearch (omit-паттерн query-параметров)."""
     return await _facets_cached(request)
 
 

@@ -3,14 +3,14 @@
 """
 Автообучение engine_map.json по выгрузке машин.
 
-Тянет данные сам (cars.json → chunks → SQLite), не дублирует id.
+Тянет данные сам (Postgres / cars.json / chunks), не дублирует id.
 Берёт только машины с реальной мощностью (не из engine_map), с кодом двигателя
 motorType из инспекции Encar (extra.inspection.master.detail.motorType).
 
 Запуск (из корня репозитория или откуда угодно):
   python backend/scripts/auto_learn_engine_map.py
   python backend/scripts/auto_learn_engine_map.py --dry-run
-  AUTO_LEARN_ENGINE_MAP=1  — включается после export_from_scraper_db.py
+  AUTO_LEARN_ENGINE_MAP=1  — после postgres_catalog_sync
 
 Зависимости: только stdlib + engine_hp_resolver (рядом в backend/).
 """
@@ -20,7 +20,6 @@ import argparse
 import json
 import os
 import re
-import sqlite3
 import statistics
 import sys
 from collections import defaultdict
@@ -94,36 +93,46 @@ def _iter_cars_from_chunks(chunks_dir: Path) -> Generator[Dict[str, Any], None, 
         yield from _iter_cars_from_json(p)
 
 
-def _iter_cars_from_sqlite(db_path: Path) -> Generator[Dict[str, Any], None, None]:
-    conn = sqlite3.connect(str(db_path))
-    try:
-        rows = conn.execute("SELECT data_json FROM cars").fetchall()
-        for (dj,) in rows:
-            try:
-                car = json.loads(dj)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(car, dict) and isinstance(car.get("data"), dict):
-                yield car["data"]
-            elif isinstance(car, dict):
-                yield car
-    finally:
-        conn.close()
+def _iter_cars_from_postgres(dsn: str) -> Generator[Dict[str, Any], None, None]:
+    import psycopg2
+
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT data FROM cars")
+            for (row,) in cur.fetchall():
+                if row is None:
+                    continue
+                if isinstance(row, dict):
+                    car = row
+                elif isinstance(row, (bytes, memoryview)):
+                    try:
+                        car = json.loads(bytes(row).decode("utf-8"))
+                    except Exception:
+                        continue
+                else:
+                    try:
+                        car = json.loads(str(row))
+                    except Exception:
+                        continue
+                if isinstance(car, dict) and isinstance(car.get("data"), dict):
+                    yield car["data"]
+                elif isinstance(car, dict):
+                    yield car
 
 
 def discover_car_stream(repo: Path) -> Tuple[str, Iterable[Dict[str, Any]]]:
-    """Один основной источник: cars.json иначе chunks иначе SQLite."""
-    cars_json = repo / "frontend" / "cars.json"
+    """Источник: DATABASE_URL → Postgres, иначе web/public/cars.json, иначе chunks."""
+    dsn = (os.environ.get("DATABASE_URL") or "").strip()
+    if dsn:
+        return ("postgresql://cars.data", _iter_cars_from_postgres(dsn))
+    cars_json = repo / "web" / "public" / "cars.json"
     if cars_json.exists():
-        return ("frontend/cars.json", _iter_cars_from_json(cars_json))
-    chunks = repo / "frontend" / "data" / "chunks"
+        return ("web/public/cars.json", _iter_cars_from_json(cars_json))
+    chunks = repo / "web" / "public" / "data" / "chunks"
     if chunks.is_dir() and list(chunks.glob("cars_*.json")):
-        return ("frontend/data/chunks/*.json", _iter_cars_from_chunks(chunks))
-    db = repo / "encar_cars.db"
-    if db.exists():
-        return ("encar_cars.db", _iter_cars_from_sqlite(db))
+        return ("web/public/data/chunks/*.json", _iter_cars_from_chunks(chunks))
     raise FileNotFoundError(
-        f"Нет данных: ни {cars_json}, ни chunks в {chunks}, ни {db}"
+        f"Нет данных: задайте DATABASE_URL или положите {cars_json} / chunks в web/public/data/chunks"
     )
 
 
@@ -288,7 +297,7 @@ def main() -> int:
         "--output",
         type=Path,
         default=None,
-        help="Путь к engine_map.json (по умолчанию frontend/data/engine_map.json)",
+        help="Путь к engine_map.json (по умолчанию data/engine_map.json)",
     )
     parser.add_argument("--min-count", type=int, default=3, help="Мин. машин в группе")
     parser.add_argument(
@@ -301,7 +310,7 @@ def main() -> int:
     args = parser.parse_args()
 
     repo = args.repo.resolve()
-    out_path = args.output or (repo / "frontend" / "data" / "engine_map.json")
+    out_path = args.output or (repo / "data" / "engine_map.json")
 
     try:
         source_label, stream = discover_car_stream(repo)

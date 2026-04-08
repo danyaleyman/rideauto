@@ -1,9 +1,0 @@
-# Синхронизируйте хост с продакшеном (nginx отдаёт как статику).
-User-agent: *
-Allow: /
-Disallow: /api/
-
-# Основной индекс — после cron на диск (обе БД: Корея + Китай); резерв — через API.
-Sitemap: https://rideauto.ru/sitemap-gen/sitemap-index.xml
-Sitemap: https://rideauto.ru/api/sitemap/index.xml
-Sitemap: https://rideauto.ru/sitemap.xml

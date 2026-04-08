@@ -9,7 +9,6 @@ import asyncio
 import json
 import logging
 import os
-import sqlite3
 import sys
 import time
 from dataclasses import dataclass, fields
@@ -32,6 +31,7 @@ class ScrapeConfig:
     """Конфиг скрейпера: brand_ids / shard_brands расширяют охват листинга; enrich_detail даёт цену и галерею с карточки."""
 
     db_path: str = "encar_china.db"
+    postgres_dsn: str = ""
     brand_id: Optional[str] = None
     brand_ids: Optional[List[str]] = None
     shard_brands: bool = False
@@ -59,31 +59,6 @@ class ScrapeConfig:
     persist_checkpoint: bool = True
     resume: bool = False
     checkpoint_path: Optional[str] = None
-
-
-def _ensure_cars_schema(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS cars (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            car_id TEXT UNIQUE NOT NULL,
-            data_json TEXT NOT NULL,
-            raw_json TEXT,
-            created_at TEXT
-        )
-        """
-    )
-
-
-def _apply_indexes(conn: sqlite3.Connection) -> None:
-    conn.executescript(
-        """
-        CREATE INDEX IF NOT EXISTS idx_wra_cars_car_id_id ON cars(car_id, id DESC);
-        CREATE INDEX IF NOT EXISTS idx_wra_data_mark ON cars(json_extract(data_json, '$.data.mark'));
-        CREATE INDEX IF NOT EXISTS idx_wra_data_model ON cars(json_extract(data_json, '$.data.model'));
-        """
-    )
-    conn.commit()
 
 
 def _clamp_limit(v: int) -> int:
@@ -119,6 +94,13 @@ def load_config_file(path: str) -> Dict[str, Any]:
 def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = None) -> ScrapeConfig:
     base = defaults or ScrapeConfig()
     m = {k.replace("-", "_"): v for k, v in raw.items()}
+    storage = m.pop("storage", None)
+    if isinstance(storage, dict):
+        pg = storage.get("postgres")
+        if isinstance(pg, dict):
+            d_sn = str(pg.get("dsn") or "").strip()
+            if d_sn:
+                base.postgres_dsn = d_sn
     raw_brand_ids = m.pop("brand_ids", None)
     if isinstance(raw_brand_ids, list):
         base.brand_ids = [str(x).strip() for x in raw_brand_ids if str(x).strip()]
@@ -132,6 +114,8 @@ def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = 
         env_c = (os.environ.get("DONGCHEDI_COOKIE") or "").strip()
         if env_c:
             base.cookie = env_c
+    if not (base.postgres_dsn or "").strip():
+        base.postgres_dsn = (os.environ.get("DATABASE_URL") or "").strip()
     return base
 
 
@@ -204,13 +188,11 @@ def _headers_with_cookie(cookie: Optional[str]) -> Dict[str, str]:
     return h
 
 
-def _apply_indexes_after(db_path: str) -> None:
-    conn = sqlite3.connect(db_path, timeout=120.0)
-    try:
-        _ensure_cars_schema(conn)
-        _apply_indexes(conn)
-    finally:
-        conn.close()
+def _resolved_postgres_dsn(cfg: ScrapeConfig) -> str:
+    dsn = (cfg.postgres_dsn or "").strip()
+    if dsn:
+        return dsn
+    return (os.environ.get("DATABASE_URL") or "").strip()
 
 
 async def run_scrape(cfg: ScrapeConfig) -> int:
@@ -225,22 +207,17 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
         log.warning("price_min/max требуют карточку — включаем enrich_detail")
 
     db_path = str(Path(cfg.db_path).resolve())
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     def sync_upsert_batch(batch: List[Tuple[str, str]]) -> int:
         if not batch:
             return 0
-        conn = sqlite3.connect(db_path, timeout=120.0)
-        try:
-            _ensure_cars_schema(conn)
-            conn.executemany(
-                "INSERT OR REPLACE INTO cars (car_id, data_json, created_at) VALUES (?, ?, datetime('now'))",
-                batch,
-            )
-            conn.commit()
-        finally:
-            conn.close()
-        return len(batch)
+        dsn = _resolved_postgres_dsn(cfg)
+        if not dsn:
+            log.error("Dongchedi: нужен storage.postgres.dsn или DATABASE_URL")
+            return 0
+        from catalog_pg_upsert import upsert_json_batch
+
+        return upsert_json_batch(dsn, batch, batch_commit=max(10, len(batch)))
 
     list_sem = asyncio.Semaphore(max(1, cfg.concurrency))
     detail_sem = asyncio.Semaphore(max(1, cfg.detail_concurrency))
@@ -486,7 +463,6 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
         _checkpoint_clear(cp_path)
         log.info("checkpoint удалён: прогон завершён до конца")
 
-    await asyncio.to_thread(_apply_indexes_after, db_path)
     return saved
 
 
@@ -497,7 +473,7 @@ def setup_logging(level: str = "INFO") -> None:
 
 def main(argv: Optional[List[str]] = None) -> None:
     argv = argv if argv is not None else sys.argv[1:]
-    p = argparse.ArgumentParser(description="懂车帝 async scraper → SQLite")
+    p = argparse.ArgumentParser(description="懂车帝 async scraper → PostgreSQL")
     p.add_argument("--config", type=str, default=None)
     p.add_argument("--db", type=str, default=None)
     p.add_argument("--brand-id", type=str, default=None, help="Числовой brand_id (напр. 4 = 宝马)")

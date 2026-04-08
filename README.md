@@ -2,9 +2,8 @@
 
 Проект разделён на слои:
 
-- **Основной фронт (Next.js, SSR + фильтры)**: папка `web/` — каталог и карточка через FastAPI + Meilisearch + Postgres (см. `docs/ARCHITECTURE.md`, `docker-compose.yml`).
-- **Легаси-фронт (Vanilla JS)**: папка `frontend/` — детальная карточка `car.html`, SEO-лендинги, статические страницы; в шапке Next есть ссылка «Классический сайт» на `index.html` при совместном деплое.
-- **Backend**: папка `backend/` — FastAPI (`fastapi_app`), легаси `api_server.py`, скраперы, Postgres/SQLite.
+- **Фронт (Next.js)**: папка `web/` — каталог и карточка; бэкенд — FastAPI + Meilisearch + Postgres (см. `docs/ARCHITECTURE.md`, `docker-compose.yml`).
+- **Backend**: папка `backend/` — FastAPI (`fastapi_app`), скраперы Encar/Dongchedi, синхронизация каталога в Postgres.
 
 ## Быстрый старт (backend)
 
@@ -16,65 +15,25 @@ python backend/run_system.py --daily
 
 Конфиг: `backend/config.json`
 
-## Открыть сайт (frontend)
-
-- `frontend/index.html`
-- `frontend/car.html?id=<ID>`
-- `frontend/howtobuy.html`
-
-Данные для фронта: `frontend/cars.json` и `frontend/data/encar_mapping.json`.
-
-## Production-ready выгрузка (100k+)
-
-Теперь экспорт поддерживает:
-- `frontend/cars.json` (обратная совместимость),
-- чанки `frontend/data/chunks/cars_*.json`,
-- индекс `frontend/data/cars.index.json`,
-- сжатые версии `.gz` для CDN/Nginx.
-
-Ручной запуск:
+## Открыть сайт (разработка)
 
 ```bash
-python backend/export_from_scraper_db.py \
-  --db encar_cars.db \
-  --out frontend/cars.json \
-  --chunk-size 5000 \
-  --chunk-dir frontend/data/chunks \
-  --chunk-index frontend/data/cars.index.json \
-  --gzip
+cd web && npm install && npm run dev
 ```
 
-`auto_update.py` и `encar_scraper.py` выполняют такой экспорт автоматически после успешного обновления.
+Опциональный статический дамп каталога (CDN/отладка без Meilisearch): флаги у [`backend/postgres_catalog_sync.py`](backend/postgres_catalog_sync.py) (`--write-legacy-json` → `web/public/cars.json` и чанки в `web/public/data/`). Справочники для билда копируются из `data/` скриптом `web/scripts/sync-legacy-assets.mjs`.
 
-**Ночное обновление каталога на VPS (SQLite + `api_server --db encar_cars.db`):** в [`backend/config.json`](backend/config.json) для `update_config` держите `"catalog_sync_sqlite": true` (по умолчанию в коде тоже включено). Тогда после успешного цикла PostgreSQL дополнительно выполняется `encar_daily_update --once`, который обновляет `encar_cars.db` и экспортирует `frontend/cars.json`. Иначе таймер мог бы писать только в Postgres, а сайт продолжал бы отдавать старый SQLite.
+**Ночное обновление:** в [`backend/config.json`](backend/config.json) `update_config.catalog_encar_nightly` (по умолчанию `true`) — после цикла PostgreSQL вызывается `encar_daily_update.py --once` (discover, sold-check, скрейпер в Postgres). Без доступного Postgres `auto_update` завершается с ошибкой (отдельного SQLite-пайплайна нет).
 
 Глубина списка Encar задаётся в [`scraper_config.yaml`](scraper_config.yaml): `max_list_offset: 0` означает проход до пустого ответа (с верхней границей `list_offset_hard_cap`). Дополнительные срезы запроса — `list_q_suffixes`.
 
-## API для серверной пагинации/фильтров
-
-Для больших объёмов каталога (100k+) используйте API вместо полной загрузки всех карточек в браузер:
+## API каталога (FastAPI)
 
 ```bash
-python backend/api_server.py --db encar_cars.db --db-china encar_china.db --host 0.0.0.0 --port 8080
+cd backend && uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8080
 ```
 
-Китайский каталог (Dongchedi) хранится в отдельном **`encar_china.db`**; без **`--db-china`** / **`WRA_CHINA_DB_PATH`** запросы `region=china` читают ту же БД, что и Корея (режим совместимости одного файла).
-
-Эндпоинты:
-- `GET /api/health`
-- `GET /api/cars?page=1&per_page=12&mark=KIA&model=K5&year_from=2020&year_to=2024`
-- `GET /api/facets?mark=BMW`
-- `GET /api/car/{id}`
-- `GET /api/similar?car_id=...&limit=8`
-
-`frontend/index.html` теперь сначала пытается работать в API-режиме (`/api/health`), и если API недоступен — автоматически откатывается на `cars.json`.
-`frontend/car.html` также сначала пытается загрузить данные через API (`/api/car/{id}` и `/api/similar`), а при недоступности API — откатывается на `cars.json`.
-
-Если API размещён на другом хосте/порту, можно задать базовый URL в браузере:
-
-```js
-localStorage.setItem('encar_api_base', 'http://YOUR_HOST:8080');
-```
+Эндпоинты (см. `docs/openapi.yaml`, `backend/fastapi_app/`): `GET /api/health`, `GET /api/cars`, `GET /api/search`, `GET /api/facets`, `GET /api/filters`, `GET /api/car/{id}`, `GET /api/similar`. Данные — PostgreSQL + Meilisearch; переменные окружения с префиксом `WRA_` (см. `fastapi_app.config.Settings`).
 
 ## VPS production setup (Nginx + systemd)
 
@@ -94,7 +53,7 @@ chmod +x deploy/deploy_prod.sh
 ./deploy/deploy_prod.sh
 ```
 
-По умолчанию ставится в `/opt/prod-encar`, API слушает `127.0.0.1:8080`, Nginx публикует фронт и проксирует `/api/*`. В **`prod-encar-api.service`** и **`encar-api.service`** задано **`--db-china /opt/prod-encar/encar_china.db`**.
+По умолчанию ставится в `/opt/prod-encar`, API (uvicorn FastAPI) слушает `127.0.0.1:8080`, Nginx публикует Next и проксирует `/api/*`. Китайский каталог — те же таблицы Postgres (`source`/region в данных), не отдельный `encar_china.db` в рантайме API.
 
 ## Security hardening (рекомендуется)
 
@@ -155,7 +114,7 @@ systemctl status prod-encar-api.service --no-pager
 systemctl status prod-encar-auto-update.timer --no-pager
 ```
 
-В `backend/config.json` проверьте `update_config.catalog_sync_sqlite: true`, чтобы ночной `auto_update` синхронизировал файловую БД каталога. Длинный пост-экспорт `auto_learn_engine_map` можно отключить переменной окружения `SKIP_LEARN_ENGINE_MAP=1` в `/etc/default/prod-encar` (см. комментарий в `deploy/systemd/prod-encar-auto-update.service`).
+В `backend/config.json` при необходимости отключите `update_config.catalog_encar_nightly`, если ночной `encar_daily_update` не нужен. Длинный пост-экспорт `auto_learn_engine_map` можно отключить переменной `SKIP_LEARN_ENGINE_MAP=1` в `/etc/default/prod-encar` (см. `deploy/systemd/prod-encar-auto-update.service`).
 
 ### 4) TLS (HTTPS) через certbot
 

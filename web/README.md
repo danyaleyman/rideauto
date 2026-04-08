@@ -1,4 +1,4 @@
-Prod Encar на **Next.js (App Router)**: SSR первой выдачи каталога, в браузере — фильтры (фасеты Meilisearch), маркеты Корея/Китай, карточка авто. См. [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). Легаси-верстка остаётся в `frontend/` (в т.ч. `car.html`).
+Prod Encar на **Next.js (App Router)**: SSR первой выдачи каталога, в браузере — фильтры (фасеты Meilisearch), маркеты Корея/Китай, карточка авто. См. [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
 
 Ниже — шаблонный README `create-next-app`.
 

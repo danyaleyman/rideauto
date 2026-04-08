@@ -3,9 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sync-legacy": "node scripts/sync-legacy-assets.mjs",
-    "prebuild": "node scripts/sync-legacy-assets.mjs",
-    "dev": "node scripts/sync-legacy-assets.mjs && next dev --turbopack",
+    "sync-static-data": "node scripts/sync-legacy-assets.mjs",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "analyze": "ANALYZE=true next build",
     "start": "next start",

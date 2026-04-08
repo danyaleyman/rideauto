@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Добавляет рассчитанные цены (калькулятор растаможки, KRW→USDT→RUB, брокер, 10%)
-в существующий cars.json. Не требует SQLite — читает и перезаписывает cars.json.
+в существующий cars.json.
 Запуск: python add_prices_to_cars_json.py [путь к cars.json]
 После запуска обновите страницу в браузере — цены появятся в карточках и в «Подробный расчёт».
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 def main():
-    default_path = (Path(__file__).resolve().parent.parent / "frontend" / "cars.json")
+    default_path = (Path(__file__).resolve().parent.parent / "web" / "public" / "cars.json")
     path = Path(sys.argv[1] if len(sys.argv) > 1 else default_path)
     if not path.exists():
         print(f"Файл не найден: {path}", file=sys.stderr)

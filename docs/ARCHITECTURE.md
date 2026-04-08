@@ -6,8 +6,8 @@
 
 | Поток | Состояние |
 |--------|------------|
-| **Vanilla JS → Next.js + SSR** | **Основной каталог в Next.js.** В `web/` — SSR + клиент: маркет Корея/Китай, поиск, фасеты (марка→цвет), диапазоны, сортировка, пагинация (cursor), карточка авто. Легаси `frontend/` остаётся для SEO-лендингов, старых путей и полной карточки Encar (сложный UI), пока не перенесены. |
-| **SQLite → PostgreSQL** | **Целевой путь — Postgres:** в `scraper_config.yaml` по умолчанию `storage.backend: postgres` (нужен `DATABASE_URL` или DSN). Для локального режима без Postgres: `SCRAPER_STORAGE_BACKEND=sqlite`. Легаси: `api_server.py`, `catalog_sync_sqlite`, экспорт `cars.json`. |
+| **Фронт** | **Next.js в `web/`** — SSR + клиент: маркет Корея/Китай, поиск, фасеты, карточка. Статические SEO-лендинги генерируются в `web/public/seo/`. |
+| **SQLite → PostgreSQL** | **Каталог и чекпоинт скрапера — Postgres** (`storage.backend: postgres`, DSN). Одноразовая миграция из старых `.db` — `infrastructure/postgresql/migrate_sqlite_to_postgres.py`. |
 | **Схема ниже** | Реализуется, если трафик идёт на FastAPI + Meilisearch + Postgres, скрапер пишет в **Postgres** (`storage.backend: postgres` + DSN), после импорта запускается **sync Meilisearch**. |
 | **Cloudflare** | Заголовки кеша в FastAPI есть; проксирование в зоне CF — вне репозитория. |
 
@@ -37,13 +37,13 @@
 Scraper → PostgreSQL → синхронизация индекса Meilisearch (отдельный job / cron)
 ```
 
-Скрапер **сам** Meilisearch не обновляет: после импорта в Postgres нужно запускать синхронизацию индекса (см. `infrastructure/meilisearch/sync_meilisearch.py` и настройки индекса). Чекпоинт скрапера по умолчанию — отдельный файл SQLite (`checkpoint.path`), это нормально и не отменяет хранение машин в Postgres.
+Скрапер **сам** Meilisearch не обновляет: после импорта в Postgres нужно запускать синхронизацию индекса (см. `infrastructure/meilisearch/sync_meilisearch.py` и настройки индекса). Состояние чекпоинта скрапера хранится в Postgres (`scraper_checkpoint_state`, `scraper_pending_ids`, … в `infrastructure/postgresql/schema.sql`).
 
 ## Сервисы в репозитории
 
 | Слой        | Компонент   | Путь / сервис |
 |------------|-------------|----------------|
-| Frontend   | Next.js     | `web/` (SSR), legacy — `frontend/` |
+| Frontend   | Next.js     | `web/` |
 | API        | FastAPI     | `backend/fastapi_app`, Docker `api` |
 | Search     | Meilisearch | Docker `meilisearch` |
 | DB         | PostgreSQL  | Docker `postgres` |
@@ -51,4 +51,4 @@ Scraper → PostgreSQL → синхронизация индекса Meilisearch
 
 ## Правило продакшена
 
-**Не** реализовывать фильтрацию и полнотекст каталога через SQL (ни SQLite `api_server`, ни тяжёлые `WHERE` по JSON в Postgres для листинга). Исключение — выборка по списку id после Meilisearch и точечные чтения карточки.
+**Не** строить фильтрацию и полнотекст листинга тяжёлыми `WHERE` по JSON в Postgres. Исключение — выборка по списку id после Meilisearch и точечные чтения карточки.

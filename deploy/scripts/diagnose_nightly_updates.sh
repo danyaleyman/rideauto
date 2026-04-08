@@ -24,6 +24,6 @@ journalctl -u dongchedi-update.service -u prod-dongchedi-update.service -n 120 -
 echo
 echo "=== Подсказка ==="
 echo "1) encar-update.service: смотрите ошибки PostgreSQL, EncarSystem.daily_update, либо «encar_daily_update завершился с кодом» в конце."
-echo "2) Если catalog_sync_sqlite в backend/config.json true и Postgres подключился, после Postgres всегда идёт encar_daily_update.py --once — его падение роняет весь юнит."
+echo "2) Если catalog_encar_nightly в backend/config.json true и Postgres доступен, после цикла EncarSystem идёт encar_daily_update.py --once — его падение роняет весь юнит."
 echo "3) auto_update пишет в logs/auto_update.log от корня репо (если www-data может писать)."
 echo "4) encar_daily_update / encar_scraper — см. logs/scraper.log при настройке в scraper_config.yaml."

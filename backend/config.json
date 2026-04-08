@@ -9,7 +9,7 @@
   "update_config": {
     "max_workers": 5,
     "update_type": "daily",
-    "catalog_sync_sqlite": true
+    "catalog_encar_nightly": true
   },
   "notification_config": {
     "enabled": false,

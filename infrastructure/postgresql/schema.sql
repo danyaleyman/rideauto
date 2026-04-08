@@ -1,5 +1,5 @@
 -- PostgreSQL catalog schema (normalized from SQLite `cars`: car_id, data_json, raw_json).
--- Target: FastAPI + btree filters aligned with frontend / api_server._build_filter_sql
+-- Target: FastAPI + btree filters aligned with каталогом / Meilisearch
 -- Requires: PostgreSQL 12+ (GENERATED STORED columns)
 -- Optional (superuser / rds_superuser): CREATE EXTENSION pg_trgm;
 --   + GIN (mark gin_trgm_ops) for fuzzy search — not required for catalog filters.
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS cars (
 );
 
 COMMENT ON COLUMN cars.listing_partition_key IS
-    'Dedup key: COALESCE(inner_id, data.id, car_id) — same idea as _LISTING_PARTITION_KEY_EXPR in api_server.py';
+    'Dedup key: COALESCE(inner_id, data.id, car_id) — listing partition для каталога';
 COMMENT ON COLUMN cars.year_month IS
     'Ordinal month index: year*12 + (month-1), matching ym_from / ym_to in catalog.js';
 
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS car_images (
 );
 
 -- -----------------------------------------------------------------------------
--- Indexes — filters from left panel (catalog.js) + api_server._build_filter_sql
+-- Indexes — фильтры каталога (фасеты / совместимость с query API)
 -- -----------------------------------------------------------------------------
 
 CREATE INDEX IF NOT EXISTS idx_cars_brand_id ON cars (brand_id);
@@ -121,3 +121,32 @@ CREATE INDEX IF NOT EXISTS idx_cars_offer_created ON cars (offer_created_at DESC
 CREATE INDEX IF NOT EXISTS idx_cars_data_gin ON cars USING GIN (data);
 
 CREATE INDEX IF NOT EXISTS idx_car_images_car_sort ON car_images (car_pk, sort_order);
+
+-- -----------------------------------------------------------------------------
+-- scraper checkpoint (Encar list/pending/collected — бывший scraper_checkpoint.db)
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS scraper_checkpoint_state (
+    scope TEXT NOT NULL DEFAULT 'encar',
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (scope, key)
+);
+
+CREATE TABLE IF NOT EXISTS scraper_pending_ids (
+    scope TEXT NOT NULL DEFAULT 'encar',
+    car_id TEXT NOT NULL,
+    car_type TEXT NOT NULL,
+    item_json TEXT,
+    added_at DOUBLE PRECISION NOT NULL,
+    PRIMARY KEY (scope, car_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_scraper_pending_added
+    ON scraper_pending_ids (scope, added_at);
+
+CREATE TABLE IF NOT EXISTS scraper_collected_ids (
+    scope TEXT NOT NULL DEFAULT 'encar',
+    car_id TEXT NOT NULL,
+    PRIMARY KEY (scope, car_id)
+);

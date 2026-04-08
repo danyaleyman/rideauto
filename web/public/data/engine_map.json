@@ -1,0 +1,1003 @@
+{
+  "engines": [
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "소나타",
+        "sonata"
+      ],
+      "cc_min": 1590,
+      "cc_max": 1605,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 180,
+      "year_min": 2017,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "소나타",
+        "sonata"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 160,
+      "year_min": 2017,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "소나타",
+        "sonata"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 180,
+      "year_min": 2017,
+      "priority": 9
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "소나타",
+        "sonata"
+      ],
+      "cc_min": 2150,
+      "cc_max": 2200,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 245,
+      "year_min": 2019,
+      "priority": 10
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "그랜저",
+        "grandeur",
+        "그랜져"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 240,
+      "year_min": 2016,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "그랜저",
+        "grandeur"
+      ],
+      "cc_min": 2340,
+      "cc_max": 2370,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 290,
+      "year_min": 2016,
+      "priority": 9
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "그랜저",
+        "grandeur"
+      ],
+      "cc_min": 2980,
+      "cc_max": 3020,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 260,
+      "year_min": 2016,
+      "priority": 7
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "투싼",
+        "tucson"
+      ],
+      "cc_min": 1590,
+      "cc_max": 1605,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 180,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "투싼",
+        "tucson"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 152,
+      "year_min": 2018,
+      "priority": 7
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "투싼",
+        "tucson"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 235,
+      "year_min": 2020,
+      "priority": 9
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "투싼",
+        "tucson"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 186,
+      "year_min": 2018,
+      "priority": 9
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "싼타페",
+        "santa fe",
+        "santafe"
+      ],
+      "cc_min": 2150,
+      "cc_max": 2220,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 235,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "싼타페",
+        "santa fe"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 200,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "팰리세이드",
+        "palisade"
+      ],
+      "cc_min": 3470,
+      "cc_max": 3550,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 295,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "코나",
+        "kona"
+      ],
+      "cc_min": 1590,
+      "cc_max": 1610,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 198,
+      "year_min": 2017,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "코나",
+        "kona"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 147,
+      "year_min": 2017,
+      "priority": 7
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "아반떼",
+        "avante",
+        "elantra"
+      ],
+      "cc_min": 1590,
+      "cc_max": 1610,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 204,
+      "year_min": 2020,
+      "priority": 8
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "아반떼",
+        "avante",
+        "elantra"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 159,
+      "year_min": 2019,
+      "priority": 7
+    },
+    {
+      "make": "Hyundai",
+      "make_ko": "현대",
+      "model_substrings": [
+        "스타리아",
+        "staria"
+      ],
+      "cc_min": 2150,
+      "cc_max": 2220,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 177,
+      "year_min": 2021,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "k5",
+        "케이5",
+        "K5"
+      ],
+      "cc_min": 1590,
+      "cc_max": 1605,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 180,
+      "year_min": 2019,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "k5",
+        "케이5"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 160,
+      "year_min": 2019,
+      "priority": 7
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "k5",
+        "케이5"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 245,
+      "year_min": 2020,
+      "priority": 10
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "k8",
+        "케이8",
+        "K8"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 240,
+      "year_min": 2021,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "k8",
+        "케이8"
+      ],
+      "cc_min": 2340,
+      "cc_max": 2380,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 300,
+      "year_min": 2021,
+      "priority": 9
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "스포티지",
+        "sportage"
+      ],
+      "cc_min": 1590,
+      "cc_max": 1610,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 180,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "스포티지",
+        "sportage"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 152,
+      "year_min": 2018,
+      "priority": 7
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "스포티지",
+        "sportage"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 186,
+      "year_min": 2018,
+      "priority": 9
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "쏘렌토",
+        "sorento"
+      ],
+      "cc_min": 2150,
+      "cc_max": 2220,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 235,
+      "year_min": 2019,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "쏘렌토",
+        "sorento"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 200,
+      "year_min": 2019,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "카니발",
+        "carnival",
+        "카니밸"
+      ],
+      "cc_min": 2150,
+      "cc_max": 2220,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 202,
+      "year_min": 2020,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "카니발",
+        "carnival"
+      ],
+      "cc_min": 3470,
+      "cc_max": 3550,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 294,
+      "year_min": 2020,
+      "priority": 8
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "모하비",
+        "mohave"
+      ],
+      "cc_min": 2950,
+      "cc_max": 3020,
+      "turbo": false,
+      "fuel": "diesel",
+      "hp": 257,
+      "year_min": 2019,
+      "priority": 7
+    },
+    {
+      "make": "Kia",
+      "make_ko": "기아",
+      "model_substrings": [
+        "레이",
+        "ray"
+      ],
+      "cc_min": 990,
+      "cc_max": 1010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 67,
+      "priority": 6
+    },
+    {
+      "make": "Genesis",
+      "make_ko": "제네시스",
+      "model_substrings": [
+        "g70",
+        "G70"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 252,
+      "year_min": 2017,
+      "priority": 9
+    },
+    {
+      "make": "Genesis",
+      "make_ko": "제네시스",
+      "model_substrings": [
+        "g70",
+        "G70"
+      ],
+      "cc_min": 3300,
+      "cc_max": 3380,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 370,
+      "year_min": 2017,
+      "priority": 10
+    },
+    {
+      "make": "Genesis",
+      "make_ko": "제네시스",
+      "model_substrings": [
+        "g80",
+        "G80"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 304,
+      "year_min": 2020,
+      "priority": 9
+    },
+    {
+      "make": "Genesis",
+      "make_ko": "제네시스",
+      "model_substrings": [
+        "g80",
+        "G80"
+      ],
+      "cc_min": 3340,
+      "cc_max": 3360,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 380,
+      "year_min": 2020,
+      "priority": 10
+    },
+    {
+      "make": "Genesis",
+      "make_ko": "제네시스",
+      "model_substrings": [
+        "gv70",
+        "GV70"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 300,
+      "year_min": 2020,
+      "priority": 9
+    },
+    {
+      "make": "Genesis",
+      "make_ko": "제네시스",
+      "model_substrings": [
+        "gv80",
+        "GV80"
+      ],
+      "cc_min": 2980,
+      "cc_max": 3030,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 300,
+      "year_min": 2020,
+      "priority": 8
+    },
+    {
+      "make": "BMW",
+      "model_substrings": [
+        "320",
+        "320i"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 184,
+      "year_min": 2011,
+      "priority": 10
+    },
+    {
+      "make": "BMW",
+      "model_substrings": [
+        "330",
+        "330i"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 258,
+      "year_min": 2015,
+      "priority": 10
+    },
+    {
+      "make": "BMW",
+      "model_substrings": [
+        "520",
+        "520i"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 184,
+      "year_min": 2016,
+      "priority": 9
+    },
+    {
+      "make": "BMW",
+      "model_substrings": [
+        "530",
+        "530i"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 252,
+      "year_min": 2016,
+      "priority": 9
+    },
+    {
+      "make": "BMW",
+      "model_substrings": [
+        "x3"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 184,
+      "year_min": 2017,
+      "priority": 8
+    },
+    {
+      "make": "BMW",
+      "model_substrings": [
+        "x5"
+      ],
+      "cc_min": 2990,
+      "cc_max": 3005,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 340,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Mercedes-Benz",
+      "make_ko": "벤츠",
+      "model_substrings": [
+        "c200",
+        "c 200",
+        "C200"
+      ],
+      "cc_min": 1590,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 204,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Mercedes-Benz",
+      "make_ko": "벤츠",
+      "model_substrings": [
+        "e200",
+        "e 200"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 197,
+      "year_min": 2016,
+      "priority": 8
+    },
+    {
+      "make": "Mercedes-Benz",
+      "make_ko": "벤츠",
+      "model_substrings": [
+        "glc"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 211,
+      "year_min": 2015,
+      "priority": 7
+    },
+    {
+      "make": "Audi",
+      "make_ko": "아우디",
+      "model_substrings": [
+        "a4",
+        "A4"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 190,
+      "year_min": 2015,
+      "priority": 8
+    },
+    {
+      "make": "Audi",
+      "make_ko": "아우디",
+      "model_substrings": [
+        "a6",
+        "A6"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 245,
+      "year_min": 2018,
+      "priority": 8
+    },
+    {
+      "make": "Volkswagen",
+      "make_ko": "폭스바겐",
+      "model_substrings": [
+        "티구안",
+        "tiguan"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 180,
+      "year_min": 2016,
+      "priority": 7
+    },
+    {
+      "make": "Toyota",
+      "make_ko": "도요타",
+      "model_substrings": [
+        "캠리",
+        "camry"
+      ],
+      "cc_min": 2480,
+      "cc_max": 2520,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 209,
+      "year_min": 2017,
+      "priority": 7
+    },
+    {
+      "make": "Toyota",
+      "make_ko": "도요타",
+      "model_substrings": [
+        "랜드크루저",
+        "land cruiser",
+        "landcruiser"
+      ],
+      "cc_min": 4400,
+      "cc_max": 4700,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 309,
+      "year_min": 2021,
+      "priority": 8
+    },
+    {
+      "make": "Lexus",
+      "make_ko": "렉서스",
+      "model_substrings": [
+        "es"
+      ],
+      "cc_min": 2480,
+      "cc_max": 2520,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 207,
+      "year_min": 2018,
+      "priority": 7
+    },
+    {
+      "make": "Lexus",
+      "make_ko": "렉서스",
+      "model_substrings": [
+        "nx"
+      ],
+      "cc_min": 1980,
+      "cc_max": 2010,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 173,
+      "year_min": 2014,
+      "priority": 7
+    },
+    {
+      "make": "MINI",
+      "make_ko": "미니",
+      "model_substrings": [
+        "쿠퍼",
+        "cooper",
+        "countryman"
+      ],
+      "cc_min": 1490,
+      "cc_max": 1510,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 136,
+      "year_min": 2013,
+      "priority": 8
+    },
+    {
+      "make": "MINI",
+      "make_ko": "미니",
+      "model_substrings": [
+        "쿠퍼",
+        "cooper"
+      ],
+      "cc_min": 1990,
+      "cc_max": 2000,
+      "turbo": true,
+      "fuel": "gas",
+      "hp": 192,
+      "year_min": 2013,
+      "priority": 9
+    },
+    {
+      "make": "Tesla",
+      "make_ko": "테슬라",
+      "model_substrings": [
+        "model 3",
+        "모델 3"
+      ],
+      "fuel": "electric",
+      "hp": 283,
+      "priority": 5
+    },
+    {
+      "make": "Tesla",
+      "make_ko": "테슬라",
+      "model_substrings": [
+        "model y",
+        "모델 y"
+      ],
+      "fuel": "electric",
+      "hp": 351,
+      "priority": 5
+    },
+    {
+      "make": "Tesla",
+      "make_ko": "테슬라",
+      "model_substrings": [
+        "model s",
+        "모델 s"
+      ],
+      "fuel": "electric",
+      "hp": 670,
+      "priority": 4
+    },
+    {
+      "make": "BMW",
+      "make_ko": "BMW",
+      "motor_codes": [
+        "B46B20B"
+      ],
+      "cc_min": 1998,
+      "cc_max": 1998,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 184,
+      "priority": 25,
+      "source": "learned",
+      "auto_learned": true,
+      "sample_count": 31
+    },
+    {
+      "make": "BMW",
+      "make_ko": "BMW",
+      "motor_codes": [
+        "B47D20A"
+      ],
+      "cc_min": 1995,
+      "cc_max": 1995,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 190,
+      "priority": 18,
+      "source": "learned",
+      "auto_learned": true,
+      "sample_count": 6
+    },
+    {
+      "make": "BMW",
+      "make_ko": "BMW",
+      "motor_codes": [
+        "B47D20B"
+      ],
+      "cc_min": 1995,
+      "cc_max": 1995,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 190,
+      "priority": 21,
+      "source": "learned",
+      "auto_learned": true,
+      "sample_count": 9
+    },
+    {
+      "make": "BMW",
+      "make_ko": "BMW",
+      "motor_codes": [
+        "B58B30C"
+      ],
+      "cc_min": 2998,
+      "cc_max": 2998,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 306,
+      "priority": 18,
+      "source": "learned",
+      "auto_learned": true,
+      "sample_count": 6
+    },
+    {
+      "make": "BMW",
+      "make_ko": "BMW",
+      "motor_codes": [
+        "N47D20C"
+      ],
+      "cc_min": 1995,
+      "cc_max": 1995,
+      "turbo": true,
+      "fuel": "diesel",
+      "hp": 190,
+      "priority": 16,
+      "source": "learned",
+      "auto_learned": true,
+      "sample_count": 4
+    },
+    {
+      "make": "Mercedes-Benz",
+      "make_ko": "벤츠",
+      "motor_codes": [
+        "264920"
+      ],
+      "cc_min": 1991,
+      "cc_max": 1991,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 204,
+      "priority": 15,
+      "source": "learned",
+      "auto_learned": true,
+      "sample_count": 3
+    },
+    {
+      "make": "Mercedes-Benz",
+      "make_ko": "벤츠",
+      "motor_codes": [
+        "274920"
+      ],
+      "cc_min": 1991,
+      "cc_max": 1991,
+      "turbo": false,
+      "fuel": "gas",
+      "hp": 204,
+      "priority": 17,
+      "source": "learned",
+      "auto_learned": true,
+      "sample_count": 5
+    }
+  ],
+  "_comment": "Каталог моторов для оценки л.с. Поля: make, make_ko (опц.), model_substrings, cc или cc_min/cc_max, turbo (true/false/omit), fuel (gas/diesel/hybrid/electric/omit), hp, year_min/year_max (опц.), priority (выше — при равенстве). Расширяйте под свою статистику."
+}

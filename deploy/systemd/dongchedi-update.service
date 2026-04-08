@@ -1,5 +1,5 @@
 [Unit]
-Description=Prod Encar Dongchedi catalog update (encar_china.db)
+Description=Prod Encar Dongchedi → Postgres or encar_china.db (dongchedi_scraper.yaml storage)
 After=network.target
 # Первый раз: полный прогон вручную (см. deploy/DEPLOY.md). Далее — ежедневно в полночь по Екатеринбургу (dongchedi-update.timer).
 # Права: как у encar-update — www-data пишет encar_china.db
@@ -11,6 +11,7 @@ Group=www-data
 WorkingDirectory=/opt/prod-encar/backend
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/opt/prod-encar/.venv/bin/python -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
+# При storage.backend=postgres задайте DATABASE_URL в окружении (EnvironmentFile) или в YAML.
 TimeoutStartSec=24h
 NoNewPrivileges=true
 PrivateTmp=true

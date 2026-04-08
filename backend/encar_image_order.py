@@ -1,7 +1,7 @@
 """
 Порядок URL фото Encar по номеру кадра (_001.jpg …) — без зависимостей вроде aiohttp.
 
-Нужен для export_from_scraper_db.py на системном python3 и для api_server.
+Нужен для catalog_export_utils / postgres_catalog_sync и FastAPI (slim каталог).
 """
 from __future__ import annotations
 

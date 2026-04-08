@@ -1,5 +1,6 @@
 ﻿/**
- * Sync selected legacy static assets into web/public before dev/build.
+ * Копирует статические данные из `data/` в `web/public/data` перед dev/build.
+ * (Каталог живёт в Postgres; опциональный `web/public/cars.json` пишет postgres_catalog_sync.)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -7,46 +8,29 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(__dirname, "..");
-const FRONTEND = (
-  process.env.WRA_FRONTEND_ROOT?.trim() || path.resolve(WEB_ROOT, "..", "frontend")
-).replace(/\/+$/, "");
-
-function copyDir(src, dest) {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, ent.name);
-    const d = path.join(dest, ent.name);
-    if (ent.isDirectory()) copyDir(s, d);
-    else fs.copyFileSync(s, d);
-  }
-}
+const REPO_ROOT = path.resolve(WEB_ROOT, "..");
+const DATA = path.join(REPO_ROOT, "data");
+const pubData = path.join(WEB_ROOT, "public", "data");
 
 function main() {
-  if (!fs.existsSync(FRONTEND)) {
-    console.warn(`[sync-legacy-assets] skip: frontend not found (${FRONTEND})`);
+  if (!fs.existsSync(DATA)) {
+    console.warn(`[sync-legacy-assets] skip: no ${DATA}`);
     return;
   }
-
-  const pub = path.join(WEB_ROOT, "public");
-  fs.mkdirSync(pub, { recursive: true });
-
-  for (const name of ["css", "js", "image"]) {
-    const src = path.join(FRONTEND, name);
-    if (fs.existsSync(src)) copyDir(src, path.join(pub, name));
+  fs.mkdirSync(pubData, { recursive: true });
+  const names = ["engine_map.json", "encar_mapping.json"];
+  let n = 0;
+  for (const name of names) {
+    const src = path.join(DATA, name);
+    if (!fs.existsSync(src)) continue;
+    fs.copyFileSync(src, path.join(pubData, name));
+    n += 1;
   }
-
-  const engineMapSrc = path.join(FRONTEND, "data", "engine_map.json");
-  if (fs.existsSync(engineMapSrc)) {
-    fs.mkdirSync(path.join(pub, "data"), { recursive: true });
-    fs.copyFileSync(engineMapSrc, path.join(pub, "data", "engine_map.json"));
+  if (n === 0) {
+    console.warn("[sync-legacy-assets] no engine_map.json / encar_mapping.json in data/");
+    return;
   }
-
-  const seoSrc = path.join(FRONTEND, "seo");
-  if (fs.existsSync(seoSrc)) {
-    copyDir(seoSrc, path.join(pub, "seo"));
-  }
-
-  console.log("[sync-legacy-assets] ok");
+  console.log(`[sync-legacy-assets] ok (${n} file(s) → web/public/data/)`);
 }
 
 main();

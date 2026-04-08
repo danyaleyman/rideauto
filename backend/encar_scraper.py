@@ -1,6 +1,6 @@
 """
 Production Encar.com scraper: async pipeline (fetcher → parser → saver),
-SQLite checkpoint, экспоненциальный backoff в HTTP-клиенте.
+чекпоинт в PostgreSQL, экспоненциальный backoff в HTTP-клиенте.
 
 Архитектура: ``backend/scraper_pipeline/`` (retry, checkpoint, encar client/parser/savers/workers).
 """
@@ -18,10 +18,24 @@ from typing import List, Optional
 import yaml
 
 from parser_full import EncarFullParser
-from scraper_pipeline.checkpoint_sqlite import Checkpoint
+from scraper_pipeline.checkpoint_pg import Checkpoint
 from scraper_pipeline.encar.client import AsyncEncarClient
-from scraper_pipeline.encar.savers import SQLiteCarSaver, build_car_saver
+from scraper_pipeline.encar.savers import build_car_saver
 from scraper_pipeline.encar.workers import detail_worker, list_producer
+
+
+def _postgres_dsn_for_checkpoint(config: dict) -> str:
+    cp = config.get("checkpoint", {}) or {}
+    pg_cp = cp.get("postgres")
+    if isinstance(pg_cp, dict):
+        d = str(pg_cp.get("dsn") or "").strip()
+        if d:
+            return d
+    storage_cfg = config.get("storage", {}) or {}
+    d = str((storage_cfg.get("postgres") or {}).get("dsn") or "").strip()
+    if d:
+        return d
+    return (os.environ.get("DATABASE_URL") or "").strip()
 
 
 def load_config(config_path: str = "scraper_config.yaml") -> dict:
@@ -98,9 +112,12 @@ async def run_scraper(
     log = setup_logging(config)
     log.info("Starting Encar scraper%s", " (only-pending)" if only_pending else "")
     checkpoint_cfg = config.get("checkpoint", {})
-    cp_path = checkpoint_cfg.get("path", "scraper_checkpoint.db")
-    max_pending = checkpoint_cfg.get("max_pending_ids", 500000)
-    checkpoint = Checkpoint(path=cp_path, max_pending=max_pending)
+    max_pending = int(checkpoint_cfg.get("max_pending_ids", 500000))
+    scope = str(checkpoint_cfg.get("scope", "encar")).strip() or "encar"
+    cp_dsn = _postgres_dsn_for_checkpoint(config)
+    if not cp_dsn:
+        raise ValueError("Чекпоинт Encar: нужен DATABASE_URL или storage.postgres.dsn / checkpoint.postgres.dsn")
+    checkpoint = Checkpoint(dsn=cp_dsn, scope=scope, max_pending=max_pending)
     checkpoint.connect()
 
     saver, backend = build_car_saver(config)
@@ -298,57 +315,44 @@ async def run_scraper(
     except Exception:
         pass
 
-    if backend == "sqlite" and isinstance(saver, SQLiteCarSaver):
-        if os.environ.get("SKIP_FRONTEND_EXPORT", "").strip().lower() in ("1", "true", "yes"):
+    if backend == "postgres":
+        if os.environ.get("SKIP_FRONTEND_EXPORT", "").strip().lower() in ("1", "true", "yes", "on"):
             log.info(
-                "Экспорт на frontend пропущен (SKIP_FRONTEND_EXPORT). "
-                "Запустите вручную: python backend/export_from_scraper_db.py … или ночной timer."
+                "Синхронизация Postgres пропущена (SKIP_FRONTEND_EXPORT). "
+                "Запустите: python backend/postgres_catalog_sync.py --config …"
             )
         else:
-            _run_export_to_frontend(saver.sqlite_path, log)
+            _run_postgres_catalog_sync(config_path, log)
 
 
-def _run_export_to_frontend(db_path: str, log: logging.Logger) -> None:
-    path = Path(db_path).resolve()
-    if not path.exists():
-        log.warning("БД не найдена для экспорта: %s", path)
+def _run_postgres_catalog_sync(config_path: str, log: logging.Logger) -> None:
+    """После scraper с storage.backend=postgres: цены в БД + опционально Meilisearch (см. postgres_catalog_sync.py)."""
+    if os.environ.get("SKIP_POSTGRES_CATALOG_SYNC", "").strip().lower() in ("1", "true", "yes", "on"):
+        log.info("postgres_catalog_sync пропущен (SKIP_POSTGRES_CATALOG_SYNC)")
         return
     backend_dir = Path(__file__).resolve().parent
-    repo_dir = backend_dir.parent
-    out_path = repo_dir / "frontend" / "cars.json"
-    export_script = backend_dir / "export_from_scraper_db.py"
-    if not export_script.exists():
-        log.warning("Скрипт экспорта не найден: %s", export_script)
+    sync_script = backend_dir / "postgres_catalog_sync.py"
+    if not sync_script.is_file():
+        log.warning("postgres_catalog_sync.py не найден: %s", sync_script)
         return
-    export_args = [
+    cmd = [
         os.environ.get("PYTHON", sys.executable),
-        str(export_script),
-        "--db",
-        str(path),
-        "--out",
-        str(out_path),
-        "--chunk-size",
-        "5000",
-        "--chunk-dir",
-        str(repo_dir / "frontend" / "data" / "chunks"),
-        "--chunk-index",
-        str(repo_dir / "frontend" / "data" / "cars.index.json"),
-        "--gzip",
-        "--learn-engine-map",
+        str(sync_script),
+        "--config",
+        str(Path(config_path).resolve()),
     ]
-    if os.environ.get("SKIP_LEARN_ENGINE_MAP", "").strip().lower() in ("1", "true", "yes"):
-        export_args = [a for a in export_args if a != "--learn-engine-map"]
+    if os.environ.get("WRITE_LEGACY_CATALOG", "").strip().lower() in ("1", "true", "yes", "on"):
+        cmd.extend(["--write-legacy-json", "--legacy-gzip", "--legacy-chunk-size", "5000"])
+    if os.environ.get("SKIP_LEARN_ENGINE_MAP", "").strip().lower() not in ("1", "true", "yes", "on"):
+        cmd.append("--learn-engine-map")
     try:
-        r = subprocess.run(
-            export_args,
-            cwd=str(backend_dir),
-        )
+        r = subprocess.run(cmd, cwd=str(backend_dir))
         if r.returncode == 0:
-            log.info("Экспорт в frontend/cars.json (+ chunks + gzip) выполнен")
+            log.info("Синхронизация каталога Postgres (цены/Meili) выполнена")
         else:
-            log.warning("Экспорт завершился с кодом %s", r.returncode)
+            log.warning("postgres_catalog_sync завершился с кодом %s", r.returncode)
     except Exception as e:
-        log.warning("Ошибка экспорта на фронт: %s", e)
+        log.warning("Ошибка postgres_catalog_sync: %s", e)
 
 
 def main() -> None:

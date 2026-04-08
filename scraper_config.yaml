@@ -102,19 +102,18 @@ daily_update:
 
 # Checkpoint and state
 checkpoint:
-  path: "scraper_checkpoint.db"
+  scope: "encar"
   save_interval_seconds: 60
-  # Max pending IDs to keep in DB (oldest dropped when full to avoid unbounded growth)
   max_pending_ids: 500000
+  # DSN чекпоинта: по умолчанию тот же, что storage.postgres.dsn / DATABASE_URL
+  # postgres:
+  #   dsn: ""
 
-# Output storage
-# Production: postgres + DATABASE_URL или storage.postgres.dsn.
-# Локально без Postgres: SCRAPER_STORAGE_BACKEND=sqlite (см. .env.example).
+# Каталог только в PostgreSQL (DATABASE_URL или storage.postgres.dsn). Другие backend в saver не поддерживаются.
 storage:
-  # "sqlite" | "chunked_json" | "postgres"
   backend: "postgres"
   sqlite:
-    path: "encar_cars.db"
+    path: "encar_cars.db" # legacy-путь для утилит миграции / старых скриптов
   postgres:
     # Или переменная окружения DATABASE_URL (см. .env.example)
     dsn: ""

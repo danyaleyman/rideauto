@@ -187,7 +187,7 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
 
 @router.get("/search", response_model=SearchResponse)
 async def search(request: Request) -> Dict[str, Any]:
-    """Каталог через Meilisearch + гидратация карточек из PostgreSQL (как legacy `/api/cars`)."""
+    """Каталог через Meilisearch + гидратация карточек из PostgreSQL."""
     return await _search_maybe_cached(request)
 
 

@@ -9,7 +9,7 @@
 web/node_modules
 web/.next
 
-# Not used by web/Dockerfile COPY web + frontend (shrinks `docker compose build web` context)
+# Shrinks `docker compose build web` context (image copies `web/`, not whole monorepo)
 deploy/
 docs/
 e2e/
@@ -18,13 +18,3 @@ scripts/
 playwright.config.mjs
 Prod Encar.code-workspace
 README.md
-
-# sync-legacy-assets.mjs only pulls: frontend/{css,js,image}, frontend/data/engine_map.json, frontend/seo
-frontend/*.html
-frontend/catalog-che168.html
-frontend/robots.txt
-frontend/sitemap.xml
-frontend/sitemap-pages.xml
-frontend/data/*
-!frontend/data/engine_map.json
-frontend/data/chunks

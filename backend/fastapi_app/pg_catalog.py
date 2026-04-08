@@ -7,7 +7,7 @@ import asyncpg
 
 
 async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str, Dict[str, Any]]:
-    """Возвращает полные JSON-карточки из колонки `cars.data` (как legacy `data_json`)."""
+    """Возвращает полные JSON-карточки из колонки `cars.data`."""
     if not car_ids:
         return {}
     rows = await pool.fetch(
