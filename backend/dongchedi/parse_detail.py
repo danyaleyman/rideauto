@@ -47,11 +47,50 @@ def _next_data_page_props(html: str) -> Dict[str, Any]:
     return pp if isinstance(pp, dict) else {}
 
 
+def _find_detail_like_obj(root: Any, depth: int = 0) -> Optional[Dict[str, Any]]:
+    """
+    Fallback for pages where detail isn't under pageProps.skuDetail.
+    Looks for dicts that resemble usedcar detail payloads.
+    """
+    if depth > 14 or root is None:
+        return None
+    if isinstance(root, dict):
+        # Typical Dongchedi detail hints.
+        score = 0
+        if isinstance(root.get("car_info"), dict):
+            score += 3
+        for k in ("image_list", "head_images", "images", "car_image_list", "sku_image_list"):
+            if isinstance(root.get(k), list):
+                score += 2
+        if any(k in root for k in ("source_sh_price", "include_tax_price", "important_text", "car_config_overview")):
+            score += 1
+        if score >= 3:
+            return root
+        # Prefer fields commonly used by Next page props.
+        for key in ("skuDetail", "rawData", "detail", "detailInfo", "usedCarDetail", "carDetail"):
+            if key in root:
+                found = _find_detail_like_obj(root.get(key), depth + 1)
+                if found:
+                    return found
+        for v in root.values():
+            found = _find_detail_like_obj(v, depth + 1)
+            if found:
+                return found
+    elif isinstance(root, list):
+        for item in root[:200]:
+            found = _find_detail_like_obj(item, depth + 1)
+            if found:
+                return found
+    return None
+
+
 def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
     pp = _next_data_page_props(html)
     sd = pp.get("skuDetail")
     if not isinstance(sd, dict):
-        return None
+        sd = _find_detail_like_obj(pp)
+        if not isinstance(sd, dict):
+            return None
     hint = _km_hint_from_usedcar_html(html)
     if hint is not None:
         sd.setdefault("_mileage_hint_km", hint)
