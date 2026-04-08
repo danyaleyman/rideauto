@@ -46,7 +46,7 @@ def build_meilisearch_filter(
     omit_keys: Optional[FrozenSet[str]] = None,
 ) -> Optional[str]:
     """
-    Строит Meilisearch `filter` по query keys каталога (совместимость с legacy SQL-фильтрами).
+    Строит Meilisearch `filter` по query keys каталога (совместимость с API query-параметрами).
 
     Не покрыто индексом (пока игнорируется): страховые суммы/кол-во, ДТП, passage_cars,
     объём двигателя / мощность — после добавления полей в Meilisearch расширить sync + settings.
@@ -140,3 +140,4 @@ def facet_distribution_to_rows(dist: Optional[Dict[str, int]]) -> List[Dict[str,
     rows = [{"value": k, "count": int(v)} for k, v in dist.items() if k not in ("", None)]
     rows.sort(key=lambda r: str(r["value"]).lower())
     return rows
+

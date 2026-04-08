@@ -16,7 +16,6 @@ __pycache__/
 
 # Local databases / checkpoints (на сервере своя БД — не коммитить)
 *.db
-*.sqlite
 *.db-shm
 *.db-wal
 
@@ -39,3 +38,4 @@ node_modules/
 
 # Playwright / e2e
 test-results/
+

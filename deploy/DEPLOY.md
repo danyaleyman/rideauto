@@ -27,8 +27,8 @@ sudo systemctl enable --now encar-api.service       # активный юнит
 ## Next.js (`web`)
 
 - **Публичный сайт:** Next.js 15 — **`/`**, **`/catalog`**, **`/car/[id]`**, **`/about`**, **`/contacts`**, **`/buy`**, **`/privacy`**, **`/cookies`**, **`/agreement`**. Nginx проксирует **`/`** и эти пути на процесс Next (см. **`deploy/nginx/nextjs-frontend.snippet.conf`**). В `@wra_extensionless` уберите **`rewrite ^/catalog$ /index.html`**, если осталось от старой статики.
-- **Данные:** Meilisearch + FastAPI; в проде с **`WRA_PG_DSN`** — **PostgreSQL** (каталог и карточки), не только SQLite.
-- **Сборка:** `sync-legacy-assets.mjs` зеркалирует статику, **`seo/`**, **`howtobuy.html`**, фрагменты **car**, **about/contacts**. Docker образ `web`: контекст **корень репозитория**, см. `web/Dockerfile`.
+- **Данные:** Meilisearch + FastAPI; в проде с **`WRA_PG_DSN`** — **PostgreSQL** (каталог и карточки).
+- **Сборка:** `sync-static-data.mjs` копирует JSON-справочники (`engine_map.json`, `encar_mapping.json`) в `web/public/data`. Docker образ `web`: контекст **корень репозитория**, см. `web/Dockerfile`.
 - **Прокси API:** на origin Next `/api/*` → `WRA_API_INTERNAL`; у вас на nginx `/api/` может идти сразу на uvicorn — ок.
 - **Редиректы в Next:** `/index.html` → `/`, `/*.html` → каноника, `/detail/:id` → `/car/:id`. На nginx для `/detail/`: `return 301 /car/$1` или прокси на Next.
 
@@ -114,7 +114,7 @@ docker compose up -d api web
 
 Старый бинарник **`docker-compose`** (v1) можно оставить или удалить пакетом `docker-compose` из репозитория Ubuntu, если он ставился отдельно — на работу **`docker compose`** это не влияет.
 
-Рабочий каталог — **PostgreSQL** (том `postgres` / `DATABASE_URL`). Файлы `encar_*.db` нуж разве что для **одноразовой миграции** (`migrate_sqlite_to_postgres.py`) или бэкапов; см. [BACKUP-SQLITE.md](BACKUP-SQLITE.md).
+Рабочий каталог — **PostgreSQL** (том `postgres` / `DATABASE_URL`).
 
 ## Cutover + Rollback (после миграции БД)
 
@@ -183,7 +183,7 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 
 - Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u encar-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
 - Частая причина по Корее: в **`auto_update.py`** при работающем PostgreSQL и **`catalog_encar_nightly: true`** в конце вызывается **`encar_daily_update.py --once`**; при **ненулевом коде** весь **`encar-update.service`** падает — смотрите сообщение `encar_daily_update завершился с кодом` в журнале.
-- Если в логе **`password authentication failed for user "postgres"`** — без рабочего Postgres ночной цикл Encar не выполнится (отдельного SQLite-пайплайна нет). Проверьте `db_config` в **`backend/config.json`** и `DATABASE_URL` у скрапера.
+- Если в логе **`password authentication failed for user "postgres"`** — без рабочего Postgres ночной цикл Encar не выполнится. Проверьте `db_config` в **`backend/config.json`** и `DATABASE_URL` у скрапера.
 - Корея вручную (discover + pending): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо. При необходимости **`SKIP_LEARN_ENGINE_MAP=1`** — без долгого `auto_learn_engine_map`.
 - Китай полный перескрейп: остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
 - Китай **тест одной страницы**: **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/prod-encar` (лимит: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом обновите Meilisearch и проверьте каталог **`?region=china`**.
@@ -205,7 +205,7 @@ location /api/ {
 
 ## Статика фронтенда (Next + public)
 
-Статические ассеты раздаёт Next из **`web/public`** (`/js/*`, `/css/*`, …). Для SEO-HTML после генерации проверьте порядок скриптов в шаблоне (если используете legacy вставки в статические страницы).
+Статические ассеты раздаёт Next из **`web/public`** (`/image/*`, `/data/*`, `/seo/*`, …).
 
 ### SEO-посадки марка/модель (пререндер)
 
@@ -257,3 +257,5 @@ Certbot добавляет отдельный блок для HTTPS. Если т
 ### 4. Кэш nginx
 
 В `prod-encar.conf` для каталога включён `proxy_cache_lock`. Если первый запрос к upstream «висит», остальные ждут замка. В актуальной версии конфига задан **`proxy_cache_lock_timeout 20s`**, чтобы запросы не копились бесконечно. После `git pull` перенесите эти строки в свой реальный `sites-enabled`.
+
+

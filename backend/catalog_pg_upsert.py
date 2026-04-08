@@ -1,25 +1,13 @@
 """
-Пакетный upsert карточек в PostgreSQL (тот же SQL, что migrate_sqlite_to_postgres / PostgresCarSaver).
+Пакетный upsert карточек в PostgreSQL (общая SQL-логика с PostgresCarSaver).
 Используется скрейпером Dongchedi и может переиспользоваться другими ingestion-пайплайнами.
 """
 from __future__ import annotations
 
-import importlib.util
 import json
-from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-
-
-def _load_pg_migrate():
-    path = _REPO_ROOT / "infrastructure" / "postgresql" / "migrate_sqlite_to_postgres.py"
-    spec = importlib.util.spec_from_file_location("wra_pg_migrate_catalog_upsert", path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load migrate module: {path}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+from catalog_pg_core import UPSERT_CAR_SQL, extract_image_urls, get_or_create_brand, get_or_create_model, row_to_car_fields
 
 
 def upsert_json_batch(
@@ -29,7 +17,7 @@ def upsert_json_batch(
     batch_commit: int = 50,
 ) -> int:
     """
-    batch: список (car_id, data_json) как в SQLite-скрейпере; raw не пишем (NULL).
+    batch: список (car_id, data_json); raw не пишем (NULL).
     Возвращает число успешно обработанных записей.
     """
     if not batch:
@@ -37,7 +25,6 @@ def upsert_json_batch(
     import psycopg2
     import psycopg2.extras
 
-    m = _load_pg_migrate()
     brand_cache: Dict[str, int] = {}
     model_cache: Dict[tuple, int] = {}
     ok = 0
@@ -52,9 +39,9 @@ def upsert_json_batch(
                     continue
                 if not isinstance(payload, dict):
                     continue
-                fields = m.row_to_car_fields(car_id, payload, sqlite_internal_id=None)
-                bid = m.get_or_create_brand(cur, brand_cache, fields["mark"])
-                mid = m.get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
+                fields = row_to_car_fields(car_id, payload, source_internal_id=None)
+                bid = get_or_create_brand(cur, brand_cache, fields["mark"])
+                mid = get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
                 params = {
                     **fields,
                     "brand_id": bid,
@@ -63,12 +50,12 @@ def upsert_json_batch(
                     "raw": None,
                     "created_at": None,
                 }
-                cur.execute(m.UPSERT_CAR_SQL, params)
+                cur.execute(UPSERT_CAR_SQL, params)
                 row = cur.fetchone()
                 if not row:
                     continue
                 car_pk = int(row[0])
-                urls = m.extract_image_urls(payload)
+                urls = extract_image_urls(payload)
                 cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
                 for i, url in enumerate(urls):
                     cur.execute(

@@ -21,9 +21,9 @@ python backend/run_system.py --daily
 cd web && npm install && npm run dev
 ```
 
-Опциональный статический дамп каталога (CDN/отладка без Meilisearch): флаги у [`backend/postgres_catalog_sync.py`](backend/postgres_catalog_sync.py) (`--write-legacy-json` → `web/public/cars.json` и чанки в `web/public/data/`). Справочники для билда копируются из `data/` скриптом `web/scripts/sync-legacy-assets.mjs`.
+Опциональный статический дамп каталога (CDN/отладка без Meilisearch): флаги у [`backend/postgres_catalog_sync.py`](backend/postgres_catalog_sync.py) (`--write-static-json` → `web/public/cars.json` и чанки в `web/public/data/`). Справочники для билда копируются из `data/` скриптом `web/scripts/sync-static-data.mjs`.
 
-**Ночное обновление:** в [`backend/config.json`](backend/config.json) `update_config.catalog_encar_nightly` (по умолчанию `true`) — после цикла PostgreSQL вызывается `encar_daily_update.py --once` (discover, sold-check, скрейпер в Postgres). Без доступного Postgres `auto_update` завершается с ошибкой (отдельного SQLite-пайплайна нет).
+**Ночное обновление:** в [`backend/config.json`](backend/config.json) `update_config.catalog_encar_nightly` (по умолчанию `true`) — после цикла PostgreSQL вызывается `encar_daily_update.py --once` (discover, sold-check, скрейпер в Postgres). Без доступного Postgres `auto_update` завершается с ошибкой.
 
 Глубина списка Encar задаётся в [`scraper_config.yaml`](scraper_config.yaml): `max_list_offset: 0` означает проход до пустого ответа (с верхней границей `list_offset_hard_cap`). Дополнительные срезы запроса — `list_q_suffixes`.
 
@@ -403,31 +403,16 @@ backup = manager.create_backup()
 - `auto_update_cron.log` - Логи cron заданий
 - `quick_start.log` - Логи настройки
 
-## 🔄 Миграция с SQLite
+## 🔄 Эксплуатация каталога
 
-Если у вас есть существующая SQLite база данных:
+Каталог работает только через PostgreSQL + Meilisearch.
 
-1. **Экспорт данных**:
-   ```python
-   from database import Database
-   from postgresql_database import PostgreSQLDatabase
-   
-   # Экспорт из SQLite
-   sqlite_db = Database()
-   cars = sqlite_db.get_all_active_cars()
-   
-   # Импорт в PostgreSQL
-   pg_db = PostgreSQLDatabase(...)
-   for car in cars:
-       pg_db.add_or_update_car(car)
-   ```
+Базовая проверка после деплоя:
 
-2. **Обновление конфигурации** в `config.json`
-
-3. **Запуск тестирования**:
-   ```bash
-   python test_postgresql.py
-   ```
+```bash
+python -m pytest backend/tests -q
+cd web && npm run build
+```
 
 ## 📚 Документация
 
@@ -455,3 +440,5 @@ backup = manager.create_backup()
 ---
 
 **💡 Совет**: Для начала работы запустите `python quick_start.py` - это автоматически настроит всю систему!
+
+

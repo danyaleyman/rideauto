@@ -112,15 +112,10 @@ checkpoint:
 # Каталог только в PostgreSQL (DATABASE_URL или storage.postgres.dsn). Другие backend в saver не поддерживаются.
 storage:
   backend: "postgres"
-  sqlite:
-    path: "encar_cars.db" # legacy-путь для утилит миграции / старых скриптов
   postgres:
     # Или переменная окружения DATABASE_URL (см. .env.example)
     dsn: ""
-  chunked_json:
-    dir: "output_chunks"
-    cars_per_file: 1000
-  # Store raw API responses for reprocessing (in SQLite as blob or separate table)
+  # Store raw API responses for reprocessing in PostgreSQL
   store_raw_responses: false
 
 # Logging (путь от корня репозитория; systemd User=www-data должен иметь запись в logs/)
@@ -129,3 +124,4 @@ logging:
   file: "logs/scraper.log"
   console: true
   format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+

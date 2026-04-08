@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sync-static-data": "node scripts/sync-legacy-assets.mjs",
+    "sync-static-data": "node scripts/sync-static-data.mjs",
     "dev": "next dev --turbopack",
     "build": "next build",
     "analyze": "ANALYZE=true next build",
@@ -28,3 +28,4 @@
     "typescript": "^5"
   }
 }
+

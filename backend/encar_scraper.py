@@ -341,8 +341,8 @@ def _run_postgres_catalog_sync(config_path: str, log: logging.Logger) -> None:
         "--config",
         str(Path(config_path).resolve()),
     ]
-    if os.environ.get("WRITE_LEGACY_CATALOG", "").strip().lower() in ("1", "true", "yes", "on"):
-        cmd.extend(["--write-legacy-json", "--legacy-gzip", "--legacy-chunk-size", "5000"])
+    if os.environ.get("WRITE_STATIC_CATALOG", "").strip().lower() in ("1", "true", "yes", "on"):
+        cmd.extend(["--write-static-json", "--static-gzip", "--static-chunk-size", "5000"])
     if os.environ.get("SKIP_LEARN_ENGINE_MAP", "").strip().lower() not in ("1", "true", "yes", "on"):
         cmd.append("--learn-engine-map")
     try:

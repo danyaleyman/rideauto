@@ -1,4 +1,4 @@
--- PostgreSQL catalog schema (normalized from SQLite `cars`: car_id, data_json, raw_json).
+-- PostgreSQL catalog schema (normalized from historical cars source).
 -- Target: FastAPI + btree filters aligned with каталогом / Meilisearch
 -- Requires: PostgreSQL 12+ (GENERATED STORED columns)
 -- Optional (superuser / rds_superuser): CREATE EXTENSION pg_trgm;
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS cars (
     offer_created_at         TIMESTAMPTZ,
     data                     JSONB NOT NULL,
     raw                      JSONB,
-    sqlite_internal_id       BIGINT,
+    source_internal_id       BIGINT,
     created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT cars_car_id_unique UNIQUE (car_id)
@@ -123,7 +123,7 @@ CREATE INDEX IF NOT EXISTS idx_cars_data_gin ON cars USING GIN (data);
 CREATE INDEX IF NOT EXISTS idx_car_images_car_sort ON car_images (car_pk, sort_order);
 
 -- -----------------------------------------------------------------------------
--- scraper checkpoint (Encar list/pending/collected — бывший scraper_checkpoint.db)
+-- scraper checkpoint (Encar list/pending/collected state)
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS scraper_checkpoint_state (
@@ -150,3 +150,4 @@ CREATE TABLE IF NOT EXISTS scraper_collected_ids (
     car_id TEXT NOT NULL,
     PRIMARY KEY (scope, car_id)
 );
+

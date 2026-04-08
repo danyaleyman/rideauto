@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
 import { getSiteUrl } from "@/lib/env";
 import "./globals.css";
@@ -32,20 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <head>
-        <link rel="stylesheet" href="/css/cookie-consent.css?v=20260410" />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <Script
-          src="/js/wra-site-config.js?v=20260421"
-          strategy="beforeInteractive"
-        />
-        <Script
-          src="/js/cookie-consent.js?v=20260421"
-          strategy="afterInteractive"
-        />
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <WebVitalsReporter />
         {children}
       </body>

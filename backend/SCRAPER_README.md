@@ -39,6 +39,8 @@ The list API uses `sr: "|ModifiedDate|{offset}|{limit}"`. If the API rejects lar
 
 ## Опциональный статический дамп
 
-Для `web/public/cars.json` и чанков используйте **`postgres_catalog_sync.py --write-legacy-json`** (или пайплайн CI), а не прямой экспорт из SQLite.
+Для `web/public/cars.json` и чанков используйте **`postgres_catalog_sync.py --write-static-json`** (или пайплайн CI).
 
 You can add a small script in the repo that runs this and optionally merges with `parser_full`’s `save_to_file` format.
+
+

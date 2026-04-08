@@ -1,2 +1,0 @@
-/* Собирается в car-tailwind.css — только utilities, без preflight (остальное в common.css + инлайн car.html). */
-@tailwind utilities;

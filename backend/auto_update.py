@@ -365,8 +365,7 @@ class AutoUpdateManager:
             logger.info("Автоматическое обновление завершено успешно!")
 
             uc = self.config.get("update_config") or {}
-            # Backward-compat: старое поле config `catalog_sync_sqlite` трактуем как nightly флаг.
-            if uc.get("catalog_encar_nightly", uc.get("catalog_sync_sqlite", True)):
+            if uc.get("catalog_encar_nightly", True):
                 backend_dir = Path(__file__).resolve().parent
                 repo_dir = backend_dir.parent
                 config_path = repo_dir / "scraper_config.yaml"

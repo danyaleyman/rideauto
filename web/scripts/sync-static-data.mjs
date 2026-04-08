@@ -1,6 +1,5 @@
-﻿/**
- * Копирует статические данные из `data/` в `web/public/data` перед dev/build.
- * (Каталог живёт в Postgres; опциональный `web/public/cars.json` пишет postgres_catalog_sync.)
+/**
+ * Copies static lookup data from `data/` to `web/public/data` before dev/build.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -14,7 +13,7 @@ const pubData = path.join(WEB_ROOT, "public", "data");
 
 function main() {
   if (!fs.existsSync(DATA)) {
-    console.warn(`[sync-legacy-assets] skip: no ${DATA}`);
+    console.warn(`[sync-static-data] skip: no ${DATA}`);
     return;
   }
   fs.mkdirSync(pubData, { recursive: true });
@@ -27,10 +26,10 @@ function main() {
     n += 1;
   }
   if (n === 0) {
-    console.warn("[sync-legacy-assets] no engine_map.json / encar_mapping.json in data/");
+    console.warn("[sync-static-data] no engine_map.json / encar_mapping.json in data/");
     return;
   }
-  console.log(`[sync-legacy-assets] ok (${n} file(s) → web/public/data/)`);
+  console.log(`[sync-static-data] ok (${n} file(s) -> web/public/data/)`);
 }
 
 main();

@@ -3,35 +3,31 @@
 Обогащение каталога в PostgreSQL (цены, порядок медиа, power lookup) и синхронизация с Meilisearch.
 
 Повторяет логику прежнего export-пайплайна (дедуп по listing key и PriceCalculator),
-но upsert в Postgres через тот же SQL, что и scraper/migrate_sqlite_to_postgres (без записи в SQLite).
+но upsert в Postgres через общую SQL-логику ingestion.
 
-Опционально: статический дамп `web/public/cars.json` (+ chunks в `web/public/data/`), см. --write-legacy-json.
+Опционально: статический дамп `web/public/cars.json` (+ chunks в `web/public/data/`), см. --write-static-json.
 """
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+from catalog_pg_core import (
+    UPSERT_CAR_SQL,
+    extract_image_urls,
+    get_or_create_brand,
+    get_or_create_model,
+    row_to_car_fields,
+)
 
 _BACKEND_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _BACKEND_DIR.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
-
-
-def _load_pg_migrate():
-    path = _REPO_ROOT / "infrastructure" / "postgresql" / "migrate_sqlite_to_postgres.py"
-    spec = importlib.util.spec_from_file_location("wra_pg_migrate_encar_sync", path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load migrate module: {path}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 def _dsn_from_config(config: dict) -> str:
@@ -104,7 +100,7 @@ def _maybe_learn_engine_map() -> None:
         print(f"Warning: auto_learn_engine_map.py exited {r.returncode}", file=sys.stderr)
 
 
-def _write_legacy_static(
+def _write_static_catalog(
     cars: List[dict],
     *,
     gzip_enabled: bool,
@@ -115,7 +111,7 @@ def _write_legacy_static(
     out_path = _REPO_ROOT / "web" / "public" / "cars.json"
     out = {"result": cars, "meta": {"page": 1, "next_page": 2, "limit": len(cars)}}
     write_json_atomic(out_path, out, gzip_enabled=gzip_enabled)
-    print(f"Optional static JSON: {out_path} ({len(cars)} cars)", file=sys.stderr)
+    print(f"Static JSON: {out_path} ({len(cars)} cars)", file=sys.stderr)
     if chunk_size > 0:
         chunk_dir = _REPO_ROOT / "web" / "public" / "data" / "chunks"
         index_path = _REPO_ROOT / "web" / "public" / "data" / "cars.index.json"
@@ -164,9 +160,9 @@ def run_sync(
     no_prices: bool = False,
     no_power_lookup: bool = False,
     batch_commit: int = 200,
-    write_legacy_json: bool = False,
-    legacy_gzip: bool = False,
-    legacy_chunk_size: int = 0,
+    write_static_json: bool = False,
+    static_gzip: bool = False,
+    static_chunk_size: int = 0,
     run_meili: bool = True,
     run_learn: bool = False,
 ) -> int:
@@ -178,8 +174,6 @@ def run_sync(
         normalize_car_media_fields,
     )
 
-    m = _load_pg_migrate()
-
     import psycopg2
 
     conn = psycopg2.connect(dsn)
@@ -190,7 +184,7 @@ def run_sync(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, car_id, data, raw, sqlite_internal_id
+                SELECT id, car_id, data, raw, source_internal_id
                 FROM cars
                 ORDER BY id ASC
                 """
@@ -201,7 +195,7 @@ def run_sync(
                 if not chunk:
                     break
                 for row in chunk:
-                    pg_id, car_id, data, raw, sqlite_internal_id = row
+                    pg_id, car_id, data, raw, source_internal_id = row
                     if data is None:
                         continue
                     if isinstance(data, (bytes, memoryview)):
@@ -219,7 +213,7 @@ def run_sync(
                     lk = listing_key_for_export(str(car_id), data)
                     prev = best.get(lk)
                     if prev is None or int(pg_id) > int(prev[0]):
-                        best[lk] = (int(pg_id), str(car_id), data, raw, sqlite_internal_id)
+                        best[lk] = (int(pg_id), str(car_id), data, raw, source_internal_id)
 
         ordered: List[Tuple[int, str, dict, Any, Any]] = sorted(
             (
@@ -290,7 +284,7 @@ def run_sync(
                 cid = car.get("id")
                 if not cid:
                     continue
-                raw_obj, sqlite_internal_id = meta_by_car_id.get(str(cid), (None, None))
+                raw_obj, source_internal_id = meta_by_car_id.get(str(cid), (None, None))
                 if isinstance(raw_obj, (bytes, memoryview)):
                     try:
                         raw_obj = json.loads(bytes(raw_obj).decode("utf-8"))
@@ -302,13 +296,13 @@ def run_sync(
                     except json.JSONDecodeError:
                         raw_obj = {"_raw_text": raw_obj}
                 raw_adapted = psycopg2.extras.Json(raw_obj) if isinstance(raw_obj, dict) else None
-                fields = m.row_to_car_fields(
+                fields = row_to_car_fields(
                     str(cid),
                     car,
-                    sqlite_internal_id=sqlite_internal_id if sqlite_internal_id is not None else None,
+                    source_internal_id=source_internal_id if source_internal_id is not None else None,
                 )
-                bid = m.get_or_create_brand(cur, brand_cache, fields["mark"])
-                mid = m.get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
+                bid = get_or_create_brand(cur, brand_cache, fields["mark"])
+                mid = get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
                 params = {
                     **fields,
                     "brand_id": bid,
@@ -317,12 +311,12 @@ def run_sync(
                     "raw": raw_adapted,
                     "created_at": None,
                 }
-                cur.execute(m.UPSERT_CAR_SQL, params)
+                cur.execute(UPSERT_CAR_SQL, params)
                 row = cur.fetchone()
                 if not row:
                     continue
                 car_pk = int(row[0])
-                urls = m.extract_image_urls(car)
+                urls = extract_image_urls(car)
                 cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
                 for i, url in enumerate(urls):
                     cur.execute(
@@ -345,11 +339,11 @@ def run_sync(
     finally:
         conn.close()
 
-    if write_legacy_json:
-        _write_legacy_static(
+    if write_static_json:
+        _write_static_catalog(
             cars_out,
-            gzip_enabled=legacy_gzip,
-            chunk_size=max(0, legacy_chunk_size),
+            gzip_enabled=static_gzip,
+            chunk_size=max(0, static_chunk_size),
         )
 
     if run_meili:
@@ -360,19 +354,19 @@ def run_sync(
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Enc richness + upsert PostgreSQL (+ optional Meili / legacy JSON)")
+    p = argparse.ArgumentParser(description="Enc richness + upsert PostgreSQL (+ optional Meili / static JSON)")
     p.add_argument("--config", default="", help="scraper_config.yaml (reads storage.postgres.dsn)")
     p.add_argument("--dsn", default="", help="Override PostgreSQL DSN")
     p.add_argument("--no-prices", action="store_true")
     p.add_argument("--no-power-lookup", action="store_true")
     p.add_argument("--batch-commit", type=int, default=200)
     p.add_argument(
-        "--write-legacy-json",
+        "--write-static-json",
         action="store_true",
         help="Also write web/public/cars.json (and optional chunks under web/public/data/)",
     )
-    p.add_argument("--legacy-gzip", action="store_true")
-    p.add_argument("--legacy-chunk-size", type=int, default=0)
+    p.add_argument("--static-gzip", action="store_true")
+    p.add_argument("--static-chunk-size", type=int, default=0)
     p.add_argument("--no-meilisearch", action="store_true")
     p.add_argument("--learn-engine-map", action="store_true")
     args = p.parse_args()
@@ -389,7 +383,7 @@ def main() -> int:
         print("PostgreSQL DSN required (--dsn or config storage.postgres.dsn / DATABASE_URL)", file=sys.stderr)
         return 2
 
-    legacy = args.write_legacy_json or os.environ.get("WRITE_LEGACY_CATALOG", "").strip().lower() in (
+    static_export = args.write_static_json or os.environ.get("WRITE_STATIC_CATALOG", "").strip().lower() in (
         "1",
         "true",
         "yes",
@@ -401,9 +395,9 @@ def main() -> int:
         no_prices=args.no_prices,
         no_power_lookup=args.no_power_lookup,
         batch_commit=max(1, args.batch_commit),
-        write_legacy_json=legacy,
-        legacy_gzip=args.legacy_gzip,
-        legacy_chunk_size=max(0, args.legacy_chunk_size),
+        write_static_json=static_export,
+        static_gzip=args.static_gzip,
+        static_chunk_size=max(0, args.static_chunk_size),
         run_meili=not args.no_meilisearch,
         run_learn=args.learn_engine_map
         or os.environ.get("AUTO_LEARN_ENGINE_MAP", "").strip().lower() in ("1", "true", "yes", "on"),
@@ -412,3 +406,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

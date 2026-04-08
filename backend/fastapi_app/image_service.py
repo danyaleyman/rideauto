@@ -6,7 +6,7 @@
 после записи на диск тот же путь отдаётся без ``src``. Опционально исходный URL
 дублируется в Redis (``wra:img:src:{digest}``), чтобы не таскать ``src`` в CDN.
 
-Безопасность: только HTTPS (опционально HTTP для legacy), хосты из allowlist (WRA_IMAGE_ALLOWED_HOSTS).
+Безопасность: только HTTPS (опционально HTTP для внутренних контуров), хосты из allowlist (WRA_IMAGE_ALLOWED_HOSTS).
 """
 from __future__ import annotations
 
@@ -233,3 +233,4 @@ def public_image_url(base_public_api: str, digest: str, size: ImageSize = "thumb
     """
     b = base_public_api.rstrip("/")
     return f"{b}/images/{digest}?size={size}"
+

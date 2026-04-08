@@ -7,7 +7,7 @@
 | Поток | Состояние |
 |--------|------------|
 | **Фронт** | **Next.js в `web/`** — SSR + клиент: маркет Корея/Китай, поиск, фасеты, карточка. Статические SEO-лендинги генерируются в `web/public/seo/`. |
-| **SQLite → PostgreSQL** | **Каталог и чекпоинт скрапера — Postgres** (`storage.backend: postgres`, DSN). Одноразовая миграция из старых `.db` — `infrastructure/postgresql/migrate_sqlite_to_postgres.py`. |
+| **Хранилище** | **Каталог и чекпоинт скрапера — Postgres** (`storage.backend: postgres`, DSN). |
 | **Схема ниже** | Реализуется, если трафик идёт на FastAPI + Meilisearch + Postgres, скрапер пишет в **Postgres** (`storage.backend: postgres` + DSN), после импорта запускается **sync Meilisearch**. |
 | **Cloudflare** | Заголовки кеша в FastAPI есть; проксирование в зоне CF — вне репозитория. |
 
@@ -52,3 +52,4 @@ Scraper → PostgreSQL → синхронизация индекса Meilisearch
 ## Правило продакшена
 
 **Не** строить фильтрацию и полнотекст листинга тяжёлыми `WHERE` по JSON в Postgres. Исключение — выборка по списку id после Meilisearch и точечные чтения карточки.
+

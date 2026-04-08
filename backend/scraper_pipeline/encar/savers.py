@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import json
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict
+from catalog_pg_core import UPSERT_CAR_SQL, extract_image_urls, get_or_create_brand, get_or_create_model, row_to_car_fields
 
 if TYPE_CHECKING:
     import psycopg2  # noqa: F401
@@ -17,16 +17,6 @@ if TYPE_CHECKING:
 def _repo_root() -> Path:
     # .../backend/scraper_pipeline/encar/savers.py → корень репозитория
     return Path(__file__).resolve().parents[2]
-
-
-def _load_pg_migrate():
-    path = _repo_root() / "infrastructure" / "postgresql" / "migrate_sqlite_to_postgres.py"
-    spec = importlib.util.spec_from_file_location("wra_pg_migrate_encar", path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load migrate module: {path}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 class CarSaver(ABC):
@@ -53,19 +43,17 @@ class PostgresCarSaver(CarSaver):
         self._lock = asyncio.Lock()
         self._brand_cache: Dict[str, int] = {}
         self._model_cache: Dict[tuple, int] = {}
-        self._migrate = _load_pg_migrate()
 
     def _save_sync(self, car: dict, car_id: str) -> None:
-        m = self._migrate
         import psycopg2.extras
 
         payload = dict(car)
         raw_obj = car.get("_raw") if self.store_raw else None
-        fields = m.row_to_car_fields(car_id, payload, sqlite_internal_id=None)
+        fields = row_to_car_fields(car_id, payload, source_internal_id=None)
         with self._psycopg2.connect(self.dsn) as conn:
             with conn.cursor() as cur:
-                bid = m.get_or_create_brand(cur, self._brand_cache, fields["mark"])
-                mid = m.get_or_create_model(cur, self._model_cache, bid, fields["model"]) if bid else None
+                bid = get_or_create_brand(cur, self._brand_cache, fields["mark"])
+                mid = get_or_create_model(cur, self._model_cache, bid, fields["model"]) if bid else None
                 raw_adapted = psycopg2.extras.Json(raw_obj) if raw_obj else None
                 params = {
                     **fields,
@@ -75,12 +63,12 @@ class PostgresCarSaver(CarSaver):
                     "raw": raw_adapted,
                     "created_at": None,
                 }
-                cur.execute(m.UPSERT_CAR_SQL, params)
+                cur.execute(UPSERT_CAR_SQL, params)
                 row = cur.fetchone()
                 if not row:
                     return
                 car_pk = int(row[0])
-                urls = m.extract_image_urls(payload)
+                urls = extract_image_urls(payload)
                 cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
                 for i, url in enumerate(urls):
                     cur.execute(

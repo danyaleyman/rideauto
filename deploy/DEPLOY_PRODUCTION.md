@@ -151,7 +151,7 @@ source .venv/bin/activate
 python backend/auto_update.py --config backend/config.json --type daily --workers 8
 ```
 
-Опционально для CDN/отладки: **`postgres_catalog_sync --write-legacy-json`** пишет `web/public/cars.json` и чанки в `web/public/data/`. В проде листинг идёт через **API** + Meilisearch, а не через полный JSON.
+Опционально для CDN/отладки: **`postgres_catalog_sync --write-static-json`** пишет `web/public/cars.json` и чанки в `web/public/data/`. В проде листинг идёт через **API** + Meilisearch, а не через полный JSON.
 
 ## Sitemap на диск (~500k URL)
 
@@ -194,3 +194,4 @@ cd /opt/prod-encar && .venv/bin/python scripts/warm_public_cache.py --base http:
 
 - Пути `User/Group` и `/opt/prod-encar` в `deploy/systemd/*.service` при необходимости поменяйте под свой сервер.
 - Таймер уведомлений по подпискам по умолчанию — каждые 10 минут (`encar-subscriptions-notify.timer`).
+
