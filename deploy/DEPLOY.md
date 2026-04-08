@@ -185,6 +185,7 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 
 - Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u encar-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
 - Частая причина по Корее: в **`auto_update.py`** при работающем PostgreSQL в конце всё равно вызывается **`encar_daily_update.py --once`** (синхронизация SQLite); при **ненулевом коде** весь **`encar-update.service`** падает — смотрите сообщение `encar_daily_update завершился с кодом` в журнале.
+- Если в логе **`password authentication failed for user "postgres"`**, затем **`ImportError: cannot import name 'ChunkedJSONStorage' from 'encar_scraper'`** — падение из‑за fallback на SQLite при неверном пароле в **`backend/config.json`**: либо поправьте `db_config` под реальный Postgres, либо оставьте только SQLite-пайплайн (убедитесь, что на сервере актуальный **`encar_daily_update.py`**, где storage импортируется из **`scraper_pipeline.encar.savers`**).
 - Корея вручную (эквивалент тяжёлой части пайплайна без Postgres-легаси): **`bash deploy/scripts/run_korea_encar_daily_once.sh`** (от root выполнит от **`www-data`**; задайте **`ENCAR_RUN_USER=prod-encar`** при необходимости).
 - Китай полный перескрейп (все марки, enrich, сброс checkpoint): остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
 

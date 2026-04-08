@@ -14,16 +14,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# Reuse scraper components
+# Reuse scraper components (storage classes живут в savers, не реэкспортируются из encar_scraper)
 from encar_scraper import (
     AsyncEncarClient,
     Checkpoint,
-    ChunkedJSONStorage,
-    SQLiteStorage,
     _run_export_to_frontend,
     load_config,
     setup_logging,
 )
+from scraper_pipeline.encar.savers import ChunkedJSONStorage, SQLiteStorage
 
 
 def next_run_at(tz_name: str, hour: int, minute: int) -> datetime:
