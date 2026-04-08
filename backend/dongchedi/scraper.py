@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import sys
 import time
 from dataclasses import dataclass, fields
@@ -64,6 +65,7 @@ class ScrapeConfig:
     browser_fallback: bool = False
     browser_timeout_s: float = 25.0
     browser_concurrency: int = 2
+    proxy_urls: Optional[List[str]] = None
 
 
 def _clamp_limit(v: int) -> int:
@@ -109,6 +111,9 @@ def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = 
     raw_brand_ids = m.pop("brand_ids", None)
     if isinstance(raw_brand_ids, list):
         base.brand_ids = [str(x).strip() for x in raw_brand_ids if str(x).strip()]
+    raw_proxy_urls = m.pop("proxy_urls", None)
+    if isinstance(raw_proxy_urls, list):
+        base.proxy_urls = [str(x).strip() for x in raw_proxy_urls if str(x).strip()]
     if m.pop("no_checkpoint", False):
         base.persist_checkpoint = False
     known = {f.name for f in fields(ScrapeConfig)}
@@ -230,6 +235,12 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
     headers = _headers_with_cookie(cfg.cookie)
     timeout = aiohttp.ClientTimeout(total=cfg.request_timeout_s + 35)
     connector = aiohttp.TCPConnector(limit=max(12, cfg.concurrency + cfg.detail_concurrency))
+    proxy_pool = [str(p).strip() for p in (cfg.proxy_urls or []) if str(p).strip()]
+
+    def pick_proxy() -> Optional[str]:
+        if not proxy_pool:
+            return None
+        return random.choice(proxy_pool)
 
     saved = 0
     seen: Set[str] = set()
@@ -284,7 +295,7 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
             for attempt in range(3):
                 async with detail_sem:
                     st, html = await fetch_usedcar_html(
-                        session, sku, timeout_s=cfg.request_timeout_s
+                        session, sku, timeout_s=cfg.request_timeout_s, proxy=pick_proxy()
                     )
                 if st == 200 and html:
                     sd = parse_sku_detail_from_html(html)
@@ -313,6 +324,7 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                             cid,
                             referer_sku_id=sku,
                             timeout_s=cfg.request_timeout_s,
+                            proxy=pick_proxy(),
                         )
                     if st2 == 200 and phtml:
                         raw = parse_params_raw_data_from_html(phtml)
@@ -349,6 +361,7 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                         sh_city_name=cfg.sh_city_name,
                         age_range=cfg.age_range,
                         timeout_s=cfg.request_timeout_s,
+                        proxy=pick_proxy(),
                     )
 
                 if status != 200 or not payload:
@@ -527,6 +540,12 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
     p.add_argument("--browser-timeout", type=float, default=None, help="Timeout браузерного fallback (сек)")
     p.add_argument("--browser-concurrency", type=int, default=None, help="Параллелизм браузерного fallback")
+    p.add_argument(
+        "--proxy-url",
+        action="append",
+        default=None,
+        help="HTTP proxy URL, можно несколько раз: http://user:pass@host:port",
+    )
     p.add_argument("--cny-to-rub", type=float, default=None)
     p.add_argument("--log-level", type=str, default="INFO")
     args = p.parse_args(argv)
@@ -584,6 +603,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         cfg.browser_timeout_s = float(args.browser_timeout)
     if args.browser_concurrency is not None:
         cfg.browser_concurrency = max(1, int(args.browser_concurrency))
+    if args.proxy_url:
+        cfg.proxy_urls = [str(x).strip() for x in args.proxy_url if str(x).strip()]
     if args.cny_to_rub is not None:
         cfg.cny_to_rub = args.cny_to_rub
 

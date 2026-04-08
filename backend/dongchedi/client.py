@@ -56,6 +56,7 @@ async def post_sku_list(
     sh_city_name: Optional[str] = None,
     age_range: Optional[str] = None,
     timeout_s: float = 45.0,
+    proxy: Optional[str] = None,
 ) -> Tuple[int, Optional[Dict[str, Any]]]:
     url = sku_list_url()
     form = build_list_form(
@@ -67,7 +68,7 @@ async def post_sku_list(
     )
     timeout = aiohttp.ClientTimeout(total=timeout_s + 15)
     try:
-        async with session.post(url, data=form, timeout=timeout) as resp:
+        async with session.post(url, data=form, timeout=timeout, proxy=proxy) as resp:
             status = resp.status
             if status != 200:
                 return status, None
@@ -84,6 +85,7 @@ async def fetch_usedcar_html(
     sku_id: str,
     *,
     timeout_s: float = 45.0,
+    proxy: Optional[str] = None,
 ) -> Tuple[int, Optional[str]]:
     url = f"https://www.dongchedi.com/usedcar/{sku_id}"
     timeout = aiohttp.ClientTimeout(total=timeout_s + 15)
@@ -101,7 +103,7 @@ async def fetch_usedcar_html(
         "Referer": "https://www.dongchedi.com/usedcar/x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x",
     }
     try:
-        async with session.get(url, timeout=timeout, headers=headers) as resp:
+        async with session.get(url, timeout=timeout, headers=headers, proxy=proxy) as resp:
             status = resp.status
             if status != 200:
                 return status, None
@@ -116,6 +118,7 @@ async def fetch_params_car_html(
     *,
     referer_sku_id: str,
     timeout_s: float = 45.0,
+    proxy: Optional[str] = None,
 ) -> Tuple[int, Optional[str]]:
     """HTML страницы параметров комплектации (新车指导价, полная комплектация)."""
     sid = str(car_spec_id).strip()
@@ -126,7 +129,7 @@ async def fetch_params_car_html(
     timeout = aiohttp.ClientTimeout(total=timeout_s + 15)
     headers = {"Referer": ref}
     try:
-        async with session.get(url, timeout=timeout, headers=headers) as resp:
+        async with session.get(url, timeout=timeout, headers=headers, proxy=proxy) as resp:
             status = resp.status
             if status != 200:
                 return status, None
