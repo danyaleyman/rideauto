@@ -35,6 +35,23 @@ cd backend && uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8080
 
 Эндпоинты (см. `docs/openapi.yaml`, `backend/fastapi_app/`): `GET /api/health`, `GET /api/cars`, `GET /api/search`, `GET /api/facets`, `GET /api/filters`, `GET /api/car/{id}`, `GET /api/similar`. Данные — PostgreSQL + Meilisearch; переменные окружения с префиксом `WRA_` (см. `fastapi_app.config.Settings`).
 
+## Runbook: scrape -> reindex -> smoke
+
+Короткий цикл после обновления Китая (из корня проекта):
+
+```bash
+# 1) Scrape (пример: China)
+docker compose exec -T api python backend/dongchedi_scraper.py --config backend/dongchedi_scraper.yaml --max-pages 200
+
+# 2) Reindex Meilisearch
+docker compose exec -T api python infrastructure/meilisearch/sync_meilisearch.py --batch-size 500
+
+# 3) Smoke checks
+curl -fsS "http://127.0.0.1:8080/api/health"
+curl -fsS "http://127.0.0.1:8080/api/cars?region=china&limit=12" | python -m json.tool
+curl -fsS "http://127.0.0.1:3000/catalog?region=china" > /dev/null
+```
+
 ## VPS production setup (Nginx + systemd)
 
 В проект добавлен готовый набор:

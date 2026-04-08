@@ -227,6 +227,39 @@ def _img_url_canonical(u: str) -> str:
     return s
 
 
+def _is_likely_noise_image_url(u: str) -> bool:
+    low = (u or "").lower()
+    if not low:
+        return True
+    # Частые служебные/маркетинговые ассеты Dongchedi, которые "засоряют" галерею.
+    if any(
+        x in low
+        for x in (
+            "/motor-mis-img/",
+            "tplv-dcdx-default",
+            "tplv-dcdx-sh-1",
+            "/img/tos-cn-i-dcdx/",
+            "watermark",
+            "banner",
+            "poster",
+            "icon",
+            "logo",
+        )
+    ):
+        return True
+    # Очень часто повторяющиеся плейсхолдеры/иконки в выдаче.
+    if any(
+        x in low
+        for x in (
+            "5e2599cc0a064530991965858af6481f",
+            "e2fc38eaccfb4da2bb999d8bca3db023",
+            "e955c93eeeeb4788933e412b08c76f18",
+        )
+    ):
+        return True
+    return False
+
+
 def _first_nonempty_str(*vals: Any) -> str:
     for v in vals:
         if v is None:
@@ -244,6 +277,8 @@ def _deep_collect_image_urls(detail: Dict[str, Any], *, max_urls: int = 80) -> l
     dup: set[str] = set()
 
     def looks_like_photo_url(low: str) -> bool:
+        if _is_likely_noise_image_url(low):
+            return False
         return any(
             x in low
             for x in (
@@ -265,9 +300,6 @@ def _deep_collect_image_urls(detail: Dict[str, Any], *, max_urls: int = 80) -> l
                 "motor.sh",
                 "sh.image",
                 "/image",
-                "img",
-                "photo",
-                "pic",
             )
         )
 
@@ -304,7 +336,7 @@ def _image_urls_from_row_and_detail(
 
     def add(u: str) -> None:
         s = _img_url_canonical(str(u or ""))
-        if s and s not in dup:
+        if s and s not in dup and not _is_likely_noise_image_url(s):
             dup.add(s)
             out.append(s)
 
@@ -343,8 +375,11 @@ def _image_urls_from_row_and_detail(
                     item.get("cover_url"),
                 )
                 add(u)
-    for u in _deep_collect_image_urls(detail, max_urls=100):
-        add(u)
+    # Глубокий обход нужен как fallback, но он часто приносит нерелевантные маркетинговые ассеты.
+    # Поэтому включаем его только при бедной галерее.
+    if len(out) < 4:
+        for u in _deep_collect_image_urls(detail, max_urls=40):
+            add(u)
     return out
 
 

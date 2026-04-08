@@ -91,7 +91,7 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         raw = car if isinstance(car, dict) else {}
     slim_data: Dict[str, Any] = {k: raw[k] for k in _SLIM_CATALOG_DATA_KEYS if k in raw}
-    _trim_slim_list_field(slim_data, "images", 6)
+    _trim_slim_list_field(slim_data, "images", 12)
     _trim_slim_list_field(slim_data, "h_images", 18)
     inner = raw.get("inner_id") if raw.get("inner_id") not in (None, "") else car.get("inner_id")
     if inner is not None and inner != "":

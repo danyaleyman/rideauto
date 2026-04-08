@@ -15,15 +15,35 @@ import {
 } from "@/lib/catalog-url";
 import { fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
 import { extractCarImageUrls } from "@/lib/car-images";
+import { cn } from "@/lib/utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+} from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
 
 function formatPrice(n: number | null | undefined): string {
@@ -37,6 +57,25 @@ function formatPrice(n: number | null | undefined): string {
   } catch {
     return `${n} ₽`;
   }
+}
+
+/** Номера страниц с «…» для shadcn Pagination. */
+function visiblePageItems(page: number, total: number): Array<number | "ellipsis"> {
+  if (total < 1) return [];
+  if (total === 1) return [1];
+  const set = new Set<number>();
+  set.add(1);
+  set.add(total);
+  for (let p = page - 1; p <= page + 1; p++) {
+    if (p >= 1 && p <= total) set.add(p);
+  }
+  const sorted = [...set].sort((a, b) => a - b);
+  const out: Array<number | "ellipsis"> = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) out.push("ellipsis");
+    out.push(sorted[i]);
+  }
+  return out;
 }
 
 function firstImageUrl(car: SlimCar): string | undefined {
@@ -109,6 +148,95 @@ function FacetSkeleton() {
         <Skeleton className="h-4 w-4/6 rounded-md" />
       </div>
     </div>
+  );
+}
+
+function FacetMultiDropdown({
+  label,
+  rows,
+  selected,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  rows: FacetRow[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const filtered = useMemo(
+    () =>
+      !q.trim()
+        ? rows
+        : rows.filter((r) => r.value.toLowerCase().includes(q.trim().toLowerCase())),
+    [rows, q],
+  );
+  const n = selected.size;
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setQ("");
+      }}
+    >
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled || !rows.length}
+          className="h-9 w-full justify-between gap-2 rounded-2xl font-normal"
+        >
+          <span className="min-w-0 truncate text-start">
+            {label}
+            {n > 0 ? (
+              <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
+            ) : null}
+          </span>
+          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="max-h-[min(24rem,70vh)] w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] overflow-hidden p-0 shadow-lg"
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="border-b border-border p-2">
+          <Input
+            placeholder="Поиск…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-8 rounded-xl"
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </div>
+        <DropdownMenuLabel className="px-3 py-2 text-xs font-normal text-muted-foreground">
+          Можно выбрать несколько
+        </DropdownMenuLabel>
+        <div className="max-h-60 overflow-y-auto overscroll-contain p-1.5 pt-0">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Нет совпадений</p>
+          ) : (
+            filtered.map((r) => (
+              <DropdownMenuCheckboxItem
+                key={r.value}
+                checked={selected.has(r.value)}
+                onCheckedChange={() => onToggle(r.value)}
+                className="rounded-xl [&>span:last-child]:ps-2"
+              >
+                <span className="min-w-0 flex-1 truncate">{r.value}</span>
+                <span className="ms-1 shrink-0 tabular-nums text-xs text-muted-foreground">
+                  {r.count.toLocaleString("ru-RU")}
+                </span>
+              </DropdownMenuCheckboxItem>
+            ))
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -394,6 +522,8 @@ export function CatalogClient({
       ? search.meta.pages
       : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
 
+  const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
+
   const activeChips = useMemo(() => {
     const chips: Array<{ key: keyof CatalogUrlState; label: string; value?: string }> = [];
     state.marks.forEach((v) => chips.push({ key: "marks", label: `Марка: ${v}`, value: v }));
@@ -449,160 +579,220 @@ export function CatalogClient({
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
         <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-80 lg:pe-1">
-          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm lg:max-h-[calc(100dvh-5rem)] lg:overflow-hidden">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:overscroll-contain">
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">Рынок</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={state.market === "korea" ? "default" : "outline"}
-                  size="sm"
-                  className="flex-1 rounded-full"
-                  onClick={() => switchMarket("korea")}
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/15 px-4 py-3 shadow-sm ring-1 ring-border/30">
+                <span
+                  className={cn(
+                    "text-sm font-medium transition-colors",
+                    state.market === "korea" ? "text-foreground" : "text-muted-foreground",
+                  )}
                 >
                   Корея
-                </Button>
-                <Button
-                  type="button"
-                  variant={state.market === "china" ? "default" : "outline"}
-                  size="sm"
-                  className="flex-1 rounded-full"
-                  onClick={() => switchMarket("china")}
+                </span>
+                <Switch
+                  checked={state.market === "china"}
+                  onCheckedChange={(c) => switchMarket(c ? "china" : "korea")}
+                  aria-label="Переключить рынок: Корея или Китай"
+                />
+                <span
+                  className={cn(
+                    "text-sm font-medium transition-colors",
+                    state.market === "china" ? "text-foreground" : "text-muted-foreground",
+                  )}
                 >
                   Китай
-                </Button>
+                </span>
               </div>
             </div>
 
-            <Separator />
+            <Accordion
+              type="multiple"
+              defaultValue={["basics", "price"]}
+              className="rounded-xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
+            >
+              <AccordionItem value="basics" className="border-border/60">
+                <AccordionTrigger className="py-3 hover:no-underline">
+                  <div className="min-w-0 flex-1 text-start">
+                    <div className="font-semibold leading-tight">Основное</div>
+                    <div className="mt-1 text-xs font-normal text-muted-foreground">
+                      Марка, модель, поколение, поиск
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3">
+                  {facets ? (
+                    <div className="space-y-2">
+                      <FacetMultiDropdown
+                        label="Марка"
+                        rows={facets.marks}
+                        selected={new Set(state.marks)}
+                        onToggle={(v) => toggle("marks", v)}
+                      />
+                      <FacetMultiDropdown
+                        label="Модель"
+                        rows={facets.models}
+                        selected={new Set(state.models)}
+                        onToggle={(v) => toggle("models", v)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Skeleton className="h-9 w-full rounded-2xl" />
+                      <Skeleton className="h-9 w-full rounded-2xl" />
+                    </div>
+                  )}
+                  {facets ? (
+                    <>
+                      <FacetGroup
+                        title="Поколение"
+                        rows={facets.generations}
+                        selected={new Set(state.generations)}
+                        onToggle={(v) => toggle("generations", v)}
+                      />
+                      <FacetGroup
+                        title="Комплектация"
+                        rows={facets.trims}
+                        selected={new Set(state.trims)}
+                        onToggle={(v) => toggle("trims", v)}
+                      />
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      <FacetSkeleton />
+                      <FacetSkeleton />
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Поиск в каталоге</Label>
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={qDraft}
+                        onChange={(e) => setQDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            navigate({ ...state, q: qDraft.trim(), page: 1 });
+                          }
+                        }}
+                        placeholder="Марка, модель…"
+                        className="min-w-0 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
+                      >
+                        Найти
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Сортировка</Label>
+                    <select
+                      value={state.sort}
+                      onChange={(e) => navigate({ ...state, sort: e.target.value, page: 1 })}
+                      className="mt-2 flex h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+                    >
+                      {SORT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground">Поиск</Label>
-              <div className="mt-2 flex gap-2">
-                <Input
-                  value={qDraft}
-                  onChange={(e) => setQDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      navigate({ ...state, q: qDraft.trim(), page: 1 });
-                    }
-                  }}
-                  placeholder="Марка, модель…"
-                  className="min-w-0 flex-1"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
-                >
-                  Найти
-                </Button>
-              </div>
-            </div>
+              <AccordionItem value="tech" className="border-border/60">
+                <AccordionTrigger className="py-3 hover:no-underline">
+                  <div className="min-w-0 flex-1 text-start">
+                    <div className="font-semibold leading-tight">Техника и кузов</div>
+                    <div className="mt-1 text-xs font-normal text-muted-foreground">
+                      Тип кузова, топливо, привод, КПП
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm shadow-sm">
+                    <Checkbox
+                      checked={state.drive_awd}
+                      onCheckedChange={(v) =>
+                        navigate({ ...state, drive_awd: Boolean(v), page: 1 })
+                      }
+                      className="shrink-0"
+                    />
+                    Только полный привод (AWD)
+                  </label>
+                  {facets ? (
+                    <>
+                      <FacetGroup
+                        title="Кузов"
+                        rows={facets.bodies}
+                        selected={new Set(state.body)}
+                        onToggle={(v) => toggle("body", v)}
+                      />
+                      <FacetGroup
+                        title="Топливо"
+                        rows={facets.fuels}
+                        selected={new Set(state.fuel)}
+                        onToggle={(v) => toggle("fuel", v)}
+                      />
+                      <FacetGroup
+                        title="КПП"
+                        rows={facets.transmissions}
+                        selected={new Set(state.trans)}
+                        onToggle={(v) => toggle("trans", v)}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <FacetSkeleton />
+                      <FacetSkeleton />
+                      <FacetSkeleton />
+                    </>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
 
-            <Separator />
+              <AccordionItem value="price" className="border-border/60">
+                <AccordionTrigger className="py-3 hover:no-underline">
+                  <div className="min-w-0 flex-1 text-start">
+                    <div className="font-semibold leading-tight">Цена, пробег и год</div>
+                    <div className="mt-1 text-xs font-normal text-muted-foreground">
+                      Диапазоны в рублях, км и год выпуска
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <RangeBlock state={state} navigate={navigate} />
+                </AccordionContent>
+              </AccordionItem>
 
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground">Сортировка</Label>
-              <select
-                value={state.sort}
-                onChange={(e) => navigate({ ...state, sort: e.target.value, page: 1 })}
-                className="mt-2 flex h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-              >
-                {SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Separator />
-
-            <div>
-              <h2 className="text-sm font-semibold">Цена, пробег, год</h2>
-              <div className="mt-3">
-                <RangeBlock state={state} navigate={navigate} />
-              </div>
-              <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm">
-                <Checkbox
-                  checked={state.drive_awd}
-                  onCheckedChange={(v) =>
-                    navigate({ ...state, drive_awd: Boolean(v), page: 1 })
-                  }
-                  className="shrink-0"
-                />
-                Полный привод (AWD)
-              </label>
-            </div>
-
-            <Separator className="shrink-0" />
-
-            <ScrollArea className="h-72 w-full shrink-0 sm:h-80 lg:h-auto lg:min-h-0 lg:max-h-[min(48vh,400px)] lg:flex-1">
-              <div className="space-y-3 pe-3 pb-1">
-                {facets ? (
-                  <>
-                    <FacetGroup
-                      title="Марка"
-                      rows={facets.marks}
-                      selected={new Set(state.marks)}
-                      onToggle={(v) => toggle("marks", v)}
-                    />
-                    <FacetGroup
-                      title="Модель"
-                      rows={facets.models}
-                      selected={new Set(state.models)}
-                      onToggle={(v) => toggle("models", v)}
-                    />
-                    <FacetGroup
-                      title="Поколение"
-                      rows={facets.generations}
-                      selected={new Set(state.generations)}
-                      onToggle={(v) => toggle("generations", v)}
-                    />
-                    <FacetGroup
-                      title="Комплектация"
-                      rows={facets.trims}
-                      selected={new Set(state.trims)}
-                      onToggle={(v) => toggle("trims", v)}
-                    />
-                    <FacetGroup
-                      title="Кузов"
-                      rows={facets.bodies}
-                      selected={new Set(state.body)}
-                      onToggle={(v) => toggle("body", v)}
-                    />
-                    <FacetGroup
-                      title="Топливо"
-                      rows={facets.fuels}
-                      selected={new Set(state.fuel)}
-                      onToggle={(v) => toggle("fuel", v)}
-                    />
-                    <FacetGroup
-                      title="КПП"
-                      rows={facets.transmissions}
-                      selected={new Set(state.trans)}
-                      onToggle={(v) => toggle("trans", v)}
-                    />
+              <AccordionItem value="look" className="border-border/60 border-b-0">
+                <AccordionTrigger className="py-3 hover:no-underline">
+                  <div className="min-w-0 flex-1 text-start">
+                    <div className="font-semibold leading-tight">Внешний вид</div>
+                    <div className="mt-1 text-xs font-normal text-muted-foreground">Цвет кузова</div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {facets ? (
                     <FacetGroup
                       title="Цвет"
                       rows={facets.colors}
                       selected={new Set(state.color)}
                       onToggle={(v) => toggle("color", v)}
                     />
-                  </>
-                ) : (
-                  <>
+                  ) : (
                     <FacetSkeleton />
-                    <FacetSkeleton />
-                    <FacetSkeleton />
-                  </>
-                )}
-              </div>
-            </ScrollArea>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
-            <Button type="button" variant="outline" className="mt-auto w-full shrink-0" onClick={reset}>
+            <Button type="button" variant="outline" className="w-full shrink-0" onClick={reset}>
               Сбросить фильтры
             </Button>
           </div>
@@ -707,31 +897,59 @@ export function CatalogClient({
             <p className="mt-16 text-center text-muted-foreground">Ничего не найдено по текущим фильтрам.</p>
           ) : null}
 
-          <nav className="mt-10 flex flex-wrap items-center justify-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              disabled={state.page <= 1}
-              onClick={() => navigate({ ...state, page: state.page - 1 })}
-            >
-              Назад
-            </Button>
-            <span className="px-2 text-sm text-muted-foreground">
-              Стр. {state.page} из {pages}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              disabled={!search.meta.next_cursor}
-              onClick={() => navigate({ ...state, page: state.page + 1 })}
-            >
-              Вперёд
-            </Button>
-          </nav>
+          <Pagination className="mt-10">
+            <PaginationContent className="flex-wrap justify-center gap-1">
+              <PaginationItem>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 rounded-full ps-2"
+                  disabled={state.page <= 1}
+                  onClick={() => navigate({ ...state, page: state.page - 1 })}
+                >
+                  <ChevronLeft className="size-4 rtl:rotate-180" />
+                  <span className="hidden sm:inline">Назад</span>
+                </Button>
+              </PaginationItem>
+              {pageItems.map((item, idx) =>
+                item === "ellipsis" ? (
+                  <PaginationItem key={`ellipsis-${idx}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={item}>
+                    <Button
+                      type="button"
+                      variant={state.page === item ? "outline" : "ghost"}
+                      size="sm"
+                      className="min-w-9 rounded-full tabular-nums"
+                      onClick={() => navigate({ ...state, page: item })}
+                      aria-current={state.page === item ? "page" : undefined}
+                    >
+                      {item}
+                    </Button>
+                  </PaginationItem>
+                ),
+              )}
+              <PaginationItem>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 rounded-full pe-2"
+                  disabled={!search.meta.next_cursor}
+                  onClick={() => navigate({ ...state, page: state.page + 1 })}
+                >
+                  <span className="hidden sm:inline">Вперёд</span>
+                  <ChevronRight className="size-4 rtl:rotate-180" />
+                </Button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Страница {state.page} из {pages}
+          </p>
         </div>
       </div>
     </div>
