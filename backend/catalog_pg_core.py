@@ -175,6 +175,11 @@ def row_to_car_fields(
     generation = _optional_str(d.get("generation") or d.get("configuration"))
     trim_name = _optional_str(d.get("gradeName") or d.get("configuration") or d.get("generation"))
     ins_n, ins_krw = insurance_cases_and_payout_krw(payload)
+    ins_n_safe = 0 if ins_n is None else ins_n
+    ins_krw_safe = 0 if ins_krw is None else ins_krw
+    dmg_safe = damaged_parts_count(payload)
+    if dmg_safe is None:
+        dmg_safe = 0
     return {
         "car_id": car_id,
         "mark": mark,
@@ -194,10 +199,10 @@ def row_to_car_fields(
         "mileage_km": _safe_int(d.get("km_age")),
         "year": year_from_data(d),
         "year_month": year_month_ordinal(d),
-        "insurance_cases": ins_n,
-        "insurance_payout_krw": ins_krw,
-        "insurance_payout_rub": insurance_payout_rub(d, ins_krw),
-        "damaged_parts_count": damaged_parts_count(payload),
+        "insurance_cases": ins_n_safe,
+        "insurance_payout_krw": ins_krw_safe,
+        "insurance_payout_rub": insurance_payout_rub(d, ins_krw_safe),
+        "damaged_parts_count": dmg_safe,
         "offer_created_at": offer_created_at(payload),
         "source_internal_id": source_internal_id,
     }
