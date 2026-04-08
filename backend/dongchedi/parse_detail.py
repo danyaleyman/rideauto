@@ -7,6 +7,7 @@ import re
 from typing import Any, Dict, Optional
 
 _NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.DOTALL)
+_SKU_DETAIL_MARK_RE = re.compile(r'"skuDetail"\s*:\s*\{', re.DOTALL)
 
 _KM_HTML_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"【\s*行驶里程\s*】\s*([\d.]+)\s*万\s*公里"),
@@ -45,6 +46,57 @@ def _next_data_page_props(html: str) -> Dict[str, Any]:
         return {}
     pp = (root.get("props") or {}).get("pageProps") or {}
     return pp if isinstance(pp, dict) else {}
+
+
+def _extract_balanced_object(text: str, open_brace_idx: int) -> Optional[str]:
+    """Return JSON object substring starting at '{' with balanced braces."""
+    if open_brace_idx < 0 or open_brace_idx >= len(text) or text[open_brace_idx] != "{":
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(open_brace_idx, len(text)):
+        ch = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_brace_idx : i + 1]
+    return None
+
+
+def _sku_detail_from_raw_html(html: str) -> Optional[Dict[str, Any]]:
+    """
+    Fallback parser for pages where __NEXT_DATA__ is missing or altered.
+    Extracts `"skuDetail": { ... }` directly from HTML text.
+    """
+    if not html:
+        return None
+    m = _SKU_DETAIL_MARK_RE.search(html)
+    if not m:
+        return None
+    # marker ends right after first '{' for skuDetail object
+    open_idx = m.end() - 1
+    blob = _extract_balanced_object(html, open_idx)
+    if not blob:
+        return None
+    try:
+        obj = json.loads(blob)
+    except json.JSONDecodeError:
+        return None
+    return obj if isinstance(obj, dict) else None
 
 
 def _find_detail_like_obj(root: Any, depth: int = 0) -> Optional[Dict[str, Any]]:
@@ -89,6 +141,8 @@ def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
     sd = pp.get("skuDetail")
     if not isinstance(sd, dict):
         sd = _find_detail_like_obj(pp)
+        if not isinstance(sd, dict):
+            sd = _sku_detail_from_raw_html(html)
         if not isinstance(sd, dict):
             return None
     hint = _km_hint_from_usedcar_html(html)

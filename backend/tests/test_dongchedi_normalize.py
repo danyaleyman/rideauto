@@ -180,6 +180,18 @@ def test_parse_detail_fallback_when_sku_detail_missing():
     assert isinstance(sd.get("image_list"), list)
 
 
+def test_parse_detail_from_raw_html_sku_detail_blob():
+    html = """
+    <html><body>
+    <script>window.__x = {"other":1,"skuDetail":{"car_info":{"mileage":"1.2万公里"},"image_list":[{"url":"https://example.com/a.jpg"},{"url":"https://example.com/b.jpg"}]}};</script>
+    </body></html>
+    """
+    sd = parse_sku_detail_from_html(html)
+    assert sd is not None
+    assert isinstance(sd.get("car_info"), dict)
+    assert isinstance(sd.get("image_list"), list)
+
+
 def test_km_from_car_info_mileage_int():
     row = {
         "sku_id": 3,
