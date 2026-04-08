@@ -93,6 +93,12 @@ async def remove_sold(
     log,
 ) -> int:
     """Sample cars from storage, re-fetch detail; if 404 remove from DB and collected. Returns count removed."""
+    if not isinstance(storage, SQLiteStorage):
+        log.info(
+            "Remove sold: пропуск (только SQLite; сейчас %s)",
+            type(storage).__name__,
+        )
+        return 0
     du = config.get("daily_update", {})
     sample = int(du.get("sold_check_sample", 500))
     d_min = float(du.get("sold_check_delay_min", 0.5))
