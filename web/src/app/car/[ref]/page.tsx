@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { fetchCar, fetchSimilar } from "@/lib/api";
 import { buildCarMetadata, carHeading, pickCarData } from "@/lib/car-seo";
 import type { SlimCar } from "@/lib/types";
+import CarPhotoGallery from "@/components/car/CarPhotoGallery";
+import { extractCarImageUrls } from "@/lib/car-images";
 
 type PageProps = { params: Promise<{ ref: string }> };
 
@@ -25,38 +27,6 @@ function formatPrice(v: unknown): string {
     currency: "RUB",
     maximumFractionDigits: 0,
   }).format(n);
-}
-
-function imageUrls(raw: Record<string, unknown>): string[] {
-  const d = pickCarData(raw);
-  const fields: unknown[] = [d.image, d.img, d.photo, d.images, d.h_images];
-  const out: string[] = [];
-  for (const field of fields) {
-    let v: unknown = field;
-    if (typeof v === "string") {
-      try {
-        v = JSON.parse(v);
-      } catch {
-        const directUrl = v;
-        if (typeof directUrl === "string" && /^https?:\/\//i.test(directUrl)) out.push(directUrl);
-        continue;
-      }
-    }
-    if (!Array.isArray(v)) continue;
-    for (const item of v) {
-      if (typeof item === "string" && /^https?:\/\//i.test(item)) {
-        out.push(item);
-        continue;
-      }
-      if (!item || typeof item !== "object") continue;
-      const maybeUrl =
-        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).url ??
-        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).imageUrl ??
-        (item as { url?: unknown; imageUrl?: unknown; src?: unknown }).src;
-      if (typeof maybeUrl === "string" && /^https?:\/\//i.test(maybeUrl)) out.push(maybeUrl);
-    }
-  }
-  return Array.from(new Set(out));
 }
 
 function text(v: unknown): string | null {
@@ -118,7 +88,7 @@ export default async function CarPage({ params }: PageProps) {
 
   const d = pickCarData(raw);
   const title = carHeading(raw);
-  const imgs = imageUrls(raw);
+  const imgs = extractCarImageUrls(d as Record<string, unknown>);
   const carId = typeof raw.id === "string" ? raw.id : ref;
   const similarPayload = await fetchSimilar(carId, 8, { revalidate: 60 }).catch(() => ({ result: [] }));
   const similar = (similarPayload.result || []) as SlimCar[];
@@ -177,25 +147,7 @@ export default async function CarPage({ params }: PageProps) {
         </div>
       </section>
 
-      {imgs.length ? (
-        <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {imgs.slice(0, 18).map((src, idx) => (
-            <div key={src} className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50">
-              <Image
-                src={src}
-                alt={title}
-                width={960}
-                height={560}
-                sizes="(min-width: 1024px) 31vw, (min-width: 640px) 47vw, 96vw"
-                className="h-56 w-full object-cover"
-                loading={idx < 2 ? "eager" : undefined}
-                decoding="async"
-                unoptimized
-              />
-            </div>
-          ))}
-        </section>
-      ) : null}
+      {imgs.length ? <CarPhotoGallery images={imgs} title={title} /> : null}
 
       <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Общая информация</h2>
@@ -228,16 +180,7 @@ export default async function CarPage({ params }: PageProps) {
           <h2 className="mb-3 text-lg font-semibold text-zinc-900">Похожие автомобили</h2>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {similar.map((car) => {
-              let rawImgs: unknown = car.data?.images;
-              if (typeof rawImgs === "string") {
-                try {
-                  rawImgs = JSON.parse(rawImgs);
-                } catch {
-                  rawImgs = undefined;
-                }
-              }
-              const img =
-                Array.isArray(rawImgs) && typeof rawImgs[0] === "string" ? rawImgs[0] : undefined;
+              const img = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
               return (
                 <li key={car.id} className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
                   <Link href={`/car/${encodeURIComponent(car.id)}`} className="block">
