@@ -352,17 +352,30 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
             while page <= cfg.max_pages and not stop:
                 if cp_path and cfg.persist_checkpoint:
                     await asyncio.to_thread(_checkpoint_save, cp_path, global_shard_1based, page)
-                async with list_sem:
-                    status, payload = await post_sku_list(
-                        session,
-                        page=page,
-                        limit=page_sz,
-                        brand_id=brand_for_list,
-                        sh_city_name=cfg.sh_city_name,
-                        age_range=cfg.age_range,
-                        timeout_s=cfg.request_timeout_s,
-                        proxy=pick_proxy(),
-                    )
+                status, payload = 0, None
+                for list_try in range(3):
+                    async with list_sem:
+                        status, payload = await post_sku_list(
+                            session,
+                            page=page,
+                            limit=page_sz,
+                            brand_id=brand_for_list,
+                            sh_city_name=cfg.sh_city_name,
+                            age_range=cfg.age_range,
+                            timeout_s=cfg.request_timeout_s,
+                            proxy=pick_proxy(),
+                        )
+                    if status == 200 and payload:
+                        break
+                    if list_try < 2:
+                        log.warning(
+                            "list retry %s/3 page %s brand=%s http=%s (empty or non-json body)",
+                            list_try + 1,
+                            page,
+                            brand_for_list,
+                            status,
+                        )
+                        await asyncio.sleep(0.45 * (list_try + 1))
 
                 if status != 200 or not payload:
                     log.warning(
