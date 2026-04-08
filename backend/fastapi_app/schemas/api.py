@@ -61,6 +61,15 @@ class FacetsResponse(BaseModel):
     colors: List[Dict[str, Any]] = Field(default_factory=list)
 
 
+class CatalogDailyAdditionsResponse(BaseModel):
+    """Число строк каталога, созданных сегодня по локальной дате сервера (см. timezone)."""
+
+    count: int = Field(ge=0)
+    region: str
+    local_date: str = ""
+    timezone: str = "Asia/Yekaterinburg"
+
+
 class WebVitalEvent(BaseModel):
     model_config = ConfigDict(extra="allow")
 

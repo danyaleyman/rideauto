@@ -46,6 +46,13 @@ export type SimilarResponse = {
   meta: SimilarMeta;
 };
 
+export type CatalogDailyAdditionsResponse = {
+  count: number;
+  region: string;
+  local_date: string;
+  timezone: string;
+};
+
 export type FacetRow = {
   value: string;
   count: number;

@@ -10,10 +10,11 @@ import {
   PER_PAGE,
   stateToBrowserUrl,
   type CatalogUrlState,
+  type Market,
   toApiSearchParams,
   toFacetApiParams,
 } from "@/lib/catalog-url";
-import { fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
+import { fetchCatalogDailyAdditions, fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel } from "@/lib/format-price";
@@ -53,6 +54,7 @@ import {
   ChevronRight,
   Copy,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
 
@@ -77,6 +79,18 @@ function visiblePageItems(page: number, total: number): Array<number | "ellipsis
 
 function firstImageUrl(car: SlimCar): string | undefined {
   return extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
+}
+
+function carsAddedTodayLabel(n: number): string {
+  if (n === 0) return "Сегодня новых записей нет";
+  const n10 = n % 10;
+  const n100 = n % 100;
+  let word: string;
+  if (n100 >= 11 && n100 <= 19) word = "автомобилей";
+  else if (n10 === 1) word = "автомобиль";
+  else if (n10 >= 2 && n10 <= 4) word = "автомобиля";
+  else word = "автомобилей";
+  return `${n.toLocaleString("ru-RU")} ${word} добавлено сегодня`;
 }
 
 function metaText(car: SlimCar): string {
@@ -365,6 +379,8 @@ export function CatalogClient({
   const [err, setErr] = useState<string | null>(null);
   const [qDraft, setQDraft] = useState(state.q);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [dailyNewCount, setDailyNewCount] = useState<number | null>(null);
+  const [dailyNewLoading, setDailyNewLoading] = useState(true);
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
 
@@ -378,6 +394,26 @@ export function CatalogClient({
       router.replace(`/catalog?${qs}`, { scroll: false });
     }
   }, [spStr, router]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    const market: Market = state.market;
+    setDailyNewLoading(true);
+    setDailyNewCount(null);
+    (async () => {
+      try {
+        const r = await fetchCatalogDailyAdditions(market, ac.signal);
+        if (ac.signal.aborted) return;
+        setDailyNewCount(r.count);
+      } catch {
+        if (ac.signal.aborted) return;
+        setDailyNewCount(null);
+      } finally {
+        if (!ac.signal.aborted) setDailyNewLoading(false);
+      }
+    })();
+    return () => ac.abort();
+  }, [state.market]);
 
   const navigate = useCallback(
     (next: CatalogUrlState) => {
@@ -778,14 +814,37 @@ export function CatalogClient({
         <div className="min-w-0 flex-1">
           <div className="mb-5 border-b border-border pb-5">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Найдено:{" "}
-              <span className="font-medium text-foreground">
-                {search.meta.total.toLocaleString("ru-RU")}
-              </span>
-              {search.meta.processing_time_ms != null ? ` · ${search.meta.processing_time_ms} ms` : ""}
-              {loading ? " · обновление…" : ""}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="text-sm text-muted-foreground">
+                Найдено:{" "}
+                <span className="font-medium text-foreground">
+                  {search.meta.total.toLocaleString("ru-RU")}
+                </span>
+                {search.meta.processing_time_ms != null ? ` · ${search.meta.processing_time_ms} ms` : ""}
+                {loading ? " · обновление…" : ""}
+              </p>
+              {dailyNewLoading ? (
+                <Skeleton className="h-7 w-[min(100%,20rem)] max-w-full rounded-full" />
+              ) : dailyNewCount !== null ? (
+                <span
+                  className={
+                    dailyNewCount > 0
+                      ? "inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/[0.09] px-3 py-1 text-xs font-medium text-emerald-950 shadow-sm dark:border-emerald-400/35 dark:bg-emerald-400/10 dark:text-emerald-50"
+                      : "inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground"
+                  }
+                  title="Записи, впервые добавленные в каталог сегодня. Сутки по часовому поясу Екатеринбурга — как расписание ночных обновлений."
+                >
+                  <Sparkles
+                    className={cn(
+                      "size-3.5 shrink-0 opacity-85",
+                      dailyNewCount > 0 ? "text-emerald-600 dark:text-emerald-300" : "opacity-60",
+                    )}
+                    aria-hidden
+                  />
+                  {carsAddedTodayLabel(dailyNewCount)}
+                </span>
+              ) : null}
+            </div>
             {activeChips.length ? (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {activeChips.map((chip, idx) => (

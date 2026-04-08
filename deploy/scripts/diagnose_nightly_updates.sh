@@ -6,7 +6,7 @@
 set +e
 
 echo "=== Таймеры (должны быть active) ==="
-for u in encar-update.timer dongchedi-update.timer prod-encar-auto-update.timer prod-dongchedi-update.timer; do
+for u in encar-update.timer dongchedi-update.timer prod-encar-auto-update.timer prod-dongchedi-update.timer prod-encar-meilisearch-sync.timer; do
   if systemctl list-unit-files "$u" &>/dev/null; then
     systemctl is-enabled "$u" 2>/dev/null && systemctl status "$u" --no-pager -l || true
     echo "---"
@@ -20,6 +20,14 @@ journalctl -u encar-update.service -u prod-encar-auto-update.service -n 120 --no
 echo
 echo "=== Последние запуски dongchedi-update (Китай) ==="
 journalctl -u dongchedi-update.service -u prod-dongchedi-update.service -n 120 --no-pager 2>/dev/null || journalctl -u dongchedi-update.service -n 120 --no-pager
+
+echo
+echo "=== Сводка: когда сработает (systemd) ==="
+systemctl list-timers --all --no-pager 2>/dev/null | grep -E "encar|dongchedi|meilisearch|prod-encar" || true
+
+echo
+echo "=== Последний запуск Meilisearch sync ==="
+journalctl -u prod-encar-meilisearch-sync.service -n 80 --no-pager 2>/dev/null || true
 
 echo
 echo "=== Подсказка ==="

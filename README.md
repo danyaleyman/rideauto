@@ -25,6 +25,16 @@ cd web && npm install && npm run dev
 
 **Ночное обновление:** в [`backend/config.json`](backend/config.json) `update_config.catalog_encar_nightly` (по умолчанию `true`) — после цикла PostgreSQL вызывается `encar_daily_update.py --once` (discover, sold-check, скрейпер в Postgres). Без доступного Postgres `auto_update` завершается с ошибкой.
 
+**Расписание на VPS (systemd):** в `deploy/systemd/` — **`prod-encar-auto-update.timer`** (Корея, 00:00 Asia/Yekaterinburg), **`prod-dongchedi-update.timer`** (Китай, 01:00), **`prod-encar-meilisearch-sync.timer`** (выгрузка Postgres → Meilisearch для фронта, 04:00). Ставятся через [`deploy/deploy_prod.sh`](deploy/deploy_prod.sh). На сервере в **`/etc/default/prod-encar`** задайте **`SYNC_PG_DSN`** (Postgres с localhost, не `postgres:5432` из Docker) и при необходимости URL/ключ Meilisearch.
+
+**Проверить, что запланировано:**
+```bash
+systemctl list-timers --all | grep -E 'prod-encar|dongchedi'
+systemctl status prod-encar-auto-update.timer prod-dongchedi-update.timer prod-encar-meilisearch-sync.timer --no-pager
+bash deploy/scripts/diagnose_nightly_updates.sh
+```
+Ручной прогон индекса: `sudo bash deploy/scripts/run_meilisearch_sync_host.sh` (из `/opt/prod-encar`).
+
 Глубина списка Encar задаётся в [`scraper_config.yaml`](scraper_config.yaml): `max_list_offset: 0` означает проход до пустого ответа (с верхней границей `list_offset_hard_cap`). Дополнительные срезы запроса — `list_q_suffixes`.
 
 ## API каталога (FastAPI)
@@ -60,7 +70,7 @@ curl -fsS "http://127.0.0.1:3000/catalog?region=china" > /dev/null
 - `deploy/systemd/prod-encar-api.service`
 - `deploy/systemd/prod-encar-auto-update.service`
 - `deploy/systemd/prod-encar-auto-update.timer`
-- `deploy/systemd/dongchedi-update.service` + `dongchedi-update.timer` (или **`prod-dongchedi-update.*`** для пользователя `prod-encar`) — Китай в **`encar_china.db`**, полночь **Asia/Yekaterinburg**, как у корейского обновления
+- `deploy/systemd/dongchedi-update.service` + `dongchedi-update.timer` (или **`prod-dongchedi-update.*`** — Китай **01:00 Asia/Yekaterinburg**, после корейского таймера)
 - `deploy/deploy_prod.sh`
 
 Быстрый деплой на Linux VPS:

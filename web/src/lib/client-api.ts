@@ -1,7 +1,8 @@
 "use client";
 
 import { getPublicApiBase } from "./env";
-import type { FacetsResponse, SearchResponse } from "./types";
+import type { CatalogDailyAdditionsResponse, FacetsResponse, SearchResponse } from "./types";
+import type { Market } from "./catalog-url";
 
 async function readJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, {
@@ -25,6 +26,11 @@ export function clientFacetsUrl(searchParams: URLSearchParams): string {
   return `${base}/api/facets?${searchParams.toString()}`;
 }
 
+export function clientCatalogDailyAdditionsUrl(market: Market): string {
+  const base = getPublicApiBase();
+  return `${base}/api/catalog/daily-additions?region=${encodeURIComponent(market)}`;
+}
+
 export async function fetchSearchClient(
   params: URLSearchParams,
   options?: { signal?: AbortSignal },
@@ -37,4 +43,11 @@ export async function fetchFacetsClient(
   options?: { signal?: AbortSignal },
 ): Promise<FacetsResponse> {
   return readJson<FacetsResponse>(clientFacetsUrl(params), options?.signal);
+}
+
+export async function fetchCatalogDailyAdditions(
+  market: Market,
+  signal?: AbortSignal,
+): Promise<CatalogDailyAdditionsResponse> {
+  return readJson<CatalogDailyAdditionsResponse>(clientCatalogDailyAdditionsUrl(market), signal);
 }
