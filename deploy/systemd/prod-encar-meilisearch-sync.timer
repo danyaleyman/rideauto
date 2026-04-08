@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly Meilisearch sync (после ночных прогонов Корея/Китай)
+
+[Timer]
+# 04:00 Екатеринбург: Corея и Китай по умолчанию в 00:00 — даём время на длинные прогоны.
+OnCalendar=*-*-* 04:00:00 Asia/Yekaterinburg
+Persistent=true
+Unit=prod-encar-meilisearch-sync.service
+
+[Install]
+WantedBy=timers.target

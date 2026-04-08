@@ -20,8 +20,13 @@ sudo chown -R prod-encar:prod-encar "${APP_DIR}"
 sudo cp "${APP_DIR}/deploy/systemd/prod-encar-api.service" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/prod-encar-auto-update.service" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/prod-encar-auto-update.timer" /etc/systemd/system/
+sudo cp "${APP_DIR}/deploy/systemd/prod-dongchedi-update.service" /etc/systemd/system/
+sudo cp "${APP_DIR}/deploy/systemd/prod-dongchedi-update.timer" /etc/systemd/system/
+sudo cp "${APP_DIR}/deploy/systemd/prod-encar-meilisearch-sync.service" /etc/systemd/system/
+sudo cp "${APP_DIR}/deploy/systemd/prod-encar-meilisearch-sync.timer" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/prod-encar-subscriptions-notify.service" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/prod-encar-subscriptions-notify.timer" /etc/systemd/system/
+sudo chmod +x "${APP_DIR}/deploy/scripts/run_meilisearch_sync_host.sh"
 
 echo "[4/6] Install nginx site"
 sudo cp "${APP_DIR}/deploy/nginx/prod-encar.conf" /etc/nginx/sites-available/prod-encar.conf
@@ -32,6 +37,8 @@ echo "[5/6] Reload daemons"
 sudo systemctl daemon-reload
 sudo systemctl enable --now prod-encar-api.service
 sudo systemctl enable --now prod-encar-auto-update.timer
+sudo systemctl enable --now prod-dongchedi-update.timer
+sudo systemctl enable --now prod-encar-meilisearch-sync.timer
 sudo systemctl enable --now prod-encar-subscriptions-notify.timer
 sudo systemctl reload nginx
 
