@@ -6,6 +6,7 @@ Uses same checkpoint and storage as encar_scraper.
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 import subprocess
 import sys
@@ -23,6 +24,22 @@ from encar_scraper import (
     setup_logging,
 )
 from scraper_pipeline.encar.savers import ChunkedJSONStorage, SQLiteStorage
+
+
+def _postgres_dsn(config: dict) -> str:
+    storage_cfg = config.get("storage", {}) or {}
+    dsn = (storage_cfg.get("postgres") or {}).get("dsn") or ""
+    dsn = str(dsn).strip()
+    if dsn:
+        return dsn
+    return (os.environ.get("DATABASE_URL") or "").strip()
+
+
+def _sqlite_catalog_path(config: dict) -> Path:
+    """Путь к SQLite каталогу из конфига (от cwd, как у скрейпера)."""
+    storage_cfg = config.get("storage", {}) or {}
+    rel = (storage_cfg.get("sqlite") or {}).get("path", "encar_cars.db")
+    return Path.cwd() / str(rel)
 
 
 def next_run_at(tz_name: str, hour: int, minute: int) -> datetime:
@@ -88,17 +105,11 @@ async def discover_new_cars(
 async def remove_sold(
     client: AsyncEncarClient,
     checkpoint: Checkpoint,
-    storage,
+    storage: SQLiteStorage,
     config: dict,
     log,
 ) -> int:
-    """Sample cars from storage, re-fetch detail; if 404 remove from DB and collected. Returns count removed."""
-    if not isinstance(storage, SQLiteStorage):
-        log.info(
-            "Remove sold: пропуск (только SQLite; сейчас %s)",
-            type(storage).__name__,
-        )
-        return 0
+    """Случайная выборка из SQLite-каталога: 404/продано на Encar → DELETE + checkpoint.remove_collected."""
     du = config.get("daily_update", {})
     sample = int(du.get("sold_check_sample", 500))
     d_min = float(du.get("sold_check_delay_min", 0.5))
@@ -121,6 +132,93 @@ async def remove_sold(
             except Exception as e:
                 log.warning("Failed to remove car_id=%s: %s", car_id, e)
     return removed
+
+
+async def remove_sold_postgres(
+    client: AsyncEncarClient,
+    checkpoint: Checkpoint,
+    dsn: str,
+    config: dict,
+    log,
+) -> int:
+    """То же для PostgreSQL (cars.car_id); car_images удаляются по ON DELETE CASCADE."""
+    try:
+        import psycopg2  # type: ignore[import-untyped]
+    except ImportError:
+        log.warning("Remove sold: postgres указан, но psycopg2 не установлен — пропуск")
+        return 0
+
+    du = config.get("daily_update", {})
+    sample = int(du.get("sold_check_sample", 500))
+    d_min = float(du.get("sold_check_delay_min", 0.5))
+    d_max = float(du.get("sold_check_delay_max", 1.2))
+
+    def _fetch_ids() -> list[str]:
+        with psycopg2.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT car_id FROM cars ORDER BY RANDOM() LIMIT %s", (sample,))
+                return [str(r[0]) for r in cur.fetchall() if r and r[0]]
+
+    ids = await asyncio.to_thread(_fetch_ids)
+    if not ids:
+        log.info("Remove sold (postgres): таблица cars пуста или лимит 0")
+        return 0
+
+    def _delete(cid: str) -> None:
+        with psycopg2.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM cars WHERE car_id = %s", (cid,))
+            conn.commit()
+
+    removed = 0
+    for car_id in ids:
+        data, status, _ = await client.fetch_vehicle_detail(car_id)
+        await asyncio.sleep(random.uniform(d_min, d_max))
+        if status == 404 or (status == 200 and _is_sold(data)):
+            try:
+                await asyncio.to_thread(_delete, car_id)
+                checkpoint.remove_collected(car_id)
+                removed += 1
+                log.info("Removed sold car_id=%s status=%s (postgres)", car_id, status)
+            except Exception as e:
+                log.warning("Failed to remove car_id=%s from postgres: %s", car_id, e)
+    return removed
+
+
+async def run_remove_sold_phase(
+    client: AsyncEncarClient,
+    checkpoint: Checkpoint,
+    config: dict,
+    log,
+    storage: SQLiteStorage | ChunkedJSONStorage | None,
+) -> int:
+    """Где лежит каталог: sqlite в цикле / файл encar_cars.db / только postgres."""
+    storage_cfg = config.get("storage", {}) or {}
+    backend = storage_cfg.get("backend", "sqlite")
+
+    if isinstance(storage, SQLiteStorage):
+        return await remove_sold(client, checkpoint, storage, config, log)
+
+    cat_sqlite = _sqlite_catalog_path(config)
+    if cat_sqlite.is_file():
+        log.info("Remove sold: используем SQLite каталог %s (backend=%s)", cat_sqlite, backend)
+        st = SQLiteStorage(str(cat_sqlite), store_raw=False)
+        st.connect()
+        try:
+            return await remove_sold(client, checkpoint, st, config, log)
+        finally:
+            st.close()
+
+    if backend == "postgres":
+        dsn = _postgres_dsn(config)
+        if dsn:
+            log.info("Remove sold: используем PostgreSQL")
+            return await remove_sold_postgres(client, checkpoint, dsn, config, log)
+        log.warning("Remove sold: backend=postgres, но DSN пуст — пропуск")
+
+    if backend == "chunked_json":
+        log.info("Remove sold: только chunked_json без sqlite-файла каталога — пропуск")
+    return 0
 
 
 def _is_sold(data: dict | None) -> bool:
@@ -155,33 +253,36 @@ async def run_one_cycle(config_path: str, config: dict, log) -> None:
     storage_cfg = config.get("storage", {})
     backend = storage_cfg.get("backend", "sqlite")
     store_raw = storage_cfg.get("store_raw_responses", False)
+    storage: SQLiteStorage | ChunkedJSONStorage | None = None
     if backend == "sqlite":
         storage = SQLiteStorage(
             storage_cfg.get("sqlite", {}).get("path", "encar_cars.db"),
             store_raw=store_raw,
         )
         storage.connect()
-    else:
+    elif backend == "chunked_json":
         cj = storage_cfg.get("chunked_json", {})
         storage = ChunkedJSONStorage(
             cj.get("dir", "output_chunks"),
             cj.get("cars_per_file", 1000),
             store_raw=store_raw,
         )
+    # postgres: storage остаётся None — remove_sold идёт в encar_cars.db или в Postgres по DSN
 
     try:
         async with AsyncEncarClient(config, log) as client:
             added = await discover_new_cars(client, checkpoint, config, log)
             log.info("Discover new: added %s to pending", added)
-            removed = await remove_sold(client, checkpoint, storage, config, log)
+            removed = await run_remove_sold_phase(client, checkpoint, config, log, storage)
             log.info("Remove sold: removed %s cars", removed)
     finally:
         checkpoint.close()
-        storage.close()
+        if storage is not None:
+            storage.close()
 
     run_only_pending(config_path, log)
     if backend == "sqlite":
-        db_path = Path.cwd() / storage_cfg.get("sqlite", {}).get("path", "encar_cars.db")
+        db_path = _sqlite_catalog_path(config)
         _run_export_to_frontend(str(db_path), log)
 
 
