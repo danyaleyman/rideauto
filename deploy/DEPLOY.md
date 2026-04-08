@@ -188,6 +188,7 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 - Если в логе **`password authentication failed for user "postgres"`**, затем **`ImportError: cannot import name 'ChunkedJSONStorage' from 'encar_scraper'`** — падение из‑за fallback на SQLite при неверном пароле в **`backend/config.json`**: либо поправьте `db_config` под реальный Postgres, либо оставьте только SQLite-пайплайн (убедитесь, что на сервере актуальный **`encar_daily_update.py`**, где storage импортируется из **`scraper_pipeline.encar.savers`**).
 - Корея вручную + сразу выгрузка на фронт (**`cars.json`**, chunks, фасеты при `storage.backend != sqlite`): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо (например `/opt/prod-encar`). От **`www-data`**: задайте **`ENCAR_RUN_USER`** при необходимости; **`SKIP_LEARN_ENGINE_MAP=1`** — без долгого `auto_learn_engine_map`; **`FORCE_EXPORT=1`** — повторить экспорт даже при `backend: sqlite`.
 - Китай полный перескрейп (все марки, enrich, сброс checkpoint): остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
+- Китай **тест одной страницы** (enrich, several photos, `dongchedi_specs_url`): **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/prod-encar` (лимит объявлений: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом перезапуск API и каталог **`?region=china`** — Китай в **`cars.json` не попадает**, только **`encar_china.db`** + API.
 
 ## Заголовки безопасности (nginx)
 
