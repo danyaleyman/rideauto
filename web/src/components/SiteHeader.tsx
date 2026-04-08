@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { FavoritesDialog } from "@/components/FavoritesDialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 
@@ -45,6 +46,8 @@ export function SiteHeader() {
               Контакты
             </Link>
           </nav>
+
+          <FavoritesDialog />
 
           <div
             className="flex items-center gap-2 rounded-full border border-border/80 bg-muted/25 px-2 py-1 shadow-sm"

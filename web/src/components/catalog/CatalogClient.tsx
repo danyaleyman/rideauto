@@ -15,6 +15,10 @@ import {
 } from "@/lib/catalog-url";
 import { fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
 import { extractCarImageUrls } from "@/lib/car-images";
+import { getCarPageAbsoluteUrl } from "@/lib/car-url";
+import { formatPriceLabel } from "@/lib/format-price";
+import { useFavorites } from "@/hooks/use-favorites";
+import { MarketSegmentedControl } from "@/components/catalog/MarketSegmentedControl";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -42,22 +46,15 @@ import {
   PaginationItem,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Plus,
+} from "lucide-react";
 import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
-
-function formatPrice(n: number | null | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
-  try {
-    return new Intl.NumberFormat("ru-RU", {
-      style: "currency",
-      currency: "RUB",
-      maximumFractionDigits: 0,
-    }).format(n);
-  } catch {
-    return `${n} ₽`;
-  }
-}
 
 /** Номера страниц с «…» для shadcn Pagination. */
 function visiblePageItems(page: number, total: number): Array<number | "ellipsis"> {
@@ -367,7 +364,9 @@ export function CatalogClient({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [qDraft, setQDraft] = useState(state.q);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
+  const { toggle: toggleFavorite, isFavorite } = useFavorites();
 
   useEffect(() => {
     setQDraft(state.q);
@@ -582,35 +581,13 @@ export function CatalogClient({
           <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:overscroll-contain">
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">Рынок</Label>
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/15 px-4 py-3 shadow-sm ring-1 ring-border/30">
-                <span
-                  className={cn(
-                    "text-sm font-medium transition-colors",
-                    state.market === "korea" ? "text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  Корея
-                </span>
-                <Switch
-                  checked={state.market === "china"}
-                  onCheckedChange={(c) => switchMarket(c ? "china" : "korea")}
-                  aria-label="Переключить рынок: Корея или Китай"
-                />
-                <span
-                  className={cn(
-                    "text-sm font-medium transition-colors",
-                    state.market === "china" ? "text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  Китай
-                </span>
-              </div>
+              <MarketSegmentedControl market={state.market} onChange={switchMarket} />
             </div>
 
             <Accordion
               type="multiple"
               defaultValue={["basics", "price"]}
-              className="rounded-xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
+              className="min-w-0 rounded-xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
             >
               <AccordionItem value="basics" className="border-border/60">
                 <AccordionTrigger className="py-3 hover:no-underline">
@@ -835,16 +812,18 @@ export function CatalogClient({
             {search.result.map((car, idx) => {
               const img = firstImageUrl(car);
               const meta = metaText(car);
+              const fav = isFavorite(car.id);
+              const showCopied = copiedId === car.id;
               return (
                 <li key={car.id}>
-                  <Link
-                    href={`/car/${encodeURIComponent(car.id)}`}
-                    prefetch
-                    className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  <Card
+                    size="sm"
+                    className="flex flex-row items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
                   >
-                    <Card
-                      size="sm"
-                      className="flex flex-row items-stretch gap-0 py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
+                    <Link
+                      href={`/car/${encodeURIComponent(car.id)}`}
+                      prefetch
+                      className="flex min-w-0 flex-1 flex-row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
                       <div className="relative h-28 w-36 shrink-0 bg-muted sm:h-32 sm:w-44 md:h-36 md:w-52">
                         {img ? (
@@ -872,19 +851,66 @@ export function CatalogClient({
                           {car.year_num ? `${car.year_num}` : "—"}
                         </Badge>
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-3 py-3 sm:px-5">
+                      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-3 py-3 sm:px-5">
                         <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
                           {car.title || car.id}
                         </p>
                         <p className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-1 sm:text-sm">
                           {meta || car.id}
                         </p>
-                        <p className="text-base font-semibold tabular-nums sm:text-lg">
-                          {formatPrice(car.price)}
-                        </p>
+                        <Badge
+                          variant="secondary"
+                          className="w-fit rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm dark:bg-muted/50"
+                        >
+                          {formatPriceLabel(car.price)}
+                        </Badge>
                       </div>
-                    </Card>
-                  </Link>
+                    </Link>
+                    <div className="flex shrink-0 flex-col items-center justify-start gap-1 border-s border-border/50 bg-muted/15 px-1.5 py-2 sm:px-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon-sm"
+                        className="rounded-lg shadow-sm"
+                        title={showCopied ? "Скопировано" : "Копировать ссылку на объявление"}
+                        aria-label="Копировать ссылку"
+                        onClick={() => {
+                          void navigator.clipboard
+                            .writeText(getCarPageAbsoluteUrl(car.id))
+                            .then(() => {
+                              setCopiedId(car.id);
+                              window.setTimeout(
+                                () => setCopiedId((c) => (c === car.id ? null : c)),
+                                1800,
+                              );
+                            })
+                            .catch(() => {});
+                        }}
+                      >
+                        {showCopied ? (
+                          <Check className="size-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={fav ? "default" : "secondary"}
+                        size="icon-sm"
+                        className="rounded-lg shadow-sm"
+                        title={fav ? "Убрать из избранного" : "В избранное"}
+                        aria-pressed={fav}
+                        aria-label={fav ? "Убрать из избранного" : "Добавить в избранное"}
+                        onClick={() => toggleFavorite(car)}
+                      >
+                        {fav ? (
+                          <Check className="size-4" />
+                        ) : (
+                          <Plus className="size-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </Card>
                 </li>
               );
             })}
