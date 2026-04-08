@@ -181,6 +181,13 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 - Расписание: **`deploy/systemd/dongchedi-update.timer`** (или **`prod-dongchedi-update.timer`**) — **00:00 Asia/Yekaterinburg**, как **`encar-update.timer`**. Сначала один раз полный прогон вручную, затем включите timer.
 - API: задайте **`WRA_CHINA_DB_PATH`** / **`--db-china`**, либо положите **`encar_china.db` в ту же папку, что и `encar_cars.db`**, или в **`backend/encar_china.db`** — тогда `api_server` подхватит файл сам. Проверка: **`GET /api/health`** → **`china_catalog_db": true`**. После первой выгрузки перезапустите API; при кэше nginx для `/api/cars` может понадобиться сброс зоны или ждать TTL.
 
+### Ночное обновление не сработало — диагностика и ручной запуск
+
+- Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u encar-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
+- Частая причина по Корее: в **`auto_update.py`** при работающем PostgreSQL в конце всё равно вызывается **`encar_daily_update.py --once`** (синхронизация SQLite); при **ненулевом коде** весь **`encar-update.service`** падает — смотрите сообщение `encar_daily_update завершился с кодом` в журнале.
+- Корея вручную (эквивалент тяжёлой части пайплайна без Postgres-легаси): **`bash deploy/scripts/run_korea_encar_daily_once.sh`** (от root выполнит от **`www-data`**; задайте **`ENCAR_RUN_USER=prod-encar`** при необходимости).
+- Китай полный перескрейп (все марки, enrich, сброс checkpoint): остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
+
 ## Заголовки безопасности (nginx)
 
 Пример готовых директив: [nginx-security-headers.example.conf](nginx-security-headers.example.conf).
