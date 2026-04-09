@@ -1,6 +1,6 @@
 import { decodeOffsetCursor, encodeOffsetCursor } from "./cursor";
 
-export const PER_PAGE = 12;
+export const PER_PAGE = 10;
 
 export type Market = "korea" | "china";
 

@@ -953,9 +953,9 @@ export function CatalogClient({
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
-                      className="flex min-w-0 flex-1 flex-row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                      className="flex min-w-0 flex-1 flex-row items-stretch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
-                      <div className="relative w-44 shrink-0 self-stretch overflow-hidden rounded-s-2xl bg-muted sm:w-52 md:w-56">
+                      <div className="relative w-52 shrink-0 self-stretch overflow-hidden rounded-s-2xl bg-muted md:w-60">
                         <CatalogCardImage
                           images={preview}
                           alt={car.title || car.id}
@@ -968,7 +968,7 @@ export function CatalogClient({
                           {car.year_num ? `${car.year_num}` : "—"}
                         </Badge>
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col justify-start gap-1.5 px-3 py-3 sm:px-5">
+                      <div className="flex min-w-0 flex-1 flex-col justify-start gap-1.5 px-3 py-3 sm:px-4 md:px-5">
                         <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
                           {car.title || car.id}
                         </p>
