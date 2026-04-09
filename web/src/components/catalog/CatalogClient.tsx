@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -498,7 +498,18 @@ export function CatalogClient({
     const i = arr.indexOf(value);
     if (i >= 0) arr.splice(i, 1);
     else arr.push(value);
-    navigate({ ...state, [field]: arr, page: 1 });
+    const next: CatalogUrlState = { ...state, [field]: arr, page: 1 };
+    if (field === "marks") {
+      next.models = [];
+      next.generations = [];
+      next.trims = [];
+    } else if (field === "models") {
+      next.generations = [];
+      next.trims = [];
+    } else if (field === "generations") {
+      next.trims = [];
+    }
+    navigate(next);
   };
 
   const reset = () => {
@@ -615,14 +626,11 @@ export function CatalogClient({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
         <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-80 lg:pe-1">
           <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:overscroll-contain">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Рынок</Label>
-              <MarketSegmentedControl market={state.market} onChange={switchMarket} />
-            </div>
+            <MarketSegmentedControl market={state.market} onChange={switchMarket} />
 
             <Accordion
               type="multiple"
-              defaultValue={["basics", "price"]}
+              defaultValue={[]}
               className="min-w-0 rounded-xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
             >
               <AccordionItem value="basics" className="border-border/60">
@@ -648,33 +656,29 @@ export function CatalogClient({
                         rows={facets.models}
                         selected={new Set(state.models)}
                         onToggle={(v) => toggle("models", v)}
+                        disabled={state.marks.length === 0}
                       />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Skeleton className="h-9 w-full rounded-2xl" />
-                      <Skeleton className="h-9 w-full rounded-2xl" />
-                    </div>
-                  )}
-                  {facets ? (
-                    <>
-                      <FacetGroup
-                        title="Поколение"
+                      <FacetMultiDropdown
+                        label="Поколение"
                         rows={facets.generations}
                         selected={new Set(state.generations)}
                         onToggle={(v) => toggle("generations", v)}
+                        disabled={state.models.length === 0}
                       />
-                      <FacetGroup
-                        title="Комплектация"
+                      <FacetMultiDropdown
+                        label="Комплектация"
                         rows={facets.trims}
                         selected={new Set(state.trims)}
                         onToggle={(v) => toggle("trims", v)}
+                        disabled={state.generations.length === 0}
                       />
-                    </>
+                    </div>
                   ) : (
                     <div className="space-y-2">
-                      <FacetSkeleton />
-                      <FacetSkeleton />
+                      <Skeleton className="h-9 w-full rounded-2xl" />
+                      <Skeleton className="h-9 w-full rounded-2xl" />
+                      <Skeleton className="h-9 w-full rounded-2xl" />
+                      <Skeleton className="h-9 w-full rounded-2xl" />
                     </div>
                   )}
                   <div>
@@ -877,22 +881,22 @@ export function CatalogClient({
                 <li key={car.id}>
                   <Card
                     size="sm"
-                    className="flex flex-row items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
+                    className="flex flex-row items-start gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
                   >
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
                       className="flex min-w-0 flex-1 flex-row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
-                      <div className="relative h-28 w-36 shrink-0 bg-muted sm:h-32 sm:w-44 md:h-36 md:w-52">
+                      <div className="relative h-32 w-44 shrink-0 overflow-hidden bg-muted sm:h-36 sm:w-52 md:h-36 md:w-56">
                         {img ? (
                           <Image
                             src={img}
                             alt=""
                             width={416}
                             height={288}
-                            sizes="208px"
-                            className="size-full object-cover"
+                            sizes="(min-width: 1024px) 224px, 44vw"
+                            className="size-full object-cover object-center"
                             loading={idx < 4 ? "eager" : undefined}
                             fetchPriority={idx === 0 ? "high" : "auto"}
                             decoding="async"
@@ -910,7 +914,7 @@ export function CatalogClient({
                           {car.year_num ? `${car.year_num}` : "—"}
                         </Badge>
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-3 py-3 sm:px-5">
+                      <div className="flex min-w-0 flex-1 flex-col justify-start gap-1.5 px-3 py-3 sm:px-5">
                         <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
                           {car.title || car.id}
                         </p>
@@ -925,7 +929,7 @@ export function CatalogClient({
                         </Badge>
                       </div>
                     </Link>
-                    <div className="flex shrink-0 flex-col items-center justify-start gap-1 border-s border-border/50 bg-muted/15 px-1.5 py-2 sm:px-2">
+                    <div className="flex shrink-0 flex-row items-start justify-start gap-1.5 border-s border-border/50 px-2 py-2">
                       <Button
                         type="button"
                         variant="secondary"
