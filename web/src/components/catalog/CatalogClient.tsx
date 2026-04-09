@@ -948,14 +948,14 @@ export function CatalogClient({
                 <li key={car.id}>
                   <Card
                     size="sm"
-                    className="flex flex-row items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
+                    className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 sm:flex-row shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
                   >
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
-                      className="flex min-w-0 flex-1 flex-row items-stretch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                      className="flex min-w-0 flex-1 flex-col items-stretch sm:flex-row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
-                      <div className="relative w-52 shrink-0 self-stretch overflow-hidden rounded-s-2xl bg-muted md:w-60">
+                      <div className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted sm:h-auto sm:w-56 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-64">
                         <CatalogCardImage
                           images={preview}
                           alt={car.title || car.id}
@@ -983,7 +983,7 @@ export function CatalogClient({
                         </Badge>
                       </div>
                     </Link>
-                    <div className="flex shrink-0 flex-row items-start justify-start gap-1.5 rounded-e-2xl border-s border-border/50 px-2 py-2">
+                    <div className="flex shrink-0 flex-row items-center justify-end gap-1.5 border-t border-border/50 px-3 py-2 sm:rounded-e-2xl sm:border-s sm:border-t-0 sm:px-2">
                       <Button
                         type="button"
                         variant="secondary"
