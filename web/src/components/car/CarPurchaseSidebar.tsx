@@ -79,7 +79,7 @@ export function CarPurchaseSidebar({
   return (
     <aside
       id="car-order-panel"
-      className="relative overflow-hidden rounded-3xl border border-border/70 bg-card p-6 shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.08] lg:sticky lg:top-24"
+      className="relative max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.08] sm:rounded-3xl sm:p-6 lg:sticky lg:top-24"
     >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500"
@@ -87,10 +87,12 @@ export function CarPurchaseSidebar({
       />
       <h2 className="sr-only">Цена и заказ</h2>
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Оценка в каталоге</p>
-      <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-foreground md:text-[2rem]">
+      <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums sm:text-3xl md:text-[2rem]">
         {priceRub != null && !Number.isNaN(priceRub) ? formatPriceLabel(priceRub) : formatPriceLabel(null)}
       </p>
-      <p className="mt-3 line-clamp-2 text-sm font-semibold leading-snug text-foreground">{title}</p>
+      <p className="mt-3 line-clamp-3 text-sm font-semibold leading-snug text-foreground sm:line-clamp-2">
+        {title}
+      </p>
       <p className="mt-2 font-mono text-xs tabular-nums text-muted-foreground">ID · {carId}</p>
       {sourceLabel ? (
         <Badge variant="secondary" className="mt-3 rounded-full px-3 py-1 text-xs font-medium">
@@ -98,7 +100,7 @@ export function CarPurchaseSidebar({
         </Badge>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-5 flex min-w-0 flex-wrap gap-2">
         {sourceUrl ? (
           <Button variant="outline" size="icon-sm" className="rounded-xl shadow-sm" asChild>
             <a href={sourceUrl} target="_blank" rel="noopener noreferrer" title="Оригинал объявления">

@@ -105,10 +105,10 @@ export default function CarPhotoGallery({
 
   return (
     <>
-      <section className="w-full overflow-hidden rounded-3xl border border-border/70 bg-card shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06]">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-stretch">
+      <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:rounded-3xl">
+        <div className="grid min-w-0 gap-0 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-stretch">
           <div
-            className="relative aspect-[16/10] min-h-[220px] cursor-zoom-in overflow-hidden bg-muted sm:min-h-[300px] lg:aspect-auto lg:min-h-[min(58vh,560px)]"
+            className="relative aspect-[16/10] min-h-[200px] cursor-zoom-in overflow-hidden bg-muted sm:min-h-[260px] lg:aspect-auto lg:min-h-[min(58vh,560px)]"
             onClick={() => openLightbox(safeActive)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -146,7 +146,7 @@ export default function CarPhotoGallery({
 
             {n > 1 ? (
               <div
-                className="absolute bottom-3 end-3 flex items-center gap-0.5 rounded-full border border-white/25 bg-black/65 px-1 py-0.5 text-xs text-white shadow-lg backdrop-blur-sm"
+                className="absolute bottom-2 end-2 max-w-[calc(100%-1rem)] sm:bottom-3 sm:end-3 flex items-center gap-0.5 rounded-full border border-white/25 bg-black/65 px-1 py-0.5 text-[11px] text-white shadow-lg backdrop-blur-sm sm:text-xs"
                 onClick={(e) => e.stopPropagation()}
                 role="presentation"
               >
@@ -177,11 +177,11 @@ export default function CarPhotoGallery({
             ) : null}
           </div>
 
-          <div className="flex flex-row gap-2 border-t border-border/50 p-2 lg:flex-col lg:border-s lg:border-t-0 lg:px-2 lg:py-3">
-            <p className="mb-0 hidden text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground lg:mb-1 lg:block">
+          <div className="min-w-0 border-t border-border/50 lg:flex lg:flex-col lg:border-s lg:border-t-0">
+            <p className="mb-0 hidden px-2 pt-2 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground lg:mb-1 lg:block lg:px-2 lg:pt-3">
               Ещё фото
             </p>
-            <div className="flex flex-1 flex-row gap-2.5 lg:flex lg:flex-col lg:gap-2.5">
+            <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:flex-col lg:gap-2.5 lg:overflow-visible lg:px-2 lg:py-3">
               {sideSlots.map((idx, slotI) => {
                 const src = images[idx];
                 const isLastSlot = slotI === THUMB_COUNT - 1;
@@ -199,8 +199,9 @@ export default function CarPhotoGallery({
                       openLightbox(idx);
                     }}
                     className={cn(
-                      "relative aspect-[4/3] w-[26%] shrink-0 overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-primary/50 lg:aspect-auto lg:h-0 lg:min-h-[88px] lg:w-full lg:flex-1",
-                      idx === safeActive && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                      "relative aspect-[4/3] h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-primary/50 sm:h-[4.75rem] sm:w-[5.25rem] lg:aspect-auto lg:h-0 lg:min-h-[88px] lg:w-full lg:flex-1 lg:snap-none",
+                      idx === safeActive &&
+                        "ring-2 ring-primary ring-offset-1 ring-offset-background lg:ring-offset-2",
                     )}
                     aria-label={`Показать фото ${idx + 1}`}
                   >

@@ -29,16 +29,18 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
     return <p className="text-sm text-muted-foreground">Нет данных.</p>;
   }
   return (
-    <dl className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
+    <dl className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
       {filtered.map((r) => (
         <div
           key={r.label}
-          className="rounded-2xl border border-border/45 bg-muted/15 px-3.5 py-2.5 transition-colors hover:bg-muted/25 sm:grid sm:grid-cols-[minmax(0,42%)_minmax(0,1fr)] sm:gap-3 sm:py-3"
+          className="rounded-2xl border border-border/45 bg-muted/15 px-3 py-2.5 transition-colors hover:bg-muted/25 md:grid md:grid-cols-[minmax(0,42%)_minmax(0,1fr)] md:gap-3 md:px-3.5 md:py-3"
         >
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:pt-0.5">
+          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:pt-0.5">
             {r.label}
           </dt>
-          <dd className="text-sm font-medium leading-snug [overflow-wrap:anywhere] text-foreground">{r.value}</dd>
+          <dd className="mt-1 text-sm font-medium leading-snug [overflow-wrap:anywhere] text-foreground md:mt-0">
+            {r.value}
+          </dd>
         </div>
       ))}
     </dl>
@@ -247,7 +249,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       {codes.length > 0 ? (
         <div>
           <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции</h4>
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {codes.map((c, i) => (
               <li
                 key={i}
@@ -283,7 +285,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       {Array.isArray(choicePhotos) && choicePhotos.length > 0 ? (
         <div>
           <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Выбранные опции с фото</h4>
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {choicePhotos.map((item, i) => {
               if (!item || typeof item !== "object") return null;
               const o = item as Record<string, unknown>;
@@ -448,31 +450,31 @@ export function CarDetailAccordions({
     <Accordion
       type="multiple"
       defaultValue={defaultOpen}
-      className="mt-6 rounded-3xl border border-border/70 bg-card shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.07]"
+      className="mt-6 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.07] sm:rounded-3xl"
     >
       <AccordionItem value="general" className="first:rounded-t-3xl">
-        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
           Общая информация
         </AccordionTrigger>
-        <AccordionContent className="px-5">
+        <AccordionContent className="px-4 sm:px-5">
           <SpecGrid rows={generalRows} />
         </AccordionContent>
       </AccordionItem>
 
       <AccordionItem value="equipment">
-        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
           Комплектация
         </AccordionTrigger>
-        <AccordionContent className="px-5">
+        <AccordionContent className="px-4 sm:px-5">
           <EquipmentSection d={data} extra={extra} />
         </AccordionContent>
       </AccordionItem>
 
       <AccordionItem value="body">
-        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
           Состояние кузова
         </AccordionTrigger>
-        <AccordionContent className="px-5">
+        <AccordionContent className="px-4 sm:px-5">
           <div className="space-y-4">
             {paintPartTypes != null ? (
               <div>
@@ -555,10 +557,10 @@ export function CarDetailAccordions({
       </AccordionItem>
 
       <AccordionItem value="diagnosis">
-        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
           Диагностика и техсостояние
         </AccordionTrigger>
-        <AccordionContent className="px-5">
+        <AccordionContent className="px-4 sm:px-5">
           <div className="space-y-5">
             {diagnosisPhotosCount > 0 ? (
               <p className="text-xs text-muted-foreground">
@@ -657,10 +659,10 @@ export function CarDetailAccordions({
       </AccordionItem>
 
       <AccordionItem value="insurance">
-        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
           Страховые случаи и история
         </AccordionTrigger>
-        <AccordionContent className="px-5">
+        <AccordionContent className="px-4 sm:px-5">
           {recordOpen && Object.keys(recordOpen).length > 0 ? (
             <RecordOpenSection ro={recordOpen} />
           ) : (
@@ -670,10 +672,10 @@ export function CarDetailAccordions({
       </AccordionItem>
 
       <AccordionItem value="extra" className="last:rounded-b-3xl">
-        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
           Дополнительные сведения
         </AccordionTrigger>
-        <AccordionContent className="px-5">
+        <AccordionContent className="px-4 sm:px-5">
           <div className="space-y-4">
             {dongchediHighlightRows.length > 0 ? (
               <div>

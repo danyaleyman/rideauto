@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 
 const btn =
-  "shrink-0 rounded-full border border-border/50 bg-muted/40 px-3.5 py-2 text-xs font-semibold text-muted-foreground shadow-sm transition-all hover:border-primary/30 hover:bg-background hover:text-foreground active:scale-[0.98]";
+  "max-w-full shrink-0 rounded-full border border-border/50 bg-muted/40 px-3 py-2 text-left text-xs font-semibold leading-snug text-muted-foreground shadow-sm transition-all [overflow-wrap:anywhere] hover:border-primary/30 hover:bg-background hover:text-foreground active:scale-[0.98] sm:px-3.5";
 
 type Props = {
   hasDescription: boolean;
@@ -26,16 +26,15 @@ export function CarPageSectionNav({ hasDescription, hasSimilar }: Props) {
   return (
     <nav
       className={cn(
-        "sticky top-14 z-20 -mx-4 mb-6 border-b border-border/50 bg-background/90 px-4 py-2.5 backdrop-blur-md",
-        "sm:-mx-6 sm:px-6",
-        "lg:top-[4.75rem] lg:mx-0 lg:mb-8 lg:rounded-2xl lg:border lg:border-border/55 lg:bg-card/95 lg:px-4 lg:py-3 lg:shadow-sm",
+        "mb-6 w-full max-w-full rounded-2xl border border-border/55 bg-card/90 px-3 py-3 shadow-sm",
+        "lg:sticky lg:top-[4.75rem] lg:z-20 lg:mb-8 lg:bg-card/95 lg:px-4 lg:backdrop-blur-sm",
       )}
       aria-label="Разделы объявления"
     >
       <p className="mb-2 hidden text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
         На странице
       </p>
-      <div className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap">
+      <div className="flex max-w-full flex-wrap gap-2">
         {items.map((it) => (
           <button key={it.id} type="button" onClick={() => go(it.id)} className={btn}>
             {it.label}

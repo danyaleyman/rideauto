@@ -105,11 +105,11 @@ export default async function CarPage({ params }: PageProps) {
       : formatPriceLabel(null);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background pb-28 pt-2 sm:pt-4 lg:pb-14">
-      <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
-        <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/70 px-4 py-3 shadow-sm backdrop-blur-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5">
-          <Breadcrumb>
-            <BreadcrumbList>
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-32 pt-2 sm:pt-4 lg:pb-14">
+      <div className="relative mx-auto min-w-0 max-w-[1440px] px-3 sm:px-6 lg:px-10">
+        <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-2xl border border-border/50 bg-card/70 px-3 py-3 shadow-sm backdrop-blur-sm sm:mb-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 sm:px-5">
+          <Breadcrumb className="min-w-0 flex-1">
+            <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
                   <Link href="/">Главная</Link>
@@ -122,15 +122,15 @@ export default async function CarPage({ params }: PageProps) {
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="line-clamp-1 max-w-[min(72vw,36rem)] text-start font-medium">
+              <BreadcrumbItem className="min-w-0 max-w-full">
+                <BreadcrumbPage className="line-clamp-2 break-words text-start font-medium [overflow-wrap:anywhere] sm:line-clamp-1">
                   {title}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
           {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
-            <Button variant="outline" size="sm" className="h-9 shrink-0 rounded-full shadow-sm" asChild>
+            <Button variant="outline" size="sm" className="h-auto min-h-9 w-full shrink-0 whitespace-normal rounded-xl px-3 py-2 text-center text-xs shadow-sm sm:h-9 sm:w-auto sm:rounded-full sm:text-sm" asChild>
               <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
                 Параметры модели (Dongchedi)
               </a>
@@ -154,12 +154,12 @@ export default async function CarPage({ params }: PageProps) {
 
         <CarPageSectionNav hasDescription={!!description} hasSimilar={similar.length > 0} />
 
-        <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12">
-          <div className="min-w-0 flex-1 space-y-8">
+        <div className="flex min-w-0 flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
+          <div className="min-w-0 flex-1 space-y-6 sm:space-y-8">
             {description ? (
               <section
                 id="car-description"
-                className="scroll-mt-28 rounded-3xl border border-border/65 bg-card p-5 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:p-6 lg:scroll-mt-32"
+                className="scroll-mt-20 rounded-2xl border border-border/65 bg-card p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:scroll-mt-24 sm:rounded-3xl sm:p-6 lg:scroll-mt-32"
               >
                 <h2 className="font-heading text-lg font-semibold tracking-tight">Описание</h2>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
@@ -177,12 +177,12 @@ export default async function CarPage({ params }: PageProps) {
               </p>
             ) : null}
 
-            <section id="car-details" className="scroll-mt-28 lg:scroll-mt-32">
+            <section id="car-details" className="scroll-mt-20 sm:scroll-mt-24 lg:scroll-mt-32">
               <CarDetailAccordions data={d as Record<string, unknown>} diagnosisPhotosCount={diagnosisPhotosCount} />
             </section>
           </div>
 
-          <div className="w-full shrink-0 lg:w-[min(100%,380px)] xl:w-[400px]">
+          <div className="w-full min-w-0 shrink-0 lg:w-[min(100%,380px)] xl:w-[400px]">
             <CarPurchaseSidebar
               carId={carId}
               title={title}
@@ -201,18 +201,20 @@ export default async function CarPage({ params }: PageProps) {
       {similar.length ? (
         <div
           id="car-similar"
-          className="scroll-mt-28 relative mx-auto mt-14 max-w-[1440px] border-t border-border/60 px-4 pt-10 sm:px-6 lg:px-10 lg:scroll-mt-32"
+          className="relative mx-auto mt-12 min-w-0 max-w-[1440px] scroll-mt-20 border-t border-border/60 px-3 pb-6 pt-8 sm:scroll-mt-24 sm:px-6 sm:pt-10 lg:scroll-mt-32 lg:px-10"
         >
-          <h2 className="font-heading text-xl font-semibold tracking-tight md:text-2xl">Похожие автомобили</h2>
+          <h2 className="font-heading text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">
+            Похожие автомобили
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">Подборка по соседним позициям в каталоге</p>
-          <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <ul className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {similar.map((car) => {
               const img = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
               return (
                 <li key={car.id}>
                   <Link
                     href={`/car/${encodeURIComponent(car.id)}`}
-                    className="group block overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm ring-1 ring-black/[0.03] transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md dark:ring-white/[0.05]"
+                    className="group block min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm ring-1 ring-black/[0.03] transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md active:scale-[0.99] dark:ring-white/[0.05]"
                   >
                     <div className="overflow-hidden bg-muted">
                       {img ? (
@@ -233,11 +235,11 @@ export default async function CarPage({ params }: PageProps) {
                         </div>
                       )}
                     </div>
-                    <div className="p-3.5">
-                      <p className="line-clamp-2 text-sm font-semibold leading-snug group-hover:text-primary">
+                    <div className="min-w-0 p-3 sm:p-3.5">
+                      <p className="line-clamp-3 break-words text-sm font-semibold leading-snug [overflow-wrap:anywhere] group-hover:text-primary sm:line-clamp-2">
                         {car.title || car.id}
                       </p>
-                      <p className="mt-2 text-sm tabular-nums font-medium text-muted-foreground">
+                      <p className="mt-2 break-words text-sm font-medium tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
                         {formatSimilarPrice(car.price)}
                       </p>
                     </div>

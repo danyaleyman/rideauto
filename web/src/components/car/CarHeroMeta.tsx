@@ -33,27 +33,27 @@ export function CarHeroMeta({
   if (plate) chips.push({ key: "plate", label: `Гос № ${plate}`, variant: "secondary", icon: IdCard });
 
   return (
-    <header className="mt-6 border-b border-border/60 pb-8 sm:mt-8">
+    <header className="mt-6 min-w-0 border-b border-border/60 pb-8 sm:mt-8">
       {sourceLabel ? (
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
+        <p className="mb-2 break-words text-xs font-medium text-muted-foreground [overflow-wrap:anywhere]">
           Объявление · <span className="text-foreground">{sourceLabel}</span>
         </p>
       ) : null}
-      <h1 className="font-heading text-[1.65rem] font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-[2.15rem]">
+      <h1 className="font-heading text-[1.55rem] font-bold leading-snug tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-3xl md:text-[2.15rem]">
         {title}
       </h1>
       {chips.length > 0 ? (
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Краткие характеристики">
+        <ul className="mt-4 flex min-w-0 flex-wrap gap-2" aria-label="Краткие характеристики">
           {chips.map((c) => {
             const Icon = c.icon;
             return (
-              <li key={c.key}>
+              <li key={c.key} className="min-w-0 max-w-full">
                 <Badge
                   variant={c.variant === "secondary" ? "secondary" : "outline"}
-                  className="inline-flex h-auto max-w-full items-center gap-1.5 rounded-full border-border/70 py-1.5 ps-2 pe-3 text-xs font-medium normal-case shadow-sm"
+                  className="inline-flex h-auto w-full max-w-full items-start gap-1.5 rounded-2xl border-border/70 py-2 ps-2.5 pe-3 text-left text-xs font-medium normal-case shadow-sm sm:inline-flex sm:w-auto sm:max-w-none sm:rounded-full sm:items-center"
                 >
-                  <Icon className="size-3.5 shrink-0 opacity-80" aria-hidden />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">{c.label}</span>
+                  <Icon className="mt-0.5 size-3.5 shrink-0 opacity-80 sm:mt-0" aria-hidden />
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{c.label}</span>
                 </Badge>
               </li>
             );
