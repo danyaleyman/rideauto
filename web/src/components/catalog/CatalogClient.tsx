@@ -81,6 +81,13 @@ function firstImageUrl(car: SlimCar): string | undefined {
   return extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
 }
 
+function previewImageUrls(car: SlimCar): string[] {
+  const all = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>);
+  if (!all.length) return [];
+  const uniq = Array.from(new Set(all));
+  return uniq.slice(0, 4);
+}
+
 function carsAddedTodayLabel(n: number): string {
   if (n === 0) return "Сегодня новых записей нет";
   const n10 = n % 10;
@@ -266,6 +273,79 @@ function ListRowSkeleton() {
         </div>
       </Card>
     </li>
+  );
+}
+
+function CatalogCardImage({
+  images,
+  alt,
+  eager,
+}: {
+  images: string[];
+  alt: string;
+  eager: boolean;
+}) {
+  const [idx, setIdx] = useState(0);
+  const timerRef = useRef<number | null>(null);
+  const canCycle = images.length > 1;
+
+  useEffect(() => {
+    setIdx(0);
+  }, [images]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current != null) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
+
+  const src = images[idx] ?? images[0] ?? "";
+  if (!src) {
+    return (
+      <div className="flex size-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
+        Нет фото
+      </div>
+    );
+  }
+
+  const stop = () => {
+    if (timerRef.current != null) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  return (
+    <div
+      className="relative size-full"
+      onMouseEnter={() => {
+        if (!canCycle) return;
+        stop();
+        timerRef.current = window.setInterval(() => {
+          setIdx((v) => (v + 1) % images.length);
+        }, 900);
+      }}
+      onMouseLeave={() => {
+        stop();
+        setIdx(0);
+      }}
+    >
+      <Image
+        src={src}
+        alt={alt}
+        width={448}
+        height={288}
+        sizes="(min-width: 1024px) 224px, 44vw"
+        className="size-full object-cover object-center"
+        loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : "auto"}
+        decoding="async"
+        unoptimized
+      />
+    </div>
   );
 }
 
@@ -873,7 +953,7 @@ export function CatalogClient({
 
           <ul className="flex flex-col gap-3">
             {search.result.map((car, idx) => {
-              const img = firstImageUrl(car);
+              const preview = previewImageUrls(car);
               const meta = metaText(car);
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
@@ -881,32 +961,19 @@ export function CatalogClient({
                 <li key={car.id}>
                   <Card
                     size="sm"
-                    className="flex flex-row items-start gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
+                    className="flex flex-row items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
                   >
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
                       className="flex min-w-0 flex-1 flex-row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
-                      <div className="relative h-32 w-44 shrink-0 overflow-hidden bg-muted sm:h-36 sm:w-52 md:h-36 md:w-56">
-                        {img ? (
-                          <Image
-                            src={img}
-                            alt=""
-                            width={416}
-                            height={288}
-                            sizes="(min-width: 1024px) 224px, 44vw"
-                            className="size-full object-cover object-center"
-                            loading={idx < 4 ? "eager" : undefined}
-                            fetchPriority={idx === 0 ? "high" : "auto"}
-                            decoding="async"
-                            unoptimized
-                          />
-                        ) : (
-                          <div className="flex size-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
-                            Нет фото
-                          </div>
-                        )}
+                      <div className="relative h-full min-h-32 w-44 shrink-0 overflow-hidden rounded-s-2xl bg-muted sm:min-h-36 sm:w-52 md:w-56">
+                        <CatalogCardImage
+                          images={preview}
+                          alt={car.title || car.id}
+                          eager={idx < 4}
+                        />
                         <Badge
                           variant="secondary"
                           className="absolute bottom-2 start-2 rounded-md px-1.5 py-0 text-[10px] font-medium sm:text-xs"
@@ -929,7 +996,7 @@ export function CatalogClient({
                         </Badge>
                       </div>
                     </Link>
-                    <div className="flex shrink-0 flex-row items-start justify-start gap-1.5 border-s border-border/50 px-2 py-2">
+                    <div className="flex shrink-0 flex-row items-start justify-start gap-1.5 rounded-e-2xl border-s border-border/50 px-2 py-2">
                       <Button
                         type="button"
                         variant="secondary"
