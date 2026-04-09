@@ -286,21 +286,11 @@ function CatalogCardImage({
   eager: boolean;
 }) {
   const [idx, setIdx] = useState(0);
-  const timerRef = useRef<number | null>(null);
   const canCycle = images.length > 1;
 
   useEffect(() => {
     setIdx(0);
   }, [images]);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current != null) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, []);
 
   const src = images[idx] ?? images[0] ?? "";
   if (!src) {
@@ -311,25 +301,22 @@ function CatalogCardImage({
     );
   }
 
-  const stop = () => {
-    if (timerRef.current != null) {
-      window.clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
   return (
     <div
       className="relative size-full"
       onMouseEnter={() => {
+        if (canCycle) setIdx(0);
+      }}
+      onMouseMove={(e) => {
         if (!canCycle) return;
-        stop();
-        timerRef.current = window.setInterval(() => {
-          setIdx((v) => (v + 1) % images.length);
-        }, 900);
+        const el = e.currentTarget.getBoundingClientRect();
+        if (el.width <= 0) return;
+        const relX = Math.min(Math.max(e.clientX - el.left, 0), el.width);
+        const slice = Math.min(images.length, 4);
+        const next = Math.min(slice - 1, Math.floor((relX / el.width) * slice));
+        setIdx(next);
       }}
       onMouseLeave={() => {
-        stop();
         setIdx(0);
       }}
     >
@@ -339,7 +326,7 @@ function CatalogCardImage({
         width={448}
         height={288}
         sizes="(min-width: 1024px) 224px, 44vw"
-        className="size-full object-cover object-center"
+        className="h-full w-full object-cover object-center"
         loading={eager ? "eager" : "lazy"}
         fetchPriority={eager ? "high" : "auto"}
         decoding="async"
@@ -968,7 +955,7 @@ export function CatalogClient({
                       prefetch
                       className="flex min-w-0 flex-1 flex-row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
-                      <div className="relative h-full min-h-32 w-44 shrink-0 overflow-hidden rounded-s-2xl bg-muted sm:min-h-36 sm:w-52 md:w-56">
+                      <div className="relative w-44 shrink-0 self-stretch overflow-hidden rounded-s-2xl bg-muted sm:w-52 md:w-56">
                         <CatalogCardImage
                           images={preview}
                           alt={car.title || car.id}
