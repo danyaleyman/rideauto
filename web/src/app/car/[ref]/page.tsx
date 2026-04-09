@@ -8,9 +8,9 @@ import { formatPriceLabel } from "@/lib/format-price";
 import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
 import type { SlimCar } from "@/lib/types";
 import CarPhotoGallery from "@/components/car/CarPhotoGallery";
-import { CarDetailSections } from "@/components/car/CarDetailSections";
+import { CarDetailAccordions } from "@/components/car/CarDetailAccordions";
+import { CarPurchaseSidebar } from "@/components/car/CarPurchaseSidebar";
 import { extractCarImageUrls } from "@/lib/car-images";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 type PageProps = { params: Promise<{ ref: string }> };
@@ -56,68 +56,85 @@ export default async function CarPage({ params }: PageProps) {
         ? Number(String(d.my_price).replace(/\s/g, ""))
         : null;
 
+  const priceWon =
+    typeof d.price_won === "number" && Number.isFinite(d.price_won)
+      ? d.price_won
+      : typeof d.price_won === "string"
+        ? Number(String(d.price_won).replace(/\s/g, ""))
+        : null;
+
+  const priceCny =
+    typeof d.price_cny === "number" && Number.isFinite(d.price_cny)
+      ? d.price_cny
+      : typeof d.price_cny === "string"
+        ? Number(String(d.price_cny).replace(/\s/g, ""))
+        : null;
+
+  const sourceUrl =
+    typeof d.dongchedi_usedcar_url === "string" && d.dongchedi_usedcar_url.trim()
+      ? d.dongchedi_usedcar_url.trim()
+      : typeof d.url === "string" && d.url.trim()
+        ? d.url.trim()
+        : null;
+
+  const extra =
+    d.extra && typeof d.extra === "object" && !Array.isArray(d.extra)
+      ? (d.extra as Record<string, unknown>)
+      : undefined;
+  const diagnosisPhotosCount = Array.isArray(extra?.diagnosis_photos) ? extra.diagnosis_photos.length : 0;
+
+  const description =
+    typeof d.description === "string" && d.description.trim() ? d.description.trim() : null;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       <nav className="mb-6 flex flex-wrap items-center gap-3 text-sm">
         <Button variant="ghost" size="sm" className="h-8 px-2" asChild>
           <Link href="/catalog">← Каталог</Link>
         </Button>
+        {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
+          <Button variant="outline" size="sm" className="h-8 rounded-full" asChild>
+            <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
+              Параметры модели (Dongchedi)
+            </a>
+          </Button>
+        ) : null}
       </nav>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm ring-1 ring-border/40 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">ID: {carId}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge
-                variant="secondary"
-                className="rounded-lg border border-border/60 bg-muted px-3 py-1.5 text-lg font-semibold tabular-nums"
-              >
-                {rubPrice != null && !Number.isNaN(rubPrice)
-                  ? formatPriceLabel(rubPrice)
-                  : formatPriceLabel(null)}
-              </Badge>
-              {typeof d.source === "string" ? (
-                <Badge variant="outline" className="rounded-md text-xs font-normal">
-                  {d.source}
-                </Badge>
-              ) : null}
-            </div>
-            {typeof d.dongchedi_msrp_rub === "number" && d.dongchedi_msrp_rub > 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                Ориентир новой (КНР, MSRP): {formatPriceLabel(d.dongchedi_msrp_rub)}
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+        <div className="order-2 min-w-0 flex-1 lg:order-1">
+          {imgs.length ? <CarPhotoGallery images={imgs} title={title} /> : null}
+
+          {description ? (
+            <section className="mt-6 rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 sm:p-5">
+              <h2 className="font-heading text-base font-semibold tracking-tight">Описание</h2>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                {description}
               </p>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {typeof d.dongchedi_usedcar_url === "string" && d.dongchedi_usedcar_url.trim() ? (
-              <Button variant="outline" size="sm" className="rounded-full" asChild>
-                <a href={d.dongchedi_usedcar_url} target="_blank" rel="noopener noreferrer">
-                  Карточка Dongchedi
-                </a>
-              </Button>
-            ) : typeof d.url === "string" && d.url.trim() ? (
-              <Button variant="outline" size="sm" className="rounded-full" asChild>
-                <a href={d.url} target="_blank" rel="noopener noreferrer">
-                  Оригинал
-                </a>
-              </Button>
-            ) : null}
-            {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
-              <Button variant="outline" size="sm" className="rounded-full" asChild>
-                <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
-                  Параметры модели
-                </a>
-              </Button>
-            ) : null}
-          </div>
+            </section>
+          ) : null}
+
+          {typeof d.dongchedi_msrp_rub === "number" && d.dongchedi_msrp_rub > 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Ориентир новой (КНР, MSRP): {formatPriceLabel(d.dongchedi_msrp_rub)}
+            </p>
+          ) : null}
+
+          <CarDetailAccordions data={d as Record<string, unknown>} diagnosisPhotosCount={diagnosisPhotosCount} />
         </div>
-      </section>
 
-      {imgs.length ? <CarPhotoGallery images={imgs} title={title} /> : null}
-
-      <CarDetailSections raw={raw as Record<string, unknown>} />
+        <div className="order-1 w-full shrink-0 lg:order-2 lg:w-80">
+          <CarPurchaseSidebar
+            carId={carId}
+            title={title}
+            priceRub={rubPrice != null && !Number.isNaN(rubPrice) ? rubPrice : null}
+            sourceUrl={sourceUrl}
+            priceWon={priceWon != null && !Number.isNaN(priceWon) ? priceWon : null}
+            priceCny={priceCny != null && !Number.isNaN(priceCny) ? priceCny : null}
+            sourceLabel={typeof d.source === "string" ? d.source : null}
+          />
+        </div>
+      </div>
 
       {similar.length ? (
         <section className="mt-8">
