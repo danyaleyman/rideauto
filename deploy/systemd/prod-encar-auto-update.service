@@ -10,7 +10,8 @@ WorkingDirectory=/opt/prod-encar
 Environment=PYTHONUNBUFFERED=1
 # Ускорить ночной цикл: в /etc/default/prod-encar можно задать SKIP_LEARN_ENGINE_MAP=1.
 EnvironmentFile=-/etc/default/prod-encar
-ExecStart=/usr/bin/python3 /opt/prod-encar/backend/auto_update.py --config /opt/prod-encar/backend/config.json --type daily --workers 8
+# Совпадает с encar-update.service: только encar_daily_update (каталог в public.cars), без legacy PostgreSQLDatabase.
+ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/encar_daily_update.py --once --config /opt/prod-encar/scraper_config.yaml
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
