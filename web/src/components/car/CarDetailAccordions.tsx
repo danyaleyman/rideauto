@@ -29,14 +29,16 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
     return <p className="text-sm text-muted-foreground">Нет данных.</p>;
   }
   return (
-    <dl className="grid gap-3 sm:grid-cols-1">
+    <dl className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
       {filtered.map((r) => (
         <div
           key={r.label}
-          className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2 sm:grid sm:grid-cols-[minmax(0,38%)_minmax(0,1fr)] sm:gap-3"
+          className="rounded-2xl border border-border/45 bg-muted/15 px-3.5 py-2.5 transition-colors hover:bg-muted/25 sm:grid sm:grid-cols-[minmax(0,42%)_minmax(0,1fr)] sm:gap-3 sm:py-3"
         >
-          <dt className="text-xs font-medium text-muted-foreground sm:pt-0.5">{r.label}</dt>
-          <dd className="text-sm font-medium [overflow-wrap:anywhere]">{r.value}</dd>
+          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:pt-0.5">
+            {r.label}
+          </dt>
+          <dd className="text-sm font-medium leading-snug [overflow-wrap:anywhere] text-foreground">{r.value}</dd>
         </div>
       ))}
     </dl>
@@ -245,9 +247,12 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       {codes.length > 0 ? (
         <div>
           <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции</h4>
-          <ul className="grid gap-1.5 sm:grid-cols-2">
+          <ul className="grid gap-2 sm:grid-cols-2">
             {codes.map((c, i) => (
-              <li key={i} className="rounded-lg border border-border/40 bg-muted/15 px-2 py-1.5 text-xs leading-snug">
+              <li
+                key={i}
+                className="rounded-xl border border-border/45 bg-muted/10 px-3 py-2 text-xs leading-snug transition-colors hover:bg-muted/20"
+              >
                 {displayEncarStandardOption(c, uniquePhotos, choicePhotos)}
               </li>
             ))}
@@ -440,24 +445,34 @@ export function CarDetailAccordions({
     !!(additional && Object.keys(additional).length > 0);
 
   return (
-    <Accordion type="multiple" defaultValue={defaultOpen} className="mt-8 shadow-md">
-      <AccordionItem value="general">
-        <AccordionTrigger>Общая информация</AccordionTrigger>
-        <AccordionContent>
+    <Accordion
+      type="multiple"
+      defaultValue={defaultOpen}
+      className="mt-6 rounded-3xl border border-border/70 bg-card shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.07]"
+    >
+      <AccordionItem value="general" className="first:rounded-t-3xl">
+        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+          Общая информация
+        </AccordionTrigger>
+        <AccordionContent className="px-5">
           <SpecGrid rows={generalRows} />
         </AccordionContent>
       </AccordionItem>
 
       <AccordionItem value="equipment">
-        <AccordionTrigger>Комплектация</AccordionTrigger>
-        <AccordionContent>
+        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+          Комплектация
+        </AccordionTrigger>
+        <AccordionContent className="px-5">
           <EquipmentSection d={data} extra={extra} />
         </AccordionContent>
       </AccordionItem>
 
       <AccordionItem value="body">
-        <AccordionTrigger>Состояние кузова</AccordionTrigger>
-        <AccordionContent>
+        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+          Состояние кузова
+        </AccordionTrigger>
+        <AccordionContent className="px-5">
           <div className="space-y-4">
             {paintPartTypes != null ? (
               <div>
@@ -540,8 +555,10 @@ export function CarDetailAccordions({
       </AccordionItem>
 
       <AccordionItem value="diagnosis">
-        <AccordionTrigger>Диагностика и техсостояние</AccordionTrigger>
-        <AccordionContent>
+        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+          Диагностика и техсостояние
+        </AccordionTrigger>
+        <AccordionContent className="px-5">
           <div className="space-y-5">
             {diagnosisPhotosCount > 0 ? (
               <p className="text-xs text-muted-foreground">
@@ -567,7 +584,7 @@ export function CarDetailAccordions({
             {hasStructuredSub ? (
               <Accordion
                 type="multiple"
-                className="rounded-xl border border-border/60"
+                className="rounded-2xl border border-border/55 bg-muted/10"
                 defaultValue={["de-et", "de-ch", "de-el", "de-ad"]}
               >
                 {engineTransmission && Object.keys(engineTransmission).length > 0 ? (
@@ -640,8 +657,10 @@ export function CarDetailAccordions({
       </AccordionItem>
 
       <AccordionItem value="insurance">
-        <AccordionTrigger>Страховые случаи и история</AccordionTrigger>
-        <AccordionContent>
+        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+          Страховые случаи и история
+        </AccordionTrigger>
+        <AccordionContent className="px-5">
           {recordOpen && Object.keys(recordOpen).length > 0 ? (
             <RecordOpenSection ro={recordOpen} />
           ) : (
@@ -650,9 +669,11 @@ export function CarDetailAccordions({
         </AccordionContent>
       </AccordionItem>
 
-      <AccordionItem value="extra">
-        <AccordionTrigger>Дополнительные сведения</AccordionTrigger>
-        <AccordionContent>
+      <AccordionItem value="extra" className="last:rounded-b-3xl">
+        <AccordionTrigger className="py-4 ps-5 pe-12 text-base font-semibold tracking-tight hover:bg-muted/30 hover:no-underline">
+          Дополнительные сведения
+        </AccordionTrigger>
+        <AccordionContent className="px-5">
           <div className="space-y-4">
             {dongchediHighlightRows.length > 0 ? (
               <div>

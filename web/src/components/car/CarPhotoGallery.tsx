@@ -105,8 +105,8 @@ export default function CarPhotoGallery({
 
   return (
     <>
-      <section className="w-full overflow-hidden rounded-2xl border border-border/80 bg-card shadow-lg ring-1 ring-black/5 dark:ring-white/10">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_152px] lg:items-stretch">
+      <section className="w-full overflow-hidden rounded-3xl border border-border/70 bg-card shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06]">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-stretch">
           <div
             className="relative aspect-[16/10] min-h-[220px] cursor-zoom-in overflow-hidden bg-muted sm:min-h-[300px] lg:aspect-auto lg:min-h-[min(58vh,560px)]"
             onClick={() => openLightbox(safeActive)}
@@ -128,6 +128,10 @@ export default function CarPhotoGallery({
               className="object-cover object-center"
               priority
               unoptimized
+            />
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent"
+              aria-hidden
             />
 
             {showEncarBadge ? (

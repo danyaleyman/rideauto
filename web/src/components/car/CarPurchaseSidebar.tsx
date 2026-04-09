@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Copy, Heart, Plus } from "lucide-react";
+import { Check, Copy, ExternalLink, Heart, Plus } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel } from "@/lib/format-price";
@@ -77,27 +77,33 @@ export function CarPurchaseSidebar({
   }
 
   return (
-    <aside className="rounded-2xl border border-border/80 bg-card p-5 shadow-lg ring-1 ring-black/5 dark:ring-white/10 lg:sticky lg:top-20">
+    <aside
+      id="car-order-panel"
+      className="relative overflow-hidden rounded-3xl border border-border/70 bg-card p-6 shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.08] lg:sticky lg:top-24"
+    >
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500"
+        aria-hidden
+      />
       <h2 className="sr-only">Цена и заказ</h2>
-      <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Оценка в каталоге</p>
+      <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-foreground md:text-[2rem]">
         {priceRub != null && !Number.isNaN(priceRub) ? formatPriceLabel(priceRub) : formatPriceLabel(null)}
       </p>
-      <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-foreground/90">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">ID: {carId}</p>
+      <p className="mt-3 line-clamp-2 text-sm font-semibold leading-snug text-foreground">{title}</p>
+      <p className="mt-2 font-mono text-xs tabular-nums text-muted-foreground">ID · {carId}</p>
       {sourceLabel ? (
-        <Badge variant="secondary" className="mt-3 rounded-lg px-2.5 py-0.5 text-xs font-normal">
-          Источник: {sourceLabel}
+        <Badge variant="secondary" className="mt-3 rounded-full px-3 py-1 text-xs font-medium">
+          Источник · {sourceLabel}
         </Badge>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-2">
         {sourceUrl ? (
           <Button variant="outline" size="icon-sm" className="rounded-xl shadow-sm" asChild>
             <a href={sourceUrl} target="_blank" rel="noopener noreferrer" title="Оригинал объявления">
-              <span className="sr-only">Оригинал</span>
-              <span aria-hidden className="text-xs font-semibold">
-                ↗
-              </span>
+              <span className="sr-only">Оригинал объявления</span>
+              <ExternalLink className="size-4" aria-hidden />
             </a>
           </Button>
         ) : null}
@@ -129,14 +135,17 @@ export function CarPurchaseSidebar({
         </Button>
       </div>
 
-      <div className="mt-5 flex flex-col gap-2">
-        <Button className="w-full rounded-xl bg-blue-600 font-semibold text-white hover:bg-blue-700" asChild>
+      <div className="mt-6 flex flex-col gap-2.5">
+        <Button
+          className="h-11 w-full rounded-xl bg-blue-600 text-[15px] font-semibold text-white shadow-sm hover:bg-blue-700"
+          asChild
+        >
           <Link href="/contacts">Связаться с менеджером</Link>
         </Button>
 
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="secondary" className="w-full rounded-xl">
+            <Button variant="outline" className="h-11 w-full rounded-xl border-border/80 font-medium shadow-sm">
               Подробный расчёт
             </Button>
           </DialogTrigger>
@@ -171,10 +180,10 @@ export function CarPurchaseSidebar({
         </Dialog>
       </div>
 
-      <div className="mt-4 border-t border-border pt-4">
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Heart className="size-3.5 shrink-0 opacity-70" aria-hidden />
-          Подбор и доставка — World Ride Auto
+      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-muted/25 px-3 py-3">
+        <p className="flex items-center gap-2 text-xs leading-relaxed text-muted-foreground">
+          <Heart className="size-3.5 shrink-0 text-blue-600/80 dark:text-sky-400" aria-hidden />
+          Подбор, доставка и оформление — World Ride Auto
         </p>
       </div>
     </aside>
