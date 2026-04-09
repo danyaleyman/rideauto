@@ -977,13 +977,19 @@ export function CatalogClient({
                         </p>
                         <Badge
                           variant="secondary"
-                          className="w-fit rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm dark:bg-muted/50"
+                          className="hidden w-fit rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm dark:bg-muted/50 sm:inline-flex"
                         >
                           {formatPriceLabel(car.price)}
                         </Badge>
                       </div>
                     </Link>
                     <div className="flex shrink-0 flex-row items-center justify-end gap-1.5 border-t border-border/50 px-3 py-2 sm:rounded-e-2xl sm:border-s sm:border-t-0 sm:px-2">
+                      <Badge
+                        variant="secondary"
+                        className="me-auto inline-flex rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm dark:bg-muted/50 sm:hidden"
+                      >
+                        {formatPriceLabel(car.price)}
+                      </Badge>
                       <Button
                         type="button"
                         variant="secondary"
