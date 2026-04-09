@@ -8,10 +8,16 @@ from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_en
 _SLIM_CATALOG_DATA_KEYS = frozenset(
     {
         "mark",
+        "mark_en",
         "model",
+        "model_en",
         "generation",
+        "generation_en",
         "configuration",
+        "configuration_en",
         "gradeName",
+        "gradeName_en",
+        "title_en",
         "year",
         "yearMonth",
         "displacement",
@@ -53,9 +59,15 @@ def _extract_num(data: Dict[str, Any], key: str) -> float | None:
 
 
 def _car_title(data: Dict[str, Any]) -> str:
-    mark = (data.get("mark") or "").strip()
-    model = (data.get("model") or "").strip()
-    generation = (data.get("generation") or data.get("configuration") or "").strip()
+    mark = (data.get("mark_en") or data.get("mark") or "").strip()
+    model = (data.get("model_en") or data.get("model") or "").strip()
+    generation = (
+        data.get("generation_en")
+        or data.get("generation")
+        or data.get("configuration_en")
+        or data.get("configuration")
+        or ""
+    ).strip()
     return " ".join([x for x in [mark, model, generation] if x]).strip()
 
 

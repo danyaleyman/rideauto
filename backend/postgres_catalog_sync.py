@@ -23,6 +23,7 @@ from catalog_pg_core import (
     get_or_create_model,
     row_to_car_fields,
 )
+from localization.term_localizer import PgTermLocalizer, localize_car_data
 
 _BACKEND_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _BACKEND_DIR.parent
@@ -177,6 +178,8 @@ def run_sync(
     import psycopg2
 
     conn = psycopg2.connect(dsn)
+    localizer = PgTermLocalizer(dsn)
+    localizer.open()
     brand_cache: Dict[str, int] = {}
     model_cache: Dict[Tuple[int, str], int] = {}
 
@@ -233,6 +236,7 @@ def run_sync(
                 normalize_car_media_fields(car)
                 if not no_power_lookup and not _uses_china_pipeline_pricing(car):
                     fill_power_from_external(car["data"])
+                localize_car_data(car["data"], localizer)
             cars_out.append(car)
 
         if not no_prices and cars_out:
@@ -337,7 +341,23 @@ def run_sync(
                 conn.commit()
         print(f"Postgres upsert + images: {len(cars_out)} listings", file=sys.stderr)
     finally:
+        try:
+            localizer.close()
+        except Exception:
+            pass
         conn.close()
+
+    print(
+        (
+            "Localization stats: "
+            f"cache_hits={localizer.stats.cache_hits} "
+            f"llm_calls={localizer.stats.llm_calls} "
+            f"llm_success={localizer.stats.llm_success} "
+            f"llm_failed={localizer.stats.llm_failed} "
+            f"skipped_budget={localizer.stats.skipped_budget}"
+        ),
+        file=sys.stderr,
+    )
 
     if write_static_json:
         _write_static_catalog(
