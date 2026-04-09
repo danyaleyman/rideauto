@@ -84,3 +84,101 @@ export function flatScalarRows(obj: unknown): [string, string][] {
   }
   return out;
 }
+
+/** Регистрация в формате гг/мм (YY/MM). */
+export function formatRegYearMonth(v: unknown): string | null {
+  if (v == null || v === "") return null;
+  const s = String(v).trim();
+  const iso = /^(\d{4})-(\d{2})(?:-\d{2})?/.exec(s);
+  if (iso) return `${iso[1].slice(2)}/${iso[2]}`;
+  const ymFlat = /^(\d{4})(\d{2})(?:\.0+)?$/.exec(s.replace(/\s/g, ""));
+  if (ymFlat) return `${ymFlat[1].slice(2)}/${ymFlat[2]}`;
+  const n = typeof v === "number" ? v : Number(s.replace(/\s/g, ""));
+  if (Number.isFinite(n) && n >= 199_001 && n <= 2_039_12) {
+    const floor = Math.floor(n);
+    const year = Math.floor(floor / 100);
+    const month = floor % 100;
+    if (month >= 1 && month <= 12) {
+      return `${String(year).slice(2)}/${String(month).padStart(2, "0")}`;
+    }
+  }
+  return null;
+}
+
+function uniqStrings(parts: unknown[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of parts) {
+    const t = asStr(p);
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
+/** Марка · модель · … без повторяющихся одинаковых фрагментов. */
+export function joinUniqueSpecs(...parts: unknown[]): string | null {
+  const u = uniqStrings(parts);
+  return u.length ? u.join(" · ") : null;
+}
+
+/** Элементы осмотра Encar: заголовок детали вместо сырого JSON. */
+export function formatInspectionListItem(x: unknown): string {
+  if (typeof x === "string" || typeof x === "number") return String(x);
+  if (!x || typeof x !== "object") return JSON.stringify(x);
+  const o = x as Record<string, unknown>;
+  const title =
+    asStr(o.title) ??
+    asStr(o.name) ??
+    asStr(o.partName) ??
+    asStr(o.typeName) ??
+    asStr(o.partTypeName);
+  if (title) {
+    const bits = [
+      title,
+      asStr(o.colorName),
+      asStr(o.status),
+      asStr(o.result),
+      asStr(o.grade),
+    ].filter(Boolean);
+    return bits.join(" · ");
+  }
+  return JSON.stringify(x);
+}
+
+const HISTORY_SKIP_KEYS = new Set([
+  "date",
+  "changeDate",
+  "regDate",
+  "carNo",
+  "plateNo",
+  "vehicleNo",
+]);
+
+/** Смена номеров / строка истории: дата и госномер текстом, без JSON. */
+export function formatCarHistoryObjectRow(obj: unknown): string {
+  if (typeof obj === "string" || typeof obj === "number") return String(obj);
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return JSON.stringify(obj);
+  const o = obj as Record<string, unknown>;
+  const parts: string[] = [];
+  const date = o.date ?? o.changeDate ?? o.regDate;
+  if (date != null && date !== "") {
+    const fd = formatRegYearMonth(date) ?? asStr(date);
+    if (fd) parts.push(`Дата: ${fd}`);
+  }
+  const carNo = o.carNo ?? o.plateNo ?? o.vehicleNo;
+  const pn = asStr(carNo);
+  if (pn) parts.push(`Госномер: ${pn}`);
+  for (const [k, v] of Object.entries(o)) {
+    if (HISTORY_SKIP_KEYS.has(k)) continue;
+    if (v == null || v === "") continue;
+    if (typeof v === "object") continue;
+    const sv = asStr(v);
+    if (sv) parts.push(`${k}: ${sv}`);
+  }
+  if (parts.length) return parts.join(" · ");
+  return JSON.stringify(o);
+}

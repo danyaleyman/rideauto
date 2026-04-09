@@ -1,5 +1,19 @@
 import { extractCarImageUrls } from "@/lib/car-images";
 
+/** Ключ для дедупликации: один кадр Encar часто приходит и в `images`, и в `h_images` с разным query. */
+export function imageUrlDedupeKey(url: string): string {
+  const t = url.trim();
+  try {
+    const u = new URL(t);
+    const path = u.pathname.replace(/\/+/g, "/").toLowerCase();
+    const host = u.hostname.toLowerCase();
+    if (host.endsWith("encar.com")) return `encar:${path}`;
+    return `${host}${path}`;
+  } catch {
+    return t.toLowerCase();
+  }
+}
+
 /** Собирает URL из Encar h_images (поле path), если объекты без готового https. */
 function urlsFromEncarHImages(raw: Record<string, unknown>): string[] {
   const rawHi = raw.h_images;
@@ -61,8 +75,10 @@ export function getAllCarPhotoUrls(data: Record<string, unknown>): string[] {
   const out: string[] = [];
   for (const u of [...main, ...fromHi, ...diag]) {
     const s = u.trim();
-    if (!s || seen.has(s)) continue;
-    seen.add(s);
+    if (!/^https?:\/\//i.test(s)) continue;
+    const key = imageUrlDedupeKey(s);
+    if (seen.has(key)) continue;
+    seen.add(key);
     out.push(s);
   }
   return out;

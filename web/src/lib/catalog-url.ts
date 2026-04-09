@@ -50,8 +50,9 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
   let page = parseInt(sp.get("page") || "1", 10);
   if (!Number.isFinite(page) || page < 1) page = 1;
 
+  const hasExplicitPage = sp.has("page");
   const cur = (sp.get("cursor") || "").trim();
-  if (cur) {
+  if (cur && !hasExplicitPage) {
     const dec = decodeOffsetCursor(cur);
     if (dec && dec.limit === PER_PAGE) {
       page = Math.floor(dec.offset / PER_PAGE) + 1;
@@ -180,7 +181,7 @@ export function catalogStateToFetchParams(
   state: CatalogUrlState,
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  new URLSearchParams(stateToBrowserUrl(state)).forEach((v, k) => {
+  toApiSearchParams(state).forEach((v, k) => {
     out[k] = v;
   });
   return out;

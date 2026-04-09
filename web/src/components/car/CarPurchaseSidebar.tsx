@@ -130,7 +130,7 @@ export function CarPurchaseSidebar({
       </div>
 
       <div className="mt-5 flex flex-col gap-2">
-        <Button className="w-full rounded-xl bg-red-600 font-semibold text-white hover:bg-red-700" asChild>
+        <Button className="w-full rounded-xl bg-blue-600 font-semibold text-white hover:bg-blue-700" asChild>
           <Link href="/contacts">Связаться с менеджером</Link>
         </Button>
 

@@ -12,11 +12,16 @@ import {
   asStr,
   diagnosisStatusTone,
   flatScalarRows,
+  formatCarHistoryObjectRow,
+  formatInspectionListItem,
   formatKm,
   formatKrw,
+  formatRegYearMonth,
   getPath,
+  joinUniqueSpecs,
   toneClass,
 } from "@/lib/car-detail-data";
+import { displayEncarStandardOption } from "@/lib/encar-options-display";
 
 function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
   const filtered = rows.filter((r) => r.value.trim());
@@ -205,12 +210,13 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Смена госномеров / данные авто
           </h4>
-          <ul className="space-y-2">
+          <ul className="space-y-2 text-sm">
             {carInfoChanges.map((c, i) => (
-              <li key={i} className="text-xs">
-                <pre className="whitespace-pre-wrap rounded-lg bg-muted/10 p-2 [overflow-wrap:anywhere]">
-                  {JSON.stringify(c, null, 2)}
-                </pre>
+              <li
+                key={i}
+                className="rounded-lg border border-border/40 bg-muted/10 px-3 py-2 [overflow-wrap:anywhere]"
+              >
+                {formatCarHistoryObjectRow(c)}
               </li>
             ))}
           </ul>
@@ -238,11 +244,11 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     <div className="space-y-5">
       {codes.length > 0 ? (
         <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Стандартные опции (коды)</h4>
+          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции</h4>
           <ul className="grid gap-1.5 sm:grid-cols-2">
             {codes.map((c, i) => (
-              <li key={i} className="rounded-lg border border-border/40 bg-muted/15 px-2 py-1.5 text-xs">
-                Опция {typeof c === "string" || typeof c === "number" ? String(c) : JSON.stringify(c)}
+              <li key={i} className="rounded-lg border border-border/40 bg-muted/15 px-2 py-1.5 text-xs leading-snug">
+                {displayEncarStandardOption(c, uniquePhotos, choicePhotos)}
               </li>
             ))}
           </ul>
@@ -360,11 +366,9 @@ export function CarDetailAccordions({
 
   push(
     "Марка / модель / поколение",
-    [asStr(data.mark), asStr(data.model), asStr(data.generation), asStr(data.gradeName), asStr(data.configuration)]
-      .filter(Boolean)
-      .join(" · ") || null,
+    joinUniqueSpecs(data.mark, data.model, data.generation, data.gradeName, data.configuration),
   );
-  push("Год / месяц", [asStr(data.year), asStr(data.yearMonth)].filter(Boolean).join(" · ") || null);
+  push("Год / месяц", formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year));
   push("Цвет", asStr(data.color));
   push("Пробег", mileage);
   push("VIN", vin);
@@ -462,7 +466,7 @@ export function CarDetailAccordions({
                   <ul className="list-inside list-disc text-sm">
                     {paintPartTypes.map((x, i) => (
                       <li key={i} className="[overflow-wrap:anywhere]">
-                        {typeof x === "object" ? JSON.stringify(x) : String(x)}
+                        {typeof x === "object" ? formatInspectionListItem(x) : String(x)}
                       </li>
                     ))}
                   </ul>
@@ -482,7 +486,7 @@ export function CarDetailAccordions({
                   <ul className="list-inside list-disc text-sm">
                     {seriousTypes.map((x, i) => (
                       <li key={i} className="[overflow-wrap:anywhere]">
-                        {typeof x === "object" ? JSON.stringify(x) : String(x)}
+                        {typeof x === "object" ? formatInspectionListItem(x) : String(x)}
                       </li>
                     ))}
                   </ul>

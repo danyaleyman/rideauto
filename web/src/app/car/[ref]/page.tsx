@@ -11,9 +11,16 @@ import CarPhotoGallery from "@/components/car/CarPhotoGallery";
 import { CarDetailAccordions } from "@/components/car/CarDetailAccordions";
 import { CarPurchaseSidebar } from "@/components/car/CarPurchaseSidebar";
 import { CarHeroMeta } from "@/components/car/CarHeroMeta";
-import { CarTrustStrip } from "@/components/car/CarTrustStrip";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 type PageProps = { params: Promise<{ ref: string }> };
 
@@ -90,18 +97,36 @@ export default async function CarPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <nav className="mb-6 flex flex-wrap items-center gap-3 text-sm">
-        <Button variant="ghost" size="sm" className="h-8 px-2" asChild>
-          <Link href="/catalog">← Каталог</Link>
-        </Button>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/">Главная</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/catalog">Каталог</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="line-clamp-1 max-w-[min(60vw,32rem)] text-start">
+                {title}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
-          <Button variant="outline" size="sm" className="h-8 rounded-full" asChild>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full" asChild>
             <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
               Параметры модели (Dongchedi)
             </a>
           </Button>
         ) : null}
-      </nav>
+      </div>
 
       {imgs.length ? (
         <CarPhotoGallery
@@ -115,8 +140,6 @@ export default async function CarPage({ params }: PageProps) {
 
       <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
         <div className="min-w-0 flex-1">
-          <CarTrustStrip />
-
           {description ? (
             <section className="rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 sm:p-5">
               <h2 className="font-heading text-base font-semibold tracking-tight">Описание</h2>

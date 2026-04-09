@@ -1,0 +1,107 @@
+import { asStr } from "@/lib/car-detail-data";
+import { ENCAR_OPTION_CODE_RU } from "@/lib/encar-option-code-ru";
+
+/** Пары «корейский фрагмент» → русский (длинные сначала). */
+const KO_TO_RU: [string, string][] = [
+  ["파노라마 선루프", "Панорамный люк"],
+  ["파노라마 썬루프", "Панорамный люк"],
+  ["선루프", "Люк в крыше"],
+  ["썬루프", "Люк в крыше"],
+  ["내비게이션", "Навигация"],
+  ["네비게이션", "Навигация"],
+  ["어라운드 뷰", "Кругобзорная камера"],
+  ["어라운드뷰", "Кругобзорная камера"],
+  ["후방 카메라", "Камера заднего вида"],
+  ["전방 카메라", "Камера переднего вида"],
+  ["스마트 크루즈", "Адаптивный круиз"],
+  ["크루즈 컨트롤", "Круиз-контроль"],
+  ["헤드업 디스플레이", "Проекция на лобовое стекло"],
+  ["통풍 시트", "Вентиляция сидений"],
+  ["열선 시트", "Подогрев сидений"],
+  ["가죽 시트", "Кожаные сиденья"],
+  ["가죽", "Кожа"],
+  ["전동 시트", "Электрорегулировка сидений"],
+  ["운전석 전동", "Электропривод водительского сиденья"],
+  ["스마트키", "Смарт-ключ"],
+  ["스마트 키", "Смарт-ключ"],
+  ["원격시동", "Дистанционный запуск"],
+  ["스포츠 패키지", "Спорт-пакет"],
+  ["프리미엄 패키지", "Премиум-пакет"],
+  ["컴포트 패키지", "Комфорт-пакет"],
+  ["드라이브 와이즈", "Пакет Drive Wise"],
+  ["하이패스", "Highway pass / автоплатёж"],
+  ["전동 트렁크", "Электропривод крышки багажника"],
+  ["전동 도어", "Электропривод двери"],
+  ["LED 헤드램프", "Светодиодные фары"],
+  ["HID", "Ксенон"],
+  ["HID 헤드램프", "Ксеноновые фары"],
+  ["알루미늄 휠", "Литые диски"],
+  ["알루미늄휠", "Литые диски"],
+  ["휠", "Диски"],
+  ["오토 홀드", "Удержание Auto Hold"],
+  ["전자 파킹", "Электрический стояночный тормоз"],
+  ["스마트폰 무선충전", "Беспроводная зарядка телефона"],
+  ["무선 충전", "Беспроводная зарядка"],
+  ["공기청정", "Система очистки воздуха"],
+  ["공조", "Климат-контроль"],
+  ["듀얼 에어백", "Фронтальные подушки безопасности"],
+  ["에어백", "Подушки безопасности"],
+  ["ABS", "ABS"],
+  ["ESC", "Стабилизация ESC"],
+  ["차선이탈", "Контроль полосы"],
+  ["차선 이탈", "Контроль полосы"],
+];
+
+function translateKoCarRough(s: string): string {
+  let out = s;
+  const pairs = [...KO_TO_RU].sort((a, b) => b[0].length - a[0].length);
+  for (const [ko, ru] of pairs) {
+    if (out.includes(ko)) out = out.split(ko).join(ru);
+  }
+  return out;
+}
+
+function collectPhotoRows(uniquePhotos: unknown, choicePhotos: unknown): unknown[] {
+  const u = Array.isArray(uniquePhotos) ? uniquePhotos : [];
+  const c = Array.isArray(choicePhotos) ? choicePhotos : [];
+  return [...u, ...c];
+}
+
+function nameFromOptionPhotos(code: string, rows: unknown[]): string | null {
+  const cs = String(code).trim();
+  for (const item of rows) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const o = item as Record<string, unknown>;
+    const keys = [o.optionCode, o.code, o.partCode, o.optionId, o.stdOptionId, o.standardOptionId];
+    for (const oc of keys) {
+      if (oc == null) continue;
+      if (String(oc).trim() === cs) {
+        return asStr(o.partName) ?? asStr(o.name) ?? asStr(o.optionName) ?? asStr(o.title);
+      }
+    }
+  }
+  return null;
+}
+
+function normalizeOptionCode(code: unknown): string {
+  if (typeof code === "string") return code.trim();
+  if (typeof code === "number" && Number.isFinite(code)) return String(code);
+  return JSON.stringify(code);
+}
+
+/** Подпись опции для блока «Комплектация»: русская таблица → имя из Encar → автоперевод с корейского → код. */
+export function displayEncarStandardOption(
+  code: unknown,
+  uniquePhotos: unknown,
+  choicePhotos: unknown,
+): string {
+  const c = normalizeOptionCode(code);
+  if (!c || c === "null" || c === "undefined") return "—";
+  const fromMap = ENCAR_OPTION_CODE_RU[c] ?? ENCAR_OPTION_CODE_RU[String(Number(c))];
+  if (fromMap) return fromMap;
+  const rows = collectPhotoRows(uniquePhotos, choicePhotos);
+  const fromPhotos = nameFromOptionPhotos(c, rows);
+  if (fromPhotos) return translateKoCarRough(fromPhotos);
+  if (/[가-힣]/.test(c)) return translateKoCarRough(c);
+  return `Опция ${c}`;
+}
