@@ -2,20 +2,20 @@ import Link from "next/link";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-zinc-200 bg-zinc-50 py-8 text-sm text-zinc-600">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+    <footer className="border-t border-border bg-muted/25 py-8 text-sm text-muted-foreground">
+      <div className="mx-auto flex min-w-0 max-w-[1440px] flex-col gap-4 px-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 lg:px-10">
         <nav className="flex flex-wrap gap-x-4 gap-y-1">
-          <Link className="hover:text-zinc-900" href="/privacy">
+          <Link className="transition-colors hover:text-foreground" href="/privacy">
             Конфиденциальность
           </Link>
-          <Link className="hover:text-zinc-900" href="/cookies">
+          <Link className="transition-colors hover:text-foreground" href="/cookies">
             Cookie
           </Link>
-          <Link className="hover:text-zinc-900" href="/agreement">
+          <Link className="transition-colors hover:text-foreground" href="/agreement">
             Соглашение
           </Link>
         </nav>
-        <p className="text-zinc-500">© World Ride Auto 2026</p>
+        <p className="shrink-0 text-muted-foreground">© World Ride Auto 2026</p>
       </div>
     </footer>
   );

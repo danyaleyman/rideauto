@@ -28,7 +28,7 @@ export function MarketSegmentedControl({
         role="tab"
         aria-selected={market === "korea"}
         className={cn(
-          "relative z-10 rounded-full py-2 text-sm font-medium transition-colors",
+          "relative z-10 min-w-0 rounded-full px-1 py-2 text-sm font-medium leading-snug transition-colors [overflow-wrap:anywhere]",
           market === "korea" ? "text-foreground" : "text-muted-foreground",
         )}
         onClick={() => onChange("korea")}
@@ -40,7 +40,7 @@ export function MarketSegmentedControl({
         role="tab"
         aria-selected={market === "china"}
         className={cn(
-          "relative z-10 rounded-full py-2 text-sm font-medium transition-colors",
+          "relative z-10 min-w-0 rounded-full px-1 py-2 text-sm font-medium leading-snug transition-colors [overflow-wrap:anywhere]",
           market === "china" ? "text-foreground" : "text-muted-foreground",
         )}
         onClick={() => onChange("china")}

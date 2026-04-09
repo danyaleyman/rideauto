@@ -28,7 +28,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="mx-auto flex min-w-0 max-w-[1440px] flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-10">
         <Link href="/" className="text-lg font-semibold tracking-tight">
           World Ride Auto
         </Link>

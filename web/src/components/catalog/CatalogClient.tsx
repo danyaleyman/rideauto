@@ -48,6 +48,14 @@ import {
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
   Check,
   ChevronsUpDown,
   ChevronLeft,
@@ -75,10 +83,6 @@ function visiblePageItems(page: number, total: number): Array<number | "ellipsis
     out.push(sorted[i]);
   }
   return out;
-}
-
-function firstImageUrl(car: SlimCar): string | undefined {
-  return extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
 }
 
 function previewImageUrls(car: SlimCar): string[] {
@@ -143,7 +147,7 @@ function FacetGroup({
               onCheckedChange={() => onToggle(r.value)}
               className="shrink-0"
             />
-            <span className="min-w-0 flex-1 truncate text-sm" title={r.value}>
+            <span className="min-w-0 flex-1 text-sm leading-snug [overflow-wrap:anywhere]" title={r.value}>
               {r.value}
             </span>
             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -207,7 +211,7 @@ function FacetMultiDropdown({
           disabled={disabled || !rows.length}
           className="h-9 w-full justify-between gap-2 rounded-2xl font-normal"
         >
-          <span className="min-w-0 truncate text-start">
+          <span className="min-w-0 text-start [overflow-wrap:anywhere]">
             {label}
             {n > 0 ? (
               <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
@@ -245,7 +249,7 @@ function FacetMultiDropdown({
                 onCheckedChange={() => onToggle(r.value)}
                 className="rounded-xl [&>span:last-child]:ps-2"
               >
-                <span className="min-w-0 flex-1 truncate">{r.value}</span>
+                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{r.value}</span>
                 <span className="ms-1 shrink-0 tabular-nums text-xs text-muted-foreground">
                   {r.count.toLocaleString("ru-RU")}
                 </span>
@@ -263,13 +267,18 @@ function ListRowSkeleton() {
     <li>
       <Card
         size="sm"
-        className="flex flex-row items-stretch gap-0 py-0 shadow-sm ring-1 ring-border/60"
+        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/60 sm:flex-row"
       >
-        <Skeleton className="h-32 w-40 shrink-0 rounded-none sm:h-36 sm:w-48" />
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-4 py-3">
+        <Skeleton className="h-44 w-full shrink-0 rounded-none sm:h-auto sm:w-56 sm:min-h-36 md:w-64" />
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 py-3 sm:px-4 md:px-5">
           <Skeleton className="h-4 w-[90%] rounded-md" />
           <Skeleton className="h-3 w-1/2 rounded-md" />
           <Skeleton className="h-6 w-28 rounded-md" />
+        </div>
+        <div className="flex shrink-0 flex-row items-center justify-end gap-1.5 border-t border-border/50 px-3 py-2 sm:w-auto sm:border-s sm:border-t-0 sm:px-2">
+          <Skeleton className="h-8 w-20 rounded-lg sm:hidden" />
+          <Skeleton className="size-8 rounded-lg" />
+          <Skeleton className="size-8 rounded-lg" />
         </div>
       </Card>
     </li>
@@ -377,7 +386,7 @@ function RangeBlock({
   };
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="grid grid-cols-1 gap-2 text-sm min-[420px]:grid-cols-2">
         <Input
           placeholder="Цена от"
           value={draft.price_from}
@@ -682,26 +691,46 @@ export function CatalogClient({
   };
 
   return (
-    <div className="mx-auto max-w-[1600px] px-3 pb-10 pt-4 sm:px-4 lg:px-6">
-      {err ? (
-        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {err} — проверьте{" "}
-          <code className="rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE</code> и доступность API.
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-10 pt-2 sm:pt-4">
+      <div className="relative mx-auto min-w-0 max-w-[1440px] px-3 sm:px-6 lg:px-10">
+        <div className="mb-5 flex min-w-0 rounded-2xl border border-border/50 bg-card/70 px-3 py-3 shadow-sm backdrop-blur-sm sm:mb-6 sm:px-5">
+          <Breadcrumb className="min-w-0 flex-1">
+            <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/">Главная</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="min-w-0 max-w-full">
+                <BreadcrumbPage className="line-clamp-2 break-words text-start font-medium [overflow-wrap:anywhere] sm:line-clamp-1">
+                  Каталог
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-      ) : null}
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-        <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-80 lg:pe-1">
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:overscroll-contain">
+        {err ? (
+          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive [overflow-wrap:anywhere]">
+            {err} — проверьте{" "}
+            <code className="break-all rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE</code> и доступность
+            API.
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+          <aside className="w-full min-w-0 shrink-0 lg:sticky lg:top-24 lg:w-80 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pe-1">
+            <div className="flex max-w-full flex-col gap-3 rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:rounded-3xl sm:p-5">
             <MarketSegmentedControl market={state.market} onChange={switchMarket} />
 
             <Accordion
               type="multiple"
               defaultValue={[]}
-              className="min-w-0 rounded-xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
+              className="max-w-full min-w-0 overflow-hidden rounded-xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
             >
               <AccordionItem value="basics" className="border-border/60">
-                <AccordionTrigger className="py-3 hover:no-underline">
+                <AccordionTrigger className="py-3 hover:no-underline sm:ps-5 sm:pe-12">
                   <div className="min-w-0 flex-1 text-start">
                     <div className="font-semibold leading-tight">Основное</div>
                     <div className="mt-1 text-xs font-normal text-muted-foreground">
@@ -709,7 +738,7 @@ export function CatalogClient({
                     </div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="space-y-3">
+                <AccordionContent className="space-y-3 sm:px-5">
                   {facets ? (
                     <div className="space-y-2">
                       <FacetMultiDropdown
@@ -750,7 +779,7 @@ export function CatalogClient({
                   )}
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground">Поиск в каталоге</Label>
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch">
                       <Input
                         value={qDraft}
                         onChange={(e) => setQDraft(e.target.value)}
@@ -760,12 +789,12 @@ export function CatalogClient({
                           }
                         }}
                         placeholder="Марка, модель…"
-                        className="min-w-0 flex-1"
+                        className="min-h-9 min-w-0 flex-1"
                       />
                       <Button
                         type="button"
                         size="sm"
-                        className="shrink-0"
+                        className="h-9 w-full shrink-0 sm:w-auto"
                         onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
                       >
                         Найти
@@ -790,7 +819,7 @@ export function CatalogClient({
               </AccordionItem>
 
               <AccordionItem value="tech" className="border-border/60">
-                <AccordionTrigger className="py-3 hover:no-underline">
+                <AccordionTrigger className="py-3 hover:no-underline sm:ps-5 sm:pe-12">
                   <div className="min-w-0 flex-1 text-start">
                     <div className="font-semibold leading-tight">Техника и кузов</div>
                     <div className="mt-1 text-xs font-normal text-muted-foreground">
@@ -798,8 +827,8 @@ export function CatalogClient({
                     </div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="space-y-3">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm shadow-sm">
+                <AccordionContent className="space-y-3 sm:px-5">
+                  <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm [overflow-wrap:anywhere]">
                     <Checkbox
                       checked={state.drive_awd}
                       onCheckedChange={(v) =>
@@ -841,7 +870,7 @@ export function CatalogClient({
               </AccordionItem>
 
               <AccordionItem value="price" className="border-border/60">
-                <AccordionTrigger className="py-3 hover:no-underline">
+                <AccordionTrigger className="py-3 hover:no-underline sm:ps-5 sm:pe-12">
                   <div className="min-w-0 flex-1 text-start">
                     <div className="font-semibold leading-tight">Цена, пробег и год</div>
                     <div className="mt-1 text-xs font-normal text-muted-foreground">
@@ -849,19 +878,19 @@ export function CatalogClient({
                     </div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="sm:px-5">
                   <RangeBlock state={state} navigate={navigate} />
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="look" className="border-border/60 border-b-0">
-                <AccordionTrigger className="py-3 hover:no-underline">
+                <AccordionTrigger className="py-3 hover:no-underline sm:ps-5 sm:pe-12">
                   <div className="min-w-0 flex-1 text-start">
                     <div className="font-semibold leading-tight">Внешний вид</div>
                     <div className="mt-1 text-xs font-normal text-muted-foreground">Цвет кузова</div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="sm:px-5">
                   {facets ? (
                     <FacetGroup
                       title="Цвет"
@@ -883,10 +912,12 @@ export function CatalogClient({
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-5 border-b border-border pb-5">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-              <p className="text-sm text-muted-foreground">
+          <div className="mb-5 rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:mb-6 sm:rounded-3xl sm:p-5">
+            <h1 className="text-xl font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-2xl md:text-3xl">
+              {title}
+            </h1>
+            <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
+              <p className="min-w-0 text-sm leading-snug text-muted-foreground [overflow-wrap:anywhere]">
                 Найдено:{" "}
                 <span className="font-medium text-foreground">
                   {search.meta.total.toLocaleString("ru-RU")}
@@ -895,19 +926,19 @@ export function CatalogClient({
                 {loading ? " · обновление…" : ""}
               </p>
               {dailyNewLoading ? (
-                <Skeleton className="h-7 w-[min(100%,20rem)] max-w-full rounded-full" />
+                <Skeleton className="h-7 w-full max-w-md rounded-full sm:w-[min(100%,20rem)]" />
               ) : dailyNewCount !== null ? (
                 <span
                   className={
                     dailyNewCount > 0
-                      ? "inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/[0.09] px-3 py-1 text-xs font-medium text-emerald-950 shadow-sm dark:border-emerald-400/35 dark:bg-emerald-400/10 dark:text-emerald-50"
-                      : "inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground"
+                      ? "inline-flex max-w-full items-start gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/[0.09] px-3 py-1.5 text-xs font-medium leading-snug text-emerald-950 shadow-sm [overflow-wrap:anywhere] dark:border-emerald-400/35 dark:bg-emerald-400/10 dark:text-emerald-50 sm:items-center"
+                      : "inline-flex max-w-full items-start gap-1.5 rounded-full border border-border/70 bg-muted/40 px-3 py-1.5 text-xs font-medium leading-snug text-muted-foreground [overflow-wrap:anywhere] sm:items-center"
                   }
                   title="Записи, впервые добавленные в каталог сегодня. Сутки по часовому поясу Екатеринбурга — как расписание ночных обновлений."
                 >
                   <Sparkles
                     className={cn(
-                      "size-3.5 shrink-0 opacity-85",
+                      "mt-0.5 size-3.5 shrink-0 opacity-85 sm:mt-0",
                       dailyNewCount > 0 ? "text-emerald-600 dark:text-emerald-300" : "opacity-60",
                     )}
                     aria-hidden
@@ -917,21 +948,26 @@ export function CatalogClient({
               ) : null}
             </div>
             {activeChips.length ? (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-4 flex min-w-0 flex-wrap items-stretch gap-2">
                 {activeChips.map((chip, idx) => (
                   <Button
                     key={`${chip.key}-${chip.value ?? idx}`}
                     type="button"
                     variant="secondary"
                     size="xs"
-                    className="h-7 rounded-full px-2.5 text-xs font-normal"
+                    className="h-auto min-h-7 max-w-full justify-start whitespace-normal rounded-full px-2.5 py-1.5 text-start text-xs font-normal [overflow-wrap:anywhere]"
                     onClick={() => removeChip(chip)}
                     title="Убрать фильтр"
                   >
                     {chip.label} ×
                   </Button>
                 ))}
-                <Button type="button" size="xs" className="h-7 rounded-full px-3" onClick={reset}>
+                <Button
+                  type="button"
+                  size="xs"
+                  className="h-auto min-h-7 shrink-0 rounded-full px-3 py-1.5"
+                  onClick={reset}
+                >
                   Сбросить все
                 </Button>
               </div>
@@ -977,7 +1013,7 @@ export function CatalogClient({
                         </p>
                         <Badge
                           variant="secondary"
-                          className="hidden w-fit rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm dark:bg-muted/50 sm:inline-flex"
+                          className="hidden w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50 sm:inline-flex"
                         >
                           {formatPriceLabel(car.price)}
                         </Badge>
@@ -986,7 +1022,7 @@ export function CatalogClient({
                     <div className="flex shrink-0 flex-row items-center justify-end gap-1.5 border-t border-border/50 px-3 py-2 sm:rounded-e-2xl sm:border-s sm:border-t-0 sm:px-2">
                       <Badge
                         variant="secondary"
-                        className="me-auto inline-flex rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm dark:bg-muted/50 sm:hidden"
+                        className="me-auto inline-flex max-w-[calc(100%-5rem)] rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50 sm:hidden"
                       >
                         {formatPriceLabel(car.price)}
                       </Badge>
@@ -1100,6 +1136,7 @@ export function CatalogClient({
             Страница {state.page} из {pages}
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

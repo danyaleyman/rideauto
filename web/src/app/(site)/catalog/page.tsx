@@ -53,8 +53,10 @@ export default async function CatalogPage({ searchParams }: PageProps) {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-7xl px-4 py-16 text-center text-zinc-500">
-          Загрузка каталога…
+        <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pt-2 pb-16 sm:pt-4">
+          <div className="mx-auto min-w-0 max-w-[1440px] px-3 py-12 text-center text-muted-foreground sm:px-6 lg:px-10">
+            Загрузка каталога…
+          </div>
         </div>
       }
     >
