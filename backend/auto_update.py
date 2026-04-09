@@ -7,6 +7,7 @@
 import sys
 import os
 import logging
+from urllib.parse import unquote, urlparse
 import smtplib
 import subprocess
 from datetime import datetime
@@ -22,6 +23,26 @@ from main_system import EncarSystem
 from postgresql_database import PostgreSQLDatabase
 
 logger = logging.getLogger(__name__)
+
+
+def _apply_database_url_to_config(config: Dict) -> None:
+    """Если задан DATABASE_URL — перекрываем db_config (один DSN для Docker/wra на VPS)."""
+    raw = (os.environ.get("DATABASE_URL") or "").strip()
+    if not raw:
+        return
+    p = urlparse(raw)
+    if not p.hostname:
+        return
+    dbn = (p.path or "").lstrip("/").split("?", 1)[0]
+    cfg = config.setdefault("db_config", {})
+    cfg["host"] = p.hostname
+    cfg["port"] = int(p.port or 5432)
+    if dbn:
+        cfg["database"] = dbn
+    if p.username:
+        cfg["user"] = unquote(p.username)
+    if p.password is not None:
+        cfg["password"] = unquote(p.password)
 
 
 def _init_auto_update_logging() -> None:
@@ -444,6 +465,7 @@ def main():
         config['update_config'] = {}
     config['update_config']['update_type'] = args.type
     config['update_config']['max_workers'] = args.workers
+    _apply_database_url_to_config(config)
     
     # Запуск обновления
     manager = AutoUpdateManager(config)

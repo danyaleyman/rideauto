@@ -10,6 +10,8 @@ User=www-data
 Group=www-data
 WorkingDirectory=/opt/prod-encar
 Environment=PYTHONUNBUFFERED=1
+# DATABASE_URL для db_config + дочерних encar_scraper / encar_daily_update (общий с dongchedi).
+EnvironmentFile=-/etc/default/prod-encar-scrapers
 ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/auto_update.py --config /opt/prod-encar/backend/config.json --type daily --workers 8
 TimeoutStartSec=24h
 NoNewPrivileges=true

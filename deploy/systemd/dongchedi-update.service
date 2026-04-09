@@ -10,6 +10,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/opt/prod-encar/backend
 Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/prod-encar-scrapers
 ExecStart=/opt/prod-encar/.venv/bin/python -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
 # При storage.backend=postgres задайте DATABASE_URL в окружении (EnvironmentFile) или в YAML.
 TimeoutStartSec=24h

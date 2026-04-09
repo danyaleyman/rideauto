@@ -27,6 +27,11 @@ for f in "$ROOT"/encar_cars.db-* "$ROOT"/encar_china.db-* "$ROOT"/scraper_checkp
   [[ -e "$f" ]] || continue
   chown "$OWNER:$GROUP" "$f" || true
 done
+for f in "$ROOT"/*.scraper.checkpoint.json "$ROOT"/*.scraper.checkpoint.json.tmp; do
+  [[ -e "$f" ]] || continue
+  chown "$OWNER:$GROUP" "$f" || true
+  chmod u+rw,g+rw "$f" 2>/dev/null || chmod 664 "$f" || true
+done
 shopt -u nullglob
 
 echo "OK: $ROOT — logs/ и локальные *.db (если есть) для $OWNER:$GROUP"

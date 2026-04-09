@@ -1,10 +1,10 @@
 {
   "db_config": {
-    "host": "localhost",
+    "host": "127.0.0.1",
     "port": 5432,
-    "database": "encar",
-    "user": "postgres",
-    "password": "password"
+    "database": "wra",
+    "user": "wra",
+    "password": "wra"
   },
   "update_config": {
     "max_workers": 5,
