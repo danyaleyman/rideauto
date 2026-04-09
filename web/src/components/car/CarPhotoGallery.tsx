@@ -15,9 +15,17 @@ import {
 type CarPhotoGalleryProps = {
   images: string[];
   title: string;
+  /** Для бейджа в углу (напр. encar — «осмотр на площадке»). */
+  sourceKey?: string | null;
 };
 
-export default function CarPhotoGallery({ images: rawImages, title }: CarPhotoGalleryProps) {
+const THUMB_COUNT = 4;
+
+export default function CarPhotoGallery({
+  images: rawImages,
+  title,
+  sourceKey,
+}: CarPhotoGalleryProps) {
   const images = useMemo(
     () => rawImages.filter((x) => /^https?:\/\//i.test(x.trim())),
     [rawImages],
@@ -73,16 +81,18 @@ export default function CarPhotoGallery({ images: rawImages, title }: CarPhotoGa
 
   if (!n || !current) return null;
 
-  /** Следующие 4 индекса для вертикальной колонки (циклически). */
-  const sideSlots = [1, 2, 3, 4].map((k) => (safeActive + k) % n);
-  const moreCount = n > 4 ? Math.max(0, n - 4) : 0;
+  const srcNorm = (sourceKey ?? "").toLowerCase();
+  const showEncarBadge = srcNorm === "encar";
+
+  const sideSlots = Array.from({ length: THUMB_COUNT }, (_, k) => (safeActive + k + 1) % n);
+  const moreCount = n > THUMB_COUNT ? Math.max(0, n - THUMB_COUNT) : 0;
 
   return (
     <>
-      <section className="mt-6 rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_92px] lg:items-stretch">
+      <section className="w-full overflow-hidden rounded-2xl border border-border/80 bg-card shadow-lg ring-1 ring-black/5 dark:ring-white/10">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_118px] lg:items-stretch">
           <div
-            className="relative aspect-[16/10] min-h-[200px] cursor-zoom-in overflow-hidden rounded-xl border border-border bg-muted sm:min-h-[280px] lg:aspect-auto lg:min-h-[min(56vh,520px)]"
+            className="relative aspect-[16/10] min-h-[220px] cursor-zoom-in overflow-hidden bg-muted sm:min-h-[300px] lg:aspect-auto lg:min-h-[min(58vh,560px)]"
             onClick={() => openLightbox(safeActive)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -98,14 +108,25 @@ export default function CarPhotoGallery({ images: rawImages, title }: CarPhotoGa
               src={current}
               alt={`${title} — фото ${safeActive + 1}`}
               fill
-              sizes="(min-width: 1024px) 65vw, 96vw"
-              className="object-cover"
+              sizes="(min-width: 1024px) 72vw, 100vw"
+              className="object-cover object-center"
               priority
               unoptimized
             />
+
+            {showEncarBadge ? (
+              <div className="pointer-events-none absolute start-3 top-3 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
+                Encar
+              </div>
+            ) : (
+              <div className="pointer-events-none absolute start-3 top-3 rounded-md bg-foreground/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-background shadow-md">
+                WRA
+              </div>
+            )}
+
             {n > 1 ? (
               <div
-                className="absolute bottom-3 end-3 flex items-center gap-0.5 rounded-full border border-white/20 bg-black/60 px-1 py-0.5 text-xs text-white shadow-lg backdrop-blur-md"
+                className="absolute bottom-3 end-3 flex items-center gap-0.5 rounded-full border border-white/25 bg-black/65 px-1 py-0.5 text-xs text-white shadow-lg backdrop-blur-sm"
                 onClick={(e) => e.stopPropagation()}
                 role="presentation"
               >
@@ -136,43 +157,51 @@ export default function CarPhotoGallery({ images: rawImages, title }: CarPhotoGa
             ) : null}
           </div>
 
-          <div className="flex flex-row gap-2 lg:flex-col lg:justify-between">
-            {sideSlots.map((idx, slotI) => {
-              const src = images[idx];
-              const isLastSlot = slotI === 3;
-              const showMore = isLastSlot && moreCount > 0;
-              return (
-                <button
-                  key={`${slotI}-${idx}`}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActive(idx);
-                    openLightbox(idx);
-                  }}
-                  className={cn(
-                    "relative aspect-[4/3] w-[22%] shrink-0 overflow-hidden rounded-lg border-2 border-transparent ring-offset-2 transition-all hover:border-primary/50 lg:aspect-auto lg:h-0 lg:min-h-[72px] lg:w-full lg:flex-1",
-                    idx === safeActive && "ring-2 ring-primary",
-                  )}
-                  aria-label={`Фото ${idx + 1}`}
-                >
-                  <Image
-                    src={src}
-                    alt=""
-                    fill
-                    sizes="96px"
-                    className="object-cover"
-                    loading="lazy"
-                    unoptimized
-                  />
-                  {showMore ? (
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-sm font-semibold text-white">
-                      +{moreCount}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+          <div className="flex flex-row gap-0 border-t border-border/60 bg-muted/25 p-2 lg:flex-col lg:border-s lg:border-t-0 lg:p-2">
+            <p className="mb-2 hidden text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground lg:block">
+              Ещё фото
+            </p>
+            <div className="flex flex-1 flex-row gap-2 lg:flex lg:flex-col lg:gap-2">
+              {sideSlots.map((idx, slotI) => {
+                const src = images[idx];
+                const isLastSlot = slotI === THUMB_COUNT - 1;
+                const showMore = isLastSlot && moreCount > 0;
+                return (
+                  <button
+                    key={`${slotI}-${idx}`}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActive(idx);
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      openLightbox(idx);
+                    }}
+                    className={cn(
+                      "relative aspect-[4/3] w-[23%] shrink-0 overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-primary/40 lg:aspect-auto lg:h-0 lg:min-h-[76px] lg:w-full lg:flex-1",
+                      idx === safeActive && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+                    )}
+                    aria-label={`Показать фото ${idx + 1}`}
+                  >
+                    <Image
+                      src={src}
+                      alt=""
+                      fill
+                      sizes="120px"
+                      className="object-cover"
+                      loading="lazy"
+                      unoptimized
+                    />
+                    {showMore ? (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-xs font-bold text-white">
+                        +{moreCount}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>

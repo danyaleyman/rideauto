@@ -676,13 +676,6 @@ export function CarDetailAccordions({
           </div>
         </AccordionContent>
       </AccordionItem>
-
-      <AccordionItem value="debug">
-        <AccordionTrigger className="text-muted-foreground">Технический JSON (отладка)</AccordionTrigger>
-        <AccordionContent>
-          <JsonLight label="data" data={data} />
-        </AccordionContent>
-      </AccordionItem>
     </Accordion>
   );
 }

@@ -10,6 +10,8 @@ import type { SlimCar } from "@/lib/types";
 import CarPhotoGallery from "@/components/car/CarPhotoGallery";
 import { CarDetailAccordions } from "@/components/car/CarDetailAccordions";
 import { CarPurchaseSidebar } from "@/components/car/CarPurchaseSidebar";
+import { CarHeroMeta } from "@/components/car/CarHeroMeta";
+import { CarTrustStrip } from "@/components/car/CarTrustStrip";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { Button } from "@/components/ui/button";
 
@@ -101,12 +103,22 @@ export default async function CarPage({ params }: PageProps) {
         ) : null}
       </nav>
 
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
-        <div className="order-2 min-w-0 flex-1 lg:order-1">
-          {imgs.length ? <CarPhotoGallery images={imgs} title={title} /> : null}
+      {imgs.length ? (
+        <CarPhotoGallery
+          images={imgs}
+          title={title}
+          sourceKey={typeof d.source === "string" ? d.source : null}
+        />
+      ) : null}
+
+      <CarHeroMeta title={title} data={d as Record<string, unknown>} />
+
+      <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+        <div className="min-w-0 flex-1">
+          <CarTrustStrip />
 
           {description ? (
-            <section className="mt-6 rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 sm:p-5">
+            <section className="rounded-2xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40 sm:p-5">
               <h2 className="font-heading text-base font-semibold tracking-tight">Описание</h2>
               <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground [overflow-wrap:anywhere]">
                 {description}
@@ -123,7 +135,7 @@ export default async function CarPage({ params }: PageProps) {
           <CarDetailAccordions data={d as Record<string, unknown>} diagnosisPhotosCount={diagnosisPhotosCount} />
         </div>
 
-        <div className="order-1 w-full shrink-0 lg:order-2 lg:w-80">
+        <div className="w-full shrink-0 lg:w-[320px]">
           <CarPurchaseSidebar
             carId={carId}
             title={title}

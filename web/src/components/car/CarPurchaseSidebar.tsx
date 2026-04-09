@@ -77,17 +77,17 @@ export function CarPurchaseSidebar({
   }
 
   return (
-    <aside className="rounded-2xl border border-border bg-card p-4 shadow-md ring-1 ring-border/50 lg:sticky lg:top-20">
-      <h2 className="font-heading text-lg font-semibold leading-snug tracking-tight">{title}</h2>
-      <p className="mt-2 text-xs text-muted-foreground">ID: {carId}</p>
-      <Badge
-        variant="secondary"
-        className="mt-3 w-fit rounded-xl border border-border/60 px-3 py-1.5 text-xl font-semibold tabular-nums"
-      >
+    <aside className="rounded-2xl border border-border/80 bg-card p-5 shadow-lg ring-1 ring-black/5 dark:ring-white/10 lg:sticky lg:top-20">
+      <h2 className="sr-only">Цена и заказ</h2>
+      <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground">
         {priceRub != null && !Number.isNaN(priceRub) ? formatPriceLabel(priceRub) : formatPriceLabel(null)}
-      </Badge>
+      </p>
+      <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-foreground/90">{title}</p>
+      <p className="mt-1 text-xs text-muted-foreground">ID: {carId}</p>
       {sourceLabel ? (
-        <p className="mt-2 text-xs text-muted-foreground">Источник: {sourceLabel}</p>
+        <Badge variant="secondary" className="mt-3 rounded-lg px-2.5 py-0.5 text-xs font-normal">
+          Источник: {sourceLabel}
+        </Badge>
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -129,8 +129,8 @@ export function CarPurchaseSidebar({
         </Button>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2">
-        <Button className="w-full rounded-xl" asChild>
+      <div className="mt-5 flex flex-col gap-2">
+        <Button className="w-full rounded-xl bg-red-600 font-semibold text-white hover:bg-red-700" asChild>
           <Link href="/contacts">Связаться с менеджером</Link>
         </Button>
 
