@@ -26,11 +26,20 @@ class AsyncEncarClient:
         self.base_api = "https://api.encar.com/v1/readside"
         self.conn_limit = http.get("conn_limit_per_host", 10)
         # sock_read: иначе при «залипшем» прокси чтение тела может не уложиться в total так, как ожидают.
+        # sock_connect: CONNECT к HTTP-прокси без потолка иногда «висит» годами — отдельный лимит.
+        _conn = float(http.get("timeout_connect", 10) or 10)
         self.timeout = aiohttp.ClientTimeout(
             total=http.get("timeout_total", 30),
-            connect=http.get("timeout_connect", 10),
+            connect=_conn,
+            sock_connect=_conn,
             sock_read=http.get("timeout_sock_read", 25),
         )
+        # Внешний потолок на одну попытку (jitter + запрос + чтение тела). Иначе один await _request
+        # может жить max_attempts * (total + backoff) и обходить asyncio.wait_for вокруг fetch_vehicle_detail.
+        _per = http.get("hard_deadline_per_attempt_sec")
+        self._hard_deadline_per_attempt: Optional[float] = float(_per) if _per is not None else None
+        if self._hard_deadline_per_attempt is not None and self._hard_deadline_per_attempt <= 0:
+            self._hard_deadline_per_attempt = None
         self.jitter_min = http.get("request_jitter_min", 0.1)
         self.jitter_max = http.get("request_jitter_max", 0.5)
         retry = config.get("retry", {})
@@ -95,25 +104,42 @@ class AsyncEncarClient:
         h.setdefault("Referer", origin + "/")
         last_error: Optional[str] = None
         last_http_status: int = 0
+        hard = self._hard_deadline_per_attempt
+        if hard is None:
+            http_cfg = self.config.get("http", {}) or {}
+            tot = float(http_cfg.get("timeout_total", 30) or 30)
+            sr = float(http_cfg.get("timeout_sock_read", 25) or 25)
+            c = float(http_cfg.get("timeout_connect", 10) or 10)
+            hard = max(tot, sr) + c + 8.0
         for attempt in range(self.max_attempts):
             proxy = self._next_proxy()
             await self._jitter()
             try:
-                async with self._session.request(method, url, headers=h, params=params, proxy=proxy) as resp:
-                    last_http_status = resp.status
-                    retry_after = resp.headers.get("Retry-After")
-                    if resp.status in self.retry_statuses:
-                        last_error = f"status {resp.status}"
-                        await sleep_backoff(self._backoff, attempt, retry_after)
-                        continue
-                    if resp.status != 200:
-                        text = (await resp.text())[:500]
-                        return None, resp.status, text
-                    data = await resp.json()
-                    return data, 200, None
+
+                async def _one_attempt() -> Tuple[str, Optional[dict], int, Optional[str], Optional[str]]:
+                    async with self._session.request(method, url, headers=h, params=params, proxy=proxy) as resp:
+                        status = int(resp.status)
+                        retry_after = resp.headers.get("Retry-After")
+                        if status in self.retry_statuses:
+                            return "retry", None, status, f"status {status}", retry_after
+                        if status != 200:
+                            text = (await resp.text())[:500]
+                            return "final", None, status, text, None
+                        data = await resp.json()
+                        return "final", data, 200, None, None
+
+                kind, payload, st, err, retry_after = await asyncio.wait_for(_one_attempt(), timeout=hard)
+                if kind == "retry":
+                    last_error = err or ""
+                    last_http_status = st
+                    await sleep_backoff(self._backoff, attempt, retry_after)
+                    continue
+                return payload, st, err
             except asyncio.TimeoutError as e:
-                last_error = str(e)
+                last_error = f"hard_deadline {hard:.0f}s ({e})"
                 await sleep_backoff(self._backoff, attempt)
+            except asyncio.CancelledError:
+                raise
             except aiohttp.ClientError as e:
                 last_error = str(e)
                 await sleep_backoff(self._backoff, attempt)

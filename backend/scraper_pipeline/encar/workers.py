@@ -329,6 +329,7 @@ async def detail_worker(
                     queue.task_done()
                     continue
         detail_wall = float(_config.get("http", {}).get("detail_wall_timeout_sec", 90))
+        log.debug("Worker %s detail begin car_id=%s", worker_id, car_id)
         try:
             async with sem:
                 detail, d_status, _ = await asyncio.wait_for(
@@ -421,17 +422,33 @@ async def detail_worker(
             inspection = (detail.get("condition") or {}).get("inspection")
         sellingpoint = results.get("sellingpoint")
         user_info = results.get("user")
-        car = await parse_one_car_async(
-            parser,
-            car_id,
-            item_from_list or {"Id": car_id},
-            detail,
-            diagnosis,
-            record,
-            inspection,
-            sellingpoint,
-            user_info,
-        )
+        parse_wall = float(_config.get("http", {}).get("parse_wall_timeout_sec", 120))
+        try:
+            car = await asyncio.wait_for(
+                parse_one_car_async(
+                    parser,
+                    car_id,
+                    item_from_list or {"Id": car_id},
+                    detail,
+                    diagnosis,
+                    record,
+                    inspection,
+                    sellingpoint,
+                    user_info,
+                ),
+                timeout=parse_wall,
+            )
+        except asyncio.TimeoutError:
+            log.error(
+                "Worker %s car_id=%s: parse CPU/normalize >%.0fs — parse_fail",
+                worker_id,
+                car_id,
+                parse_wall,
+            )
+            stats["parse_fail"] += 1
+            stats["processed"] += 1
+            queue.task_done()
+            continue
         if car:
             did_save = False
             if max_cars > 0 and stats_lock is not None:
