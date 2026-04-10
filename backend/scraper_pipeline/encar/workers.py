@@ -318,6 +318,8 @@ async def detail_worker(
         if await asyncio.to_thread(checkpoint.is_collected, car_id):
             queue.task_done()
             continue
+        if _config.get("http", {}).get("log_detail_starts"):
+            log.info("Worker %s detail car_id=%s", worker_id, car_id)
         if max_cars > 0 and stats_lock is not None:
             async with stats_lock:
                 if stats["saved"] >= max_cars:

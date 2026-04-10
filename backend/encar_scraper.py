@@ -7,6 +7,7 @@ Production Encar.com scraper: async pipeline (fetcher → parser → saver),
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import json
 import logging
 import os
@@ -159,7 +160,17 @@ async def run_scraper(
 
     saver, backend = build_car_saver(config)
     car_types = config.get("car_types", ["for", "kor"])
-    concurrency = config.get("http", {}).get("concurrency", 8)
+    concurrency = int(config.get("http", {}).get("concurrency", 8) or 8)
+
+    # to_thread(checkpoint) + run_in_executor(парсер) + save_car делят один пул; дефолт ~min(32, cpu+4) —
+    # при высоком concurrency очередь на executor откладывает is_collected/pop.
+    _loop = asyncio.get_running_loop()
+    _n_cpu = os.cpu_count() or 4
+    _tp_workers = max(64, concurrency * 8, _n_cpu * 8)
+    _loop.set_default_executor(
+        concurrent.futures.ThreadPoolExecutor(max_workers=_tp_workers, thread_name_prefix="enc_scraper")
+    )
+    log.info("Пул потоков asyncio для БД/парсера: max_workers=%s", _tp_workers)
     stats = {
         "list_pages": 0,
         "ids_discovered": 0,
