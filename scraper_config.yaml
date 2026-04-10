@@ -68,15 +68,13 @@ retry:
 
 proxy:
   enabled: true
-  # HTTP, geo.floppydata.com — парсер чередует URL (round-robin); у провайдера смена выхода по времени
+  # HTTP FloppyData (round-robin); смена IP — в кабинете провайдера
   urls:
-    - "http://xXPvYvt0ZWsCs0Fj:72TQqwsARSkkicI6@geo.floppydata.com:10080"
-    - "http://44yE6gInasmcVgGy:b3z81xfZLM9YZZgZ@geo.floppydata.com:10080"
-    - "http://UmDdMFeb7Abh0A74:DrKXsWyBIbwykmoN@geo.floppydata.com:10080"
-    - "http://002zfOmFBTYpDtWK:a3fPWFZ9C5kgtfT7@geo.floppydata.com:10080"
-    - "http://nSowvpw1AjpSaldM:5TJHDOfTFwkc9S2v@geo.floppydata.com:10080"
-    - "http://Y0WGrTaf9yHKdn67:vB26qF7fNx3LFOIN@geo.floppydata.com:10080"
-    - "http://QL6zChYYlHtpWAJG:ZuQsuDcJvMK1NVIW@geo.floppydata.com:10080"
+    - "http://OUQkl01kH87RCpeL:1Qefci9DHXCzBomW@geo.floppydata.com:10080" # US - 1
+    - "http://62UkZ27ZpSS8IATi:jsPAy2ig0xi614PM@geo.floppydata.com:10080" # US - 14
+    - "http://Zj4gCNJmBO8wPWz7:fdkcVCFPExqcduKq@geo.floppydata.com:10080" # KR - 1
+    - "http://rPLzguQz8B5zWCqB:3HrWW4GXfPMHhAK7@geo.floppydata.com:10080" # KR - 3
+    - "http://Y10NuXgMpibx8e8P:Yo4n9DU9XyyhBddV@geo.floppydata.com:10080" # KR - 2
   rotate_every: 1
 
 user_agents:
