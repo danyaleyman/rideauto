@@ -132,8 +132,9 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-    if not api_key:
-        print("OPENAI_API_KEY is required for mapping bootstrap.", file=sys.stderr)
+    offline = str(os.environ.get("WRA_TRANSLATION_OFFLINE") or "1").strip().lower() in ("1", "true", "yes", "on")
+    if not api_key and not offline:
+        print("Set OPENAI_API_KEY or enable WRA_TRANSLATION_OFFLINE=1.", file=sys.stderr)
         return 2
     if args.max_new_terms > 0:
         os.environ["WRA_TRANSLATION_MAX_NEW_TERMS"] = str(args.max_new_terms)

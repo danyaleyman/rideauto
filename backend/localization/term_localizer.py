@@ -11,6 +11,35 @@ import psycopg2
 
 _KO_RE = re.compile(r"[\uac00-\ud7af]")
 _ZH_RE = re.compile(r"[\u4e00-\u9fff]")
+_LATIN_RE = re.compile(r"[A-Za-z]")
+
+_RU_TERM_MAP: Dict[str, str] = {
+    "汽油": "Бензин",
+    "柴油": "Дизель",
+    "电动": "Электро",
+    "插电式混合动力": "Подключаемый гибрид",
+    "油电混动": "Гибрид",
+    "自动": "Автомат",
+    "手动": "Механика",
+    "无级变速": "Вариатор",
+    "双离合": "Робот",
+    "前驱": "Передний",
+    "后驱": "Задний",
+    "全时四驱": "Полный привод",
+    "适时四驱": "Полный привод",
+    "分时四驱": "Полный привод",
+    "白色": "Белый",
+    "黑色": "Черный",
+    "灰色": "Серый",
+    "银色": "Серебристый",
+    "红色": "Красный",
+    "蓝色": "Синий",
+    "绿色": "Зеленый",
+    "棕色": "Коричневый",
+    "黄色": "Желтый",
+    "紫色": "Фиолетовый",
+    "橙色": "Оранжевый",
+}
 
 
 def _as_text(v: object) -> str:
@@ -35,6 +64,50 @@ def _looks_english(text: str) -> bool:
         return False
     ascii_letters = sum(1 for ch in text if ("a" <= ch.lower() <= "z"))
     return ascii_letters >= max(3, len(text) // 2)
+
+
+def _contains_latin(text: str) -> bool:
+    return bool(_LATIN_RE.search(text or ""))
+
+
+def _romanize_ko(text: str) -> str:
+    try:
+        from hangul_romanize import Transliter
+        from hangul_romanize.rule import academic
+
+        tr = Transliter(academic)
+        out = tr.translit(text)
+        return out.strip() if out else text
+    except Exception:
+        return text
+
+
+def _romanize_zh(text: str) -> str:
+    try:
+        from pypinyin import lazy_pinyin
+
+        parts = lazy_pinyin(text)
+        out = " ".join(p for p in parts if p).strip()
+        return out if out else text
+    except Exception:
+        return text
+
+
+def _offline_translate(text: str, *, target_lang: str) -> str:
+    s = text.strip()
+    if not s:
+        return s
+    if target_lang == "ru":
+        return _RU_TERM_MAP.get(s, s)
+    if target_lang == "en":
+        if _contains_latin(s):
+            return s
+        lang = detect_lang(s)
+        if lang == "ko":
+            return _romanize_ko(s)
+        if lang == "zh":
+            return _romanize_zh(s)
+    return s
 
 
 @dataclass
@@ -62,15 +135,22 @@ class PgTermLocalizer:
         self._model = (os.environ.get("WRA_TRANSLATION_MODEL") or "gpt-4o-mini").strip()
         self._max_new_terms = int(os.environ.get("WRA_TRANSLATION_MAX_NEW_TERMS") or "400")
         self._new_terms_used = 0
+        self._offline_only = str(os.environ.get("WRA_TRANSLATION_OFFLINE") or "1").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
         self.stats = LocalizerStats()
         self._local_cache: Dict[str, str] = {}
 
     def open(self) -> None:
-        if not self._api_key:
+        if not self._api_key and not self._offline_only:
             return
         self._conn = psycopg2.connect(self._dsn)
         self._conn.autocommit = True
-        self._client = httpx.Client(timeout=25.0)
+        if self._api_key:
+            self._client = httpx.Client(timeout=25.0)
         self._init_schema()
         self._enabled = True
 
@@ -115,7 +195,7 @@ class PgTermLocalizer:
         if target_lang == "en" and _looks_english(s):
             return s
         if not self._enabled:
-            return s
+            return _offline_translate(s, target_lang=target_lang)
 
         source_lang = detect_lang(s)
         key = self._cache_key(s, source_lang, target_lang, domain)
@@ -128,6 +208,15 @@ class PgTermLocalizer:
             self.stats.cache_hits += 1
             self._local_cache[key] = cached
             return cached
+
+        offline = _offline_translate(s, target_lang=target_lang)
+        if offline and offline != s:
+            self._write_cache(s, source_lang, target_lang, domain, offline)
+            self._local_cache[key] = offline
+            return offline
+
+        if self._offline_only and not self._api_key:
+            return s
 
         if self._new_terms_used >= max(0, self._max_new_terms):
             self.stats.skipped_budget += 1
