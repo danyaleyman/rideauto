@@ -81,7 +81,6 @@ def _new_saves_cap_reached(stats: dict, config: dict) -> bool:
 async def _flush_queue_to_pending(
     checkpoint: Checkpoint,
     queue: asyncio.Queue,
-    checkpoint_lock: asyncio.Lock,
     log: logging.Logger,
 ) -> None:
     """Вернуть необработанные задачи из asyncio.Queue в scraper_pending_ids (при раннем стопе)."""
@@ -99,8 +98,7 @@ async def _flush_queue_to_pending(
             car_id, car_type = item[0], item[1]
             payload = None
         ij = json.dumps(payload, ensure_ascii=False) if isinstance(payload, dict) else None
-        async with checkpoint_lock:
-            checkpoint.add_pending(str(car_id), str(car_type), ij)
+        await asyncio.to_thread(checkpoint.add_pending, str(car_id), str(car_type), ij)
         n += 1
     if n:
         log.info("Очередь скрейпера: возвращено в pending записей: %s", n)
@@ -211,7 +209,6 @@ async def run_scraper(
                         i,
                         client,
                         checkpoint,
-                        checkpoint_lock,
                         saver,
                         parser,
                         config,
@@ -231,8 +228,8 @@ async def run_scraper(
                 while not refill_done:
                     await asyncio.sleep(15 if first_wait else 60)
                     first_wait = False
-                    async with checkpoint_lock:
-                        p = checkpoint.pending_count()
+                    # pending_count в thread: иначе синхронный psycopg2 в этом корутине блочит wait_for/TCP.
+                    p = await asyncio.to_thread(checkpoint.pending_count)
                     log.info(
                         "Stats: processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
                         stats["processed"],
@@ -259,7 +256,7 @@ async def run_scraper(
             log.info("Чтение pending из checkpoint (лимит %s)…", pending_limit)
             t_pop0 = time.monotonic()
             async with checkpoint_lock:
-                pending = checkpoint.pop_pending_batch(limit=pending_limit)
+                pending = await asyncio.to_thread(checkpoint.pop_pending_batch, pending_limit)
             log.info(
                 "Checkpoint pop_pending_batch: %s строк за %.2fs",
                 len(pending),
@@ -317,8 +314,8 @@ async def run_scraper(
                     if queue.qsize() > concurrency * 3:
                         continue
                     async with checkpoint_lock:
-                        batch = checkpoint.pop_pending_batch(limit=100)
-                        pending_left = checkpoint.pending_count()
+                        batch = await asyncio.to_thread(checkpoint.pop_pending_batch, 100)
+                        pending_left = await asyncio.to_thread(checkpoint.pending_count)
                     for it in batch:
                         await queue.put(it)
                     if producer.done() and not batch and pending_left == 0:
@@ -337,8 +334,8 @@ async def run_scraper(
                         log.info("Дозагрузка pending остановлена: max_new_saves_per_run")
                         break
                     async with checkpoint_lock:
-                        batch = checkpoint.pop_pending_batch(limit=100)
-                        pending_left = checkpoint.pending_count()
+                        batch = await asyncio.to_thread(checkpoint.pop_pending_batch, 100)
+                        pending_left = await asyncio.to_thread(checkpoint.pending_count)
                     for it in batch:
                         await queue.put(it)
                     if not batch and pending_left == 0:
@@ -388,7 +385,7 @@ async def run_scraper(
     finally:
         if int(config.get("max_new_saves_per_run", 0) or 0) > 0:
             try:
-                await _flush_queue_to_pending(checkpoint, queue, checkpoint_lock, log)
+                await _flush_queue_to_pending(checkpoint, queue, log)
             except Exception as e:
                 log.warning("Не удалось вернуть хвост очереди в pending: %s", e)
         checkpoint.close()

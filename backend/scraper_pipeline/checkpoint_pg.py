@@ -91,21 +91,25 @@ class Checkpoint:
         self.set_state(f"list_offset_{car_type}", str(offset))
 
     def add_pending(self, car_id: str, car_type: str, item_json: Optional[str] = None) -> bool:
-        if not self._conn:
+        """Отдельное соединение: безопасно из asyncio.to_thread параллельно с _conn в pop/list."""
+        import psycopg2
+
+        if not self.dsn:
             return False
         try:
-            with self._conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO scraper_pending_ids (scope, car_id, car_type, item_json, added_at)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (scope, car_id) DO NOTHING
-                    """,
-                    (self.scope, car_id, car_type, item_json, time.time()),
-                )
-                ok = cur.rowcount > 0
-            self._conn.commit()
-            return ok
+            with psycopg2.connect(self.dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO scraper_pending_ids (scope, car_id, car_type, item_json, added_at)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (scope, car_id) DO NOTHING
+                        """,
+                        (self.scope, car_id, car_type, item_json, time.time()),
+                    )
+                    ok = cur.rowcount > 0
+                conn.commit()
+                return ok
         except Exception:
             return False
 
@@ -132,26 +136,30 @@ class Checkpoint:
         return added
 
     def pop_pending_batch(self, limit: int) -> List[Tuple[str, str, Optional[dict]]]:
-        if not self._conn:
+        """Отдельное соединение — безопасно вызывать из asyncio.to_thread."""
+        import psycopg2
+
+        if not self.dsn:
             return []
-        with self._conn.cursor() as cur:
-            cur.execute(
-                """
-                WITH sel AS (
-                    SELECT car_id FROM scraper_pending_ids
-                    WHERE scope = %s
-                    ORDER BY added_at ASC
-                    LIMIT %s
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    WITH sel AS (
+                        SELECT car_id FROM scraper_pending_ids
+                        WHERE scope = %s
+                        ORDER BY added_at ASC
+                        LIMIT %s
+                    )
+                    DELETE FROM scraper_pending_ids p
+                    USING sel s
+                    WHERE p.scope = %s AND p.car_id = s.car_id
+                    RETURNING p.car_id, p.car_type, p.item_json
+                    """,
+                    (self.scope, limit, self.scope),
                 )
-                DELETE FROM scraper_pending_ids p
-                USING sel s
-                WHERE p.scope = %s AND p.car_id = s.car_id
-                RETURNING p.car_id, p.car_type, p.item_json
-                """,
-                (self.scope, limit, self.scope),
-            )
-            rows = cur.fetchall()
-        self._conn.commit()
+                rows = cur.fetchall()
+            conn.commit()
         out: List[Tuple[str, str, Optional[dict]]] = []
         for r in rows:
             item = json.loads(r[2]) if r[2] else None
@@ -159,39 +167,48 @@ class Checkpoint:
         return out
 
     def pending_count(self) -> int:
-        if not self._conn:
+        import psycopg2
+
+        if not self.dsn:
             return 0
-        with self._conn.cursor() as cur:
-            cur.execute(
-                "SELECT COUNT(*) FROM scraper_pending_ids WHERE scope = %s",
-                (self.scope,),
-            )
-            r = cur.fetchone()
-            return int(r[0]) if r and r[0] is not None else 0
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COUNT(*) FROM scraper_pending_ids WHERE scope = %s",
+                    (self.scope,),
+                )
+                r = cur.fetchone()
+                return int(r[0]) if r and r[0] is not None else 0
 
     def is_collected(self, car_id: str) -> bool:
-        if not self._conn:
+        import psycopg2
+
+        if not self.dsn:
             return False
-        with self._conn.cursor() as cur:
-            cur.execute(
-                "SELECT 1 FROM scraper_collected_ids WHERE scope = %s AND car_id = %s LIMIT 1",
-                (self.scope, car_id),
-            )
-            return cur.fetchone() is not None
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM scraper_collected_ids WHERE scope = %s AND car_id = %s LIMIT 1",
+                    (self.scope, car_id),
+                )
+                return cur.fetchone() is not None
 
     def mark_collected(self, car_id: str) -> None:
-        if not self._conn:
+        import psycopg2
+
+        if not self.dsn:
             return
-        with self._conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO scraper_collected_ids (scope, car_id)
-                VALUES (%s, %s)
-                ON CONFLICT (scope, car_id) DO NOTHING
-                """,
-                (self.scope, car_id),
-            )
-        self._conn.commit()
+        with psycopg2.connect(self.dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO scraper_collected_ids (scope, car_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT (scope, car_id) DO NOTHING
+                    """,
+                    (self.scope, car_id),
+                )
+            conn.commit()
 
     def remove_collected(self, car_id: str) -> None:
         if not self._conn:
