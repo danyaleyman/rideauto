@@ -3,12 +3,11 @@
 
 http:
   # Concurrency for detail fetches (per car: detail + optional diagnosis/record/inspection/user)
-  # Диагностика: 1 = один воркер, без параллельных HTTP/пула. Бой: 10–12.
-  concurrency: 1
+  # Для докачки: 12–20 при стабильных прокси; меньше — если узкое место Encar/прокси.
+  concurrency: 12
   # Max concurrent connections to the same host
-  conn_limit_per_host: 5
-  # Пул потоков только для парсера + save в БД (0 или удалить ключ = авто max(32, concurrency*6, cpu*4))
-  thread_pool_max_workers: 4
+  conn_limit_per_host: 10
+  # Опционально: ограничить пул потоков парсера/save (удалено = авто max(32, concurrency*6, cpu*4))
   # Timeouts (seconds)
   timeout_total: 30
   timeout_connect: 10
@@ -75,8 +74,8 @@ retry:
   retry_statuses: [407, 429, 500, 502, 503, 504]
 
 proxy:
-  # Диагностика: false = прямой выход с сервера (убедиться, что залипание из-за прокси). Для боя: true.
-  enabled: false
+  # С датацентрового IP без резидент/KR-прокси list API часто даёт 407/обрыв — продолжаем через FloppyData.
+  enabled: true
   # HTTP FloppyData (round-robin); смена IP — в кабинете провайдера
   urls:
     - "http://OUQkl01kH87RCpeL:1Qefci9DHXCzBomW@geo.floppydata.com:10080" # US - 1

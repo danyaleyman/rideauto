@@ -77,6 +77,7 @@ class AsyncEncarClient:
     async def __aenter__(self) -> "AsyncEncarClient":
         self._session = aiohttp.ClientSession(
             timeout=self.timeout,
+            trust_env=False,
             connector=aiohttp.TCPConnector(limit_per_host=self.conn_limit),
         )
         return self
