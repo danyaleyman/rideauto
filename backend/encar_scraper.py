@@ -187,10 +187,11 @@ async def run_scraper(
             )
             if pending:
                 log.info("Checkpoint pending выгружен: %s записей (enqueue в очередь…)", len(pending))
+            enqueue_log_every = max(8, min(concurrency * 4, 32))
             for i, rec in enumerate(pending, start=1):
+                if i == 1 or i % enqueue_log_every == 0:
+                    log.info("Checkpoint enqueue: кладём %s/%s (queue_size≈%s)", i, len(pending), queue.qsize())
                 await queue.put(rec if len(rec) == 3 else (rec[0], rec[1], None))
-                if i % max(concurrency * 8, 64) == 0:
-                    log.info("Checkpoint enqueue progress: %s/%s", i, len(pending))
             if pending:
                 log.info("Resumed with %s pending IDs from checkpoint", len(pending))
             else:
