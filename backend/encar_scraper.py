@@ -171,7 +171,12 @@ async def run_scraper(
     # Парсер + save_car используют default executor; чекпоинт — только CheckpointAsync (свой 1 поток).
     _loop = asyncio.get_running_loop()
     _n_cpu = os.cpu_count() or 4
-    _tp_workers = max(32, concurrency * 6, _n_cpu * 4)
+    http_cfg = config.get("http", {}) or {}
+    _tp_cap = http_cfg.get("thread_pool_max_workers")
+    if _tp_cap is not None and int(_tp_cap) > 0:
+        _tp_workers = int(_tp_cap)
+    else:
+        _tp_workers = max(32, concurrency * 6, _n_cpu * 4)
     _loop.set_default_executor(
         concurrent.futures.ThreadPoolExecutor(max_workers=_tp_workers, thread_name_prefix="enc_scraper")
     )

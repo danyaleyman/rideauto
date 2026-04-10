@@ -3,10 +3,12 @@
 
 http:
   # Concurrency for detail fetches (per car: detail + optional diagnosis/record/inspection/user)
-  # Для «быстрой докачки» за 1–2 дня: 12–20 при стабильных прокси; иначе начните с 10.
-  concurrency: 12
+  # Диагностика: 1 = один воркер, без параллельных HTTP/пула. Бой: 10–12.
+  concurrency: 1
   # Max concurrent connections to the same host
-  conn_limit_per_host: 10
+  conn_limit_per_host: 5
+  # Пул потоков только для парсера + save в БД (0 или удалить ключ = авто max(32, concurrency*6, cpu*4))
+  thread_pool_max_workers: 4
   # Timeouts (seconds)
   timeout_total: 30
   timeout_connect: 10
