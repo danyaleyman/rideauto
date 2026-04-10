@@ -17,7 +17,10 @@ if [[ ! -d "$ROOT" ]]; then
   exit 1
 fi
 
-install -d -m 0755 -o "$OWNER" -g "$GROUP" "$ROOT/logs"
+install -d -m 0775 -o "$OWNER" -g "$GROUP" "$ROOT/logs"
+# Файлы в logs/ (например logs/scraper.log из scraper_config.yaml) могли быть созданы от root.
+chown -R "$OWNER:$GROUP" "$ROOT/logs"
+chmod -R u+rwX,g+rwX "$ROOT/logs" 2>/dev/null || true
 
 for f in encar_cars.db encar_china.db scraper_checkpoint.db scraper.log auto_update.log; do
   # *.db — только если остались после миграции; чекпоинт сейчас в Postgres.
