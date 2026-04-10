@@ -177,8 +177,14 @@ async def run_scraper(
             ]
             pending_limit = max(concurrency * 8, 64)
             log.info("Чтение pending из checkpoint (лимит %s)…", pending_limit)
+            t_pop0 = time.monotonic()
             async with checkpoint_lock:
                 pending = checkpoint.pop_pending_batch(limit=pending_limit)
+            log.info(
+                "Checkpoint pop_pending_batch: %s строк за %.2fs",
+                len(pending),
+                time.monotonic() - t_pop0,
+            )
             if pending:
                 log.info("Checkpoint pending выгружен: %s записей (enqueue в очередь…)", len(pending))
             for i, rec in enumerate(pending, start=1):

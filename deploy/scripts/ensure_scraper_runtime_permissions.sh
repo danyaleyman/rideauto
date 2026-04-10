@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# Однократно на проде: права для encar-update.service (User=www-data) на логи и локальные артефакты.
-# Запуск: sudo bash deploy/scripts/ensure_scraper_runtime_permissions.sh
+# Однократно на проде: владелец logs/ и локальных *.db под пользователя systemd-сервиса корейского цикла.
+#
+# encar-update.service          → User=www-data (по умолчанию ниже)
+# prod-encar-auto-update.service → User=prod-encar
+#
+# Примеры:
+#   sudo bash deploy/scripts/ensure_scraper_runtime_permissions.sh
+#   sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar bash deploy/scripts/ensure_scraper_runtime_permissions.sh
 set -euo pipefail
 ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
 OWNER="${WRA_RUNTIME_USER:-www-data}"

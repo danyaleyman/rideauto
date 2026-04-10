@@ -12,6 +12,8 @@ Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-/etc/default/prod-encar
 # Совпадает с encar-update.service: только encar_daily_update (каталог в public.cars), без legacy PostgreSQLDatabase.
 ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/encar_daily_update.py --once --config /opt/prod-encar/scraper_config.yaml
+# Без этого systemd по умолчанию (часто ~90s) убивает длинный scraper до конца цикла.
+TimeoutStartSec=24h
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
