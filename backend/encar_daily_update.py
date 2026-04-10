@@ -15,7 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from encar_scraper import AsyncEncarClient, load_config, setup_logging
-from scraper_pipeline.checkpoint_pg import Checkpoint
+from scraper_pipeline.checkpoint_pg import CheckpointAsync
 
 
 def _postgres_dsn(config: dict) -> str:
@@ -52,7 +52,7 @@ def seconds_until(when: datetime) -> float:
 
 async def discover_new_cars(
     client: AsyncEncarClient,
-    checkpoint: Checkpoint,
+    checkpoint: CheckpointAsync,
     config: dict,
     log,
 ) -> int:
@@ -81,13 +81,13 @@ async def discover_new_cars(
             to_add = []
             for item in items:
                 car_id = str(item.get("Id", ""))
-                if not car_id or checkpoint.is_collected(car_id):
+                if not car_id or await checkpoint.is_collected(car_id):
                     continue
                 to_add.append((car_id, car_type, item))
                 if new_limit and (total_added + len(to_add)) >= new_limit:
                     break
             if to_add:
-                added = checkpoint.add_pending_batch(to_add)
+                added = await checkpoint.add_pending_batch(to_add)
                 total_added += added
                 log.info("New cars car_type=%s offset=%s added=%s total_added=%s", car_type, offset, added, total_added)
             await asyncio.sleep(random.uniform(delay_min, delay_max))
@@ -98,7 +98,7 @@ async def discover_new_cars(
 
 async def remove_sold_postgres(
     client: AsyncEncarClient,
-    checkpoint: Checkpoint,
+    checkpoint: CheckpointAsync,
     dsn: str,
     config: dict,
     log,
@@ -147,7 +147,7 @@ async def remove_sold_postgres(
         if status == 404 or (status == 200 and _is_sold(data)):
             try:
                 await asyncio.to_thread(_delete, car_id)
-                checkpoint.remove_collected(car_id)
+                await checkpoint.remove_collected(car_id)
                 removed += 1
                 log.info("Removed sold car_id=%s status=%s (postgres)", car_id, status)
             except Exception as e:
@@ -183,8 +183,8 @@ async def run_one_cycle(config_path: str, config: dict, log) -> None:
     dsn = _checkpoint_dsn(config)
     if not dsn:
         raise ValueError("encar_daily_update: нужен DATABASE_URL или storage.postgres.dsn")
-    checkpoint = Checkpoint(dsn=dsn, scope=scope, max_pending=max_pending)
-    checkpoint.connect()
+    checkpoint = CheckpointAsync(dsn=dsn, scope=scope, max_pending=max_pending)
+    await checkpoint.connect()
 
     try:
         async with AsyncEncarClient(config, log) as client:
@@ -193,7 +193,7 @@ async def run_one_cycle(config_path: str, config: dict, log) -> None:
             removed = await remove_sold_postgres(client, checkpoint, dsn, config, log)
             log.info("Remove sold: removed %s cars", removed)
     finally:
-        checkpoint.close()
+        await checkpoint.close()
 
     run_only_pending(config_path, log)
 

@@ -10,7 +10,7 @@ from typing import Any, List, Optional, Tuple
 
 from parser_full import EncarFullParser
 
-from scraper_pipeline.checkpoint_pg import Checkpoint
+from scraper_pipeline.checkpoint_pg import CheckpointAsync
 from scraper_pipeline.encar.client import AsyncEncarClient
 from scraper_pipeline.encar.parser import parse_one_car_async
 from scraper_pipeline.encar.savers import CarSaver
@@ -18,8 +18,7 @@ from scraper_pipeline.encar.savers import CarSaver
 
 async def _list_one_variant(
     client: AsyncEncarClient,
-    checkpoint: Checkpoint,
-    checkpoint_lock: asyncio.Lock,
+    checkpoint: CheckpointAsync,
     list_fetch_sem: asyncio.Semaphore,
     list_stats_lock: asyncio.Lock,
     car_type: str,
@@ -54,8 +53,7 @@ async def _list_one_variant(
         q_suffix or "(base)",
         ck_key,
     )
-    async with checkpoint_lock:
-        offset = int(checkpoint.get_last_offset(ck_key))
+    offset = int(await checkpoint.get_last_offset(ck_key))
     list_fail_streak = 0
     stale_full_pages = 0
     stall_jumps_used = 0
@@ -66,7 +64,7 @@ async def _list_one_variant(
             if saved_now >= max_cars:
                 log.info("List producer stopping: max_cars=%s (уже в БД/сессии)", max_cars)
                 break
-            pend = await asyncio.to_thread(checkpoint.pending_count)
+            pend = await checkpoint.pending_count()
             async with stats_lock:
                 saved2 = stats["saved"]
             if saved2 + pend >= max_cars + 3 * page_size:
@@ -129,28 +127,27 @@ async def _list_one_variant(
             car_id = str(item.get("Id", ""))
             if not car_id:
                 continue
-            if await asyncio.to_thread(checkpoint.is_collected, car_id):
+            if await checkpoint.is_collected(car_id):
                 continue
             to_add.append((car_id, car_type, item))
-        async with checkpoint_lock:
-            added = checkpoint.add_pending_batch(to_add)
-            if stall_limit > 0 and added == 0 and len(items) >= max(1, page_size - 5):
-                stale_full_pages += 1
-                if stale_full_pages >= stall_limit:
-                    if stall_jump_max > 0 and stall_jumps_used < stall_jump_max:
-                        skip = stall_jump_pages * page_size
-                        offset += skip
-                        checkpoint.set_last_offset(ck_key, offset)
-                        stale_full_pages = 0
-                        stall_jumps_used += 1
-                        do_stall_jump = True
-                    else:
-                        do_break_stall = True
-            else:
-                stale_full_pages = 0
-            if not do_stall_jump and not do_break_stall:
-                checkpoint.set_last_offset(ck_key, offset + page_size)
-                offset += page_size
+        added = await checkpoint.add_pending_batch(to_add)
+        if stall_limit > 0 and added == 0 and len(items) >= max(1, page_size - 5):
+            stale_full_pages += 1
+            if stale_full_pages >= stall_limit:
+                if stall_jump_max > 0 and stall_jumps_used < stall_jump_max:
+                    skip = stall_jump_pages * page_size
+                    offset += skip
+                    await checkpoint.set_last_offset(ck_key, offset)
+                    stale_full_pages = 0
+                    stall_jumps_used += 1
+                    do_stall_jump = True
+                else:
+                    do_break_stall = True
+        else:
+            stale_full_pages = 0
+        if not do_stall_jump and not do_break_stall:
+            await checkpoint.set_last_offset(ck_key, offset + page_size)
+            offset += page_size
         if do_break_stall:
             log.error(
                 "List stall: car_type=%s variant=%s offset=%s — %s full pages with nothing new queued; stop",
@@ -192,8 +189,7 @@ async def _list_one_variant(
 
 async def list_producer(
     client: AsyncEncarClient,
-    checkpoint: Checkpoint,
-    checkpoint_lock: asyncio.Lock,
+    checkpoint: CheckpointAsync,
     config: dict,
     car_types: List[str],
     stats: dict,
@@ -242,7 +238,6 @@ async def list_producer(
         await _list_one_variant(
             client,
             checkpoint,
-            checkpoint_lock,
             list_fetch_sem,
             list_stats_lock,
             car_type,
@@ -279,7 +274,7 @@ async def list_producer(
 async def detail_worker(
     worker_id: int,
     client: AsyncEncarClient,
-    checkpoint: Checkpoint,
+    checkpoint: CheckpointAsync,
     saver: CarSaver,
     parser: EncarFullParser,
     _config: dict,
@@ -312,10 +307,10 @@ async def detail_worker(
         if max_new > 0 and stats.get("_save_baseline") is not None:
             if stats["saved"] - stats["_save_baseline"] >= max_new:
                 ij = json.dumps(item_from_list, ensure_ascii=False) if item_from_list else None
-                await asyncio.to_thread(checkpoint.add_pending, car_id, car_type, ij)
+                await checkpoint.add_pending(car_id, car_type, ij)
                 queue.task_done()
                 continue
-        if await asyncio.to_thread(checkpoint.is_collected, car_id):
+        if await checkpoint.is_collected(car_id):
             queue.task_done()
             continue
         if _config.get("http", {}).get("log_detail_starts"):
@@ -345,7 +340,7 @@ async def detail_worker(
             continue
         if d_status != 200 or not detail:
             if d_status in (404, 410):
-                await asyncio.to_thread(checkpoint.mark_collected, car_id)
+                await checkpoint.mark_collected(car_id)
                 stats["detail_gone"] += 1
                 log.info(
                     "Worker %s car_id=%s detail %s — снято/продано, помечаем collected (не в БД)",
@@ -451,12 +446,12 @@ async def detail_worker(
                 async with stats_lock:
                     if stats["saved"] < max_cars:
                         await saver.save_car(car, car_id)
-                        await asyncio.to_thread(checkpoint.mark_collected, car_id)
+                        await checkpoint.mark_collected(car_id)
                         stats["saved"] += 1
                         did_save = True
             else:
                 await saver.save_car(car, car_id)
-                await asyncio.to_thread(checkpoint.mark_collected, car_id)
+                await checkpoint.mark_collected(car_id)
                 stats["saved"] += 1
                 did_save = True
             if did_save and stats["saved"] % 100 == 0:

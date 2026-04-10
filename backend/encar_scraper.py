@@ -20,7 +20,7 @@ from typing import List, Optional
 import yaml
 
 from parser_full import EncarFullParser
-from scraper_pipeline.checkpoint_pg import Checkpoint
+from scraper_pipeline.checkpoint_pg import CheckpointAsync
 from scraper_pipeline.encar.client import AsyncEncarClient
 from scraper_pipeline.encar.savers import build_car_saver
 from scraper_pipeline.encar.workers import detail_worker, list_producer
@@ -80,7 +80,7 @@ def _new_saves_cap_reached(stats: dict, config: dict) -> bool:
 
 
 async def _flush_queue_to_pending(
-    checkpoint: Checkpoint,
+    checkpoint: CheckpointAsync,
     queue: asyncio.Queue,
     log: logging.Logger,
 ) -> None:
@@ -99,7 +99,7 @@ async def _flush_queue_to_pending(
             car_id, car_type = item[0], item[1]
             payload = None
         ij = json.dumps(payload, ensure_ascii=False) if isinstance(payload, dict) else None
-        await asyncio.to_thread(checkpoint.add_pending, str(car_id), str(car_type), ij)
+        await checkpoint.add_pending(str(car_id), str(car_type), ij)
         n += 1
     if n:
         log.info("Очередь скрейпера: возвращено в pending записей: %s", n)
@@ -155,22 +155,27 @@ async def run_scraper(
     cp_dsn = _postgres_dsn_for_checkpoint(config)
     if not cp_dsn:
         raise ValueError("Чекпоинт Encar: нужен DATABASE_URL или storage.postgres.dsn / checkpoint.postgres.dsn")
-    checkpoint = Checkpoint(dsn=cp_dsn, scope=scope, max_pending=max_pending)
-    checkpoint.connect()
+    checkpoint = CheckpointAsync(dsn=cp_dsn, scope=scope, max_pending=max_pending)
+    await checkpoint.connect()
+    log.info("Чекпоинт Encar: отдельный поток БД (CheckpointAsync)")
+    saver, backend = None, ""
+    try:
+        saver, backend = build_car_saver(config)
+    except Exception:
+        await checkpoint.close()
+        raise
 
-    saver, backend = build_car_saver(config)
     car_types = config.get("car_types", ["for", "kor"])
     concurrency = int(config.get("http", {}).get("concurrency", 8) or 8)
 
-    # to_thread(checkpoint) + run_in_executor(парсер) + save_car делят один пул; дефолт ~min(32, cpu+4) —
-    # при высоком concurrency очередь на executor откладывает is_collected/pop.
+    # Парсер + save_car используют default executor; чекпоинт — только CheckpointAsync (свой 1 поток).
     _loop = asyncio.get_running_loop()
     _n_cpu = os.cpu_count() or 4
-    _tp_workers = max(64, concurrency * 8, _n_cpu * 8)
+    _tp_workers = max(32, concurrency * 6, _n_cpu * 4)
     _loop.set_default_executor(
         concurrent.futures.ThreadPoolExecutor(max_workers=_tp_workers, thread_name_prefix="enc_scraper")
     )
-    log.info("Пул потоков asyncio для БД/парсера: max_workers=%s", _tp_workers)
+    log.info("Пул потоков asyncio (парсер/save): max_workers=%s", _tp_workers)
     stats = {
         "list_pages": 0,
         "ids_discovered": 0,
@@ -200,7 +205,6 @@ async def run_scraper(
     log.info("Инициализация EncarFullParser…")
     parser = EncarFullParser()
     stats_lock = asyncio.Lock()
-    checkpoint_lock = asyncio.Lock()
     start_time = time.time()
     refill_done = False
 
@@ -239,8 +243,7 @@ async def run_scraper(
                 while not refill_done:
                     await asyncio.sleep(15 if first_wait else 60)
                     first_wait = False
-                    # pending_count в thread: иначе синхронный psycopg2 в этом корутине блочит wait_for/TCP.
-                    p = await asyncio.to_thread(checkpoint.pending_count)
+                    p = await checkpoint.pending_count()
                     log.info(
                         "Stats: processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
                         stats["processed"],
@@ -266,8 +269,7 @@ async def run_scraper(
                 )
             log.info("Чтение pending из checkpoint (лимит %s)…", pending_limit)
             t_pop0 = time.monotonic()
-            async with checkpoint_lock:
-                pending = await asyncio.to_thread(checkpoint.pop_pending_batch, pending_limit)
+            pending = await checkpoint.pop_pending_batch(pending_limit)
             log.info(
                 "Checkpoint pop_pending_batch: %s строк за %.2fs",
                 len(pending),
@@ -292,7 +294,6 @@ async def run_scraper(
                     list_producer(
                         client,
                         checkpoint,
-                        checkpoint_lock,
                         config,
                         car_types,
                         stats,
@@ -324,9 +325,8 @@ async def run_scraper(
                         break
                     if queue.qsize() > concurrency * 3:
                         continue
-                    async with checkpoint_lock:
-                        batch = await asyncio.to_thread(checkpoint.pop_pending_batch, 100)
-                        pending_left = await asyncio.to_thread(checkpoint.pending_count)
+                    batch = await checkpoint.pop_pending_batch(100)
+                    pending_left = await checkpoint.pending_count()
                     for it in batch:
                         await queue.put(it)
                     if producer.done() and not batch and pending_left == 0:
@@ -344,9 +344,8 @@ async def run_scraper(
                     if _new_saves_cap_reached(stats, config):
                         log.info("Дозагрузка pending остановлена: max_new_saves_per_run")
                         break
-                    async with checkpoint_lock:
-                        batch = await asyncio.to_thread(checkpoint.pop_pending_batch, 100)
-                        pending_left = await asyncio.to_thread(checkpoint.pending_count)
+                    batch = await checkpoint.pop_pending_batch(100)
+                    pending_left = await checkpoint.pending_count()
                     for it in batch:
                         await queue.put(it)
                     if not batch and pending_left == 0:
@@ -399,8 +398,9 @@ async def run_scraper(
                 await _flush_queue_to_pending(checkpoint, queue, log)
             except Exception as e:
                 log.warning("Не удалось вернуть хвост очереди в pending: %s", e)
-        checkpoint.close()
-        saver.close()
+        await checkpoint.close()
+        if saver is not None:
+            saver.close()
 
     elapsed = time.time() - start_time
     log.info(
