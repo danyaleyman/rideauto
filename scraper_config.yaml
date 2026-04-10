@@ -10,6 +10,11 @@ http:
   # Timeouts (seconds)
   timeout_total: 30
   timeout_connect: 10
+  # Лимит чтения ответа (важно при кривых прокси)
+  timeout_sock_read: 25
+  # Жёсткий потолок на один fetch_vehicle_detail / пачку record+inspection+… (asyncio.wait_for)
+  detail_wall_timeout_sec: 90
+  detail_extras_wall_timeout_sec: 120
   # List page size (API limit is typically 50-100)
   list_page_size: 100
   # 0 = до пустого ответа или list_offset_hard_cap (глубокая выгрузка for/kor)

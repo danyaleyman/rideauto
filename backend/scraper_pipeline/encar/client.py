@@ -25,9 +25,11 @@ class AsyncEncarClient:
         self.list_url = "https://api.encar.com/search/car/list/general"
         self.base_api = "https://api.encar.com/v1/readside"
         self.conn_limit = http.get("conn_limit_per_host", 10)
+        # sock_read: иначе при «залипшем» прокси чтение тела может не уложиться в total так, как ожидают.
         self.timeout = aiohttp.ClientTimeout(
             total=http.get("timeout_total", 30),
             connect=http.get("timeout_connect", 10),
+            sock_read=http.get("timeout_sock_read", 25),
         )
         self.jitter_min = http.get("request_jitter_min", 0.1)
         self.jitter_max = http.get("request_jitter_max", 0.5)

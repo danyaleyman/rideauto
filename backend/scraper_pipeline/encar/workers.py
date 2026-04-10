@@ -319,8 +319,23 @@ async def detail_worker(
                 if stats["saved"] >= max_cars:
                     queue.task_done()
                     continue
-        async with sem:
-            detail, d_status, _ = await client.fetch_vehicle_detail(car_id)
+        detail_wall = float(_config.get("http", {}).get("detail_wall_timeout_sec", 90))
+        try:
+            async with sem:
+                detail, d_status, _ = await asyncio.wait_for(
+                    client.fetch_vehicle_detail(car_id),
+                    timeout=detail_wall,
+                )
+        except asyncio.TimeoutError:
+            log.error(
+                "Worker %s car_id=%s: vehicle detail >%.0fs (сеть/прокси) — отпускаем слот очереди",
+                worker_id,
+                car_id,
+                detail_wall,
+            )
+            stats["detail_fail"] += 1
+            queue.task_done()
+            continue
         if d_status != 200 or not detail:
             if d_status in (404, 410):
                 async with checkpoint_lock:
@@ -366,7 +381,20 @@ async def detail_worker(
             tasks.append(("user", client.fetch_user(seller_id)))
         results = {}
         if tasks:
-            done = await asyncio.gather(*[c for _, c in tasks], return_exceptions=True)
+            extras_wall = float(_config.get("http", {}).get("detail_extras_wall_timeout_sec", 120))
+            try:
+                done = await asyncio.wait_for(
+                    asyncio.gather(*[c for _, c in tasks], return_exceptions=True),
+                    timeout=extras_wall,
+                )
+            except asyncio.TimeoutError:
+                log.error(
+                    "Worker %s car_id=%s: record/inspection/… >%.0fs — продолжаем с тем что есть",
+                    worker_id,
+                    car_id,
+                    extras_wall,
+                )
+                done = [asyncio.TimeoutError() for _ in tasks]
             for i, (name, _) in enumerate(tasks):
                 if i >= len(done):
                     continue
