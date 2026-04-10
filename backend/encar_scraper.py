@@ -175,6 +175,28 @@ async def run_scraper(
                 )
                 for i in range(concurrency)
             ]
+
+            async def log_stats():
+                # Запускаем до enqueue: иначе при залипании на queue.put тишина в journal до часов.
+                first_wait = True
+                while not refill_done:
+                    await asyncio.sleep(15 if first_wait else 60)
+                    first_wait = False
+                    async with checkpoint_lock:
+                        p = checkpoint.pending_count()
+                    log.info(
+                        "Stats: processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
+                        stats["processed"],
+                        stats["saved"],
+                        stats["detail_gone"],
+                        stats["detail_fail"],
+                        stats["parse_fail"],
+                        p,
+                        queue.qsize(),
+                    )
+
+            stats_task = asyncio.create_task(log_stats())
+
             pending_limit = max(concurrency * 8, 64)
             log.info("Чтение pending из checkpoint (лимит %s)…", pending_limit)
             t_pop0 = time.monotonic()
@@ -239,23 +261,6 @@ async def run_scraper(
 
             refill_task = asyncio.create_task(refill_queue())
 
-            async def log_stats():
-                while not refill_done:
-                    await asyncio.sleep(60)
-                    async with checkpoint_lock:
-                        p = checkpoint.pending_count()
-                    log.info(
-                        "Stats: processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
-                        stats["processed"],
-                        stats["saved"],
-                        stats["detail_gone"],
-                        stats["detail_fail"],
-                        stats["parse_fail"],
-                        p,
-                        queue.qsize(),
-                    )
-
-            stats_task = asyncio.create_task(log_stats())
             log.info("Ожидание list producer…")
             await producer
             try:
