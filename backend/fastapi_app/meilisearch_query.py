@@ -100,7 +100,13 @@ def build_meilisearch_filter(
     _append_range(clauses, "year_month", q.get("ym_from"), q.get("ym_to"), as_float=False)
 
     if q.get("drive_awd") == "1":
-        clauses.append('drive_type = "AWD"')
+        clauses.append(
+            '('
+            'drive_type = "AWD" OR drive_type = "4WD" OR drive_type = "4x4" OR '
+            'drive_type = "Полный" OR drive_type = "Полный привод" OR '
+            'drive_type = "全时四驱" OR drive_type = "适时四驱" OR drive_type = "分时四驱"'
+            ')'
+        )
 
     if not clauses:
         return None

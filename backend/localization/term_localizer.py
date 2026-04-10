@@ -257,7 +257,9 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
     if title:
         data["title_en"] = title
 
-    ru_fields = ("engine_type", "transmission_type", "body_type", "color", "drive_type", "prep_drive_type")
+    drive_target = "en"
+
+    ru_fields = ("engine_type", "transmission_type", "body_type", "color")
     for f in ru_fields:
         v = _as_text(data.get(f))
         if not v:
@@ -267,3 +269,13 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
         if ru:
             data[f] = ru
             data[f"{f}_ru"] = ru
+
+    for f in ("drive_type", "prep_drive_type"):
+        v = _as_text(data.get(f))
+        if not v:
+            continue
+        data.setdefault(f"{f}_original", v)
+        tr = localizer.translate(v, target_lang=drive_target, domain=f)
+        if tr:
+            data[f] = tr
+            data[f"{f}_{drive_target}"] = tr
