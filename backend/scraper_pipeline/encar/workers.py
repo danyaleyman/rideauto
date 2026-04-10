@@ -310,9 +310,14 @@ async def detail_worker(
                 await checkpoint.add_pending(car_id, car_type, ij)
                 queue.task_done()
                 continue
+        trace = bool(_config.get("http", {}).get("trace_worker_phases"))
+        if trace:
+            log.info("Worker %s car_id=%s phase=checkpoint_is_collected", worker_id, car_id)
         if await checkpoint.is_collected(car_id):
             queue.task_done()
             continue
+        if trace:
+            log.info("Worker %s car_id=%s phase=http_detail_fetch", worker_id, car_id)
         if _config.get("http", {}).get("log_detail_starts"):
             log.info("Worker %s detail car_id=%s", worker_id, car_id)
         if max_cars > 0 and stats_lock is not None:

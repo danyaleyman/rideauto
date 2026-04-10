@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, TypeVar
@@ -13,6 +14,8 @@ if TYPE_CHECKING:
     import psycopg2
 
 T = TypeVar("T")
+
+_log_checkpoint = logging.getLogger("encar.checkpoint")
 
 
 @dataclass
@@ -27,8 +30,14 @@ class Checkpoint:
     def connect(self) -> None:
         import psycopg2
 
-        self._conn = psycopg2.connect(self.dsn)
+        self._conn = psycopg2.connect(self.dsn, connect_timeout=15)
         self._init_schema()
+        assert self._conn is not None
+        # Иначе один залипший на lock/query SELECT может вечно держать единственный поток CheckpointAsync.
+        with self._conn.cursor() as cur:
+            cur.execute("SET lock_timeout = '15s'")
+            cur.execute("SET statement_timeout = '90s'")
+        self._conn.commit()
 
     def _init_schema(self) -> None:
         assert self._conn is not None
@@ -251,7 +260,13 @@ class CheckpointAsync:
         def work() -> T:
             return fn(self._ensure())
 
-        return await asyncio.get_running_loop().run_in_executor(self._exec, work)
+        t0 = time.monotonic()
+        try:
+            return await asyncio.get_running_loop().run_in_executor(self._exec, work)
+        finally:
+            dt = time.monotonic() - t0
+            if dt > 2.0:
+                _log_checkpoint.warning("CheckpointAsync: операция %.2fs (медленно; всё чекпоинт-серийно)", dt)
 
     async def is_collected(self, car_id: str) -> bool:
         return await self._run(lambda cp: cp.is_collected(car_id))
