@@ -73,7 +73,8 @@ retry:
   retry_statuses: [407, 429, 500, 502, 503, 504]
 
 proxy:
-  enabled: true
+  # Диагностика: false = прямой выход с сервера (убедиться, что залипание из-за прокси). Для боя: true.
+  enabled: false
   # HTTP FloppyData (round-robin); смена IP — в кабинете провайдера
   urls:
     - "http://OUQkl01kH87RCpeL:1Qefci9DHXCzBomW@geo.floppydata.com:10080" # US - 1
