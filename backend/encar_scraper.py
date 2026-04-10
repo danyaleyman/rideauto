@@ -7,6 +7,7 @@ Production Encar.com scraper: async pipeline (fetcher → parser → saver),
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import subprocess
@@ -65,6 +66,44 @@ def load_config(config_path: str = "scraper_config.yaml") -> dict:
         except Exception:
             config[section][subkey] = value
     return config
+
+
+def _new_saves_cap_reached(stats: dict, config: dict) -> bool:
+    max_new = int(config.get("max_new_saves_per_run", 0) or 0)
+    if max_new <= 0:
+        return False
+    b = stats.get("_save_baseline")
+    if b is None:
+        return False
+    return (stats["saved"] - b) >= max_new
+
+
+async def _flush_queue_to_pending(
+    checkpoint: Checkpoint,
+    queue: asyncio.Queue,
+    checkpoint_lock: asyncio.Lock,
+    log: logging.Logger,
+) -> None:
+    """Вернуть необработанные задачи из asyncio.Queue в scraper_pending_ids (при раннем стопе)."""
+    n = 0
+    while True:
+        try:
+            item = queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+        if item is None:
+            continue
+        if len(item) >= 3:
+            car_id, car_type, payload = item[0], item[1], item[2]
+        else:
+            car_id, car_type = item[0], item[1]
+            payload = None
+        ij = json.dumps(payload, ensure_ascii=False) if isinstance(payload, dict) else None
+        async with checkpoint_lock:
+            checkpoint.add_pending(str(car_id), str(car_type), ij)
+        n += 1
+    if n:
+        log.info("Очередь скрейпера: возвращено в pending записей: %s", n)
 
 
 class _FlushingStreamHandler(logging.StreamHandler):
@@ -137,6 +176,16 @@ async def run_scraper(
     if initial_saved:
         stats["saved"] = initial_saved
         log.info("Уже в хранилище %s записей — лимит max_cars считается с учётом них", initial_saved)
+    max_new = int(config.get("max_new_saves_per_run", 0) or 0)
+    if max_new > 0:
+        stats["_save_baseline"] = initial_saved
+        log.info(
+            "Лимит прогона: max_new_saves_per_run=%s (новых INSERT в cars за этот запуск; база saved=%s)",
+            max_new,
+            initial_saved,
+        )
+    else:
+        stats["_save_baseline"] = None
 
     queue: asyncio.Queue = asyncio.Queue(maxsize=concurrency * 4)
     log.info("Инициализация EncarFullParser…")
@@ -239,6 +288,16 @@ async def run_scraper(
             async def refill_queue():
                 nonlocal refill_done
                 while True:
+                    if _new_saves_cap_reached(stats, config):
+                        refill_done = True
+                        for _ in workers:
+                            await queue.put(None)
+                        log.info(
+                            "Refill stopping: max_new_saves_per_run (saved=%s, лимит +%s)",
+                            stats["saved"],
+                            int(config.get("max_new_saves_per_run", 0) or 0),
+                        )
+                        break
                     await asyncio.sleep(15)
                     if max_cars > 0 and stats["saved"] >= max_cars:
                         refill_done = True
@@ -265,6 +324,9 @@ async def run_scraper(
             await producer
             try:
                 for _refill_round in range(1000):
+                    if _new_saves_cap_reached(stats, config):
+                        log.info("Дозагрузка pending остановлена: max_new_saves_per_run")
+                        break
                     async with checkpoint_lock:
                         batch = checkpoint.pop_pending_batch(limit=100)
                         pending_left = checkpoint.pending_count()
@@ -273,6 +335,15 @@ async def run_scraper(
                     if not batch and pending_left == 0:
                         break
                     await asyncio.sleep(0.3)
+                if _new_saves_cap_reached(stats, config):
+                    refill_done = True
+                    refill_task.cancel()
+                    try:
+                        await refill_task
+                    except asyncio.CancelledError:
+                        pass
+                    for _ in workers:
+                        await queue.put(None)
                 await asyncio.gather(*workers)
             except asyncio.CancelledError:
                 refill_done = True
@@ -306,6 +377,11 @@ async def run_scraper(
                 pass
 
     finally:
+        if int(config.get("max_new_saves_per_run", 0) or 0) > 0:
+            try:
+                await _flush_queue_to_pending(checkpoint, queue, checkpoint_lock, log)
+            except Exception as e:
+                log.warning("Не удалось вернуть хвост очереди в pending: %s", e)
         checkpoint.close()
         saver.close()
 

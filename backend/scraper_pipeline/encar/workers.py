@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
 from typing import Any, List, Optional, Tuple
@@ -309,6 +310,14 @@ async def detail_worker(
             item_from_list = item[2] if len(item) > 2 else {}
         if not item_from_list:
             item_from_list = {"Id": car_id}
+        max_new = int(_config.get("max_new_saves_per_run", 0) or 0)
+        if max_new > 0 and stats.get("_save_baseline") is not None:
+            if stats["saved"] - stats["_save_baseline"] >= max_new:
+                ij = json.dumps(item_from_list, ensure_ascii=False) if item_from_list else None
+                async with checkpoint_lock:
+                    checkpoint.add_pending(car_id, car_type, ij)
+                queue.task_done()
+                continue
         async with checkpoint_lock:
             collected = checkpoint.is_collected(car_id)
         if collected:
