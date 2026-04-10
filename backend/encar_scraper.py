@@ -247,6 +247,15 @@ async def run_scraper(
             stats_task = asyncio.create_task(log_stats())
 
             pending_limit = max(concurrency * 8, 64)
+            cap_nv = int(config.get("max_new_saves_per_run", 0) or 0)
+            if cap_nv > 0:
+                # Иначе из pending берутся сотни самых старых id — воркеры могут залипнуть на них до тестовых новых.
+                pending_limit = min(pending_limit, max(concurrency + cap_nv, cap_nv * 6, 16))
+                log.info(
+                    "Тест max_new_saves_per_run=%s: лимит выборки pending снижен до %s",
+                    cap_nv,
+                    pending_limit,
+                )
             log.info("Чтение pending из checkpoint (лимит %s)…", pending_limit)
             t_pop0 = time.monotonic()
             async with checkpoint_lock:
