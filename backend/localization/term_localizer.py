@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -149,9 +150,14 @@ class PgTermLocalizer:
         self._conn = psycopg2.connect(self._dsn)
         self._conn.autocommit = True
         if self._api_key:
-            import httpx
+            try:
+                import httpx
 
-            self._client = httpx.Client(timeout=25.0)
+                self._client = httpx.Client(timeout=25.0)
+            except ModuleNotFoundError:
+                logging.getLogger(__name__).warning(
+                    "OPENAI_API_KEY задан, но пакет httpx не установлен — LLM-перевод отключён (pip install httpx)"
+                )
         self._init_schema()
         self._enabled = True
 
@@ -218,6 +224,9 @@ class PgTermLocalizer:
 
         # В offline-режиме не вызываем LLM (и не тратим бюджет), даже если ключ задан.
         if self._offline_only:
+            return s
+
+        if self._client is None:
             return s
 
         if self._new_terms_used >= max(0, self._max_new_terms):
