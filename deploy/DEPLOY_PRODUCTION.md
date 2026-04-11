@@ -156,6 +156,12 @@ sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar WRA_CHOWN_VENV=1 b
 sudo -u prod-encar bash -c 'cd /opt/prod-encar && source .venv/bin/activate && pip install -r backend/requirements.txt'
 ```
 
+Предупреждение pip про **`~/.cache/pip`** при `sudo -u prod-encar`: создайте кэш в репо и отдайте пользователю сервиса:
+
+```bash
+sudo install -d -o prod-encar -g prod-encar -m 755 /opt/prod-encar/.cache/pip
+```
+
 Если ошибка повторяется, проверьте флаги неизменяемости: `lsattr -R /opt/prod-encar/.venv/lib/python3.10/site-packages/hangul_romanize 2>/dev/null | head` (не должно быть `i`/`a`). Снять: `sudo chattr -R -i` на проблемный путь (редко).
 
 Иначе в логе будет: `cannot open log file ... Permission denied` (на работу скрейпера не влияет, если консольный лог ок).
@@ -175,6 +181,14 @@ sudo -u prod-encar env HOME=/home/prod-encar git -C /opt/prod-encar pull origin 
 ```
 
 Либо тяните от **root**, как в скрипте выше.
+
+### `git pull`: «Your local changes would be overwritten by merge»
+
+На сервере иногда правят `deploy/scripts/run_postgres_catalog_sync_host.sh` (chmod/редактор) — тогда **`git pull`** не смержится. Варианты:
+
+- Откатить только этот файл и подтянуть `main`:  
+  `sudo git -C /opt/prod-encar checkout -- deploy/scripts/run_postgres_catalog_sync_host.sh && sudo git -C /opt/prod-encar pull origin main`
+- Или одним скриптом (от root): **`sudo bash /opt/prod-encar/deploy/scripts/prod_encar_git_pull.sh`** (после `git pull` в репозитории, где скрипт уже есть; при первой блокировке — сначала ручной `checkout` как выше).
 
 ### Ручной прогон Encar daily (без копирования DSN в командную строку)
 

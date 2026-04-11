@@ -29,6 +29,7 @@ chmod +x "${ROOT}/deploy/scripts/encar_pull_kill_start.sh" 2>/dev/null || true
 chmod +x "${ROOT}/deploy/scripts/encar_set_proxy_urls.sh" 2>/dev/null || true
 chmod +x "${ROOT}/deploy/scripts/prod_encar_catalog_install.sh" 2>/dev/null || true
 chmod +x "${ROOT}/deploy/scripts/run_postgres_catalog_sync_host.sh" 2>/dev/null || true
+chmod +x "${ROOT}/deploy/scripts/prod_encar_git_pull.sh" 2>/dev/null || true
 
 systemctl daemon-reload
 systemctl enable prod-encar-auto-update.timer
