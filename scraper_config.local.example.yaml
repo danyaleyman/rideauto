@@ -13,7 +13,11 @@ daily_update:
   new_cars_limit: 30
   sold_check_sample: 0
 
-# Часто удобнее без прокси с домашнего IP (иначе включите и задайте urls)
+# Прокси только здесь (не в git). Пример HTTP-прокси:
+# proxy:
+#   enabled: true
+#   urls:
+#     - "http://USER:PASS@host:port"
 proxy:
   enabled: false
 

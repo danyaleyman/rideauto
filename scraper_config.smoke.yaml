@@ -17,5 +17,5 @@ daily_update:
   new_cars_limit: 20
   sold_check_sample: 8
 
-# За один only-pending после discover не обрезать выборку слишком сильно
-max_new_saves_per_run: 25
+# Чуть выше --max-cars / max_new_saves в базовом конфиге
+max_new_saves_per_run: 12

@@ -76,15 +76,10 @@ retry:
   retry_statuses: [407, 429, 500, 502, 503, 504]
 
 proxy:
-  # С датацентрового IP без резидент/KR-прокси list API часто даёт 407/обрыв — продолжаем через FloppyData.
-  enabled: true
-  # HTTP FloppyData (round-robin); смена IP — в кабинете провайдера
-  urls:
-    - "http://OUQkl01kH87RCpeL:1Qefci9DHXCzBomW@geo.floppydata.com:10080" # US - 1
-    - "http://62UkZ27ZpSS8IATi:jsPAy2ig0xi614PM@geo.floppydata.com:10080" # US - 14
-    - "http://Zj4gCNJmBO8wPWz7:fdkcVCFPExqcduKq@geo.floppydata.com:10080" # KR - 1
-    - "http://rPLzguQz8B5zWCqB:3HrWW4GXfPMHhAK7@geo.floppydata.com:10080" # KR - 3
-    - "http://Y10NuXgMpibx8e8P:Yo4n9DU9XyyhBddV@geo.floppydata.com:10080" # KR - 2
+  # По умолчанию без прокси (прямое подключение к Encar). При 407/блокировке с датацентра —
+  # включите и задайте urls в scraper_config.local.yaml (не коммитится).
+  enabled: false
+  urls: []
   rotate_every: 1
 
 user_agents:
@@ -103,8 +98,8 @@ car_types:
 max_cars: 0
 
 # Лимит НОВЫХ INSERT в cars за один запуск encar_scraper (0 = без лимита).
-# Локально: scraper_config.local.yaml (не коммитится).
-max_new_saves_per_run: 0
+# Сейчас 10 — для проверки на сервере; после теста верните 0.
+max_new_saves_per_run: 10
 
 # Параметры ежедневного цикла encar_daily_update.py (systemd обычно запускает его через auto_update.py --type daily)
 daily_update:
@@ -112,12 +107,12 @@ daily_update:
   # Используется если encar_daily_update запущен без --once (встроенный цикл). Systemd обычно даёт --once в 00:00.
   run_at_hour: 0
   run_at_minute: 0
-  # Сколько страниц списка на тип (for/kor) опросить за ночь для поиска новых id
-  new_list_pages_per_run: 30
-  # Максимум новых id в pending за один discover (0 = без лимита)
-  new_cars_limit: 0
-  # Случайная выборка car_id на проданные (0 = пропуск remove_sold за цикл)
-  sold_check_sample: 2000
+  # Сколько страниц списка на тип (for/kor) за цикл discover (для теста на сервере уменьшено)
+  new_list_pages_per_run: 4
+  # Максимум новых id в pending за discover (для теста; потом 0)
+  new_cars_limit: 24
+  # Проверка «продано» за цикл (для теста; потом 2000 или 0 чтобы пропустить)
+  sold_check_sample: 6
 
 # Checkpoint and state
 checkpoint:
