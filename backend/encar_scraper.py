@@ -276,6 +276,7 @@ async def run_scraper(
             async def log_stats():
                 # Запускаем до enqueue: иначе при залипании на queue.put тишина в journal до часов.
                 first_wait = True
+                _stats_reports = 0
                 while not refill_done:
                     await asyncio.sleep(15 if first_wait else 60)
                     first_wait = False
@@ -292,6 +293,19 @@ async def run_scraper(
                         p,
                         queue.qsize(),
                     )
+                    _stats_reports += 1
+                    if (
+                        _stats_reports == 1
+                        and stats["processed"] == 0
+                        and stats["detail_fail"] == 0
+                    ):
+                        _dw = float((config.get("http") or {}).get("detail_wall_timeout_sec", 90) or 90)
+                        log.info(
+                            "Stats: первый отчёт через 15s — processed=0 часто норма (воркеры в HTTP деталя; потолок одного деталя %.0fs). "
+                            "Если через ~%.0fs всё ещё 0 и нет detail_fail — смотрите сеть/IP к Encar или снизьте http.concurrency / включите прокси в scraper_config.local.yaml.",
+                            _dw,
+                            _dw + 15,
+                        )
 
             stats_task = asyncio.create_task(log_stats())
 
