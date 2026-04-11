@@ -403,17 +403,26 @@ async def run_scraper(
             log.info("Ожидание list producer…")
             await producer
             try:
-                for _refill_round in range(1000):
-                    if _new_saves_cap_reached(stats, config):
-                        log.info("Дозагрузка pending остановлена: max_new_saves_per_run")
-                        break
-                    batch = await checkpoint.pop_pending_batch(100)
-                    pending_left = await checkpoint.pending_count()
-                    for it in batch:
-                        await queue.put(it)
-                    if not batch and pending_left == 0:
-                        break
-                    await asyncio.sleep(0.3)
+                if only_pending:
+                    # CheckpointAsync — один поток на все операции БД. Цикл ниже делает сотни
+                    # pop_pending_batch + pending_count подряд и голодует is_collected/mark_collected
+                    # воркеров → долго processed=0 и detail_fail=0 при рабочем прокси.
+                    # Дозагрузку pending уже делает refill_queue (интервал 15s).
+                    log.info(
+                        "only_pending: пропускаем быстрый цикл дозагрузки pending (остаётся refill_queue)"
+                    )
+                else:
+                    for _refill_round in range(1000):
+                        if _new_saves_cap_reached(stats, config):
+                            log.info("Дозагрузка pending остановлена: max_new_saves_per_run")
+                            break
+                        batch = await checkpoint.pop_pending_batch(100)
+                        pending_left = await checkpoint.pending_count()
+                        for it in batch:
+                            await queue.put(it)
+                        if not batch and pending_left == 0:
+                            break
+                        await asyncio.sleep(0.3)
                 if _new_saves_cap_reached(stats, config):
                     refill_done = True
                     refill_task.cancel()
