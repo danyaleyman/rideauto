@@ -3,6 +3,10 @@
 #
 # prod-encar-auto-update.service → User=prod-encar (ночной Encar-каталог)
 #
+# Если `sudo -u prod-encar pip install …` в .venv даёт Permission denied — владелец .venv после «pip от root»
+# не совпадает с пользователем сервиса. Исправление:
+#   sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar WRA_CHOWN_VENV=1 bash deploy/scripts/ensure_scraper_runtime_permissions.sh
+#
 # Примеры:
 #   sudo bash deploy/scripts/ensure_scraper_runtime_permissions.sh
 #   sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar bash deploy/scripts/ensure_scraper_runtime_permissions.sh
@@ -41,5 +45,10 @@ for f in "$ROOT"/*.scraper.checkpoint.json "$ROOT"/*.scraper.checkpoint.json.tmp
   chmod u+rw,g+rw "$f" 2>/dev/null || chmod 664 "$f" || true
 done
 shopt -u nullglob
+
+if [[ "${WRA_CHOWN_VENV:-0}" == "1" ]] && [[ -d "$ROOT/.venv" ]]; then
+  chown -R "$OWNER:$GROUP" "$ROOT/.venv"
+  echo "OK: $ROOT/.venv → $OWNER:$GROUP (pip install от этого пользователя)"
+fi
 
 echo "OK: $ROOT — logs/ и локальные *.db (если есть) для $OWNER:$GROUP"

@@ -149,6 +149,13 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar bash /opt/prod-encar/deploy/scripts/ensure_scraper_runtime_permissions.sh
 ```
 
+Если **`pip install`** в **`/opt/prod-encar/.venv`** от **`prod-encar`** падает с **`Permission denied`** в `site-packages` — каталог `.venv` частично принадлежит **root** (после случайного `sudo pip`). Выровнять владельца и повторить установку:
+
+```bash
+sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar WRA_CHOWN_VENV=1 bash /opt/prod-encar/deploy/scripts/ensure_scraper_runtime_permissions.sh
+sudo -u prod-encar bash -c 'cd /opt/prod-encar && source .venv/bin/activate && pip install -r backend/requirements.txt'
+```
+
 Иначе в логе будет: `cannot open log file ... Permission denied` (на работу скрейпера не влияет, если консольный лог ок).
 
 ### Git: «dubious ownership» и `could not lock ... /.gitconfig`
