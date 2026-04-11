@@ -149,12 +149,14 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar bash /opt/prod-encar/deploy/scripts/ensure_scraper_runtime_permissions.sh
 ```
 
-Если **`pip install`** в **`/opt/prod-encar/.venv`** от **`prod-encar`** падает с **`Permission denied`** в `site-packages` — каталог `.venv` частично принадлежит **root** (после случайного `sudo pip`). Выровнять владельца и повторить установку:
+Если **`pip install`** в **`/opt/prod-encar/.venv`** от **`prod-encar`** падает с **`Permission denied`** в `site-packages` — каталог `.venv` частично принадлежит **root** (после случайного `sudo pip`) или осталась **полуустановленная** `hangul_romanize`. Скрипт прав (**от root**) снимает такие каталоги, делает **`chown`** и **`chmod u+rwX`** на весь `.venv`:
 
 ```bash
 sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar WRA_CHOWN_VENV=1 bash /opt/prod-encar/deploy/scripts/ensure_scraper_runtime_permissions.sh
 sudo -u prod-encar bash -c 'cd /opt/prod-encar && source .venv/bin/activate && pip install -r backend/requirements.txt'
 ```
+
+Если ошибка повторяется, проверьте флаги неизменяемости: `lsattr -R /opt/prod-encar/.venv/lib/python3.10/site-packages/hangul_romanize 2>/dev/null | head` (не должно быть `i`/`a`). Снять: `sudo chattr -R -i` на проблемный путь (редко).
 
 Иначе в логе будет: `cannot open log file ... Permission denied` (на работу скрейпера не влияет, если консольный лог ок).
 

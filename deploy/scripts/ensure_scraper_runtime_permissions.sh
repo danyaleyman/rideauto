@@ -47,8 +47,16 @@ done
 shopt -u nullglob
 
 if [[ "${WRA_CHOWN_VENV:-0}" == "1" ]] && [[ -d "$ROOT/.venv" ]]; then
+  # Частичная установка от root → каталоги в site-packages недоступны prod-encar для pip upgrade.
+  shopt -s nullglob
+  for sp in "$ROOT"/.venv/lib/python3.*/site-packages; do
+    [[ -d "$sp" ]] || continue
+    rm -rf "$sp/hangul_romanize" "$sp/hangul_romanize-"*.dist-info 2>/dev/null || true
+  done
+  shopt -u nullglob
   chown -R "$OWNER:$GROUP" "$ROOT/.venv"
-  echo "OK: $ROOT/.venv → $OWNER:$GROUP (pip install от этого пользователя)"
+  chmod -R u+rwX "$ROOT/.venv"
+  echo "OK: $ROOT/.venv → $OWNER:$GROUP + u+rwX (удалён частичный hangul_romanize при наличии)"
 fi
 
 echo "OK: $ROOT — logs/ и локальные *.db (если есть) для $OWNER:$GROUP"
