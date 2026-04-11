@@ -32,15 +32,13 @@ pkill -u "${RUN_USER}" -f "${ROOT}/backend/encar_scraper.py" 2>/dev/null || true
 pkill -u "${RUN_USER}" -f "${ROOT}/backend/encar_daily_update.py" 2>/dev/null || true
 sleep 2
 
-echo "== git safe.directory (${RUN_USER}) =="
-# Иначе git 2.35+ откажется в pull при root-владельце каталога репо.
-if ! sudo -u "${RUN_USER}" -H bash -lc "git config --global --get-all safe.directory 2>/dev/null | grep -Fxq \"${ROOT}\""; then
-  sudo -u "${RUN_USER}" -H git config --global --add safe.directory "${ROOT}"
-  echo "Добавлено: git safe.directory ${ROOT}"
-fi
+echo "== git: safe.directory (локально в репо, от root) =="
+# Не трогаем ~/.gitconfig у prod-encar (часто HOME=/opt/prod-encar → Permission denied на .gitconfig в корне репо).
+git -C "${ROOT}" config --local --get-all safe.directory 2>/dev/null | grep -Fxq "${ROOT}" 2>/dev/null || \
+  git -C "${ROOT}" config --local --add safe.directory "${ROOT}" 2>/dev/null || true
 
-echo "== git pull =="
-if ! sudo -u "${RUN_USER}" -H bash -lc "cd \"${ROOT}\" && git pull origin main"; then
+echo "== git pull (от root) =="
+if ! git -C "${ROOT}" pull origin main; then
   echo "git pull failed" >&2
   exit 1
 fi

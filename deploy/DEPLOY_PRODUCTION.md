@@ -145,15 +145,21 @@ sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar bash /opt/prod-enc
 
 Иначе в логе будет: `cannot open log file ... Permission denied` (на работу скрейпера не влияет, если консольный лог ок).
 
-### Git: «dubious ownership» при `git pull` от prod-encar
+### Git: «dubious ownership» и `could not lock ... /.gitconfig`
 
-Один раз:
+Если в `/etc/passwd` у пользователя **`prod-encar`** в поле **home** указано **`/opt/prod-encar`**, то **`git config --global`** пишет в **`/opt/prod-encar/.gitconfig`**. Каталог репозитория часто принадлежит **root** — получите **`Permission denied`** при любом глобальном `git config` от `prod-encar`.
+
+**Правильно для прод-деплоя:** не использовать глобальный конфиг в корне репо. Скрипт **`deploy/scripts/encar_pull_kill_start.sh`** делает **`git pull` от root** и при необходимости добавляет **`safe.directory` только в `.git/config` репозитория** (локально), без `~/.gitconfig` у `prod-encar`.
+
+Если вручную тянете репозиторий от **`prod-encar`**, используйте реальный домашний каталог (чтобы global был в **`/home/prod-encar/.gitconfig`**), например:
 
 ```bash
-sudo -u prod-encar -H git config --global --add safe.directory /opt/prod-encar
+sudo install -d -o prod-encar -g prod-encar /home/prod-encar
+sudo -u prod-encar env HOME=/home/prod-encar git -C /opt/prod-encar config --global --add safe.directory /opt/prod-encar
+sudo -u prod-encar env HOME=/home/prod-encar git -C /opt/prod-encar pull origin main
 ```
 
-Дальше: `sudo -u prod-encar -H bash -lc 'cd /opt/prod-encar && git pull origin main'`.
+Либо тяните от **root**, как в скрипте выше.
 
 ### Ручной прогон Encar daily (без копирования DSN в командную строку)
 
@@ -170,7 +176,7 @@ sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 
 ### Pull, остановить старый encar и запустить новый прогон
 
-Один скрипт от **root** (стоп unit/timer, `pkill` процессов `encar_scraper` / `encar_daily_update` от `prod-encar`, для **`prod-encar`** при необходимости **`git config --global safe.directory`**, затем `git pull`, `run_encar_daily_once_prod.sh`):
+Один скрипт от **root** (стоп unit/timer, `pkill` процессов `encar_scraper` / `encar_daily_update` от `prod-encar`, **`safe.directory` в локальном `.git/config`**, **`git pull` от root**, затем `run_encar_daily_once_prod.sh` от `prod-encar`):
 
 ```bash
 sudo chmod +x /opt/prod-encar/deploy/scripts/encar_pull_kill_start.sh
@@ -187,7 +193,9 @@ sudo systemctl stop encar-update.timer 2>/dev/null || true
 sudo pkill -u prod-encar -f '/opt/prod-encar/backend/encar_scraper.py' 2>/dev/null || true
 sudo pkill -u prod-encar -f '/opt/prod-encar/backend/encar_daily_update.py' 2>/dev/null || true
 sleep 2
-sudo -u prod-encar -H bash -lc 'cd /opt/prod-encar && git pull origin main'
+git -C /opt/prod-encar config --local --get-all safe.directory 2>/dev/null | grep -Fxq /opt/prod-encar || \
+  git -C /opt/prod-encar config --local --add safe.directory /opt/prod-encar
+git -C /opt/prod-encar pull origin main
 sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 sudo systemctl start prod-encar-auto-update.timer
 ```
