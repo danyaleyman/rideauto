@@ -178,6 +178,20 @@ sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 
 Скрипт подхватывает env-файл, выставляет `DATABASE_URL` из `WRA_PG_DSN` при необходимости и запускает `encar_daily_update.py --once`. Конфиг по умолчанию — `scraper_config.yaml`; разовый тест на 20 новых INSERT: `WRA_SCRAPER_CONFIG=/opt/prod-encar/deploy/scraper_config.probe-20.yaml` только в командной строке (не класть в `/etc/default`, иначе заденет systemd).
 
+### Только `postgres_catalog_sync` (без полного daily)
+
+В `scraper_config.yaml` DSN часто пустой — синк тогда использует **`DATABASE_URL`** / **`WRA_PG_DSN`** / **`SYNC_PG_DSN`** из **`/etc/default/prod-encar`** (как скрипт Meilisearch):
+
+```bash
+sudo chmod +x /opt/prod-encar/deploy/scripts/run_postgres_catalog_sync_host.sh
+sudo -u prod-encar bash /opt/prod-encar/deploy/scripts/run_postgres_catalog_sync_host.sh
+```
+
+Опции модуля в конец, например: `... run_postgres_catalog_sync_host.sh --no-meilisearch`.
+
+После `git pull` с правками Python для API перезапустите активный unit (на проде из репозитория обычно **`prod-encar-api.service`**; если ставили вручную — может быть **`encar-api.service`**):  
+`systemctl list-units --type=service --all | grep -E 'encar-api|prod-encar-api'` → затем `sudo systemctl restart имя.service`.
+
 Прокси Encar (без правок YAML на сервере): в **`/etc/default/prod-encar`** задайте **`ENCAR_PROXY_URLS`** или выполните **`deploy/scripts/encar_set_proxy_urls.sh`** (секреты не попадают в git). Формат: `http://user:pass@host:port` через запятую. **`prod-encar-auto-update.service`** уже подключает `EnvironmentFile=-/etc/default/prod-encar` — после записи файла достаточно перезапустить таймер/oneshot.
 
 ### Pull, остановить старый encar и запустить новый прогон

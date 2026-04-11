@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Ручной postgres_catalog_sync на хосте: DSN из /etc/default/prod-encar (как Meilisearch-скрипт).
+# Не передавайте пароль в argv — только через EnvironmentFile.
+#
+#   sudo -u prod-encar bash /opt/prod-encar/deploy/scripts/run_postgres_catalog_sync_host.sh
+#   sudo -u prod-encar bash .../run_postgres_catalog_sync_host.sh --no-meilisearch
+set -euo pipefail
+
+ROOT="${ROOT:-/opt/prod-encar}"
+if [[ -f /etc/default/prod-encar ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source /etc/default/prod-encar
+  set +a
+fi
+
+PG_DSN="${SYNC_PG_DSN:-${DATABASE_URL:-${WRA_PG_DSN:-}}}"
+if [[ -z "${DATABASE_URL// /}" ]] && [[ -n "${PG_DSN// /}" ]]; then
+  export DATABASE_URL="$PG_DSN"
+fi
+
+if [[ -z "${DATABASE_URL// /}" ]]; then
+  echo "run_postgres_catalog_sync_host: задайте DATABASE_URL, WRA_PG_DSN или SYNC_PG_DSN в /etc/default/prod-encar" >&2
+  exit 1
+fi
+
+cd "$ROOT"
+# shellcheck disable=SC1091
+source "${ROOT}/.venv/bin/activate"
+export PYTHONPATH="${ROOT}/backend"
+CFG="${WRA_SCRAPER_CONFIG:-${ROOT}/scraper_config.yaml}"
+
+exec python "${ROOT}/backend/postgres_catalog_sync.py" --config "$CFG" "$@"
