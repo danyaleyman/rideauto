@@ -16,6 +16,18 @@ from scraper_pipeline.encar.parser import parse_one_car_async
 from scraper_pipeline.encar.savers import CarSaver
 
 
+async def _requeue_after_detail_transient_fail(
+    checkpoint: CheckpointAsync,
+    car_id: str,
+    car_type: str,
+    item_from_list: dict,
+) -> None:
+    """Вернуть id в pending после сетевого сбоя (строка уже удалена при pop_pending_batch)."""
+    payload = item_from_list if item_from_list else {"Id": car_id}
+    ij = json.dumps(payload, ensure_ascii=False) if payload else None
+    await checkpoint.add_pending(car_id, car_type, ij)
+
+
 async def _list_one_variant(
     client: AsyncEncarClient,
     checkpoint: CheckpointAsync,
@@ -341,6 +353,7 @@ async def detail_worker(
                 detail_wall,
             )
             stats["detail_fail"] += 1
+            await _requeue_after_detail_transient_fail(checkpoint, car_id, car_type, item_from_list)
             queue.task_done()
             continue
         if d_status != 200 or not detail:
@@ -356,6 +369,7 @@ async def detail_worker(
             else:
                 log.warning("Worker %s car_id=%s detail failed status=%s", worker_id, car_id, d_status)
                 stats["detail_fail"] += 1
+                await _requeue_after_detail_transient_fail(checkpoint, car_id, car_type, item_from_list)
             queue.task_done()
             continue
         plate = detail.get("vehicleNo") if detail else None

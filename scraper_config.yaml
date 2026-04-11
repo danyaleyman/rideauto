@@ -15,8 +15,8 @@ http:
   timeout_sock_read: 25
   # Временная отладка: логировать каждый detail car_id (шумно на полном прогоне)
   log_detail_starts: false
-  # Зависание processed=0: true пишет в лог фазы воркера (checkpoint → HTTP). Потом выключить.
-  trace_worker_phases: true
+  # Отладка: true пишет в лог фазы воркера (checkpoint → HTTP).
+  trace_worker_phases: false
   # Потолок на одну попытку внутри HTTP-клиента (jitter уже снаружи). Пустой = max(total,sock_read)+connect+8
   hard_deadline_per_attempt_sec: 55
   # Нормализация в EncarFullParser (CPU в thread pool) — иначе зависший парсер даёт processed=0 без detail_fail
@@ -103,8 +103,8 @@ car_types:
 max_cars: 0
 
 # Лимит НОВЫХ INSERT в cars за один запуск encar_scraper (0 = без лимита).
-# Для короткого теста: 2. Для боя: 0.
-max_new_saves_per_run: 2
+# Локально: scraper_config.local.yaml (не коммитится).
+max_new_saves_per_run: 0
 
 # Параметры ежедневного цикла encar_daily_update.py (systemd обычно запускает его через auto_update.py --type daily)
 daily_update:
@@ -113,11 +113,11 @@ daily_update:
   run_at_hour: 0
   run_at_minute: 0
   # Сколько страниц списка на тип (for/kor) опросить за ночь для поиска новых id
-  new_list_pages_per_run: 8
-  # Максимум новых id в pending за один discover (0 = без лимита). Тест: 2. Бой: 0
-  new_cars_limit: 2
-  # Случайная выборка car_id на проданные. Тест: 2. Бой: 2000
-  sold_check_sample: 2
+  new_list_pages_per_run: 30
+  # Максимум новых id в pending за один discover (0 = без лимита)
+  new_cars_limit: 0
+  # Случайная выборка car_id на проданные (0 = пропуск remove_sold за цикл)
+  sold_check_sample: 2000
 
 # Checkpoint and state
 checkpoint:

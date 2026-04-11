@@ -111,6 +111,9 @@ async def remove_sold_postgres(
 
     du = config.get("daily_update", {})
     sample = int(du.get("sold_check_sample", 500))
+    if sample <= 0:
+        log.info("Remove sold: sold_check_sample=%s — пропуск за этот цикл", sample)
+        return 0
     d_min = float(du.get("sold_check_delay_min", 0.5))
     d_max = float(du.get("sold_check_delay_max", 1.2))
 
@@ -166,7 +169,8 @@ def _is_sold(data: dict | None) -> bool:
 
 def run_only_pending(config_path: str, log) -> bool:
     scraper_script = Path(__file__).resolve().parent / "encar_scraper.py"
-    cmd = [sys.executable, str(scraper_script), "--config", config_path, "--only-pending"]
+    cfg_abs = str(Path(config_path).expanduser().resolve())
+    cmd = [sys.executable, str(scraper_script), "--config", cfg_abs, "--only-pending"]
     log.info("Running: %s", " ".join(cmd))
     try:
         r = subprocess.run(cmd, capture_output=False)
@@ -201,8 +205,10 @@ async def run_one_cycle(config_path: str, config: dict, log) -> None:
 def main() -> None:
     import argparse
 
+    _repo_root = Path(__file__).resolve().parent.parent
+    _default_cfg = _repo_root / "scraper_config.yaml"
     p = argparse.ArgumentParser(description="Encar daily update: discover new, remove sold, run --only-pending")
-    p.add_argument("--config", default="scraper_config.yaml", help="Config YAML path")
+    p.add_argument("--config", default=str(_default_cfg), help="Config YAML path (default: repo root scraper_config.yaml)")
     p.add_argument("--once", action="store_true", help="Run one cycle and exit (no scheduler)")
     args = p.parse_args()
 

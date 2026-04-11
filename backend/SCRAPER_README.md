@@ -6,7 +6,14 @@ The script `encar_scraper.py` is a scalable, resumable replacement for the small
 - **Checkpointing**: state is saved in **PostgreSQL** (tables `scraper_checkpoint_state`, `scraper_pending_ids`, …; см. `infrastructure/postgresql/schema.sql`). On restart, the script resumes from the last checkpoint.
 - **Storage**: **`storage.backend` must be `postgres`** — записи в таблицу `cars` (нормализованный JSON в `data`) и связанные сущности. DSN: `DATABASE_URL` или `storage.postgres.dsn` в `scraper_config.yaml`.
 - **Anti-blocking**: optional proxy list, User-Agent rotation, jitter between requests, exponential backoff and retries (429, 5xx), optional `Retry-After` respect.
-- **Configuration**: all limits, delays, proxies, and paths are in `scraper_config.yaml`; overrides via env vars `SCRAPER_<section>_<key>` (e.g. `SCRAPER_HTTP_CONCURRENCY=10`).
+- **Configuration**: `scraper_config.yaml` in the repo root; optional **`scraper_config.local.yaml`** in the same folder is merged on top (gitignored). Env overrides `SCRAPER_<section>_<key>` only nest under that section (e.g. `SCRAPER_HTTP_CONCURRENCY=10`).
+
+## Local Postgres (docker-compose)
+
+1. `docker compose up -d postgres` from the repo root (schema loads from `infrastructure/postgresql/schema.sql`).
+2. Copy `scraper_config.local.example.yaml` → `scraper_config.local.yaml`, set `storage.postgres.dsn` or rely on `DATABASE_URL`.
+3. From PowerShell: `.\backend\scripts\run_encar_local_daily.ps1` (sets `DATABASE_URL` to `127.0.0.1:5432` by default and runs `encar_daily_update.py --once`). Or from `backend/`: `set DATABASE_URL=postgresql://wra:wra@127.0.0.1:5432/wra` and `python encar_daily_update.py --once`.
+4. **Смоук (10 машин + один daily-цикл)** без прокси, малые лимиты: `scraper_config.smoke.yaml` (`extends: scraper_config.yaml`). На **Windows + Python 3.13+** к `127.0.0.1:5432` иногда даёт `UnicodeDecodeError` в psycopg2 — используйте контейнер API (Python 3.12): `.\backend\scripts\run_encar_smoke_docker.ps1` после `docker compose up -d postgres`.
 
 ## Quick start
 

@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import yaml
 
@@ -40,13 +40,44 @@ def _postgres_dsn_for_checkpoint(config: dict) -> str:
     return (os.environ.get("DATABASE_URL") or "").strip()
 
 
-def load_config(config_path: str = "scraper_config.yaml") -> dict:
-    path = Path(config_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Config not found: {config_path}")
+def _deep_merge_config(dst: dict[str, Any], src: dict[str, Any]) -> None:
+    """Поверхностное слияние вложенных dict (для overlay ``scraper_config.local.yaml``)."""
+    for k, v in src.items():
+        if k.startswith("_"):
+            continue
+        if k in dst and isinstance(dst[k], dict) and isinstance(v, dict):
+            _deep_merge_config(dst[k], v)
+        else:
+            dst[k] = v
+
+
+def _load_yaml_layer(path: Path) -> dict[str, Any]:
+    """Читает один YAML; при ключе ``extends`` сначала база (относительно каталога файла), затем merge."""
+    if not path.is_file():
+        raise FileNotFoundError(f"Config not found: {path}")
     with open(path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f) or {}
-    config["_resolved_config_path"] = str(path.resolve())
+        raw: dict[str, Any] = yaml.safe_load(f) or {}
+    raw = dict(raw)
+    ext = raw.pop("extends", None) or raw.pop("_extends", None)
+    if ext:
+        base_path = (path.parent / str(ext)).resolve()
+        if base_path == path:
+            raise ValueError(f"extends: циклическая ссылка {path}")
+        base_cfg = _load_yaml_layer(base_path)
+        _deep_merge_config(base_cfg, raw)
+        return base_cfg
+    return raw
+
+
+def load_config(config_path: str = "scraper_config.yaml") -> dict:
+    path = Path(config_path).expanduser().resolve()
+    config = _load_yaml_layer(path)
+    config["_resolved_config_path"] = str(path)
+    local_path = path.parent / "scraper_config.local.yaml"
+    if local_path.is_file():
+        with open(local_path, "r", encoding="utf-8") as lf:
+            overlay = yaml.safe_load(lf) or {}
+        _deep_merge_config(config, overlay)
     for key, value in os.environ.items():
         if not key.startswith("SCRAPER_"):
             continue
@@ -249,8 +280,10 @@ async def run_scraper(
                     await asyncio.sleep(15 if first_wait else 60)
                     first_wait = False
                     p = await checkpoint.pending_count()
+                    elapsed_sec = time.time() - start_time
                     log.info(
-                        "Stats: processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
+                        "Stats: elapsed_sec=%.0f processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
+                        elapsed_sec,
                         stats["processed"],
                         stats["saved"],
                         stats["detail_gone"],

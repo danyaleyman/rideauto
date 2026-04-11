@@ -1,0 +1,21 @@
+# Локальный/CI смоук: поверх scraper_config.yaml — мало страниц списка, выборка sold, без прокси.
+# Запуск (из корня репо, Postgres на 127.0.0.1):
+#   set DATABASE_URL=postgresql://wra:wra@127.0.0.1:5432/wra
+#   cd backend && set PYTHONPATH=. && python encar_scraper.py --config ../scraper_config.smoke.yaml --max-cars 10
+#   python encar_daily_update.py --config ../scraper_config.smoke.yaml --once
+
+extends: scraper_config.yaml
+
+proxy:
+  enabled: false
+
+http:
+  concurrency: 6
+
+daily_update:
+  new_list_pages_per_run: 3
+  new_cars_limit: 20
+  sold_check_sample: 8
+
+# За один only-pending после discover не обрезать выборку слишком сильно
+max_new_saves_per_run: 25

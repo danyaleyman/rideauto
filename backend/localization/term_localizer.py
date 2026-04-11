@@ -215,7 +215,8 @@ class PgTermLocalizer:
             self._local_cache[key] = offline
             return offline
 
-        if self._offline_only and not self._api_key:
+        # В offline-режиме не вызываем LLM (и не тратим бюджет), даже если ключ задан.
+        if self._offline_only:
             return s
 
         if self._new_terms_used >= max(0, self._max_new_terms):

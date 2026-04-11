@@ -1,0 +1,21 @@
+# Скопируйте в scraper_config.local.yaml в корне репозитория (файл в .gitignore).
+# Подхватывается автоматически поверх scraper_config.yaml.
+
+storage:
+  postgres:
+    dsn: "postgresql://wra:wra@127.0.0.1:5432/wra"
+
+# Быстрый локальный прогон без лимитов «2 машины за ночь»
+max_new_saves_per_run: 0
+
+daily_update:
+  new_list_pages_per_run: 2
+  new_cars_limit: 30
+  sold_check_sample: 0
+
+# Часто удобнее без прокси с домашнего IP (иначе включите и задайте urls)
+proxy:
+  enabled: false
+
+http:
+  concurrency: 4
