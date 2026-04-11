@@ -44,6 +44,7 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "krw_per_usdt",
         "usdt_rub",
         "source",
+        "price_on_request",
     }
 )
 
@@ -114,5 +115,16 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
         out["inner_id"] = _tid
     out["title"] = _car_title(slim_data)
     out["price"] = _extract_num(slim_data, "my_price")
+    explicit_por = slim_data.get("price_on_request")
+    p = out["price"]
+    implicit_por = p is None or (isinstance(p, (int, float)) and not isinstance(p, bool) and float(p) <= 0)
+    if explicit_por is True:
+        out["price_on_request"] = True
+    elif explicit_por is False:
+        out["price_on_request"] = False
+    else:
+        out["price_on_request"] = implicit_por
+    ca = raw.get("_catalog_created_at")
+    out["catalog_created_at"] = str(ca).strip() if isinstance(ca, str) and ca.strip() else None
     out["year_num"] = int(str(slim_data.get("year") or 0)[:4] or 0)
     return out

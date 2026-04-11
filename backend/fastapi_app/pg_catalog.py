@@ -11,7 +11,7 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
     if not car_ids:
         return {}
     rows = await pool.fetch(
-        "SELECT car_id, data FROM cars WHERE car_id = ANY($1::text[])",
+        "SELECT car_id, data, created_at FROM cars WHERE car_id = ANY($1::text[])",
         car_ids,
     )
     out: Dict[str, Dict[str, Any]] = {}
@@ -29,6 +29,12 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
             continue
         obj = dict(data)
         obj["id"] = cid
+        ca = r.get("created_at")
+        if ca is not None:
+            try:
+                obj["_catalog_created_at"] = ca.isoformat() if hasattr(ca, "isoformat") else str(ca)
+            except Exception:
+                pass
         out[cid] = obj
     return out
 

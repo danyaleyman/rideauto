@@ -116,10 +116,10 @@ def build_meilisearch_filter(
 def meilisearch_sort_list(sort_key: str) -> List[str]:
     """Сортировки каталога → Meilisearch sort[]."""
     m: Dict[str, List[str]] = {
-        "date_new": ["updated_at:desc"],
-        "date_old": ["updated_at:asc"],
-        "year_new": ["year:desc", "updated_at:desc"],
-        "year_old": ["year:asc", "updated_at:desc"],
+        "date_new": ["catalog_created_at:desc", "updated_at:desc"],
+        "date_old": ["catalog_created_at:asc", "updated_at:asc"],
+        "year_new": ["year:desc", "catalog_created_at:desc", "updated_at:desc"],
+        "year_old": ["year:asc", "catalog_created_at:desc", "updated_at:desc"],
         "price_high": ["price:desc"],
         "price_low": ["price:asc"],
         "mileage_high": ["mileage:desc"],

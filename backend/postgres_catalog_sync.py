@@ -15,7 +15,14 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+from catalog_listing_price import (
+    china_market_car,
+    clear_estimated_price_fields,
+    dongchedi_has_buyer_price,
+    encar_has_list_price,
+)
 from catalog_pg_core import (
     UPSERT_CAR_SQL,
     extract_image_urls,
@@ -147,12 +154,14 @@ def _write_static_catalog(
         print(f"Chunks: {len(files)} files → {chunk_dir}", file=sys.stderr)
 
 
+def _car_inner_data(car: dict) -> Optional[dict]:
+    d = car.get("data")
+    return d if isinstance(d, dict) else None
+
+
 def _uses_china_pipeline_pricing(car: dict) -> bool:
-    """Dongchedi уже кладёт my_price (RUB) в data; корейский PriceCalculator их портит."""
-    d = car.get("data") if isinstance(car.get("data"), dict) else None
-    if d and str(d.get("source") or "").strip().lower() == "dongchedi":
-        return True
-    return str(car.get("id") or "").lower().startswith("dongchedi-")
+    """Китайский рынок: не трогаем корейским калькулятором и локализацией терминов."""
+    return china_market_car(str(car.get("id") or ""), _car_inner_data(car))
 
 
 def run_sync(
@@ -236,7 +245,8 @@ def run_sync(
                 normalize_car_media_fields(car)
                 if not no_power_lookup and not _uses_china_pipeline_pricing(car):
                     fill_power_from_external(car["data"])
-                localize_car_data(car["data"], localizer)
+                if not _uses_china_pipeline_pricing(car):
+                    localize_car_data(car["data"], localizer)
             cars_out.append(car)
 
         if not no_prices and cars_out:
@@ -248,14 +258,34 @@ def run_sync(
                     _BACKEND_DIR / "config.json",
                 )
                 calc = PriceCalculator(config_path=str(cfg_path))
-                price_ok = price_failed = price_skipped = 0
+                price_ok = price_failed = price_skipped_china = price_skipped_no_list = 0
                 for i, car in enumerate(cars_out):
-                    if _uses_china_pipeline_pricing(car):
-                        price_skipped += 1
-                        continue
                     data = car.get("data")
                     if data is None:
                         data = car
+                    if not isinstance(data, dict):
+                        continue
+
+                    if _uses_china_pipeline_pricing(car):
+                        price_skipped_china += 1
+                        if not dongchedi_has_buyer_price(data):
+                            data["price_on_request"] = True
+                            clear_estimated_price_fields(data)
+                        else:
+                            data.pop("price_on_request", None)
+                        if car.get("data") is not data:
+                            car["data"] = data
+                        continue
+
+                    if not encar_has_list_price(data):
+                        price_skipped_no_list += 1
+                        data["price_on_request"] = True
+                        clear_estimated_price_fields(data)
+                        if car.get("data") is not data:
+                            car["data"] = data
+                        continue
+
+                    data.pop("price_on_request", None)
                     try:
                         calc.update_car_with_prices(data)
                         if car.get("data") is not data:
@@ -273,7 +303,8 @@ def run_sync(
                             car["data"] = data
                 print(
                     f"Price calc summary: ok={price_ok} failed={price_failed} "
-                    f"skipped_china={price_skipped} total={len(cars_out)}",
+                    f"skipped_china={price_skipped_china} skipped_no_list_price={price_skipped_no_list} "
+                    f"total={len(cars_out)}",
                     file=sys.stderr,
                 )
             except ImportError as e:

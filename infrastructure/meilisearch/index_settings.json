@@ -32,7 +32,8 @@
     "year",
     "year_month",
     "mileage",
-    "updated_at"
+    "updated_at",
+    "catalog_created_at"
   ],
   "displayedAttributes": ["*"],
   "faceting": {

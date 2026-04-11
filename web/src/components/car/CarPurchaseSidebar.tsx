@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Check, Copy, ExternalLink, Heart, Plus } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
-import { formatPriceLabel } from "@/lib/format-price";
+import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
 import { formatKrw } from "@/lib/car-detail-data";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ type Props = {
   carId: string;
   title: string;
   priceRub: number | null;
+  priceOnRequest?: boolean;
   sourceUrl: string | null;
   /** Сырые поля для модалки расчёта */
   priceWon: number | null;
@@ -47,6 +48,7 @@ export function CarPurchaseSidebar({
   carId,
   title,
   priceRub,
+  priceOnRequest = false,
   sourceUrl,
   priceWon,
   priceCny,
@@ -57,7 +59,7 @@ export function CarPurchaseSidebar({
   const [copied, setCopied] = useState(false);
 
   const breakdownRows: { label: string; value: string; note?: string }[] = [];
-  if (priceRub != null && !Number.isNaN(priceRub)) {
+  if (!priceOnRequest && priceRub != null && !Number.isNaN(priceRub)) {
     breakdownRows.push({
       label: "Стоимость автомобиля (оценка в каталоге)",
       value: formatPriceLabel(priceRub),
@@ -88,7 +90,7 @@ export function CarPurchaseSidebar({
       <h2 className="sr-only">Цена и заказ</h2>
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Оценка в каталоге</p>
       <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums sm:text-3xl md:text-[2rem]">
-        {priceRub != null && !Number.isNaN(priceRub) ? formatPriceLabel(priceRub) : formatPriceLabel(null)}
+        {priceOnRequest ? PRICE_ON_REQUEST_RU : priceRub != null && !Number.isNaN(priceRub) ? formatPriceLabel(priceRub) : PRICE_ON_REQUEST_RU}
       </p>
       <p className="mt-3 line-clamp-3 text-sm font-semibold leading-snug text-foreground sm:line-clamp-2">
         {title}

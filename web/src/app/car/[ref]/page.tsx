@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchCar, fetchSimilar } from "@/lib/api";
 import { buildCarMetadata, carHeading, pickCarData } from "@/lib/car-seo";
-import { formatPriceLabel } from "@/lib/format-price";
+import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
 import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
 import type { SlimCar } from "@/lib/types";
 import CarPhotoGallery from "@/components/car/CarPhotoGallery";
@@ -67,6 +67,11 @@ export default async function CarPage({ params }: PageProps) {
         ? Number(String(d.my_price).replace(/\s/g, ""))
         : null;
 
+  const rubFinite = rubPrice != null && !Number.isNaN(rubPrice) && rubPrice > 0;
+  const priceOnRequest =
+    d.price_on_request === true ||
+    !rubFinite;
+
   const priceWon =
     typeof d.price_won === "number" && Number.isFinite(d.price_won)
       ? d.price_won
@@ -99,10 +104,7 @@ export default async function CarPage({ params }: PageProps) {
 
   const sourceLabelStr = typeof d.source === "string" ? d.source : null;
 
-  const priceLine =
-    rubPrice != null && !Number.isNaN(rubPrice)
-      ? formatPriceLabel(rubPrice)
-      : formatPriceLabel(null);
+  const priceLine = priceOnRequest ? PRICE_ON_REQUEST_RU : formatPriceLabel(rubPrice);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-32 pt-2 sm:pt-4 lg:pb-14">
@@ -186,7 +188,8 @@ export default async function CarPage({ params }: PageProps) {
             <CarPurchaseSidebar
               carId={carId}
               title={title}
-              priceRub={rubPrice != null && !Number.isNaN(rubPrice) ? rubPrice : null}
+              priceRub={rubFinite ? rubPrice : null}
+              priceOnRequest={priceOnRequest}
               sourceUrl={sourceUrl}
               priceWon={priceWon != null && !Number.isNaN(priceWon) ? priceWon : null}
               priceCny={priceCny != null && !Number.isNaN(priceCny) ? priceCny : null}

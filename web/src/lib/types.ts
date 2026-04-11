@@ -16,6 +16,10 @@ export type SlimCar = {
   inner_id?: string | number | null;
   title?: string;
   price?: number | null;
+  /** Из data.price_on_request или эвристика «нет my_price». */
+  price_on_request?: boolean;
+  /** cars.created_at (ISO) — бейдж «добавлено сегодня», сортировка в Meili. */
+  catalog_created_at?: string | null;
   year_num?: number;
   data?: {
     images?: string[];

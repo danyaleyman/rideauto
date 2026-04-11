@@ -17,7 +17,8 @@ import {
 import { fetchCatalogDailyAdditions, fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
-import { formatPriceLabel } from "@/lib/format-price";
+import { isCatalogListedToday } from "@/lib/catalog-listed-today";
+import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
 import { MarketSegmentedControl } from "@/components/catalog/MarketSegmentedControl";
 import { cn } from "@/lib/utils";
@@ -997,6 +998,14 @@ export function CatalogClient({
                           alt={car.title || car.id}
                           eager={idx < 4}
                         />
+                        {isCatalogListedToday(car.catalog_created_at) ? (
+                          <Badge
+                            variant="default"
+                            className="absolute end-2 top-2 max-w-[calc(100%-1rem)] rounded-md bg-blue-600 px-1.5 py-0 text-[9px] font-semibold leading-tight text-white shadow-sm sm:text-[10px]"
+                          >
+                            Добавлено сегодня
+                          </Badge>
+                        ) : null}
                         <Badge
                           variant="secondary"
                           className="absolute bottom-2 start-2 rounded-md px-1.5 py-0 text-[10px] font-medium sm:text-xs"
@@ -1015,7 +1024,7 @@ export function CatalogClient({
                           variant="secondary"
                           className="hidden w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50 sm:inline-flex"
                         >
-                          {formatPriceLabel(car.price)}
+                          {formatCatalogCardPrice(car.price, car.price_on_request)}
                         </Badge>
                       </div>
                     </Link>
@@ -1024,7 +1033,7 @@ export function CatalogClient({
                         variant="secondary"
                         className="me-auto inline-flex max-w-[calc(100%-5rem)] rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50 sm:hidden"
                       >
-                        {formatPriceLabel(car.price)}
+                        {formatCatalogCardPrice(car.price, car.price_on_request)}
                       </Badge>
                       <Button
                         type="button"

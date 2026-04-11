@@ -116,6 +116,10 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
     if updated:
         doc["updated_at"] = updated
 
+    listed = _fmt_ts_for_meili(row.get("created_at"))
+    if listed:
+        doc["catalog_created_at"] = listed
+
     return doc
 
 
@@ -172,7 +176,8 @@ def iter_car_rows(
                 c.year_month,
                 c.mileage_km,
                 c.source,
-                c.updated_at
+                c.updated_at,
+                c.created_at
             FROM cars AS c
             WHERE (%s::timestamptz IS NULL OR c.updated_at >= %s::timestamptz)
             ORDER BY c.id ASC
