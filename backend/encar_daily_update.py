@@ -73,7 +73,10 @@ async def discover_new_cars(
             offset = page * page_size
             data, status, err = await client.fetch_list_page(offset, page_size, car_type)
             if status != 200 or not data:
-                log.warning("List page car_type=%s offset=%s status=%s err=%s", car_type, offset, status, err)
+                hint = ""
+                if status == 407:
+                    hint = " — 407 Proxy-Authenticate: проверьте ENCAR_PROXY_URLS (логин/пароль в кабинете FloppyData, спецсимволы в URL как %40 для @)"
+                log.warning("List page car_type=%s offset=%s status=%s err=%s%s", car_type, offset, status, err, hint)
                 continue
             items = data.get("SearchResults") or []
             if not items:
