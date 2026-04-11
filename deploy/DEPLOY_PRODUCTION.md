@@ -137,6 +137,35 @@ sudo nginx -t && sudo systemctl reload nginx
 
 `encar-api.service` работает от `www-data` и нуждается в доступе к каталогу репозитория и переменным с DSN Postgres (`ReadWritePaths=/opt/prod-encar`). Локальные `*.db` на диске могут остаться только после миграции. Удобно: `deploy/scripts/ensure_scraper_runtime_permissions.sh` (логи + опциональные файлы).
 
+Для **`prod-encar-auto-update`** / ручного `encar_daily_update` от **`prod-encar`**:
+
+```bash
+sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar bash /opt/prod-encar/deploy/scripts/ensure_scraper_runtime_permissions.sh
+```
+
+Иначе в логе будет: `cannot open log file ... Permission denied` (на работу скрейпера не влияет, если консольный лог ок).
+
+### Git: «dubious ownership» при `git pull` от prod-encar
+
+Один раз:
+
+```bash
+sudo -u prod-encar -H git config --global --add safe.directory /opt/prod-encar
+```
+
+Дальше: `sudo -u prod-encar -H bash -lc 'cd /opt/prod-encar && git pull origin main'`.
+
+### Ручной прогон Encar daily (без копирования DSN в командную строку)
+
+Реальный пароль к Postgres должен быть только в **`/etc/default/prod-encar`** (`DATABASE_URL` или `WRA_PG_DSN`). **Не подставляйте** строку вида `postgresql://USER:PASS@...` из примеров в чате — иначе Postgres попытается залогинить пользователя буквально **`USER`**.
+
+```bash
+sudo chmod +x /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
+sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
+```
+
+Скрипт подхватывает env-файл, выставляет `DATABASE_URL` из `WRA_PG_DSN` при необходимости и запускает `encar_daily_update.py --once`.
+
 ## 6) Verify
 
 - Откройте `https://rideauto.ru/` — каталог.
