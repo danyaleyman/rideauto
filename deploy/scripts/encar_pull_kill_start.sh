@@ -9,6 +9,12 @@ set -euo pipefail
 ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
 RUN_USER="${WRA_RUNTIME_USER:-prod-encar}"
 
+if [[ ! -d "${ROOT}/.git" ]]; then
+  echo "Не git-репозиторий: ${ROOT}/.git не найден" >&2
+  exit 1
+fi
+ROOT="$(cd "${ROOT}" && pwd -P)"
+
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Запустите от root: sudo bash $0" >&2
   exit 1
@@ -26,9 +32,16 @@ pkill -u "${RUN_USER}" -f "${ROOT}/backend/encar_scraper.py" 2>/dev/null || true
 pkill -u "${RUN_USER}" -f "${ROOT}/backend/encar_daily_update.py" 2>/dev/null || true
 sleep 2
 
+echo "== git safe.directory (${RUN_USER}) =="
+# Иначе git 2.35+ откажется в pull при root-владельце каталога репо.
+if ! sudo -u "${RUN_USER}" -H bash -lc "git config --global --get-all safe.directory 2>/dev/null | grep -Fxq \"${ROOT}\""; then
+  sudo -u "${RUN_USER}" -H git config --global --add safe.directory "${ROOT}"
+  echo "Добавлено: git safe.directory ${ROOT}"
+fi
+
 echo "== git pull =="
 if ! sudo -u "${RUN_USER}" -H bash -lc "cd \"${ROOT}\" && git pull origin main"; then
-  echo "git pull failed. Если dubious ownership: sudo -u ${RUN_USER} -H git config --global --add safe.directory ${ROOT}" >&2
+  echo "git pull failed" >&2
   exit 1
 fi
 

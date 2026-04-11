@@ -170,7 +170,7 @@ sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 
 ### Pull, остановить старый encar и запустить новый прогон
 
-Один скрипт от **root** (стоп unit/timer, `pkill` процессов `encar_scraper` / `encar_daily_update` от `prod-encar`, `git pull`, `run_encar_daily_once_prod.sh`):
+Один скрипт от **root** (стоп unit/timer, `pkill` процессов `encar_scraper` / `encar_daily_update` от `prod-encar`, для **`prod-encar`** при необходимости **`git config --global safe.directory`**, затем `git pull`, `run_encar_daily_once_prod.sh`):
 
 ```bash
 sudo chmod +x /opt/prod-encar/deploy/scripts/encar_pull_kill_start.sh
