@@ -58,6 +58,27 @@ def test_load_config_without_local(tmp_path: Path) -> None:
     assert cfg["a"] == 1
 
 
+def test_encar_proxy_urls_from_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    base = tmp_path / "scraper_config.yaml"
+    base.write_text(
+        yaml.dump({"proxy": {"enabled": True, "urls": []}, "http": {"concurrency": 8}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ENCAR_PROXY_URLS", "http://u:p@host1:80,http://u2:p2@host2:80")
+    cfg = load_config(str(base))
+    assert cfg["proxy"]["enabled"] is True
+    assert cfg["proxy"]["urls"] == ["http://u:p@host1:80", "http://u2:p2@host2:80"]
+
+
+def test_proxy_disabled_when_no_urls(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    base = tmp_path / "scraper_config.yaml"
+    base.write_text(yaml.dump({"proxy": {"enabled": True, "urls": []}}), encoding="utf-8")
+    monkeypatch.delenv("ENCAR_PROXY_URLS", raising=False)
+    cfg = load_config(str(base))
+    assert cfg["proxy"]["enabled"] is False
+    assert cfg["proxy"]["urls"] == []
+
+
 def test_load_config_extends_base(tmp_path: Path) -> None:
     base = tmp_path / "scraper_config.yaml"
     base.write_text(

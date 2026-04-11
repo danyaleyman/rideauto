@@ -76,9 +76,9 @@ retry:
   retry_statuses: [407, 429, 500, 502, 503, 504]
 
 proxy:
-  # По умолчанию без прокси (прямое подключение к Encar). При 407/блокировке с датацентра —
-  # включите и задайте urls в scraper_config.local.yaml (не коммитится).
-  enabled: false
+  # Включите прокси списком URL (или ENCAR_PROXY_URLS в /etc/default — см. deploy/env.prod-encar.example).
+  # Если enabled=true, но urls пусты и нет ENCAR_PROXY_URLS — load_config выставит enabled=false.
+  enabled: true
   urls: []
   rotate_every: 1
 

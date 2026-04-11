@@ -166,6 +166,8 @@ sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 
 Скрипт подхватывает env-файл, выставляет `DATABASE_URL` из `WRA_PG_DSN` при необходимости и запускает `encar_daily_update.py --once`.
 
+Прокси Encar (без правок YAML на сервере): в том же файле задайте **`ENCAR_PROXY_URLS`** — список `http://user:pass@host:port` через запятую (см. `deploy/env.prod-encar.example`).
+
 ## 6) Verify
 
 - Откройте `https://rideauto.ru/` — каталог.

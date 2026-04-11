@@ -97,6 +97,17 @@ def load_config(config_path: str = "scraper_config.yaml") -> dict:
                 config[section][subkey] = value
         except Exception:
             config[section][subkey] = value
+    # Прокси Encar без секретов в git: список http(s)://user:pass@host:port через запятую.
+    _env_px = (os.environ.get("ENCAR_PROXY_URLS") or "").strip()
+    if _env_px:
+        _from_env = [u.strip() for u in _env_px.split(",") if u.strip()]
+        if _from_env:
+            _pc = config.setdefault("proxy", {})
+            _pc["enabled"] = True
+            _pc["urls"] = _from_env
+    _pcfg = config.setdefault("proxy", {})
+    if _pcfg.get("enabled") and not (_pcfg.get("urls") or []):
+        _pcfg["enabled"] = False
     return config
 
 
