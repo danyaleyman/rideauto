@@ -115,25 +115,11 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--dsn", default=(os.environ.get("DATABASE_URL") or "").strip())
     p.add_argument("--csv", default="", help="Path to cars_korea.csv (optional alternative to DB)")
     p.add_argument("--source", default="encar", help="Cars source to map (default: encar)")
-    p.add_argument(
-        "--max-new-terms",
-        type=int,
-        default=0,
-        help="Override WRA_TRANSLATION_MAX_NEW_TERMS (0 = keep env/default)",
-    )
     return p.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
-    api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-    offline = str(os.environ.get("WRA_TRANSLATION_OFFLINE") or "1").strip().lower() in ("1", "true", "yes", "on")
-    if not api_key and not offline:
-        print("Set OPENAI_API_KEY or enable WRA_TRANSLATION_OFFLINE=1.", file=sys.stderr)
-        return 2
-    if args.max_new_terms > 0:
-        os.environ["WRA_TRANSLATION_MAX_NEW_TERMS"] = str(args.max_new_terms)
-
     dsn = (args.dsn or "").strip()
     csv_path = Path(args.csv).expanduser() if args.csv else None
     if not dsn and not csv_path:
@@ -162,9 +148,7 @@ def main() -> int:
     print(
         (
             f"Mapping done: total_terms={total} translated_changed={translated} "
-            f"cache_hits={localizer.stats.cache_hits} llm_calls={localizer.stats.llm_calls} "
-            f"llm_success={localizer.stats.llm_success} llm_failed={localizer.stats.llm_failed} "
-            f"skipped_budget={localizer.stats.skipped_budget}"
+            f"cache_hits={localizer.stats.cache_hits}"
         ),
         flush=True,
     )
