@@ -50,6 +50,9 @@ class PostgresCarSaver(CarSaver):
         payload = dict(car)
         raw_obj = car.get("_raw") if self.store_raw else None
         fields = row_to_car_fields(car_id, payload, source_internal_id=None)
+        # Postgres cars.source NOT NULL; API/Meilisearch ждут «encar» для Кореи (см. fastapi_app).
+        if not fields.get("source"):
+            fields["source"] = "encar"
         with self._psycopg2.connect(self.dsn) as conn:
             with conn.cursor() as cur:
                 bid = get_or_create_brand(cur, self._brand_cache, fields["mark"])
