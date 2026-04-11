@@ -23,8 +23,6 @@ fi
 echo "== systemd: стоп (если юниты есть) =="
 systemctl stop prod-encar-auto-update.service 2>/dev/null || true
 systemctl stop prod-encar-auto-update.timer 2>/dev/null || true
-systemctl stop encar-update.service 2>/dev/null || true
-systemctl stop encar-update.timer 2>/dev/null || true
 
 echo "== pkill: encar_scraper / encar_daily_update от ${RUN_USER} =="
 # Только процессы пользователя сервиса и только пути из этого репо
@@ -46,4 +44,4 @@ fi
 echo "== encar_daily_update --once =="
 sudo -u "${RUN_USER}" "${ROOT}/deploy/scripts/run_encar_daily_once_prod.sh"
 
-echo "OK. Таймер снова: sudo systemctl start prod-encar-auto-update.timer (или ваш encar-update.timer)."
+echo "OK. Таймер снова: sudo systemctl start prod-encar-auto-update.timer"

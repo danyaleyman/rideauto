@@ -18,8 +18,8 @@ echo "[3/6] Install systemd units"
 sudo id -u prod-encar >/dev/null 2>&1 || sudo useradd --system --home-dir "${APP_DIR}" --shell /usr/sbin/nologin prod-encar
 sudo chown -R prod-encar:prod-encar "${APP_DIR}"
 sudo cp "${APP_DIR}/deploy/systemd/prod-encar-api.service" /etc/systemd/system/
-sudo cp "${APP_DIR}/deploy/systemd/prod-encar-auto-update.service" /etc/systemd/system/
-sudo cp "${APP_DIR}/deploy/systemd/prod-encar-auto-update.timer" /etc/systemd/system/
+sudo chmod +x "${APP_DIR}/deploy/scripts/prod_encar_catalog_install.sh"
+sudo bash "${APP_DIR}/deploy/scripts/prod_encar_catalog_install.sh"
 sudo cp "${APP_DIR}/deploy/systemd/prod-dongchedi-update.service" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/prod-dongchedi-update.timer" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/prod-encar-meilisearch-sync.service" /etc/systemd/system/

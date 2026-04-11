@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Разовый цикл Кореи: encar_daily_update --once → encar_scraper (--only-pending) → postgres_catalog_sync внутри скрейпера.
+# Разовый цикл Кореи (часто User=www-data). На rideauto VPS проще: deploy/scripts/run_encar_daily_once_prod.sh (User=prod-encar).
+# encar_daily_update --once → encar_scraper (--only-pending) → postgres_catalog_sync внутри скрейпера.
 set -euo pipefail
 
 ROOT="${ROOT:-/opt/prod-encar}"

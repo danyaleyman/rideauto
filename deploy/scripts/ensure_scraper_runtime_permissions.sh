@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Однократно на проде: владелец logs/ и локальных *.db под пользователя systemd-сервиса корейского цикла.
 #
-# encar-update.service          → User=www-data (по умолчанию ниже)
-# prod-encar-auto-update.service → User=prod-encar
+# prod-encar-auto-update.service → User=prod-encar (ночной Encar-каталог)
 #
 # Примеры:
 #   sudo bash deploy/scripts/ensure_scraper_runtime_permissions.sh

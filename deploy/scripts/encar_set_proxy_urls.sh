@@ -6,7 +6,7 @@
 #   sudo bash /opt/prod-encar/deploy/scripts/encar_set_proxy_urls.sh \
 #     /etc/default/prod-encar 'http://LOGIN:PASSWORD@geo.floppydata.com:10080'
 #
-# Для encar-update (www-data) и файла prod-encar-scrapers:
+# Для отдельного env-файла (например prod-encar-scrapers) и группы www-data:
 #   sudo bash .../encar_set_proxy_urls.sh /etc/default/prod-encar-scrapers 'http://...' www-data
 set -euo pipefail
 ENV_FILE="${1:?первый аргумент: путь, например /etc/default/prod-encar}"

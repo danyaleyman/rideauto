@@ -31,24 +31,30 @@ pip install -r backend/requirements.txt
 
 ## 3) systemd units
 
+API и ночные задачи rideauto — юниты **`prod-encar-*`** в `deploy/systemd/`. Encar-каталог (Korea Postgres): **только** `prod-encar-auto-update` — установка и снятие дубликата `encar-update`:
+
 ```bash
-sudo cp deploy/systemd/encar-api.service /etc/systemd/system/
-sudo cp deploy/systemd/encar-update.service /etc/systemd/system/
-sudo cp deploy/systemd/encar-update.timer /etc/systemd/system/
-sudo cp deploy/systemd/encar-subscriptions-notify.service /etc/systemd/system/
-sudo cp deploy/systemd/encar-subscriptions-notify.timer /etc/systemd/system/
+sudo chmod +x deploy/scripts/prod_encar_catalog_install.sh
+sudo bash deploy/scripts/prod_encar_catalog_install.sh
+```
+
+Остальное (пример):
+
+```bash
+sudo cp deploy/systemd/prod-encar-api.service /etc/systemd/system/
+sudo cp deploy/systemd/prod-encar-subscriptions-notify.service /etc/systemd/system/
+sudo cp deploy/systemd/prod-encar-subscriptions-notify.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now encar-api.service
-sudo systemctl enable --now encar-update.timer
-sudo systemctl enable --now encar-subscriptions-notify.timer
+sudo systemctl enable --now prod-encar-api.service
+sudo systemctl enable --now prod-encar-subscriptions-notify.timer
 ```
 
 Проверка:
 
 ```bash
-systemctl status encar-api.service
-systemctl status encar-update.timer
-systemctl status encar-subscriptions-notify.timer
+systemctl status prod-encar-api.service
+systemctl status prod-encar-auto-update.timer
+systemctl status prod-encar-subscriptions-notify.timer
 ```
 
 ### Переменные API (Telegram-вход, избранное, подписки)
@@ -70,10 +76,10 @@ PUBLIC_SITE_URL=https://rideauto.ru
 ```bash
 sudo chmod 600 /etc/default/prod-encar
 sudo systemctl daemon-reload
-sudo systemctl restart encar-api.service
+sudo systemctl restart prod-encar-api.service
 ```
 
-Сервисы `encar-api` и `encar-subscriptions-notify` читают этот файл (`EnvironmentFile=-/etc/default/prod-encar`).
+Сервисы **`prod-encar-api`** и **`prod-encar-subscriptions-notify`** читают этот файл (`EnvironmentFile=-/etc/default/prod-encar`).
 
 ### Telegram Login (виджет «Войти через Telegram»)
 
@@ -127,7 +133,7 @@ sudo nginx -t && sudo systemctl reload nginx
    ```
    Либо: `.venv/bin/python backend/encar_scraper.py --config scraper_config.yaml`. Затем при необходимости **`postgres_catalog_sync`**, обновление **Meilisearch**.
 
-2. **Каждый день 00:00 Asia/Yekaterinburg** — **`encar-update.timer`** / **`prod-encar-auto-update.timer`** (не оба сразу). **`auto_update.py --type daily`**: цикл EncarSystem в Postgres; при **`catalog_encar_nightly: true`** — **`encar_daily_update.py --once`**.
+2. **Каждый день 00:00 Asia/Yekaterinburg** — **`prod-encar-auto-update.timer`** → **`encar_daily_update.py --once`** (новые объявления, sold, **`encar_scraper --only-pending`**, при необходимости export в фронт по конфигу). Отдельный устаревший **`encar-update`** из репозитория убран — не включайте дубликаты.
 
 3. **Сайт** — Next (`web/`); **API** — FastAPI, Postgres + Meilisearch. Китай — `dongchedi.scraper` в ту же БД; **`dongchedi-update.timer`**. Микрокэш nginx для **`/api/cars`** может отдавать устаревший ответ до ~60 s.
 
@@ -188,8 +194,6 @@ sudo bash /opt/prod-encar/deploy/scripts/encar_pull_kill_start.sh
 ```bash
 sudo systemctl stop prod-encar-auto-update.service 2>/dev/null || true
 sudo systemctl stop prod-encar-auto-update.timer 2>/dev/null || true
-sudo systemctl stop encar-update.service 2>/dev/null || true
-sudo systemctl stop encar-update.timer 2>/dev/null || true
 sudo pkill -u prod-encar -f '/opt/prod-encar/backend/encar_scraper.py' 2>/dev/null || true
 sudo pkill -u prod-encar -f '/opt/prod-encar/backend/encar_daily_update.py' 2>/dev/null || true
 sleep 2
@@ -199,8 +203,6 @@ git -C /opt/prod-encar pull origin main
 sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 sudo systemctl start prod-encar-auto-update.timer
 ```
-
-Если юнит называется иначе — замените `prod-encar-auto-update` на `encar-update` (только один набор timer/service должен быть активен).
 
 ## 6) Verify
 
