@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Ручной postgres_catalog_sync на хосте: DSN из /etc/default/prod-encar (как Meilisearch-скрипт).
 # Не передавайте пароль в argv — только через EnvironmentFile.
+# Полный каталог (сотни тыс. строк) + цены + Meili — часто десятки минут и дольше; не прерывайте без причины.
 #
 #   sudo -u prod-encar bash /opt/prod-encar/deploy/scripts/run_postgres_catalog_sync_host.sh
 #   sudo -u prod-encar bash .../run_postgres_catalog_sync_host.sh --no-meilisearch
@@ -28,6 +29,8 @@ cd "$ROOT"
 # shellcheck disable=SC1091
 source "${ROOT}/.venv/bin/activate"
 export PYTHONPATH="${ROOT}/backend"
+export PYTHONUNBUFFERED=1
 CFG="${WRA_SCRAPER_CONFIG:-${ROOT}/scraper_config.yaml}"
 
-exec python "${ROOT}/backend/postgres_catalog_sync.py" --config "$CFG" "$@"
+echo "run_postgres_catalog_sync_host: старт (долго при большом каталоге; лог — в этот терминал и stderr)…" >&2
+exec python -u "${ROOT}/backend/postgres_catalog_sync.py" --config "$CFG" "$@"
