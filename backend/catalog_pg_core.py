@@ -170,6 +170,11 @@ def row_to_car_fields(
     source_internal_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     d = _d(payload)
+    src = normalized_source(d) or _optional_str((payload or {}).get("source"))
+    if not src and str(car_id).lower().startswith("dongchedi-"):
+        src = "dongchedi"
+    if not src:
+        src = "encar"
     mark = (d.get("mark") or "").strip() or None
     model = (d.get("model") or "").strip() or None
     generation = _optional_str(d.get("generation") or d.get("configuration"))
@@ -191,7 +196,7 @@ def row_to_car_fields(
         "transmission_type": _optional_str(d.get("transmission_type")),
         "drive_type": _optional_str(d.get("drive_type") or d.get("prep_drive_type")),
         "color": _optional_str(d.get("color")),
-        "source": normalized_source(d),
+        "source": src,
         "listing_partition_key": listing_partition_key(car_id, d),
         "power_hp": power_hp(payload),
         "displacement_cc": _safe_int(d.get("displacement")),

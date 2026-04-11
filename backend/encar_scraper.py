@@ -156,6 +156,16 @@ class _FlushingStreamHandler(logging.StreamHandler):
             pass
 
 
+def _repo_root_for_logging(cfg: dict) -> Path:
+    """Каталог репозитория (где есть backend/encar_scraper.py), чтобы logs/ не уезжали в deploy/."""
+    raw_cfg = cfg.get("_resolved_config_path")
+    start = Path(str(raw_cfg)).resolve().parent if raw_cfg else Path.cwd()
+    for cand in [start, *start.parents]:
+        if (cand / "backend" / "encar_scraper.py").is_file():
+            return cand
+    return start
+
+
 def setup_logging(cfg: dict) -> logging.Logger:
     log_cfg = cfg.get("logging", {})
     level = getattr(logging, str(log_cfg.get("level", "INFO")).upper(), logging.INFO)
@@ -167,8 +177,7 @@ def setup_logging(cfg: dict) -> logging.Logger:
         handlers.append(h)
     log_file = log_cfg.get("file")
     if log_file:
-        raw_cfg = cfg.get("_resolved_config_path")
-        cfg_base = Path(str(raw_cfg)).resolve().parent if raw_cfg else Path.cwd()
+        cfg_base = _repo_root_for_logging(cfg)
         lp = Path(log_file)
         if not lp.is_absolute():
             lp = cfg_base / lp
