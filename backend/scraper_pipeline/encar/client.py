@@ -13,6 +13,25 @@ import aiohttp
 from scraper_pipeline.retry import BackoffConfig, sleep_backoff
 
 
+def _proxy_url_and_auth(proxy: Optional[str]) -> Tuple[Optional[str], Optional[aiohttp.BasicAuth]]:
+    """Часть прокси отвечает 407, если логин/пароль только в URL; aiohttp надёжнее с proxy_auth."""
+    if not proxy:
+        return None, None
+    parsed = urllib.parse.urlsplit(proxy)
+    if not parsed.hostname:
+        return proxy, None
+    if parsed.username is not None or parsed.password is not None:
+        login = urllib.parse.unquote(parsed.username or "")
+        password = urllib.parse.unquote(parsed.password or "")
+        auth = aiohttp.BasicAuth(login, password)
+        host = parsed.hostname
+        port = parsed.port
+        scheme = (parsed.scheme or "http").lower()
+        netloc = f"{host}:{port}" if port else host
+        return f"{scheme}://{netloc}", auth
+    return proxy, None
+
+
 class AsyncEncarClient:
     def __init__(
         self,
@@ -118,7 +137,10 @@ class AsyncEncarClient:
             try:
 
                 async def _one_attempt() -> Tuple[str, Optional[dict], int, Optional[str], Optional[str]]:
-                    async with self._session.request(method, url, headers=h, params=params, proxy=proxy) as resp:
+                    p_url, p_auth = _proxy_url_and_auth(proxy)
+                    async with self._session.request(
+                        method, url, headers=h, params=params, proxy=p_url, proxy_auth=p_auth
+                    ) as resp:
                         status = int(resp.status)
                         retry_after = resp.headers.get("Retry-After")
                         if status in self.retry_statuses:
