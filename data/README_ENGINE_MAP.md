@@ -47,8 +47,9 @@ python backend/scripts/auto_learn_engine_map.py --dry-run
 
 ```bash
 python backend/postgres_catalog_sync.py --learn-engine-map
-# или переменная окружения:
+# или переменная окружения при ручном запуске postgres_catalog_sync:
 set AUTO_LEARN_ENGINE_MAP=1
+# после encar_scraper (prod): в /etc/default/prod-encar задайте WRA_LEARN_ENGINE_MAP=1 — иначе шаг не вызывается.
 ```
 
 ## Точность

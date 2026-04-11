@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import logging
-import os
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 import psycopg2
 
@@ -121,50 +119,24 @@ class LocalizerStats:
 
 class PgTermLocalizer:
     """
-    Перевод терминов с PostgreSQL-кэшем.
-    - target=en для названий (mark/model/generation/trim)
-    - target=ru для тех. полей
+    Перевод терминов с PostgreSQL-кэшем (офлайн: словари + транслитерация).
+    LLM/OpenAI убран из рантайма; при необходимости маппинг — отдельные скрипты.
     """
 
     def __init__(self, dsn: str) -> None:
         self._dsn = dsn
         self._enabled = False
         self._conn: Optional[psycopg2.extensions.connection] = None
-        self._client: Optional[Any] = None  # httpx.Client — только при OPENAI_API_KEY (ленивый import)
-        self._api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-        self._model = (os.environ.get("WRA_TRANSLATION_MODEL") or "gpt-4o-mini").strip()
-        self._max_new_terms = int(os.environ.get("WRA_TRANSLATION_MAX_NEW_TERMS") or "400")
-        self._new_terms_used = 0
-        self._offline_only = str(os.environ.get("WRA_TRANSLATION_OFFLINE") or "1").strip().lower() in (
-            "1",
-            "true",
-            "yes",
-            "on",
-        )
         self.stats = LocalizerStats()
         self._local_cache: Dict[str, str] = {}
 
     def open(self) -> None:
-        if not self._api_key and not self._offline_only:
-            return
         self._conn = psycopg2.connect(self._dsn)
         self._conn.autocommit = True
-        if self._api_key:
-            try:
-                import httpx
-
-                self._client = httpx.Client(timeout=25.0)
-            except ModuleNotFoundError:
-                logging.getLogger(__name__).warning(
-                    "OPENAI_API_KEY задан, но пакет httpx не установлен — LLM-перевод отключён (pip install httpx)"
-                )
         self._init_schema()
         self._enabled = True
 
     def close(self) -> None:
-        if self._client:
-            self._client.close()
-            self._client = None
         if self._conn:
             self._conn.close()
             self._conn = None
@@ -222,27 +194,7 @@ class PgTermLocalizer:
             self._local_cache[key] = offline
             return offline
 
-        # В offline-режиме не вызываем LLM (и не тратим бюджет), даже если ключ задан.
-        if self._offline_only:
-            return s
-
-        if self._client is None:
-            return s
-
-        if self._new_terms_used >= max(0, self._max_new_terms):
-            self.stats.skipped_budget += 1
-            return s
-
-        self._new_terms_used += 1
-        translated = self._llm_translate(s, source_lang=source_lang, target_lang=target_lang, domain=domain)
-        if not translated:
-            self.stats.llm_failed += 1
-            return s
-
-        self.stats.llm_success += 1
-        self._write_cache(s, source_lang, target_lang, domain, translated)
-        self._local_cache[key] = translated
-        return translated
+        return s
 
     def _read_cache(self, source_text: str, source_lang: str, target_lang: str, domain: str) -> Optional[str]:
         assert self._conn is not None
@@ -283,55 +235,15 @@ class PgTermLocalizer:
                 """
                 INSERT INTO term_translation_cache
                     (source_text, source_lang, target_lang, domain, translated_text, provider, model, hit_count)
-                VALUES (%s, %s, %s, %s, %s, 'openai', %s, 0)
+                VALUES (%s, %s, %s, %s, %s, 'offline', '', 0)
                 ON CONFLICT (source_text, source_lang, target_lang, domain)
                 DO UPDATE SET
                     translated_text = EXCLUDED.translated_text,
                     model = EXCLUDED.model,
                     updated_at = now()
                 """,
-                (source_text, source_lang, target_lang, domain, translated_text, self._model),
+                (source_text, source_lang, target_lang, domain, translated_text),
             )
-
-    def _llm_translate(self, text: str, *, source_lang: str, target_lang: str, domain: str) -> str:
-        assert self._client is not None
-        self.stats.llm_calls += 1
-
-        role = (
-            "You are a strict automotive term translator. "
-            "Return only translated text, no explanations, no quotes."
-        )
-        task = (
-            f"Translate source language '{source_lang}' to '{target_lang}' for automotive domain '{domain}'. "
-            "Keep brand/model naming style natural. Keep numbers/codes unchanged."
-        )
-
-        payload = {
-            "model": self._model,
-            "messages": [
-                {"role": "system", "content": role},
-                {"role": "user", "content": f"{task}\n\nTEXT:\n{text}"},
-            ],
-            "temperature": 0,
-        }
-        try:
-            r = self._client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                json=payload,
-            )
-            r.raise_for_status()
-            obj = r.json()
-            out = (
-                (((obj.get("choices") or [{}])[0]).get("message") or {}).get("content")
-                if isinstance(obj, dict)
-                else None
-            )
-            if not out:
-                return ""
-            return str(out).strip()
-        except Exception:
-            return ""
 
 
 def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> None:

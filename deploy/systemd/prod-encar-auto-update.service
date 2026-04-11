@@ -8,7 +8,7 @@ User=prod-encar
 Group=prod-encar
 WorkingDirectory=/opt/prod-encar
 Environment=PYTHONUNBUFFERED=1
-# Ускорить ночной цикл: в /etc/default/prod-encar можно задать SKIP_LEARN_ENGINE_MAP=1.
+# auto_learn_engine_map после postgres_catalog_sync: только при WRA_LEARN_ENGINE_MAP=1 в /etc/default/prod-encar.
 EnvironmentFile=-/etc/default/prod-encar
 # Единственный ночной пайплайн Encar для rideauto: discover + sold + encar_scraper --only-pending (см. encar_daily_update.py).
 ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/encar_daily_update.py --once --config /opt/prod-encar/scraper_config.yaml

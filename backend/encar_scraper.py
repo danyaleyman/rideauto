@@ -525,7 +525,7 @@ def _run_postgres_catalog_sync(config_path: str, log: logging.Logger) -> None:
     ]
     if os.environ.get("WRITE_STATIC_CATALOG", "").strip().lower() in ("1", "true", "yes", "on"):
         cmd.extend(["--write-static-json", "--static-gzip", "--static-chunk-size", "5000"])
-    if os.environ.get("SKIP_LEARN_ENGINE_MAP", "").strip().lower() not in ("1", "true", "yes", "on"):
+    if os.environ.get("WRA_LEARN_ENGINE_MAP", "").strip().lower() in ("1", "true", "yes", "on"):
         cmd.append("--learn-engine-map")
     try:
         r = subprocess.run(cmd, cwd=str(backend_dir))

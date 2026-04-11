@@ -184,7 +184,7 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 - Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u prod-encar-auto-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
 - Частая причина по Корее: **`prod-encar-auto-update.service`** запускает **`encar_daily_update.py --once`**; при **ненулевом коде** юнит падает — смотрите `journalctl -u prod-encar-auto-update.service`.
 - Если в логе **`password authentication failed for user "postgres"`** — без рабочего Postgres ночной цикл Encar не выполнится. Проверьте `db_config` в **`backend/config.json`** и `DATABASE_URL` у скрапера.
-- Корея вручную (discover + pending): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо. При необходимости **`SKIP_LEARN_ENGINE_MAP=1`** — без долгого `auto_learn_engine_map`.
+- Корея вручную (discover + pending): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо. **`auto_learn_engine_map`** после sync не запускается, пока не задано **`WRA_LEARN_ENGINE_MAP=1`** в env.
 - Китай полный перескрейп: остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
 - Китай **тест одной страницы**: **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/prod-encar` (лимит: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом обновите Meilisearch и проверьте каталог **`?region=china`**.
 

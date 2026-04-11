@@ -141,7 +141,7 @@ systemctl status prod-encar-api.service --no-pager
 systemctl status prod-encar-auto-update.timer --no-pager
 ```
 
-В `backend/config.json` при необходимости отключите `update_config.catalog_encar_nightly`, если ночной `encar_daily_update` не нужен. Длинный пост-экспорт `auto_learn_engine_map` можно отключить переменной `SKIP_LEARN_ENGINE_MAP=1` в `/etc/default/prod-encar` (см. `deploy/systemd/prod-encar-auto-update.service`).
+В `backend/config.json` при необходимости отключите `update_config.catalog_encar_nightly`, если ночной `encar_daily_update` не нужен. Пост-экспорт `auto_learn_engine_map` включается только при **`WRA_LEARN_ENGINE_MAP=1`** в `/etc/default/prod-encar` (по умолчанию выключен).
 
 ### 4) TLS (HTTPS) через certbot
 
