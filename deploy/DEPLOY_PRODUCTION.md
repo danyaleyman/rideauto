@@ -176,7 +176,7 @@ sudo chmod +x /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 ```
 
-Скрипт подхватывает env-файл, выставляет `DATABASE_URL` из `WRA_PG_DSN` при необходимости и запускает `encar_daily_update.py --once`.
+Скрипт подхватывает env-файл, выставляет `DATABASE_URL` из `WRA_PG_DSN` при необходимости и запускает `encar_daily_update.py --once`. Конфиг по умолчанию — `scraper_config.yaml`; разовый тест на 20 новых INSERT: `WRA_SCRAPER_CONFIG=/opt/prod-encar/deploy/scraper_config.probe-20.yaml` только в командной строке (не класть в `/etc/default`, иначе заденет systemd).
 
 Прокси Encar (без правок YAML на сервере): в **`/etc/default/prod-encar`** задайте **`ENCAR_PROXY_URLS`** или выполните **`deploy/scripts/encar_set_proxy_urls.sh`** (секреты не попадают в git). Формат: `http://user:pass@host:port` через запятую. **`prod-encar-auto-update.service`** уже подключает `EnvironmentFile=-/etc/default/prod-encar` — после записи файла достаточно перезапустить таймер/oneshot.
 

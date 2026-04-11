@@ -5,6 +5,8 @@
 #
 # Нужны: /etc/default/prod-encar (или иной файл) с реальным DATABASE_URL / WRA_PG_DSN;
 #         venv в /opt/prod-encar/.venv; права на logs/ — см. ensure_scraper_runtime_permissions.sh
+#
+# Опционально: WRA_SCRAPER_CONFIG=/opt/prod-encar/deploy/scraper_config.probe-20.yaml — тест на 20 новых INSERT.
 set -euo pipefail
 ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
 ENV_FILE="${WRA_ENV_FILE:-/etc/default/prod-encar}"
@@ -30,4 +32,5 @@ cd "$ROOT"
 # shellcheck disable=SC1091
 source "${ROOT}/.venv/bin/activate"
 export PYTHONPATH="${ROOT}/backend"
-exec python "${ROOT}/backend/encar_daily_update.py" --config "${ROOT}/scraper_config.yaml" --once
+CFG="${WRA_SCRAPER_CONFIG:-${ROOT}/scraper_config.yaml}"
+exec python "${ROOT}/backend/encar_daily_update.py" --config "${CFG}" --once

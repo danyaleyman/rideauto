@@ -1,0 +1,12 @@
+# Разовый тест: не более 20 новых INSERT за запуск encar_scraper + умеренный discover/sold.
+# Запуск (на сервере из корня репо):
+#   sudo -u prod-encar env WRA_SCRAPER_CONFIG=/opt/prod-encar/deploy/scraper_config.probe-20.yaml \
+#     bash /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
+extends: ../scraper_config.yaml
+
+max_new_saves_per_run: 20
+
+daily_update:
+  new_list_pages_per_run: 4
+  new_cars_limit: 80
+  sold_check_sample: 40

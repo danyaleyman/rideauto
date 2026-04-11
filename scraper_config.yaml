@@ -97,22 +97,18 @@ car_types:
 # Stop after this many cars saved (0 = no limit). CLI --max-cars overrides.
 max_cars: 0
 
-# Лимит НОВЫХ INSERT в cars за один запуск encar_scraper (0 = без лимита).
-# Сейчас 10 — для проверки на сервере; после теста верните 0.
-max_new_saves_per_run: 10
+# Лимит НОВЫХ INSERT в cars за один запуск encar_scraper (0 = без лимита, полная докачка pending).
+max_new_saves_per_run: 0
 
-# Параметры ежедневного цикла encar_daily_update.py (systemd обычно запускает его через auto_update.py --type daily)
+# Параметры ежедневного цикла encar_daily_update.py (--once из systemd)
 daily_update:
   timezone: Asia/Yekaterinburg
-  # Используется если encar_daily_update запущен без --once (встроенный цикл). Systemd обычно даёт --once в 00:00.
   run_at_hour: 0
   run_at_minute: 0
-  # Сколько страниц списка на тип (for/kor) за цикл discover (для теста на сервере уменьшено)
-  new_list_pages_per_run: 4
-  # Максимум новых id в pending за discover (для теста; потом 0)
-  new_cars_limit: 24
-  # Проверка «продано» за цикл (для теста; потом 2000 или 0 чтобы пропустить)
-  sold_check_sample: 6
+  new_list_pages_per_run: 30
+  # 0 = без верхней границы на число новых id в pending за discover
+  new_cars_limit: 0
+  sold_check_sample: 2000
 
 # Checkpoint and state
 checkpoint:
