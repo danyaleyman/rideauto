@@ -168,6 +168,32 @@ sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
 
 Прокси Encar (без правок YAML на сервере): в том же файле задайте **`ENCAR_PROXY_URLS`** — список `http://user:pass@host:port` через запятую (см. `deploy/env.prod-encar.example`).
 
+### Pull, остановить старый encar и запустить новый прогон
+
+Один скрипт от **root** (стоп unit/timer, `pkill` процессов `encar_scraper` / `encar_daily_update` от `prod-encar`, `git pull`, `run_encar_daily_once_prod.sh`):
+
+```bash
+sudo chmod +x /opt/prod-encar/deploy/scripts/encar_pull_kill_start.sh
+sudo bash /opt/prod-encar/deploy/scripts/encar_pull_kill_start.sh
+```
+
+Те же шаги вручную:
+
+```bash
+sudo systemctl stop prod-encar-auto-update.service 2>/dev/null || true
+sudo systemctl stop prod-encar-auto-update.timer 2>/dev/null || true
+sudo systemctl stop encar-update.service 2>/dev/null || true
+sudo systemctl stop encar-update.timer 2>/dev/null || true
+sudo pkill -u prod-encar -f '/opt/prod-encar/backend/encar_scraper.py' 2>/dev/null || true
+sudo pkill -u prod-encar -f '/opt/prod-encar/backend/encar_daily_update.py' 2>/dev/null || true
+sleep 2
+sudo -u prod-encar -H bash -lc 'cd /opt/prod-encar && git pull origin main'
+sudo -u prod-encar /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
+sudo systemctl start prod-encar-auto-update.timer
+```
+
+Если юнит называется иначе — замените `prod-encar-auto-update` на `encar-update` (только один набор timer/service должен быть активен).
+
 ## 6) Verify
 
 - Откройте `https://rideauto.ru/` — каталог.
