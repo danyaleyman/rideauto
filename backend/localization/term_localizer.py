@@ -3,9 +3,8 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
-import httpx
 import psycopg2
 
 
@@ -130,7 +129,7 @@ class PgTermLocalizer:
         self._dsn = dsn
         self._enabled = False
         self._conn: Optional[psycopg2.extensions.connection] = None
-        self._client: Optional[httpx.Client] = None
+        self._client: Optional[Any] = None  # httpx.Client — только при OPENAI_API_KEY (ленивый import)
         self._api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
         self._model = (os.environ.get("WRA_TRANSLATION_MODEL") or "gpt-4o-mini").strip()
         self._max_new_terms = int(os.environ.get("WRA_TRANSLATION_MAX_NEW_TERMS") or "400")
@@ -150,6 +149,8 @@ class PgTermLocalizer:
         self._conn = psycopg2.connect(self._dsn)
         self._conn.autocommit = True
         if self._api_key:
+            import httpx
+
             self._client = httpx.Client(timeout=25.0)
         self._init_schema()
         self._enabled = True
