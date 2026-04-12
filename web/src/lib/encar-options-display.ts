@@ -1,5 +1,5 @@
 import { asStr } from "@/lib/car-detail-data";
-import { ENCAR_OPTION_CODE_RU } from "@/lib/encar-option-code-ru";
+import { ENCAR_OPTION_CODE_RU_TABLE } from "@/lib/encar-option-code-ru-table";
 
 /** Пары «корейский фрагмент» → русский (длинные сначала). */
 const KO_TO_RU: [string, string][] = [
@@ -67,16 +67,134 @@ function collectPhotoRows(uniquePhotos: unknown, choicePhotos: unknown): unknown
   return [...u, ...c];
 }
 
-function nameFromOptionPhotos(code: string, rows: unknown[]): string | null {
+/** Сопоставление кодов опций: 1, "1", "001", 001. */
+export function optionCodesMatch(a: unknown, needle: string): boolean {
+  const nb = needle.trim();
+  if (!nb || nb === "null" || nb === "undefined") return false;
+  if (a == null) return false;
+  const na = String(a).trim();
+  if (!na) return false;
+  if (na === nb) return true;
+  const stripA = na.replace(/^0+/, "") || "0";
+  const stripB = nb.replace(/^0+/, "") || "0";
+  if (stripA === stripB) return true;
+  const numA = Number(na);
+  const numB = Number(nb);
+  if (Number.isFinite(numA) && Number.isFinite(numB) && numA === numB) return true;
+  return false;
+}
+
+function lookupEncarStaticRu(code: string): string | undefined {
+  const t = code.trim();
+  if (!t) return undefined;
+  const strip = t.replace(/^0+/, "") || "0";
+  const n = Number.parseInt(t, 10);
+  const asNum = Number.isFinite(n) ? String(n) : "";
+  const pad3 = Number.isFinite(n) ? String(n).padStart(3, "0") : t;
+  const pad2 = Number.isFinite(n) ? String(n).padStart(2, "0") : t;
+  for (const k of [t, strip, asNum, pad3, pad2]) {
+    if (k && ENCAR_OPTION_CODE_RU_TABLE[k]) return ENCAR_OPTION_CODE_RU_TABLE[k];
+  }
+  return undefined;
+}
+
+function hasOptionLikeFields(o: Record<string, unknown>): boolean {
+  const code =
+    o.optionCode ??
+    o.code ??
+    o.partCode ??
+    o.optionId ??
+    o.stdOptionId ??
+    o.standardOptionId ??
+    o.standard_option_id;
+  const name = o.partName ?? o.name ?? o.optionName ?? o.title ?? o.optionTitle ?? o.displayName;
+  return code != null && String(code).trim() !== "" && asStr(name) != null;
+}
+
+function deepCollectOptionRows(root: unknown, out: unknown[], seenJson: Set<string>, depth: number): void {
+  if (depth > 18) return;
+  if (root == null) return;
+  if (Array.isArray(root)) {
+    for (const el of root) deepCollectOptionRows(el, out, seenJson, depth + 1);
+    return;
+  }
+  if (typeof root !== "object") return;
+  const o = root as Record<string, unknown>;
+  if (hasOptionLikeFields(o)) {
+    try {
+      const key = JSON.stringify(o);
+      if (!seenJson.has(key)) {
+        seenJson.add(key);
+        out.push(o);
+      }
+    } catch {
+      out.push(o);
+    }
+  }
+  for (const v of Object.values(o)) {
+    if (v && typeof v === "object") deepCollectOptionRows(v, out, seenJson, depth + 1);
+  }
+}
+
+/** Все объекты с кодом+названием из sellingpoint, advertisementMasters и options. */
+export function collectEncarOptionLabelRows(
+  uniquePhotos: unknown,
+  choicePhotos: unknown,
+  extra: Record<string, unknown> | undefined,
+  data: Record<string, unknown>,
+): unknown[] {
+  const out: unknown[] = [];
+  const seen = new Set<string>();
+  const pushDedupe = (row: unknown) => {
+    if (!row || typeof row !== "object") return;
+    try {
+      const k = JSON.stringify(row);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(row);
+    } catch {
+      out.push(row);
+    }
+  };
+  for (const r of collectPhotoRows(uniquePhotos, choicePhotos)) pushDedupe(r);
+
+  const sp = extra?.sellingpoint;
+  if (sp && typeof sp === "object") deepCollectOptionRows(sp, out, seen, 0);
+
+  const adv = extra?.advertisementMasters;
+  if (adv != null) deepCollectOptionRows(adv, out, seen, 0);
+
+  const opts = data.options;
+  if (opts && typeof opts === "object") deepCollectOptionRows(opts, out, seen, 0);
+
+  return out;
+}
+
+function nameFromOptionRows(code: string, rows: unknown[]): string | null {
   const cs = String(code).trim();
   for (const item of rows) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     const o = item as Record<string, unknown>;
-    const keys = [o.optionCode, o.code, o.partCode, o.optionId, o.stdOptionId, o.standardOptionId];
+    const keys = [
+      o.optionCode,
+      o.code,
+      o.partCode,
+      o.optionId,
+      o.stdOptionId,
+      o.standardOptionId,
+      o.standard_option_id,
+    ];
     for (const oc of keys) {
       if (oc == null) continue;
-      if (String(oc).trim() === cs) {
-        return asStr(o.partName) ?? asStr(o.name) ?? asStr(o.optionName) ?? asStr(o.title);
+      if (optionCodesMatch(oc, cs)) {
+        return (
+          asStr(o.partName) ??
+          asStr(o.name) ??
+          asStr(o.optionName) ??
+          asStr(o.title) ??
+          asStr(o.optionTitle) ??
+          asStr(o.displayName)
+        );
       }
     }
   }
@@ -89,19 +207,26 @@ function normalizeOptionCode(code: unknown): string {
   return JSON.stringify(code);
 }
 
-/** Подпись опции для блока «Комплектация»: русская таблица → имя из Encar → автоперевод с корейского → код. */
+/** Подпись опции для блока «Комплектация»: фото/sellingpoint → статическая таблица → корейский текст → код. */
 export function displayEncarStandardOption(
   code: unknown,
   uniquePhotos: unknown,
   choicePhotos: unknown,
+  extra?: Record<string, unknown>,
+  data?: Record<string, unknown>,
 ): string {
   const c = normalizeOptionCode(code);
   if (!c || c === "null" || c === "undefined") return "—";
-  const fromMap = ENCAR_OPTION_CODE_RU[c] ?? ENCAR_OPTION_CODE_RU[String(Number(c))];
-  if (fromMap) return fromMap;
-  const rows = collectPhotoRows(uniquePhotos, choicePhotos);
-  const fromPhotos = nameFromOptionPhotos(c, rows);
+  const rows = collectEncarOptionLabelRows(
+    uniquePhotos,
+    choicePhotos,
+    extra,
+    (data ?? {}) as Record<string, unknown>,
+  );
+  const fromPhotos = nameFromOptionRows(c, rows);
   if (fromPhotos) return translateKoCarRough(fromPhotos);
+  const fromStatic = lookupEncarStaticRu(c);
+  if (fromStatic) return fromStatic;
   if (/[가-힣]/.test(c)) return translateKoCarRough(c);
   return `Опция ${c}`;
 }

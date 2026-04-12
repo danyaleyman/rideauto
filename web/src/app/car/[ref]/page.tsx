@@ -9,7 +9,6 @@ import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
 import type { SlimCar } from "@/lib/types";
 import CarPhotoGallery from "@/components/car/CarPhotoGallery";
 import { CarDetailAccordions } from "@/components/car/CarDetailAccordions";
-import { CarPageSectionNav } from "@/components/car/CarPageSectionNav";
 import { CarPurchaseSidebar } from "@/components/car/CarPurchaseSidebar";
 import { CarHeroMeta } from "@/components/car/CarHeroMeta";
 import { CarStickyMobileBar } from "@/components/car/CarStickyMobileBar";
@@ -158,8 +157,6 @@ export default async function CarPage({ params }: PageProps) {
           data={d as Record<string, unknown>}
           sourceLabel={sourceLabelStr}
         />
-
-        <CarPageSectionNav hasDescription={!!description} hasSimilar={similar.length > 0} />
 
         <div className="flex min-w-0 flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
           <div className="min-w-0 flex-1 space-y-6 sm:space-y-8">

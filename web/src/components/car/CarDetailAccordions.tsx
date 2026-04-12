@@ -255,7 +255,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
                 key={i}
                 className="rounded-xl border border-border/45 bg-muted/10 px-3 py-2 text-xs leading-snug transition-colors hover:bg-muted/20"
               >
-                {displayEncarStandardOption(c, uniquePhotos, choicePhotos)}
+                {displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)}
               </li>
             ))}
           </ul>
@@ -426,7 +426,7 @@ export function CarDetailAccordions({
   const fuel = asStr(detail?.fuel);
   const carShape = asStr(detail?.carShape);
 
-  const defaultOpen = ["general", "equipment", "body", "insurance", "extra"];
+  const defaultOpen = ["general"];
 
   const dongchediHighlightsRaw = parseJson(data.dongchedi_specs_highlights);
   const dongchediHighlightRows: { label: string; value: string }[] = [];
@@ -587,7 +587,7 @@ export function CarDetailAccordions({
               <Accordion
                 type="multiple"
                 className="rounded-2xl border border-border/55 bg-muted/10"
-                defaultValue={["de-et", "de-ch", "de-el", "de-ad"]}
+                defaultValue={[]}
               >
                 {engineTransmission && Object.keys(engineTransmission).length > 0 ? (
                   <AccordionItem value="de-et">
