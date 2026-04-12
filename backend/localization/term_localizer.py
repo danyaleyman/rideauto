@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Optional
 
 import psycopg2
@@ -91,6 +93,36 @@ def _romanize_zh(text: str) -> str:
         return text
 
 
+_KOREA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
+
+
+def _korea_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
+    """Статический словарь из data/korea_static_terms.json (не затирается nightly Encar)."""
+    global _KOREA_STATIC
+    if _KOREA_STATIC is not None:
+        return _KOREA_STATIC
+    path = Path(__file__).resolve().parents[2] / "data" / "korea_static_terms.json"
+    if not path.is_file():
+        _KOREA_STATIC = {"en": {}, "ru": {}}
+        return _KOREA_STATIC
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    _KOREA_STATIC = {
+        "en": raw.get("en") or {},
+        "ru": raw.get("ru") or {},
+    }
+    return _KOREA_STATIC
+
+
+def _lookup_korea_static(
+    maps: Dict[str, Dict[str, Dict[str, str]]],
+    text: str,
+    target_lang: str,
+    domain: str,
+) -> Optional[str]:
+    bucket = (maps.get(target_lang) or {}).get(domain) or {}
+    return bucket.get(text)
+
+
 def _offline_translate(text: str, *, target_lang: str) -> str:
     s = text.strip()
     if not s:
@@ -173,11 +205,20 @@ class PgTermLocalizer:
             return ""
         if target_lang == "en" and _looks_english(s):
             return s
-        if not self._enabled:
-            return _offline_translate(s, target_lang=target_lang)
 
         source_lang = detect_lang(s)
         key = self._cache_key(s, source_lang, target_lang, domain)
+
+        static_hit = _lookup_korea_static(_korea_static_maps(), s, target_lang, domain)
+        if static_hit:
+            self.stats.cache_hits += 1
+            if self._enabled:
+                self._local_cache[key] = static_hit
+            return static_hit
+
+        if not self._enabled:
+            return _offline_translate(s, target_lang=target_lang)
+
         if key in self._local_cache:
             self.stats.cache_hits += 1
             return self._local_cache[key]
