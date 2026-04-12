@@ -46,7 +46,7 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
     q = ref.strip()
     row = await pool.fetchrow(
         """
-        SELECT car_id, data
+        SELECT car_id, data, created_at
         FROM cars
         WHERE car_id = $1
            OR (data->>'id') = $1
@@ -72,4 +72,10 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
         return None
     obj = dict(data)
     obj["id"] = cid
+    ca = row.get("created_at")
+    if ca is not None:
+        try:
+            obj["_catalog_created_at"] = ca.isoformat() if hasattr(ca, "isoformat") else str(ca)
+        except Exception:
+            pass
     return obj

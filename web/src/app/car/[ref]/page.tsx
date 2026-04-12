@@ -145,6 +145,11 @@ export default async function CarPage({ params }: PageProps) {
             images={imgs}
             title={title}
             sourceKey={typeof d.source === "string" ? d.source : null}
+            catalogCreatedAt={
+              typeof (raw as Record<string, unknown>)._catalog_created_at === "string"
+                ? ((raw as Record<string, unknown>)._catalog_created_at as string)
+                : null
+            }
           />
         ) : null}
 

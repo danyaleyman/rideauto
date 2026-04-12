@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
+import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,8 @@ type CarPhotoGalleryProps = {
   images: string[];
   title: string;
   sourceKey?: string | null;
+  /** ISO created_at каталога — бейдж «Добавлено сегодня» вместо WRA (не Encar). */
+  catalogCreatedAt?: string | null;
 };
 
 const THUMB_COUNT = 4;
@@ -25,6 +28,7 @@ export default function CarPhotoGallery({
   images: rawImages,
   title,
   sourceKey,
+  catalogCreatedAt,
 }: CarPhotoGalleryProps) {
   const images = useMemo(() => {
     const raw = rawImages.filter((x) => /^https?:\/\//i.test(x.trim()));
@@ -99,6 +103,7 @@ export default function CarPhotoGallery({
 
   const srcNorm = (sourceKey ?? "").toLowerCase();
   const showEncarBadge = srcNorm === "encar";
+  const showListedTodayBadge = !showEncarBadge && isCatalogListedToday(catalogCreatedAt);
 
   /** Без дублей: при n=1 старый (active+k+1)%n давал четыре раза индекс 0. */
   const sideCap = n > 1 ? Math.min(THUMB_COUNT, n - 1) : 0;
@@ -107,15 +112,17 @@ export default function CarPhotoGallery({
 
   return (
     <>
-      <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:rounded-3xl">
+      <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-muted shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:rounded-3xl">
         <div
           className={cn(
-            "grid min-w-0 gap-0 lg:items-stretch",
-            sideCap > 0 ? "lg:grid-cols-[minmax(0,1fr)_160px]" : "lg:grid-cols-1",
+            "grid min-h-0 min-w-0 gap-0",
+            sideCap > 0
+              ? "lg:grid-cols-[minmax(0,1fr)_clamp(152px,17vw,216px)] lg:items-stretch lg:min-h-[min(58vh,640px)]"
+              : "lg:grid-cols-1",
           )}
         >
           <div
-            className="relative aspect-[16/10] min-h-[200px] cursor-zoom-in overflow-hidden bg-muted sm:min-h-[260px] lg:aspect-auto lg:min-h-[min(58vh,560px)]"
+            className="relative aspect-[16/10] min-h-[220px] w-full cursor-zoom-in overflow-hidden bg-muted sm:min-h-[260px] lg:aspect-auto lg:h-full lg:min-h-0"
             onClick={() => openLightbox(safeActive)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -145,11 +152,11 @@ export default function CarPhotoGallery({
               <div className="pointer-events-none absolute start-3 top-3 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
                 Encar
               </div>
-            ) : (
-              <div className="pointer-events-none absolute start-3 top-3 rounded-md bg-foreground/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-background shadow-md">
-                WRA
+            ) : showListedTodayBadge ? (
+              <div className="pointer-events-none absolute start-3 top-3 max-w-[min(100%,14rem)] rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium leading-snug text-white shadow-md ring-1 ring-white/15 backdrop-blur-sm sm:text-[11px]">
+                Добавлено сегодня
               </div>
-            )}
+            ) : null}
 
             {n > 1 ? (
               <div
@@ -185,11 +192,8 @@ export default function CarPhotoGallery({
           </div>
 
           {sideCap > 0 ? (
-            <div className="min-w-0 border-t border-border/50 lg:flex lg:flex-col lg:border-s lg:border-t-0">
-              <p className="mb-0 hidden px-2 pt-2 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground lg:mb-1 lg:block lg:px-2 lg:pt-3">
-                Ещё фото
-              </p>
-              <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:flex-col lg:gap-2.5 lg:overflow-visible lg:px-2 lg:py-3">
+            <div className="flex min-h-0 min-w-0 flex-col border-t border-border/50 bg-transparent lg:h-full lg:border-t-0 lg:border-s">
+              <div className="flex max-w-full flex-nowrap gap-1 overflow-x-auto overscroll-x-contain px-1 py-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-1 lg:overflow-hidden lg:px-1 lg:py-1">
                 {sideSlots.map((idx, slotI) => {
                   const src = images[idx];
                   const isLastSlot = slotI === sideSlots.length - 1;
@@ -207,24 +211,28 @@ export default function CarPhotoGallery({
                         openLightbox(idx);
                       }}
                       className={cn(
-                        "relative aspect-[4/3] h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-primary/50 sm:h-[4.75rem] sm:w-[5.25rem] lg:aspect-auto lg:h-0 lg:min-h-[88px] lg:w-full lg:flex-1 lg:snap-none",
+                        "relative h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent bg-transparent transition-all hover:border-primary/50 sm:h-[4.5rem] sm:w-[5.25rem] lg:h-0 lg:min-h-0 lg:w-full lg:flex-1 lg:basis-0 lg:snap-none",
                         idx === safeActive &&
-                          "ring-2 ring-primary ring-offset-1 ring-offset-background lg:ring-offset-2",
+                          "ring-2 ring-primary ring-offset-1 ring-offset-muted lg:ring-offset-2",
                       )}
-                      aria-label={`Показать фото ${idx + 1}`}
+                      aria-label={
+                        showMore
+                          ? `Показать фото ${idx + 1}, ещё ${moreCount} в галерее`
+                          : `Показать фото ${idx + 1}`
+                      }
                     >
                       <Image
                         src={src}
                         alt=""
                         fill
-                        sizes="(min-width: 1024px) 148px, 28vw"
+                        sizes="(min-width: 1024px) 200px, 28vw"
                         className="object-cover"
                         loading="lazy"
                         unoptimized
                       />
                       {showMore ? (
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm font-bold text-white">
-                          +{moreCount}
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/65 px-1 text-center text-[10px] font-semibold leading-tight text-white sm:text-xs">
+                          +{moreCount} фото
                         </span>
                       ) : null}
                     </button>
