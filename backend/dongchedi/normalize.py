@@ -231,21 +231,23 @@ def _is_likely_noise_image_url(u: str) -> bool:
     low = (u or "").lower()
     if not low:
         return True
-    # Частые служебные/маркетинговые ассеты Dongchedi, которые "засоряют" галерею.
+    # Служебные/маркетинговые ассеты. Не отсекать по tplv-dcdx-* и tos-cn путям целиком —
+    # в реальных URL галереи ByteDance часто те же подстроки, иначе в БД остаётся одна обложка.
     if any(
         x in low
         for x in (
             "/motor-mis-img/",
-            "tplv-dcdx-default",
-            "tplv-dcdx-sh-1",
-            "/img/tos-cn-i-dcdx/",
             "watermark",
             "banner",
             "poster",
-            "icon",
-            "logo",
+            "/favicon",
+            "favicon.ico",
         )
     ):
+        return True
+    if "icon" in low and ("/icon" in low or "icon_" in low or "icons/" in low):
+        return True
+    if "logo" in low and ("/logo" in low or "logo_" in low or "brand_logo" in low):
         return True
     # Очень часто повторяющиеся плейсхолдеры/иконки в выдаче.
     if any(
@@ -370,9 +372,13 @@ def _image_urls_from_row_and_detail(
                     item.get("image"),
                     item.get("image_url"),
                     item.get("pic_url"),
+                    item.get("picUrl"),
                     item.get("big_url"),
+                    item.get("bigUrl"),
                     item.get("thumb_url"),
+                    item.get("thumbUrl"),
                     item.get("cover_url"),
+                    item.get("coverUrl"),
                 )
                 add(u)
     # Глубокий обход нужен как fallback, но он часто приносит нерелевантные маркетинговые ассеты.

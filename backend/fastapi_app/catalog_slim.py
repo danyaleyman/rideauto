@@ -5,6 +5,33 @@ from typing import Any, Dict
 
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
 
+
+def _coerce_catalog_images_to_urls(parsed: list[Any]) -> list[str]:
+    """Slim-каталог: в `images` могут быть строки (Encar/DC) или dict с url/pic_url — как в сыром API."""
+    out: list[str] = []
+    for x in parsed:
+        if isinstance(x, str) and x.strip():
+            out.append(x.strip())
+            continue
+        if not isinstance(x, dict):
+            continue
+        u = (
+            x.get("url")
+            or x.get("image")
+            or x.get("image_url")
+            or x.get("pic_url")
+            or x.get("picUrl")
+            or x.get("big_url")
+            or x.get("bigUrl")
+            or x.get("thumb_url")
+            or x.get("thumbUrl")
+            or x.get("cover_url")
+            or x.get("coverUrl")
+        )
+        if isinstance(u, str) and u.strip().startswith("http"):
+            out.append(u.strip())
+    return out
+
 _SLIM_CATALOG_DATA_KEYS = frozenset(
     {
         "mark",
@@ -91,7 +118,7 @@ def _trim_slim_list_field(slim_data: Dict[str, Any], key: str, max_items: int) -
     if not isinstance(parsed, list) or not parsed:
         return
     if key == "images":
-        parsed = _sort_encar_image_url_list([x for x in parsed if isinstance(x, str)])
+        parsed = _sort_encar_image_url_list(_coerce_catalog_images_to_urls(parsed))
     elif key == "h_images":
         parsed = _sort_h_images_list_entries([x for x in parsed if isinstance(x, dict)])
     if len(parsed) > max_items:

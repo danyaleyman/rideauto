@@ -100,13 +100,20 @@ export default function CarPhotoGallery({
   const srcNorm = (sourceKey ?? "").toLowerCase();
   const showEncarBadge = srcNorm === "encar";
 
-  const sideSlots = Array.from({ length: THUMB_COUNT }, (_, k) => (safeActive + k + 1) % n);
-  const moreCount = n > THUMB_COUNT ? Math.max(0, n - THUMB_COUNT) : 0;
+  /** Без дублей: при n=1 старый (active+k+1)%n давал четыре раза индекс 0. */
+  const sideCap = n > 1 ? Math.min(THUMB_COUNT, n - 1) : 0;
+  const sideSlots = Array.from({ length: sideCap }, (_, k) => (safeActive + 1 + k) % n);
+  const moreCount = Math.max(0, n - 1 - sideCap);
 
   return (
     <>
       <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:rounded-3xl">
-        <div className="grid min-w-0 gap-0 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-stretch">
+        <div
+          className={cn(
+            "grid min-w-0 gap-0 lg:items-stretch",
+            sideCap > 0 ? "lg:grid-cols-[minmax(0,1fr)_160px]" : "lg:grid-cols-1",
+          )}
+        >
           <div
             className="relative aspect-[16/10] min-h-[200px] cursor-zoom-in overflow-hidden bg-muted sm:min-h-[260px] lg:aspect-auto lg:min-h-[min(58vh,560px)]"
             onClick={() => openLightbox(safeActive)}
@@ -177,53 +184,55 @@ export default function CarPhotoGallery({
             ) : null}
           </div>
 
-          <div className="min-w-0 border-t border-border/50 lg:flex lg:flex-col lg:border-s lg:border-t-0">
-            <p className="mb-0 hidden px-2 pt-2 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground lg:mb-1 lg:block lg:px-2 lg:pt-3">
-              Ещё фото
-            </p>
-            <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:flex-col lg:gap-2.5 lg:overflow-visible lg:px-2 lg:py-3">
-              {sideSlots.map((idx, slotI) => {
-                const src = images[idx];
-                const isLastSlot = slotI === THUMB_COUNT - 1;
-                const showMore = isLastSlot && moreCount > 0;
-                return (
-                  <button
-                    key={`${slotI}-${idx}`}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActive(idx);
-                    }}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      openLightbox(idx);
-                    }}
-                    className={cn(
-                      "relative aspect-[4/3] h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-primary/50 sm:h-[4.75rem] sm:w-[5.25rem] lg:aspect-auto lg:h-0 lg:min-h-[88px] lg:w-full lg:flex-1 lg:snap-none",
-                      idx === safeActive &&
-                        "ring-2 ring-primary ring-offset-1 ring-offset-background lg:ring-offset-2",
-                    )}
-                    aria-label={`Показать фото ${idx + 1}`}
-                  >
-                    <Image
-                      src={src}
-                      alt=""
-                      fill
-                      sizes="(min-width: 1024px) 148px, 28vw"
-                      className="object-cover"
-                      loading="lazy"
-                      unoptimized
-                    />
-                    {showMore ? (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm font-bold text-white">
-                        +{moreCount}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
+          {sideCap > 0 ? (
+            <div className="min-w-0 border-t border-border/50 lg:flex lg:flex-col lg:border-s lg:border-t-0">
+              <p className="mb-0 hidden px-2 pt-2 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground lg:mb-1 lg:block lg:px-2 lg:pt-3">
+                Ещё фото
+              </p>
+              <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:flex-col lg:gap-2.5 lg:overflow-visible lg:px-2 lg:py-3">
+                {sideSlots.map((idx, slotI) => {
+                  const src = images[idx];
+                  const isLastSlot = slotI === sideSlots.length - 1;
+                  const showMore = isLastSlot && moreCount > 0;
+                  return (
+                    <button
+                      key={`${slotI}-${idx}`}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActive(idx);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        openLightbox(idx);
+                      }}
+                      className={cn(
+                        "relative aspect-[4/3] h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-primary/50 sm:h-[4.75rem] sm:w-[5.25rem] lg:aspect-auto lg:h-0 lg:min-h-[88px] lg:w-full lg:flex-1 lg:snap-none",
+                        idx === safeActive &&
+                          "ring-2 ring-primary ring-offset-1 ring-offset-background lg:ring-offset-2",
+                      )}
+                      aria-label={`Показать фото ${idx + 1}`}
+                    >
+                      <Image
+                        src={src}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 148px, 28vw"
+                        className="object-cover"
+                        loading="lazy"
+                        unoptimized
+                      />
+                      {showMore ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm font-bold text-white">
+                          +{moreCount}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </section>
 
