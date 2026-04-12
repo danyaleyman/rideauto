@@ -8,6 +8,19 @@ export function imageUrlDedupeKey(url: string): string {
     const path = u.pathname.replace(/\/+/g, "/").toLowerCase();
     const host = u.hostname.toLowerCase();
     if (host.endsWith("encar.com")) return `encar:${path}`;
+    // Dongchedi / ByteDance CDN: один и тот же path с разными query — разные кадры;
+    // дедуп только по path сворачивал всю галерею в одно фото.
+    if (
+      host.includes("byteimg.com") ||
+      host.includes("bytecdn.com") ||
+      host.includes("p3-dcd.byteimg") ||
+      host.includes("p9-dcd.byteimg") ||
+      host.includes("dcarimg.com") ||
+      host.includes("dcd-cdn") ||
+      host.includes("tos-cn-i-")
+    ) {
+      return `${host}${path}${u.search}`;
+    }
     return `${host}${path}`;
   } catch {
     return t.toLowerCase();

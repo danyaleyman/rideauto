@@ -1,31 +1,40 @@
 ﻿import type { Metadata } from "next";
 import { BuyCalculator } from "@/components/buy/BuyCalculator";
+import { OrderLeadForm } from "@/components/buy/OrderLeadForm";
 
 export const metadata: Metadata = {
-  title: "How to buy",
-  description: "Korea import workflow and rough total cost calculator.",
+  title: "Как купить",
+  description:
+    "Этапы покупки автомобиля из Кореи и Китая, ориентировочный калькулятор и форма заявки — World Ride Auto.",
   alternates: { canonical: "/buy" },
 };
 
 export default function BuyPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
-        How to buy a car from Korea
-      </h1>
-      <p className="mt-3 max-w-3xl text-zinc-600">
-        We align budget, select options, confirm buyout, then complete shipping and customs.
+      <h1 className="text-3xl font-semibold tracking-tight text-foreground">Как купить автомобиль</h1>
+      <p className="mt-3 max-w-3xl text-muted-foreground">
+        Согласуем бюджет и профиль, подберём варианты на площадках Кореи и Китая, организуем выкуп, доставку и
+        таможенное оформление.
       </p>
 
-      <ol className="mt-8 grid gap-3 rounded-2xl border border-zinc-200 bg-white p-6 text-sm sm:grid-cols-2">
-        <li>1. Consultation and target profile.</li>
-        <li>2. Condition checks and final selection.</li>
-        <li>3. Buyout and delivery to port.</li>
-        <li>4. Customs clearance and handover.</li>
+      <ol className="mt-8 grid gap-3 rounded-2xl border border-border/60 bg-card/70 p-6 text-sm text-foreground sm:grid-cols-2">
+        <li>1. Консультация и целевой профиль автомобиля.</li>
+        <li>2. Проверка состояния и финальный выбор.</li>
+        <li>3. Выкуп и доставка до порта.</li>
+        <li>4. Таможня и передача автомобиля.</li>
       </ol>
 
-      <div className="mt-8">
-        <BuyCalculator />
+      <OrderLeadForm />
+
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Ориентировочный расчёт</h2>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Упрощённая модель расходов; итог по сделке зависит от курса, лота и условий перевозчика.
+        </p>
+        <div className="mt-6">
+          <BuyCalculator />
+        </div>
       </div>
     </div>
   );

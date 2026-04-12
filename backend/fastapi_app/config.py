@@ -97,6 +97,27 @@ class Settings(BaseSettings):
     metrics_enabled: bool = Field(default=True, description="WRA_METRICS_ENABLED — /metrics и HTTP middleware")
     metrics_path: str = Field(default="/metrics", description="Путь exposition Prometheus")
 
+    # --- Заявки с формы «Как купить» (POST /api/lead) ---
+    lead_email_to: str = Field(
+        default="danyaleyman@yandex.ru",
+        description="WRA_LEAD_EMAIL_TO — куда слать заявки",
+    )
+    lead_email_from: Optional[str] = Field(
+        default=None,
+        description="WRA_LEAD_EMAIL_FROM — From (если пусто, берётся WRA_LEAD_SMTP_USER)",
+    )
+    lead_smtp_host: Optional[str] = Field(
+        default=None,
+        description="WRA_LEAD_SMTP_HOST — например smtp.yandex.ru",
+    )
+    lead_smtp_port: int = Field(default=465, ge=1, le=65535, description="WRA_LEAD_SMTP_PORT — 465 SSL или 587 STARTTLS")
+    lead_smtp_user: Optional[str] = Field(default=None, description="WRA_LEAD_SMTP_USER")
+    lead_smtp_password: Optional[str] = Field(default=None, description="WRA_LEAD_SMTP_PASSWORD")
+    lead_smtp_use_tls: bool = Field(
+        default=False,
+        description="WRA_LEAD_SMTP_USE_TLS=1 — STARTTLS (для порта 587); при 465 оставьте false",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

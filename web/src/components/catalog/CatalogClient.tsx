@@ -16,6 +16,7 @@ import {
 } from "@/lib/catalog-url";
 import { fetchCatalogDailyAdditions, fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
 import { extractCarImageUrls } from "@/lib/car-images";
+import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { formatCatalogCardPrice } from "@/lib/format-price";
@@ -89,8 +90,16 @@ function visiblePageItems(page: number, total: number): Array<number | "ellipsis
 function previewImageUrls(car: SlimCar): string[] {
   const all = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>);
   if (!all.length) return [];
-  const uniq = Array.from(new Set(all));
-  return uniq.slice(0, 4);
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const u of all) {
+    const t = u.trim();
+    const k = imageUrlDedupeKey(t);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    ordered.push(t);
+  }
+  return ordered.slice(0, 4);
 }
 
 function carsAddedTodayLabel(n: number): string {
@@ -923,7 +932,6 @@ export function CatalogClient({
                 <span className="font-medium text-foreground">
                   {search.meta.total.toLocaleString("ru-RU")}
                 </span>
-                {search.meta.processing_time_ms != null ? ` · ${search.meta.processing_time_ms} ms` : ""}
                 {loading ? " · обновление…" : ""}
               </p>
               {dailyNewLoading ? (

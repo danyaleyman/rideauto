@@ -23,7 +23,7 @@ from fastapi_app.metrics.prometheus import metrics_payload
 from fastapi_app.middleware.cdn_cache import CDNCacheMiddleware
 from fastapi_app.middleware.prometheus_http import PrometheusHTTPMiddleware
 from fastapi_app.redis_cache import RedisJSONCache, close_redis_client, create_redis_client
-from fastapi_app.routers import cache_invalidate, car, catalog_stats, facets, images, search, web_vitals
+from fastapi_app.routers import cache_invalidate, car, catalog_stats, facets, images, lead, search, web_vitals
 
 
 @asynccontextmanager
@@ -72,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(cache_invalidate.router, prefix="/api")
     app.include_router(images.router, prefix="/api")
     app.include_router(web_vitals.router, prefix="/api")
+    app.include_router(lead.router, prefix="/api")
 
     @app.get("/api/health")
     async def health(request: Request):
