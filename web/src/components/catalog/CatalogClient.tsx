@@ -19,6 +19,7 @@ import { extractCarImageUrls } from "@/lib/car-images";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
+import { asStr, formatKm, formatRegYearMonth } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
 import { MarketSegmentedControl } from "@/components/catalog/MarketSegmentedControl";
@@ -57,12 +58,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import type { LucideIcon } from "lucide-react";
 import {
+  CalendarDays,
   Check,
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
   Copy,
+  Fuel,
+  Gauge,
   Plus,
   Sparkles,
 } from "lucide-react";
@@ -114,19 +119,22 @@ function carsAddedTodayLabel(n: number): string {
   return `${n.toLocaleString("ru-RU")} ${word} добавлено сегодня`;
 }
 
-function metaText(car: SlimCar): string {
-  const d = car.data ?? {};
-  const parts: string[] = [];
-  const mark = typeof d.mark === "string" ? d.mark.trim() : "";
-  const model = typeof d.model === "string" ? d.model.trim() : "";
-  if (mark || model) parts.push([mark, model].filter(Boolean).join(" "));
-  const km = d.km_age;
-  if (typeof km === "number" && Number.isFinite(km)) {
-    parts.push(`${km.toLocaleString("ru-RU")} км`);
-  } else if (typeof km === "string" && km.trim()) {
-    parts.push(`${km.trim()} км`);
+/** Чипы как на странице авто: дата регистрации гг/мм (или год), пробег, топливо — без дублирования заголовка. */
+function catalogCardAttributeChips(
+  data: Record<string, unknown>,
+  yearNum?: number | null,
+): { key: string; label: string; Icon: LucideIcon }[] {
+  const chips: { key: string; label: string; Icon: LucideIcon }[] = [];
+  const ym = formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year);
+  if (ym) chips.push({ key: "ym", label: ym, Icon: CalendarDays });
+  else if (yearNum != null && Number.isFinite(yearNum) && yearNum > 0) {
+    chips.push({ key: "y", label: String(Math.round(yearNum)), Icon: CalendarDays });
   }
-  return parts.join(" · ");
+  const km = formatKm(data.km_age);
+  if (km) chips.push({ key: "km", label: km, Icon: Gauge });
+  const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
+  if (fuel) chips.push({ key: "fuel", label: fuel, Icon: Fuel });
+  return chips;
 }
 
 function FacetGroup({
@@ -986,7 +994,10 @@ export function CatalogClient({
           <ul className="flex flex-col gap-3">
             {search.result.map((car, idx) => {
               const preview = previewImageUrls(car);
-              const meta = metaText(car);
+              const attrChips = catalogCardAttributeChips(
+                (car.data ?? {}) as Record<string, unknown>,
+                car.year_num,
+              );
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
               return (
@@ -1006,28 +1017,48 @@ export function CatalogClient({
                           alt={car.title || car.id}
                           eager={idx < 4}
                         />
-                        {isCatalogListedToday(car.catalog_created_at) ? (
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/55 via-black/20 to-transparent px-2 pb-2 pt-14">
                           <Badge
-                            variant="default"
-                            className="absolute end-2 top-2 max-w-[calc(100%-1rem)] rounded-md bg-blue-600 px-1.5 py-0 text-[9px] font-semibold leading-tight text-white shadow-sm sm:text-[10px]"
+                            variant="secondary"
+                            className="rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:text-xs"
                           >
-                            Добавлено сегодня
+                            {car.year_num ? `${car.year_num}` : "—"}
                           </Badge>
-                        ) : null}
-                        <Badge
-                          variant="secondary"
-                          className="absolute bottom-2 start-2 rounded-md px-1.5 py-0 text-[10px] font-medium sm:text-xs"
-                        >
-                          {car.year_num ? `${car.year_num}` : "—"}
-                        </Badge>
+                          {isCatalogListedToday(car.catalog_created_at) ? (
+                            <span
+                              className="max-w-[min(100%,10.5rem)] shrink-0 truncate rounded-md bg-black/60 px-2 py-0.5 text-center text-[10px] font-medium leading-tight text-white shadow-md ring-1 ring-white/15 backdrop-blur-[2px] sm:max-w-[12rem] sm:py-1 sm:text-[11px]"
+                              title="Впервые попало в каталог за сегодня (по дате сервера, Екатеринбург)"
+                            >
+                              Добавлено сегодня
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col justify-start gap-1.5 px-3 py-3 sm:px-4 md:px-5">
                         <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
                           {car.title || car.id}
                         </p>
-                        <p className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-1 sm:text-sm">
-                          {meta || car.id}
-                        </p>
+                        {attrChips.length ? (
+                          <ul
+                            className="flex min-w-0 flex-wrap gap-1.5"
+                            aria-label="Краткие характеристики"
+                          >
+                            {attrChips.map((c) => {
+                              const Icon = c.Icon;
+                              return (
+                                <li key={c.key} className="min-w-0 max-w-full">
+                                  <Badge
+                                    variant="outline"
+                                    className="inline-flex h-auto max-w-full items-center gap-1 rounded-xl border-border/70 bg-muted/30 px-2 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/20"
+                                  >
+                                    <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
+                                    <span className="min-w-0">{c.label}</span>
+                                  </Badge>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : null}
                         <Badge
                           variant="secondary"
                           className="hidden w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50 sm:inline-flex"
