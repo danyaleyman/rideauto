@@ -265,9 +265,9 @@ function FacetMultiDropdown({
                 key={r.value}
                 checked={selected.has(r.value)}
                 onCheckedChange={() => onToggle(r.value)}
-                className="rounded-xl [&>span:last-child]:ps-2"
+                className="cursor-text rounded-xl select-text [&>span:last-child]:ps-2"
               >
-                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{r.value}</span>
+                <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">{r.value}</span>
                 <span className="ms-1 shrink-0 tabular-nums text-xs text-muted-foreground">
                   {r.count.toLocaleString("ru-RU")}
                 </span>
