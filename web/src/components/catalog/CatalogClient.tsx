@@ -217,6 +217,8 @@ function FacetMultiDropdown({
     [rows, q],
   );
   const n = selected.size;
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((r) => selected.has(r.value));
   return (
     <DropdownMenu
       open={open}
@@ -280,28 +282,53 @@ function FacetMultiDropdown({
         </div>
         {enableCopyAll ? (
           <div className="border-t border-border p-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-8 w-full rounded-xl"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const payload = filtered.map((r) => `${r.value}\t${r.count}`).join("\n");
-                if (!payload) return;
-                void navigator.clipboard
-                  .writeText(payload)
-                  .then(() => {
-                    setCopiedAll(true);
-                    window.setTimeout(() => setCopiedAll(false), 1800);
-                  })
-                  .catch(() => {});
-              }}
-            >
-              {copiedAll ? "Скопировано" : "Копировать все"}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-8 rounded-xl"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!filtered.length) return;
+                  if (allFilteredSelected) {
+                    for (const r of filtered) {
+                      if (selected.has(r.value)) onToggle(r.value);
+                    }
+                    return;
+                  }
+                  for (const r of filtered) {
+                    if (!selected.has(r.value)) onToggle(r.value);
+                  }
+                }}
+              >
+                {allFilteredSelected ? "Снять все" : "Выбрать все"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-8 rounded-xl"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const payload = filtered.map((r) => `${r.value}\t${r.count}`).join("\n");
+                  if (!payload) return;
+                  void navigator.clipboard
+                    .writeText(payload)
+                    .then(() => {
+                      setCopiedAll(true);
+                      window.setTimeout(() => setCopiedAll(false), 1800);
+                    })
+                    .catch(() => {});
+                }}
+              >
+                {copiedAll ? "Скопировано" : "Копировать все"}
+              </Button>
+            </div>
           </div>
         ) : null}
       </DropdownMenuContent>
