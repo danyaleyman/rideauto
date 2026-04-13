@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 _WAN_KM_RE = re.compile(r"([\d.]+)\s*万\s*公里")
@@ -13,6 +14,7 @@ _WAN_PRICE_RE = re.compile(r"([\d]+(?:\.[\d]+)?)\s*万")
 _HP_RE = re.compile(r"(\d+)\s*马力")
 _TRANSFER_CNT_RE = re.compile(r"(\d+)\s*次")
 _REG_YM_RE = re.compile(r"(\d{4})年\s*(\d{1,2})\s*月")
+_CHINA_STATIC_MAPS: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 
 
 def _utc_date_tag() -> str:
@@ -473,6 +475,64 @@ def _apply_params_raw_to_data(
         data["dongchedi_specs_highlights"] = json.dumps(highlights, ensure_ascii=False)
 
 
+def _china_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
+    global _CHINA_STATIC_MAPS
+    if _CHINA_STATIC_MAPS is not None:
+        return _CHINA_STATIC_MAPS
+    path = Path(__file__).resolve().parents[2] / "data" / "china_static_terms.json"
+    if not path.is_file():
+        _CHINA_STATIC_MAPS = {"en": {}, "ru": {}}
+        return _CHINA_STATIC_MAPS
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        _CHINA_STATIC_MAPS = {"en": {}, "ru": {}}
+        return _CHINA_STATIC_MAPS
+    _CHINA_STATIC_MAPS = {
+        "en": raw.get("en") if isinstance(raw, dict) and isinstance(raw.get("en"), dict) else {},
+        "ru": raw.get("ru") if isinstance(raw, dict) and isinstance(raw.get("ru"), dict) else {},
+    }
+    return _CHINA_STATIC_MAPS
+
+
+def _apply_china_static_mapping(data: Dict[str, Any]) -> None:
+    maps = _china_static_maps()
+
+    for field in ("mark", "model", "generation", "configuration", "gradeName"):
+        src = str(data.get(field) or "").strip()
+        if not src:
+            continue
+        data.setdefault(f"{field}_original", src)
+        en = (maps.get("en", {}).get(field, {}) or {}).get(src)
+        if not en and field in ("configuration", "gradeName"):
+            en = (maps.get("en", {}).get("trim_name", {}) or {}).get(src)
+        if en:
+            data[field] = en
+            data[f"{field}_en"] = en
+
+    for field in ("engine_type", "transmission_type", "body_type", "color", "drive_type", "prep_drive_type"):
+        src = str(data.get(field) or "").strip()
+        if not src:
+            continue
+        data.setdefault(f"{field}_original", src)
+        ru = (maps.get("ru", {}).get(field, {}) or {}).get(src)
+        if ru:
+            data[field] = ru
+            data[f"{field}_ru"] = ru
+
+    title = " ".join(
+        x
+        for x in (
+            str(data.get("mark") or "").strip(),
+            str(data.get("model") or "").strip(),
+            str(data.get("generation") or "").strip(),
+        )
+        if x
+    ).strip()
+    if title:
+        data["title_en"] = title
+
+
 def sku_row_to_payload(
     row: Dict[str, Any],
     *,
@@ -705,6 +765,7 @@ def sku_row_to_payload(
         data["km_age"] = km_age
 
     _apply_params_raw_to_data(data, params_raw, cny_to_rub=cny_to_rub)
+    _apply_china_static_mapping(data)
 
     return {"data": data}
 
