@@ -197,15 +197,18 @@ function FacetMultiDropdown({
   selected,
   onToggle,
   disabled,
+  enableCopyAll = false,
 }: {
   label: string;
   rows: FacetRow[];
   selected: Set<string>;
   onToggle: (v: string) => void;
   disabled?: boolean;
+  enableCopyAll?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [copiedAll, setCopiedAll] = useState(false);
   const filtered = useMemo(
     () =>
       !q.trim()
@@ -275,6 +278,32 @@ function FacetMultiDropdown({
             ))
           )}
         </div>
+        {enableCopyAll ? (
+          <div className="border-t border-border p-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 w-full rounded-xl"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const payload = filtered.map((r) => `${r.value}\t${r.count}`).join("\n");
+                if (!payload) return;
+                void navigator.clipboard
+                  .writeText(payload)
+                  .then(() => {
+                    setCopiedAll(true);
+                    window.setTimeout(() => setCopiedAll(false), 1800);
+                  })
+                  .catch(() => {});
+              }}
+            >
+              {copiedAll ? "Скопировано" : "Копировать все"}
+            </Button>
+          </div>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -764,6 +793,7 @@ export function CatalogClient({
                         rows={facets.marks}
                         selected={new Set(state.marks)}
                         onToggle={(v) => toggle("marks", v)}
+                        enableCopyAll
                       />
                       <FacetMultiDropdown
                         label="Модель"
@@ -771,6 +801,7 @@ export function CatalogClient({
                         selected={new Set(state.models)}
                         onToggle={(v) => toggle("models", v)}
                         disabled={state.marks.length === 0}
+                        enableCopyAll
                       />
                       <FacetMultiDropdown
                         label="Поколение"
@@ -778,6 +809,7 @@ export function CatalogClient({
                         selected={new Set(state.generations)}
                         onToggle={(v) => toggle("generations", v)}
                         disabled={state.models.length === 0}
+                        enableCopyAll
                       />
                       <FacetMultiDropdown
                         label="Комплектация"
@@ -785,6 +817,7 @@ export function CatalogClient({
                         selected={new Set(state.trims)}
                         onToggle={(v) => toggle("trims", v)}
                         disabled={state.generations.length === 0}
+                        enableCopyAll
                       />
                     </div>
                   ) : (
