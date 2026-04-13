@@ -94,6 +94,7 @@ def _romanize_zh(text: str) -> str:
 
 
 _KOREA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
+_KOREA_MARK_ALIASES: Optional[Dict[str, str]] = None
 
 
 def _korea_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
@@ -121,6 +122,36 @@ def _lookup_korea_static(
 ) -> Optional[str]:
     bucket = (maps.get(target_lang) or {}).get(domain) or {}
     return bucket.get(text)
+
+
+def _alias_key(text: str) -> str:
+    return "".join(ch for ch in (text or "").lower() if ("a" <= ch <= "z") or ("0" <= ch <= "9"))
+
+
+def _korea_mark_aliases() -> Dict[str, str]:
+    global _KOREA_MARK_ALIASES
+    if _KOREA_MARK_ALIASES is not None:
+        return _KOREA_MARK_ALIASES
+    aliases: Dict[str, str] = {}
+    marks = (_korea_static_maps().get("en") or {}).get("mark") or {}
+    for original, english in marks.items():
+        eng = _as_text(english)
+        if not eng:
+            continue
+        k_eng = _alias_key(eng)
+        if k_eng:
+            aliases[k_eng] = eng
+        src = _as_text(original)
+        if not src:
+            continue
+        if detect_lang(src) == "ko":
+            rom = _romanize_ko(src)
+            for cand in (rom, rom.replace("-", " "), rom.replace("-", ""), rom.replace(" ", "")):
+                k = _alias_key(cand)
+                if k and k not in aliases:
+                    aliases[k] = eng
+    _KOREA_MARK_ALIASES = aliases
+    return _KOREA_MARK_ALIASES
 
 
 def _offline_translate(text: str, *, target_lang: str) -> str:
@@ -203,6 +234,10 @@ class PgTermLocalizer:
         s = _as_text(text)
         if not s:
             return ""
+        if target_lang == "en" and domain == "mark":
+            alias_hit = _korea_mark_aliases().get(_alias_key(s))
+            if alias_hit:
+                return alias_hit
         if target_lang == "en" and _looks_english(s):
             return s
 
