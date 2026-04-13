@@ -293,9 +293,14 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
     - названия (mark/model/generation/trim/configuration/title) -> EN
     - тех.поля (engine/trans/body/color/drive) -> RU
     """
+    def _src(field: str) -> str:
+        # Prefer immutable original value (if already saved in previous runs),
+        # so old transliteration artifacts do not block static mapping hits.
+        return _as_text(data.get(f"{field}_original")) or _as_text(data.get(field))
+
     name_fields = ("mark", "model", "generation", "configuration", "gradeName")
     for f in name_fields:
-        v = _as_text(data.get(f))
+        v = _src(f)
         if not v:
             continue
         data.setdefault(f"{f}_original", v)
@@ -314,7 +319,7 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
 
     ru_fields = ("engine_type", "transmission_type", "body_type", "color")
     for f in ru_fields:
-        v = _as_text(data.get(f))
+        v = _src(f)
         if not v:
             continue
         data.setdefault(f"{f}_original", v)
@@ -324,7 +329,7 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
             data[f"{f}_ru"] = ru
 
     for f in ("drive_type", "prep_drive_type"):
-        v = _as_text(data.get(f))
+        v = _src(f)
         if not v:
             continue
         data.setdefault(f"{f}_original", v)
