@@ -95,6 +95,67 @@ def _romanize_zh(text: str) -> str:
 
 _KOREA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 _KOREA_MARK_ALIASES: Optional[Dict[str, str]] = None
+_KOREA_MARK_EXACT_OVERRIDES: Dict[str, str] = {
+    "KG모빌리티(쌍용)": "KG Mobility (SsangYong)",
+    "기아": "Kia",
+    "닛산": "Nissan",
+    "닷지": "Dodge",
+    "도요타": "Toyota",
+    "랜드로버": "Land Rover",
+    "렉서스": "Lexus",
+    "롤스로이스": "Rolls-Royce",
+    "르노코리아(삼성)": "Renault Korea (Samsung)",
+    "링컨": "Lincoln",
+    "마세라티": "Maserati",
+    "미니": "Mini",
+    "미쯔비시": "Mitsubishi",
+    "벤츠": "Mercedes-Benz",
+    "벤틀리": "Bentley",
+    "볼보": "Volvo",
+    "쉐보레(GM대우)": "Chevrolet (GM Daewoo)",
+    "스마트": "Smart",
+    "스즈키": "Suzuki",
+    "시트로엥/DS": "Citroën/DS",
+    "아우디": "Audi",
+    "재규어": "Jaguar",
+    "제네시스": "Genesis",
+    "지프": "Jeep",
+    "캐딜락": "Cadillac",
+    "테슬라": "Tesla",
+    "페라리": "Ferrari",
+    "포드": "Ford",
+    "포르쉐": "Porsche",
+    "폭스바겐": "Volkswagen",
+    "폴스타": "Polestar",
+    "푸조": "Peugeot",
+    "현대": "Hyundai",
+    "혼다": "Honda",
+}
+_KOREA_MARK_ALIAS_OVERRIDES: Dict[str, str] = {
+    "a-udi": "Audi",
+    "alpa lome-o": "Alfa Romeo",
+    "aeseuteonmatin": "Aston Martin",
+    "bencheu": "Mercedes-Benz",
+    "benteulli": "Bentley",
+    "bolbo": "Volvo",
+    "do-yota": "Toyota",
+    "dongpungsokon": "Dongfeng Sokon",
+    "gi-a": "Kia",
+    "gita jejosa": "Other Manufacturer",
+    "hyeondae": "Hyundai",
+    "inpiniti": "Infiniti",
+    "jenesiseu": "Genesis",
+    "jipeu": "Jeep",
+    "laendeulobeo": "Land Rover",
+    "leunokoli-a(samseong)": "Renault Korea (Samsung)",
+    "lingkeon": "Lincoln",
+    "maselati": "Maserati",
+    "podeu": "Ford",
+    "pogseubagen": "Volkswagen",
+    "poleuswe": "Polestar",
+    "polseuta": "Polestar",
+    "teseulla": "Tesla",
+}
 
 
 def _korea_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
@@ -150,6 +211,10 @@ def _korea_mark_aliases() -> Dict[str, str]:
                 k = _alias_key(cand)
                 if k and k not in aliases:
                     aliases[k] = eng
+    for alias_raw, eng in _KOREA_MARK_ALIAS_OVERRIDES.items():
+        k = _alias_key(alias_raw)
+        if k:
+            aliases[k] = eng
     _KOREA_MARK_ALIASES = aliases
     return _KOREA_MARK_ALIASES
 
@@ -235,6 +300,9 @@ class PgTermLocalizer:
         if not s:
             return ""
         if target_lang == "en" and domain == "mark":
+            exact_hit = _KOREA_MARK_EXACT_OVERRIDES.get(s)
+            if exact_hit:
+                return exact_hit
             alias_hit = _korea_mark_aliases().get(_alias_key(s))
             if alias_hit:
                 return alias_hit
