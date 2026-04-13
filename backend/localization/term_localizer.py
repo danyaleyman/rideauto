@@ -94,7 +94,9 @@ def _romanize_zh(text: str) -> str:
 
 
 _KOREA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
+_CHINA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 _KOREA_MARK_ALIASES: Optional[Dict[str, str]] = None
+_KOREA_EN_DOMAIN_ALIASES: Optional[Dict[str, Dict[str, str]]] = None
 _KOREA_MARK_EXACT_OVERRIDES: Dict[str, str] = {
     "KG모빌리티(쌍용)": "KG Mobility (SsangYong)",
     "기아": "Kia",
@@ -156,6 +158,10 @@ _KOREA_MARK_ALIAS_OVERRIDES: Dict[str, str] = {
     "polseuta": "Polestar",
     "teseulla": "Tesla",
 }
+_CHINA_MARK_EXACT_OVERRIDES: Dict[str, str] = {
+    "方程豹": "Fangchengbao",
+    "迈巴赫": "Maybach",
+}
 
 
 def _korea_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
@@ -175,7 +181,33 @@ def _korea_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
     return _KOREA_STATIC
 
 
+def _china_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
+    global _CHINA_STATIC
+    if _CHINA_STATIC is not None:
+        return _CHINA_STATIC
+    path = Path(__file__).resolve().parents[2] / "data" / "china_static_terms.json"
+    if not path.is_file():
+        _CHINA_STATIC = {"en": {}, "ru": {}}
+        return _CHINA_STATIC
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    _CHINA_STATIC = {
+        "en": raw.get("en") or {},
+        "ru": raw.get("ru") or {},
+    }
+    return _CHINA_STATIC
+
+
 def _lookup_korea_static(
+    maps: Dict[str, Dict[str, Dict[str, str]]],
+    text: str,
+    target_lang: str,
+    domain: str,
+) -> Optional[str]:
+    bucket = (maps.get(target_lang) or {}).get(domain) or {}
+    return bucket.get(text)
+
+
+def _lookup_china_static(
     maps: Dict[str, Dict[str, Dict[str, str]]],
     text: str,
     target_lang: str,
@@ -217,6 +249,36 @@ def _korea_mark_aliases() -> Dict[str, str]:
             aliases[k] = eng
     _KOREA_MARK_ALIASES = aliases
     return _KOREA_MARK_ALIASES
+
+
+def _korea_en_domain_aliases() -> Dict[str, Dict[str, str]]:
+    global _KOREA_EN_DOMAIN_ALIASES
+    if _KOREA_EN_DOMAIN_ALIASES is not None:
+        return _KOREA_EN_DOMAIN_ALIASES
+    out: Dict[str, Dict[str, str]] = {}
+    en_maps = (_korea_static_maps().get("en") or {})
+    for domain in ("mark", "model", "generation", "configuration", "gradeName", "trim_name"):
+        bucket = en_maps.get(domain) or {}
+        aliases: Dict[str, str] = {}
+        for original, english in bucket.items():
+            eng = _as_text(english)
+            if not eng:
+                continue
+            key_eng = _alias_key(eng)
+            if key_eng:
+                aliases[key_eng] = eng
+            src = _as_text(original)
+            if not src:
+                continue
+            if detect_lang(src) == "ko":
+                rom = _romanize_ko(src)
+                for cand in (rom, rom.replace("-", " "), rom.replace("-", ""), rom.replace(" ", "")):
+                    k = _alias_key(cand)
+                    if k and k not in aliases:
+                        aliases[k] = eng
+        out[domain] = aliases
+    _KOREA_EN_DOMAIN_ALIASES = out
+    return _KOREA_EN_DOMAIN_ALIASES
 
 
 def _offline_translate(text: str, *, target_lang: str) -> str:
@@ -303,21 +365,31 @@ class PgTermLocalizer:
             exact_hit = _KOREA_MARK_EXACT_OVERRIDES.get(s)
             if exact_hit:
                 return exact_hit
+            china_exact_hit = _CHINA_MARK_EXACT_OVERRIDES.get(s)
+            if china_exact_hit:
+                return china_exact_hit
             alias_hit = _korea_mark_aliases().get(_alias_key(s))
             if alias_hit:
                 return alias_hit
-        if target_lang == "en" and _looks_english(s):
-            return s
+        if target_lang == "en":
+            domain_alias_hit = (_korea_en_domain_aliases().get(domain) or {}).get(_alias_key(s))
+            if domain_alias_hit:
+                return domain_alias_hit
 
         source_lang = detect_lang(s)
         key = self._cache_key(s, source_lang, target_lang, domain)
 
         static_hit = _lookup_korea_static(_korea_static_maps(), s, target_lang, domain)
+        if not static_hit:
+            static_hit = _lookup_china_static(_china_static_maps(), s, target_lang, domain)
         if static_hit:
             self.stats.cache_hits += 1
             if self._enabled:
                 self._local_cache[key] = static_hit
             return static_hit
+
+        if target_lang == "en" and _looks_english(s):
+            return s
 
         if not self._enabled:
             return _offline_translate(s, target_lang=target_lang)
@@ -440,3 +512,52 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
         if tr:
             data[f] = tr
             data[f"{f}_{drive_target}"] = tr
+
+
+def localize_china_data(data: Dict[str, object], localizer: PgTermLocalizer) -> None:
+    """
+    Локализация полей карточки China (Dongchedi):
+    - названия -> EN (приоритет static china map, затем fallback translate)
+    - тех.поля -> RU
+    """
+
+    def _src(field: str) -> str:
+        return _as_text(data.get(f"{field}_original")) or _as_text(data.get(field))
+
+    name_fields = ("mark", "model", "generation", "configuration", "gradeName")
+    for f in name_fields:
+        v = _src(f)
+        if not v:
+            continue
+        data.setdefault(f"{f}_original", v)
+        en = localizer.translate(v, target_lang="en", domain=f)
+        if en:
+            data[f] = en
+            data[f"{f}_en"] = en
+
+    title = " ".join(
+        x for x in (_as_text(data.get("mark")), _as_text(data.get("model")), _as_text(data.get("generation"))) if x
+    ).strip()
+    if title:
+        data["title_en"] = title
+
+    ru_fields = ("engine_type", "transmission_type", "body_type", "color")
+    for f in ru_fields:
+        v = _src(f)
+        if not v:
+            continue
+        data.setdefault(f"{f}_original", v)
+        ru = localizer.translate(v, target_lang="ru", domain=f)
+        if ru:
+            data[f] = ru
+            data[f"{f}_ru"] = ru
+
+    for f in ("drive_type", "prep_drive_type"):
+        v = _src(f)
+        if not v:
+            continue
+        data.setdefault(f"{f}_original", v)
+        ru = localizer.translate(v, target_lang="ru", domain=f)
+        if ru:
+            data[f] = ru
+            data[f"{f}_ru"] = ru

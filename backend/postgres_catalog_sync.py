@@ -30,7 +30,7 @@ from catalog_pg_core import (
     get_or_create_model,
     row_to_car_fields,
 )
-from localization.term_localizer import PgTermLocalizer, localize_car_data
+from localization.term_localizer import PgTermLocalizer, localize_car_data, localize_china_data
 
 _BACKEND_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _BACKEND_DIR.parent
@@ -245,7 +245,9 @@ def run_sync(
                 normalize_car_media_fields(car)
                 if not no_power_lookup and not _uses_china_pipeline_pricing(car):
                     fill_power_from_external(car["data"])
-                if not _uses_china_pipeline_pricing(car):
+                if _uses_china_pipeline_pricing(car):
+                    localize_china_data(car["data"], localizer)
+                else:
                     localize_car_data(car["data"], localizer)
             cars_out.append(car)
 
