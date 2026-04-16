@@ -1,6 +1,9 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { ChevronsUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type EngineType = "petrol" | "diesel" | "electric" | "hybrid";
 type HybridType = "none" | "parallel" | "series";
@@ -169,6 +172,34 @@ function getCustomsFee(v: number): number {
   return 73860;
 }
 
+function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block text-sm font-medium text-foreground">
+      {label}
+      <div className="relative mt-1">
+        <select
+          className="h-9 w-full appearance-none rounded-3xl border border-transparent bg-input/50 px-3 pe-10 text-sm transition-[color,box-shadow,background-color] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {children}
+        </select>
+        <ChevronsUpDown className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/80" />
+      </div>
+    </label>
+  );
+}
+
 export function BuyCalculator() {
   const [engineType, setEngineType] = useState<EngineType>("petrol");
   const [hybridType, setHybridType] = useState<HybridType>("none");
@@ -187,9 +218,10 @@ export function BuyCalculator() {
   useEffect(() => {
     const fetchExchangeRates = async () => {
       try {
-        const r = await fetch("https://www.cbr-xml-daily.ru/daily_json.js");
+        const r = await fetch(`/api/cbr-rates?ts=${Date.now()}`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`rate_http_${r.status}`);
         const d = await r.json();
-        const valute = d?.Valute || {};
+        const valute = d?.valute || {};
         const nextRates: Record<Currency, CbrRate> = {
           USD: valute.USD ?? FALLBACK_RATES.USD,
           EUR: valute.EUR ?? FALLBACK_RATES.EUR,
@@ -198,8 +230,12 @@ export function BuyCalculator() {
           CNY: valute.CNY ?? FALLBACK_RATES.CNY,
         };
         setCbrRates(nextRates);
-        const date = d?.Date ? new Date(d.Date).toLocaleDateString("ru-RU") : "";
-        setRateDateBadge(`Курсы ЦБ РФ ${date}`);
+        const date = d?.date ? new Date(d.date).toLocaleDateString("ru-RU") : "";
+        if (d?.source === "cbr") {
+          setRateDateBadge(`Курсы ЦБ РФ ${date}`);
+        } else {
+          setRateDateBadge("Курсы ЦБ РФ (резервные)");
+        }
       } catch {
         setCbrRates(FALLBACK_RATES);
         setRateDateBadge("Курсы ЦБ РФ (резервные)");
@@ -235,7 +271,7 @@ export function BuyCalculator() {
   }, [ageRange, calcNonce, cbrRates, currency, engineType, hpEd, hpIce, hpSingle, hybridType, price, purpose, volume]);
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/70 p-5 shadow-sm sm:p-6">
+    <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h3 className="text-xl font-semibold tracking-tight text-foreground">Растаможка авто в РФ</h3>
@@ -243,62 +279,47 @@ export function BuyCalculator() {
             Бензин, дизель, гибриды и электромобили — физические лица
           </p>
         </div>
-        <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">{rateDateBadge}</span>
+        <span className="rounded-full border border-border/70 bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
+          {rateDateBadge}
+        </span>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-foreground">
-            Тип двигателя
-            <select
-              className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
-              value={engineType}
-              onChange={(e) => {
-                const v = e.target.value as EngineType;
-                setEngineType(v);
-                if (v !== "hybrid") setHybridType("none");
-              }}
-            >
-              <option value="petrol">Бензиновый</option>
-              <option value="diesel">Дизельный</option>
-              <option value="electric">Электрический</option>
-              <option value="hybrid">Гибрид</option>
-            </select>
-          </label>
+          <SelectField
+            label="Тип двигателя"
+            value={engineType}
+            onChange={(raw) => {
+              const v = raw as EngineType;
+              setEngineType(v);
+              if (v !== "hybrid") setHybridType("none");
+            }}
+          >
+            <option value="petrol">Бензиновый</option>
+            <option value="diesel">Дизельный</option>
+            <option value="electric">Электрический</option>
+            <option value="hybrid">Гибрид</option>
+          </SelectField>
 
           {engineType === "hybrid" ? (
-            <label className="block text-sm font-medium text-foreground">
-              Тип гибрида
-              <select
-                className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                value={hybridType}
-                onChange={(e) => setHybridType(e.target.value as HybridType)}
-              >
-                <option value="parallel">Параллельный (HEV/PHEV)</option>
-                <option value="series">Последовательный (ДВС-генератор)</option>
-              </select>
-            </label>
+            <SelectField label="Тип гибрида" value={hybridType} onChange={(v) => setHybridType(v as HybridType)}>
+              <option value="parallel">Параллельный (HEV/PHEV)</option>
+              <option value="series">Последовательный (ДВС-генератор)</option>
+            </SelectField>
           ) : null}
 
-          <label className="block text-sm font-medium text-foreground">
-            Валюта цены
-            <select
-              className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as Currency)}
-            >
-              <option value="USD">Доллар (USD)</option>
-              <option value="EUR">Евро (EUR)</option>
-              <option value="JPY">Йена (JPY)</option>
-              <option value="KRW">Вона (KRW)</option>
-              <option value="CNY">Юань (CNY)</option>
-            </select>
-          </label>
+          <SelectField label="Валюта цены" value={currency} onChange={(v) => setCurrency(v as Currency)}>
+            <option value="USD">Доллар (USD)</option>
+            <option value="EUR">Евро (EUR)</option>
+            <option value="JPY">Йена (JPY)</option>
+            <option value="KRW">Вона (KRW)</option>
+            <option value="CNY">Юань (CNY)</option>
+          </SelectField>
 
           <label className="block text-sm font-medium text-foreground">
             Цена авто
-            <input
-              className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+            <Input
+              className="mt-1 h-10"
               type="number"
               value={price}
               step={1000}
@@ -308,8 +329,8 @@ export function BuyCalculator() {
 
           <label className="block text-sm font-medium text-foreground">
             Объём двигателя (см³)
-            <input
-              className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+            <Input
+              className="mt-1 h-10"
               type="number"
               value={volume}
               step={50}
@@ -321,8 +342,8 @@ export function BuyCalculator() {
             <>
               <label className="block text-sm font-medium text-foreground">
                 Мощность ДВС (л.с.)
-                <input
-                  className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                <Input
+                  className="mt-1 h-10"
                   type="number"
                   value={hpIce}
                   step={1}
@@ -331,8 +352,8 @@ export function BuyCalculator() {
               </label>
               <label className="block text-sm font-medium text-foreground">
                 Суммарная пиковая мощность ЭД (л.с.)
-                <input
-                  className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                <Input
+                  className="mt-1 h-10"
                   type="number"
                   value={hpEd}
                   step={1}
@@ -346,8 +367,8 @@ export function BuyCalculator() {
           ) : (
             <label className="block text-sm font-medium text-foreground">
               Мощность (л.с.)
-              <input
-                className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              <Input
+                className="mt-1 h-10"
                 type="number"
                 value={hpSingle}
                 step={1}
@@ -362,7 +383,7 @@ export function BuyCalculator() {
               {(["0-3", "3-5", "5+"] as const).map((age) => (
                 <label
                   key={age}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border/80 bg-background/90 px-3 py-1.5 text-sm transition-colors hover:bg-muted/50"
                 >
                   <input
                     type="radio"
@@ -376,26 +397,19 @@ export function BuyCalculator() {
             </div>
           </div>
 
-          <label className="block text-sm font-medium text-foreground">
-            Цель ввоза
-            <select
-              className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value as Purpose)}
-            >
-              <option value="personal">личное пользование</option>
-              <option value="resale">перепродажа</option>
-              <option value="legal">юрлицо</option>
-            </select>
-          </label>
+          <SelectField label="Цель ввоза" value={purpose} onChange={(v) => setPurpose(v as Purpose)}>
+            <option value="personal">личное пользование</option>
+            <option value="resale">перепродажа</option>
+            <option value="legal">юрлицо</option>
+          </SelectField>
 
-          <button
+          <Button
             type="button"
-            className="mt-1 h-10 w-full rounded-full bg-amber-500 px-4 text-sm font-semibold text-white transition hover:bg-amber-600"
+            className="mt-1 h-10 w-full"
             onClick={() => setCalcNonce((n) => n + 1)}
           >
             Рассчитать
-          </button>
+          </Button>
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-muted/30 p-4 sm:p-5">
