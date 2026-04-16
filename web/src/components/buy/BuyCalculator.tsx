@@ -25,6 +25,12 @@ function clampNumber(v: number): number {
   return Number.isFinite(v) ? Math.max(0, v) : 0;
 }
 
+function parseInputNumber(raw: string): number {
+  if (!raw || raw.trim() === "") return 0;
+  const v = Number(raw);
+  return clampNumber(v);
+}
+
 function money(n: number): string {
   return `${Math.round(clampNumber(n)).toLocaleString("ru-RU")} ₽`;
 }
@@ -204,11 +210,11 @@ export function BuyCalculator() {
   const [engineType, setEngineType] = useState<EngineType>("petrol");
   const [hybridType, setHybridType] = useState<HybridType>("none");
   const [currency, setCurrency] = useState<Currency>("USD");
-  const [price, setPrice] = useState(1_800_000);
-  const [volume, setVolume] = useState(1800);
-  const [hpSingle, setHpSingle] = useState(120);
-  const [hpIce, setHpIce] = useState(98);
-  const [hpEd, setHpEd] = useState(82);
+  const [price, setPrice] = useState("");
+  const [volume, setVolume] = useState("");
+  const [hpSingle, setHpSingle] = useState("");
+  const [hpIce, setHpIce] = useState("");
+  const [hpEd, setHpEd] = useState("");
   const [ageRange, setAgeRange] = useState<AgeRange>("5+");
   const [purpose, setPurpose] = useState<Purpose>("personal");
   const [calcNonce, setCalcNonce] = useState(0);
@@ -247,11 +253,11 @@ export function BuyCalculator() {
   const result = useMemo(() => {
     const rate = cbrRates[currency].Value / cbrRates[currency].Nominal;
     const eurRate = cbrRates.EUR.Value / cbrRates.EUR.Nominal;
-    const safePrice = clampNumber(price);
-    const safeVol = clampNumber(volume);
-    const safeHpSingle = clampNumber(hpSingle);
-    const safeHpIce = clampNumber(hpIce);
-    const safeHpEd = clampNumber(hpEd);
+    const safePrice = parseInputNumber(price);
+    const safeVol = parseInputNumber(volume);
+    const safeHpSingle = parseInputNumber(hpSingle);
+    const safeHpIce = parseInputNumber(hpIce);
+    const safeHpEd = parseInputNumber(hpEd);
 
     let finalHpIce = safeHpSingle;
     let finalHpEd = 0;
@@ -323,7 +329,7 @@ export function BuyCalculator() {
               type="number"
               value={price}
               step={1000}
-              onChange={(e) => setPrice(Number(e.target.value || 0))}
+              onChange={(e) => setPrice(e.target.value)}
             />
           </label>
 
@@ -334,7 +340,7 @@ export function BuyCalculator() {
               type="number"
               value={volume}
               step={50}
-              onChange={(e) => setVolume(Number(e.target.value || 0))}
+              onChange={(e) => setVolume(e.target.value)}
             />
           </label>
 
@@ -347,7 +353,7 @@ export function BuyCalculator() {
                   type="number"
                   value={hpIce}
                   step={1}
-                  onChange={(e) => setHpIce(Number(e.target.value || 0))}
+                  onChange={(e) => setHpIce(e.target.value)}
                 />
               </label>
               <label className="block text-sm font-medium text-foreground">
@@ -357,7 +363,7 @@ export function BuyCalculator() {
                   type="number"
                   value={hpEd}
                   step={1}
-                  onChange={(e) => setHpEd(Number(e.target.value || 0))}
+                  onChange={(e) => setHpEd(e.target.value)}
                 />
                 <div className="mt-1 rounded-lg bg-amber-100/70 px-3 py-2 text-xs text-amber-900">
                   30-минутная мощность ЭД: {result.hp30Min.toFixed(1)} л.с.
@@ -372,7 +378,7 @@ export function BuyCalculator() {
                 type="number"
                 value={hpSingle}
                 step={1}
-                onChange={(e) => setHpSingle(Number(e.target.value || 0))}
+                onChange={(e) => setHpSingle(e.target.value)}
               />
             </label>
           )}
