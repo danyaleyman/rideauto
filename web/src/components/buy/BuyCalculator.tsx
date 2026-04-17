@@ -117,8 +117,30 @@ function getUtil(
     }
   }
 
+  if ((engType === "electric" || (engType === "hybrid" && hybridType === "series")) && effectivePower > 80) {
+    let coeff = 1;
+    if (age === "0-3") {
+      if (effectivePower <= 100) coeff = 65.88;
+      else if (effectivePower <= 130) coeff = 79.2;
+      else if (effectivePower <= 160) coeff = 93.6;
+      else coeff = 110.4;
+    } else if (age === "3-5") {
+      if (effectivePower <= 100) coeff = 151.2;
+      else if (effectivePower <= 130) coeff = 172.8;
+      else if (effectivePower <= 160) coeff = 201.6;
+      else coeff = 240.0;
+    } else {
+      if (effectivePower <= 100) coeff = 240.0;
+      else if (effectivePower <= 130) coeff = 280.0;
+      else if (effectivePower <= 160) coeff = 320.0;
+      else coeff = 360.0;
+    }
+    return Math.round(base * coeff);
+  }
+
   const powerKw = effectivePower * 0.7355;
   let coeff = 1;
+
   if (age === "0-3") {
     if (vol <= 1000) {
       if (powerKw <= 50) coeff = 1.63;
@@ -129,8 +151,7 @@ function getUtil(
       else if (powerKw <= 150) coeff = 3.62;
       else coeff = 4.23;
     } else if (vol <= 3000) {
-      // For >160 hp in this volume band (non-loyal path), use fixed raised coefficient.
-      coeff = 118.2;
+      coeff = engType === "diesel" ? 120.12 : 118.2;
     } else if (vol <= 3500) {
       if (powerKw <= 200) coeff = 9.23;
       else if (powerKw <= 220) coeff = 10.05;
@@ -145,23 +166,20 @@ function getUtil(
       if (powerKw > 161.8) coeff = 177.6;
       else if (powerKw > 117.7) coeff = 74.64;
       else coeff = 32.0;
-    } else if (vol <= 3500) {
-      coeff = 45.0;
-    } else {
-      coeff = 60.0;
-    }
+    } else if (vol <= 3500) coeff = 45.0;
+    else coeff = 60.0;
   } else {
     if (vol <= 1000) coeff = 17.5;
-    else if (vol <= 2000) coeff = 28.5;
-    else if (vol <= 3000) {
+    else if (vol <= 2000) {
+      if (powerKw > 161.8) coeff = 177.6;
+      else if (powerKw > 117.7) coeff = 74.64;
+      else coeff = 28.5;
+    } else if (vol <= 3000) {
       if (powerKw > 161.8) coeff = 177.6;
       else if (powerKw > 117.7) coeff = 74.64;
       else coeff = 85.0;
-    } else if (vol <= 3500) {
-      coeff = 120.0;
-    } else {
-      coeff = 150.0;
-    }
+    } else if (vol <= 3500) coeff = 120.0;
+    else coeff = 150.0;
   }
 
   return Math.round(base * coeff);
@@ -332,29 +350,33 @@ export function BuyCalculator() {
             />
           </label>
 
-          <label className="block text-sm font-medium text-foreground">
-            Объём двигателя (см³)
-            <Input
-              className="mt-1 h-10"
-              type="number"
-              value={volume}
-              step={50}
-              onChange={(e) => setVolume(e.target.value)}
-            />
-          </label>
+          {engineType !== "electric" ? (
+            <label className="block text-sm font-medium text-foreground">
+              Объём двигателя (см³)
+              <Input
+                className="mt-1 h-10"
+                type="number"
+                value={volume}
+                step={50}
+                onChange={(e) => setVolume(e.target.value)}
+              />
+            </label>
+          ) : null}
 
           {engineType === "hybrid" || engineType === "electric" ? (
             <>
-              <label className="block text-sm font-medium text-foreground">
-                Мощность ДВС (л.с.)
-                <Input
-                  className="mt-1 h-10"
-                  type="number"
-                  value={hpIce}
-                  step={1}
-                  onChange={(e) => setHpIce(e.target.value)}
-                />
-              </label>
+              {engineType === "hybrid" ? (
+                <label className="block text-sm font-medium text-foreground">
+                  Мощность ДВС (л.с.)
+                  <Input
+                    className="mt-1 h-10"
+                    type="number"
+                    value={hpIce}
+                    step={1}
+                    onChange={(e) => setHpIce(e.target.value)}
+                  />
+                </label>
+              ) : null}
               <label className="block text-sm font-medium text-foreground">
                 Суммарная пиковая мощность ЭД (л.с.)
                 <Input
