@@ -138,6 +138,7 @@ function getUtil(
     return Math.round(base * coeff);
   }
 
+  // Для обычных ДВС и параллельных гибридов – шкала по объёму и мощности
   const powerKw = effectivePower * 0.7355;
   let coeff = 1;
 
@@ -147,7 +148,8 @@ function getUtil(
       else if (powerKw <= 100) coeff = 1.85;
       else coeff = 2.08;
     } else if (vol <= 2000) {
-      if (powerKw <= 100) coeff = 3.01;
+      if (effectivePower > 160) coeff = 45.0;
+      else if (powerKw <= 100) coeff = 3.01;
       else if (powerKw <= 150) coeff = 3.62;
       else coeff = 4.23;
     } else if (vol <= 3000) {
@@ -161,8 +163,11 @@ function getUtil(
     }
   } else if (age === "3-5") {
     if (vol <= 1000) coeff = 5.73;
-    else if (vol <= 2000) coeff = 8.95;
-    else if (vol <= 3000) {
+    else if (vol <= 2000) {
+      if (powerKw > 161.8) coeff = 177.6;
+      else if (powerKw > 117.7) coeff = 74.64;
+      else coeff = 8.95;
+    } else if (vol <= 3000) {
       if (powerKw > 161.8) coeff = 177.6;
       else if (powerKw > 117.7) coeff = 74.64;
       else coeff = 32.0;
