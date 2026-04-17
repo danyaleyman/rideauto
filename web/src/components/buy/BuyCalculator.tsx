@@ -84,6 +84,21 @@ function getDuty(rub: number, eurRate: number, age: AgeRange, vol: number, engTy
   return dutyRate(age, vol) * vol * eurRate;
 }
 
+function effectivePowerHp(
+  engType: EngineType,
+  hybridType: HybridType,
+  hpIce: number,
+  hpEdPeak: number,
+): number {
+  const ed30 = hpEdPeak * 0.45;
+  if (engType === "electric") return ed30;
+  if (engType === "hybrid") {
+    // TKS-like logic: parallel = ICE + 30-min ED, series = 30-min ED only.
+    return hybridType === "series" ? ed30 : hpIce + ed30;
+  }
+  return hpIce;
+}
+
 function getUtil(
   age: AgeRange,
   engType: EngineType,
@@ -96,14 +111,7 @@ function getUtil(
   const base = 20000;
   const isPersonal = purpose === "personal";
 
-  let effectivePower = 0;
-  if (engType === "electric") {
-    effectivePower = hpEd * 0.45;
-  } else if (engType === "hybrid") {
-    effectivePower = hybridType === "series" ? hpEd * 0.45 : hpIce + hpEd;
-  } else {
-    effectivePower = hpIce;
-  }
+  const effectivePower = effectivePowerHp(engType, hybridType, hpIce, hpEd);
 
   if (isPersonal) {
     let isLoyal = false;
@@ -190,6 +198,285 @@ function getUtil(
   return Math.round(base * coeff);
 }
 
+type UtilCase = {
+  name: string;
+  age: AgeRange;
+  engType: EngineType;
+  hybridType: HybridType;
+  vol: number;
+  hpIce: number;
+  hpEd: number;
+  purpose: Purpose;
+  expectedUtil: number;
+};
+
+const UTIL_SELF_CHECK_CASES: UtilCase[] = [
+  {
+    name: "ICE personal loyal 0-3 <=160hp",
+    age: "0-3",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1598,
+    hpIce: 150,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 3400,
+  },
+  {
+    name: "ICE personal loyal 3-5 <=160hp",
+    age: "3-5",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1598,
+    hpIce: 150,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 5200,
+  },
+  {
+    name: "ICE legal no-loyal 0-3 <=160hp",
+    age: "0-3",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1598,
+    hpIce: 150,
+    hpEd: 0,
+    purpose: "legal",
+    expectedUtil: 72400,
+  },
+  {
+    name: "ICE 0-3 1-2L 180hp",
+    age: "0-3",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 180,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 900000,
+  },
+  {
+    name: "ICE 3-5 1-2L 180hp",
+    age: "3-5",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 180,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 1492800,
+  },
+  {
+    name: "ICE 5+ 1-2L 180hp",
+    age: "5+",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 180,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 1492800,
+  },
+  {
+    name: "ICE 3-5 1-2L 230hp",
+    age: "3-5",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 230,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 3552000,
+  },
+  {
+    name: "ICE 5+ 1-2L 150hp",
+    age: "5+",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 150,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 570000,
+  },
+  {
+    name: "ICE 3-5 2-3L 150hp",
+    age: "3-5",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 2498,
+    hpIce: 150,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 640000,
+  },
+  {
+    name: "ICE 5+ 2-3L 150hp",
+    age: "5+",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 2498,
+    hpIce: 150,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 1700000,
+  },
+  {
+    name: "Diesel 0-3 2-3L >160hp",
+    age: "0-3",
+    engType: "diesel",
+    hybridType: "none",
+    vol: 2498,
+    hpIce: 190,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 2402400,
+  },
+  {
+    name: "Petrol 0-3 2-3L >160hp",
+    age: "0-3",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 2498,
+    hpIce: 190,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 2364000,
+  },
+  {
+    name: "EV loyal <=80 (30-min)",
+    age: "5+",
+    engType: "electric",
+    hybridType: "none",
+    vol: 0,
+    hpIce: 0,
+    hpEd: 160, // 30-min = 72
+    purpose: "personal",
+    expectedUtil: 5200,
+  },
+  {
+    name: "EV 0-3 30-min in 80-100hp",
+    age: "0-3",
+    engType: "electric",
+    hybridType: "none",
+    vol: 0,
+    hpIce: 0,
+    hpEd: 200, // 30-min = 90
+    purpose: "personal",
+    expectedUtil: 1317600,
+  },
+  {
+    name: "EV 3-5 30-min in 80-100hp",
+    age: "3-5",
+    engType: "electric",
+    hybridType: "none",
+    vol: 0,
+    hpIce: 0,
+    hpEd: 200, // 30-min = 90
+    purpose: "personal",
+    expectedUtil: 3024000,
+  },
+  {
+    name: "EV 5+ 30-min >160hp",
+    age: "5+",
+    engType: "electric",
+    hybridType: "none",
+    vol: 0,
+    hpIce: 0,
+    hpEd: 356, // 30-min = 160.2
+    purpose: "personal",
+    expectedUtil: 7200000,
+  },
+  {
+    name: "Series hybrid behaves as EV",
+    age: "0-3",
+    engType: "hybrid",
+    hybridType: "series",
+    vol: 1500,
+    hpIce: 160,
+    hpEd: 200, // 30-min = 90
+    purpose: "personal",
+    expectedUtil: 1317600,
+  },
+  {
+    name: "Parallel hybrid uses ICE + 30-min ED",
+    age: "0-3",
+    engType: "hybrid",
+    hybridType: "parallel",
+    vol: 1998,
+    hpIce: 100,
+    hpEd: 200, // total effective = 190
+    purpose: "personal",
+    expectedUtil: 900000,
+  },
+  {
+    name: "Parallel hybrid legal no loyal",
+    age: "0-3",
+    engType: "hybrid",
+    hybridType: "parallel",
+    vol: 1598,
+    hpIce: 150,
+    hpEd: 0,
+    purpose: "legal",
+    expectedUtil: 72400,
+  },
+  {
+    name: "Boundary DVS exactly 160hp stays loyal",
+    age: "0-3",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 160,
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 3400,
+  },
+  {
+    name: "Boundary EV exactly 80hp (30-min) stays loyal",
+    age: "0-3",
+    engType: "electric",
+    hybridType: "none",
+    vol: 0,
+    hpIce: 0,
+    hpEd: 177.77, // 30-min ~= 79.9965
+    purpose: "personal",
+    expectedUtil: 3400,
+  },
+  {
+    name: "Boundary >117.7kW branch in 3-5 1-2L",
+    age: "3-5",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 161, // 118.4 kW
+    hpEd: 0,
+    purpose: "personal",
+    expectedUtil: 1492800,
+  },
+  {
+    name: "Boundary <=117.7kW branch in 3-5 1-2L",
+    age: "3-5",
+    engType: "petrol",
+    hybridType: "none",
+    vol: 1998,
+    hpIce: 160, // 117.68 kW
+    hpEd: 0,
+    purpose: "legal",
+    expectedUtil: 179000,
+  },
+];
+
+function runUtilSelfCheck(): string[] {
+  const failed: string[] = [];
+  for (const c of UTIL_SELF_CHECK_CASES) {
+    const got = getUtil(c.age, c.engType, c.hybridType, c.vol, c.hpIce, c.hpEd, c.purpose);
+    if (got !== c.expectedUtil) {
+      failed.push(`${c.name}: expected=${c.expectedUtil}, got=${got}`);
+    }
+  }
+  return failed;
+}
+
 function getCustomsFee(v: number): number {
   if (v <= 200000) return 1231;
   if (v <= 450000) return 2462;
@@ -272,7 +559,16 @@ export function BuyCalculator() {
     void fetchExchangeRates();
   }, []);
 
+  useEffect(() => {
+    const failed = runUtilSelfCheck();
+    if (!failed.length) return;
+    // Auto-check helps catch regressions when rates are edited.
+    console.error("[buy-calculator] util self-check failed", failed);
+  }, []);
+
   const result = useMemo(() => {
+    const forceRecalcToken = calcNonce;
+    void forceRecalcToken;
     const rate = cbrRates[currency].Value / cbrRates[currency].Nominal;
     const eurRate = cbrRates.EUR.Value / cbrRates.EUR.Nominal;
     const safePrice = parseInputNumber(price);
@@ -393,6 +689,9 @@ export function BuyCalculator() {
                 />
                 <div className="mt-1 rounded-lg bg-amber-100/70 px-3 py-2 text-xs text-amber-900">
                   30-минутная мощность ЭД: {result.hp30Min.toFixed(1)} л.с.
+                  {engineType === "hybrid" && hybridType === "parallel"
+                    ? " (для утильсбора: ДВС + 30-мин ЭД)"
+                    : ""}
                 </div>
               </label>
             </>
