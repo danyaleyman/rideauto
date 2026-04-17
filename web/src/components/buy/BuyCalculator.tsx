@@ -129,9 +129,8 @@ function getUtil(
       else if (powerKw <= 150) coeff = 3.62;
       else coeff = 4.23;
     } else if (vol <= 3000) {
-      if (powerKw <= 150) coeff = 5.86;
-      else if (powerKw <= 220) coeff = 6.47;
-      else coeff = 118.2;
+      // For >160 hp in this volume band (non-loyal path), use fixed raised coefficient.
+      coeff = 118.2;
     } else if (vol <= 3500) {
       if (powerKw <= 200) coeff = 9.23;
       else if (powerKw <= 220) coeff = 10.05;
