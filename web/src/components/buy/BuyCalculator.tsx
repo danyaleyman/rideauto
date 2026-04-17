@@ -131,7 +131,7 @@ function getUtil(
     } else if (vol <= 3000) {
       if (powerKw <= 150) coeff = 5.86;
       else if (powerKw <= 220) coeff = 6.47;
-      else coeff = 120.12;
+      else coeff = 118.2;
     } else if (vol <= 3500) {
       if (powerKw <= 200) coeff = 9.23;
       else if (powerKw <= 220) coeff = 10.05;
@@ -448,10 +448,10 @@ export function BuyCalculator() {
             </div>
           </div>
 
-          <div className="mt-4 rounded-xl bg-amber-100/70 px-4 py-3">
+          <div className="mt-4 rounded-xl border border-border/70 bg-muted/60 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-amber-900">ИТОГО РАСТАМОЖКА</span>
-              <span className="text-2xl font-extrabold text-amber-700">{money(result.total)}</span>
+              <span className="text-sm font-semibold text-foreground">ИТОГО РАСТАМОЖКА</span>
+              <span className="text-2xl font-extrabold text-foreground">{money(result.total)}</span>
             </div>
           </div>
 
