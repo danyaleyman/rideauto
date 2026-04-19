@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS cars (
     insurance_payout_rub     DOUBLE PRECISION,
     damaged_parts_count      INTEGER NOT NULL DEFAULT 0,
     offer_created_at         TIMESTAMPTZ,
+    -- Дневной encar_listing_live_checker: снято с продажи на Encar до ночной выгрузки
+    encar_listing_sold       BOOLEAN NOT NULL DEFAULT false,
+    encar_listing_checked_at TIMESTAMPTZ,
     data                     JSONB NOT NULL,
     raw                      JSONB,
     source_internal_id       BIGINT,
@@ -117,6 +120,11 @@ CREATE INDEX IF NOT EXISTS idx_cars_damaged ON cars (damaged_parts_count);
 
 CREATE INDEX IF NOT EXISTS idx_cars_listing_partition ON cars (listing_partition_key, id DESC);
 CREATE INDEX IF NOT EXISTS idx_cars_offer_created ON cars (offer_created_at DESC NULLS LAST);
+
+CREATE INDEX IF NOT EXISTS idx_cars_encar_listing_checker
+    ON cars (encar_listing_checked_at NULLS FIRST)
+    WHERE (source IS NULL OR source = 'encar')
+      AND car_id NOT LIKE 'dongchedi-%';
 
 CREATE INDEX IF NOT EXISTS idx_cars_data_gin ON cars USING GIN (data);
 

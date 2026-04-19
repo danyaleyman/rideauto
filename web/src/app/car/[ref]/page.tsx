@@ -56,6 +56,7 @@ export default async function CarPage({ params }: PageProps) {
   const title = carHeading(raw);
   const imgs = getAllCarPhotoUrls(d as Record<string, unknown>);
   const carId = typeof raw.id === "string" ? raw.id : ref;
+  const listingSold = (raw as Record<string, unknown>).encar_listing_sold === true;
   const similarPayload = await fetchSimilar(carId, 8, { revalidate: 60 }).catch(() => ({ result: [] }));
   const similar = (similarPayload.result || []) as SlimCar[];
 
@@ -139,6 +140,15 @@ export default async function CarPage({ params }: PageProps) {
           ) : null}
         </div>
 
+        {listingSold ? (
+          <div
+            className="mb-4 rounded-2xl border border-red-900/35 bg-red-950/25 px-4 py-3 text-sm text-red-50 shadow-sm backdrop-blur-sm"
+            role="status"
+          >
+            Объявление на Encar снято с продажи; карточка останется до следующего ночного обновления каталога.
+          </div>
+        ) : null}
+
         {imgs.length ? (
           <CarPhotoGallery
             images={imgs}
@@ -149,6 +159,7 @@ export default async function CarPage({ params }: PageProps) {
                 ? ((raw as Record<string, unknown>)._catalog_created_at as string)
                 : null
             }
+            listingSold={listingSold}
           />
         ) : null}
 
@@ -215,13 +226,14 @@ export default async function CarPage({ params }: PageProps) {
           <ul className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {similar.map((car) => {
               const img = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
+              const simSold = Boolean(car.encar_listing_sold);
               return (
                 <li key={car.id}>
                   <Link
                     href={`/car/${encodeURIComponent(car.id)}`}
                     className="group block min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm ring-1 ring-black/[0.03] transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md active:scale-[0.99] dark:ring-white/[0.05]"
                   >
-                    <div className="overflow-hidden bg-muted">
+                    <div className="relative overflow-hidden bg-muted">
                       {img ? (
                         <Image
                           src={img}
@@ -239,6 +251,16 @@ export default async function CarPage({ params }: PageProps) {
                           Нет фото
                         </div>
                       )}
+                      {simSold ? (
+                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 px-2">
+                          <span className="text-center text-[11px] font-semibold leading-tight text-white sm:text-xs">
+                            Автомобиль продан
+                          </span>
+                          <span className="rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Продан
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="min-w-0 p-3 sm:p-3.5">
                       <p className="line-clamp-3 break-words text-sm font-semibold leading-snug [overflow-wrap:anywhere] group-hover:text-primary sm:line-clamp-2">

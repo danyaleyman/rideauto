@@ -20,6 +20,8 @@ type CarPhotoGalleryProps = {
   sourceKey?: string | null;
   /** ISO created_at каталога — бейдж «Добавлено сегодня» вместо WRA (не Encar). */
   catalogCreatedAt?: string | null;
+  /** Дневной чекер: объявление снято с продажи на Encar. */
+  listingSold?: boolean;
 };
 
 const THUMB_COUNT = 4;
@@ -29,6 +31,7 @@ export default function CarPhotoGallery({
   title,
   sourceKey,
   catalogCreatedAt,
+  listingSold,
 }: CarPhotoGalleryProps) {
   const images = useMemo(() => {
     const raw = rawImages.filter((x) => /^https?:\/\//i.test(x.trim()));
@@ -143,17 +146,24 @@ export default function CarPhotoGallery({
               priority
               unoptimized
             />
+            {listingSold ? (
+              <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/58 px-4">
+                <p className="text-center text-base font-semibold leading-snug text-white drop-shadow-md sm:text-lg">
+                  Автомобиль продан
+                </p>
+              </div>
+            ) : null}
             <div
               className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent"
               aria-hidden
             />
 
             {showEncarBadge ? (
-              <div className="pointer-events-none absolute start-3 top-3 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
+              <div className="pointer-events-none absolute start-3 top-3 z-[2] rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
                 Encar
               </div>
             ) : showListedTodayBadge ? (
-              <div className="pointer-events-none absolute start-3 top-3 max-w-[min(100%,14rem)] rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium leading-snug text-white shadow-md ring-1 ring-white/15 backdrop-blur-sm sm:text-[11px]">
+              <div className="pointer-events-none absolute start-3 top-3 z-[2] max-w-[min(100%,14rem)] rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium leading-snug text-white shadow-md ring-1 ring-white/15 backdrop-blur-sm sm:text-[11px]">
                 Добавлено сегодня
               </div>
             ) : null}

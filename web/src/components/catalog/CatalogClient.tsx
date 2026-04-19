@@ -307,10 +307,12 @@ function CatalogCardImage({
   images,
   alt,
   eager,
+  sold,
 }: {
   images: string[];
   alt: string;
   eager: boolean;
+  sold?: boolean;
 }) {
   const [idx, setIdx] = useState(0);
   const canCycle = images.length > 1;
@@ -359,6 +361,13 @@ function CatalogCardImage({
         decoding="async"
         unoptimized
       />
+      {sold ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/58 px-3">
+          <p className="text-center text-sm font-semibold leading-snug text-white drop-shadow-md sm:text-base">
+            Автомобиль продан
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1017,14 +1026,22 @@ export function CatalogClient({
                           images={preview}
                           alt={car.title || car.id}
                           eager={idx < 4}
+                          sold={Boolean(car.encar_listing_sold)}
                         />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/55 via-black/20 to-transparent px-2 pb-2 pt-14">
-                          <Badge
-                            variant="secondary"
-                            className="rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:text-xs"
-                          >
-                            {car.year_num ? `${car.year_num}` : "—"}
-                          </Badge>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <Badge
+                              variant="secondary"
+                              className="rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:text-xs"
+                            >
+                              {car.year_num ? `${car.year_num}` : "—"}
+                            </Badge>
+                            {car.encar_listing_sold ? (
+                              <Badge className="rounded-md border border-red-900/30 bg-red-600 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm sm:text-xs">
+                                Продан
+                              </Badge>
+                            ) : null}
+                          </div>
                           {isCatalogListedToday(car.catalog_created_at) ? (
                             <span
                               className="max-w-[min(100%,10.5rem)] shrink-0 truncate rounded-md bg-black/60 px-2 py-0.5 text-center text-[10px] font-medium leading-tight text-white shadow-md ring-1 ring-white/15 backdrop-blur-[2px] sm:max-w-[12rem] sm:py-1 sm:text-[11px]"

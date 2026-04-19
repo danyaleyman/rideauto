@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from encar_listing_status import encar_detail_indicates_sold
 from encar_scraper import AsyncEncarClient, load_config, setup_logging
 from scraper_pipeline.checkpoint_pg import CheckpointAsync
 
@@ -150,7 +151,7 @@ async def remove_sold_postgres(
     for car_id in ids:
         data, status, _ = await client.fetch_vehicle_detail(car_id)
         await asyncio.sleep(random.uniform(d_min, d_max))
-        if status == 404 or (status == 200 and _is_sold(data)):
+        if status == 404 or (status == 200 and encar_detail_indicates_sold(data)):
             try:
                 await asyncio.to_thread(_delete, car_id)
                 await checkpoint.remove_collected(car_id)
@@ -159,15 +160,6 @@ async def remove_sold_postgres(
             except Exception as e:
                 log.warning("Failed to remove car_id=%s from postgres: %s", car_id, e)
     return removed
-
-
-def _is_sold(data: dict | None) -> bool:
-    if not data:
-        return False
-    s = (data.get("salesStatus") or data.get("SalesStatus") or "").lower()
-    if "sold" in s or "판매완료" in s:
-        return True
-    return False
 
 
 def run_only_pending(config_path: str, log) -> bool:
