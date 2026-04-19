@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict
+import logging
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Request
 from meilisearch import Client
@@ -16,6 +17,7 @@ from fastapi_app.meilisearch_query import (
 from fastapi_app.schemas.api import FacetsResponse
 
 router = APIRouter(tags=["facets"])
+logger = logging.getLogger(__name__)
 
 
 def _flat_query(request: Request) -> Dict[str, str]:
@@ -52,7 +54,15 @@ async def _facets_body(request: Request) -> Dict[str, Any]:
         _facet_dimension(meili, settings.meilisearch_index, flat, omit, attr)
         for _, omit, attr in FACET_SPECS_MEILI
     ]
-    parts = await asyncio.gather(*tasks)
+    raw: List[Any] = await asyncio.gather(*tasks, return_exceptions=True)
+    parts: list = []
+    for i, r in enumerate(raw):
+        if isinstance(r, BaseException):
+            meili_attr = FACET_SPECS_MEILI[i][2] if i < len(FACET_SPECS_MEILI) else "?"
+            logger.error("facet dimension failed meili_attr=%s", meili_attr, exc_info=r)
+            parts.append([])
+        else:
+            parts.append(r)
     keys = [spec[0] for spec in FACET_SPECS_MEILI]
     payload = dict(zip(keys, parts))
     return FacetsResponse(**payload).model_dump()

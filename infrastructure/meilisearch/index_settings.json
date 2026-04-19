@@ -2,6 +2,7 @@
   "searchableAttributes": [
     "brand",
     "model",
+    "model_group",
     "generation",
     "trim",
     "price",
@@ -14,6 +15,7 @@
   "filterableAttributes": [
     "brand",
     "model",
+    "model_group",
     "price",
     "year",
     "year_month",

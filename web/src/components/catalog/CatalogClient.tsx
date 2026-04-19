@@ -578,8 +578,9 @@ export function CatalogClient({
         if (ac.signal.aborted) return;
         facetsCacheRef.current.set(facetKey, fRes);
         setFacets(fRes);
-      } catch {
-        // Keep previous facets silently on transient facet errors.
+      } catch (e) {
+        console.error("facets fetch failed", e);
+        // Keep previous facets on transient errors; if there were none, leave null (accordion shows skeletons).
       }
     })();
     return () => ac.abort();

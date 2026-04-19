@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
@@ -96,7 +97,9 @@ def _romanize_zh(text: str) -> str:
 _KOREA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 _CHINA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 _KOREA_MARK_ALIASES: Optional[Dict[str, str]] = None
-_KOREA_EN_DOMAIN_ALIASES: Optional[Dict[str, Dict[str, str]]] = None
+_KOREA_EN_DOMAIN_ALIAS_LOCK = threading.Lock()
+_KOREA_EN_DOMAIN_ALIAS_CACHE: Dict[str, Dict[str, str]] = {}
+_KOREA_EN_DOMAIN_NAMES = frozenset({"mark", "model", "generation", "configuration", "gradeName", "trim_name"})
 _KOREA_MARK_EXACT_OVERRIDES: Dict[str, str] = {
     "KG모빌리티(쌍용)": "KG Mobility (SsangYong)",
     "기아": "Kia",
@@ -251,15 +254,19 @@ def _korea_mark_aliases() -> Dict[str, str]:
     return _KOREA_MARK_ALIASES
 
 
-def _korea_en_domain_aliases() -> Dict[str, Dict[str, str]]:
-    global _KOREA_EN_DOMAIN_ALIASES
-    if _KOREA_EN_DOMAIN_ALIASES is not None:
-        return _KOREA_EN_DOMAIN_ALIASES
-    out: Dict[str, Dict[str, str]] = {}
-    en_maps = (_korea_static_maps().get("en") or {})
-    for domain in ("mark", "model", "generation", "configuration", "gradeName", "trim_name"):
-        bucket = en_maps.get(domain) or {}
+def _korea_en_domain_alias_map_for(domain: str) -> Dict[str, str]:
+    """
+    Алиасы KO→EN для одного домена (ленивая сборка + lock: безопасно при параллельных /api/facets).
+    Раньше строился весь dict сразу и блокировал ответ на минуты.
+    """
+    if domain not in _KOREA_EN_DOMAIN_NAMES:
+        return {}
+    with _KOREA_EN_DOMAIN_ALIAS_LOCK:
+        cached = _KOREA_EN_DOMAIN_ALIAS_CACHE.get(domain)
+        if cached is not None:
+            return cached
         aliases: Dict[str, str] = {}
+        bucket = ((_korea_static_maps().get("en") or {}).get(domain) or {})
         for original, english in bucket.items():
             eng = _as_text(english)
             if not eng:
@@ -276,9 +283,8 @@ def _korea_en_domain_aliases() -> Dict[str, Dict[str, str]]:
                     k = _alias_key(cand)
                     if k and k not in aliases:
                         aliases[k] = eng
-        out[domain] = aliases
-    _KOREA_EN_DOMAIN_ALIASES = out
-    return _KOREA_EN_DOMAIN_ALIASES
+        _KOREA_EN_DOMAIN_ALIAS_CACHE[domain] = aliases
+        return aliases
 
 
 def _offline_translate(text: str, *, target_lang: str) -> str:
@@ -371,8 +377,8 @@ class PgTermLocalizer:
             alias_hit = _korea_mark_aliases().get(_alias_key(s))
             if alias_hit:
                 return alias_hit
-        if target_lang == "en":
-            domain_alias_hit = (_korea_en_domain_aliases().get(domain) or {}).get(_alias_key(s))
+        if target_lang == "en" and domain in _KOREA_EN_DOMAIN_NAMES:
+            domain_alias_hit = _korea_en_domain_alias_map_for(domain).get(_alias_key(s))
             if domain_alias_hit:
                 return domain_alias_hit
 
@@ -581,7 +587,7 @@ def facet_canonical_english(text: object, domain: str) -> str:
         alias_hit = _korea_mark_aliases().get(_alias_key(s))
         if alias_hit:
             return alias_hit
-        dm = (_korea_en_domain_aliases().get("mark") or {}).get(_alias_key(s))
+        dm = _korea_en_domain_alias_map_for("mark").get(_alias_key(s))
         if dm:
             return dm
         static_hit = _lookup_korea_static(_korea_static_maps(), s, "en", "mark")
@@ -592,8 +598,8 @@ def facet_canonical_english(text: object, domain: str) -> str:
         if detect_lang(s) == "ko":
             return _romanize_ko(s)
         return s
-    if domain in _korea_en_domain_aliases():
-        dm = (_korea_en_domain_aliases().get(domain) or {}).get(_alias_key(s))
+    if domain in _KOREA_EN_DOMAIN_NAMES:
+        dm = _korea_en_domain_alias_map_for(domain).get(_alias_key(s))
         if dm:
             return dm
     static_hit = _lookup_korea_static(_korea_static_maps(), s, "en", domain)

@@ -68,6 +68,12 @@ def _maybe_run_meili(dsn: str) -> None:
         or ""
     ).strip()
     index = (os.environ.get("WRA_MEILISEARCH_INDEX") or "cars").strip()
+    recreate = (os.environ.get("WRA_MEILI_RECREATE_INDEX_ON_SYNC") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
     sync_py = _REPO_ROOT / "infrastructure" / "meilisearch" / "sync_meilisearch.py"
     settings_json = _REPO_ROOT / "infrastructure" / "meilisearch" / "index_settings.json"
     if not sync_py.is_file():
@@ -90,6 +96,8 @@ def _maybe_run_meili(dsn: str) -> None:
     ]
     if key:
         cmd.extend(["--meili-key", key])
+    if recreate:
+        cmd.append("--recreate-index")
     print(f"Running Meilisearch sync: {sync_py.name} …", file=sys.stderr)
     r = subprocess.run(cmd, cwd=str(_REPO_ROOT))
     if r.returncode != 0:

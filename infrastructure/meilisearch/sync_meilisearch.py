@@ -97,6 +97,26 @@ def _parse_int_km(v: Any) -> Optional[int]:
         return None
 
 
+def _year_for_document(row: Dict[str, Any]) -> Optional[int]:
+    """Год в индексе: колонка cars.year или из year_month (YYYYMM), иначе None."""
+    if row.get("year") is not None and str(row.get("year")).strip() != "":
+        try:
+            y = int(row["year"])
+            if y > 0:
+                return y
+        except (TypeError, ValueError):
+            pass
+    ym = row.get("year_month")
+    if ym is not None and str(ym).strip() != "":
+        try:
+            iv = int(ym)
+            if iv >= 190001:
+                return iv // 100
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
 def _mileage_from_row(row: Dict[str, Any]) -> Optional[int]:
     km = _parse_int_km(row.get("mileage_km"))
     if km is not None:
@@ -152,8 +172,9 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
 
     if row.get("price_rub") is not None:
         doc["price"] = float(row["price_rub"])
-    if row.get("year") is not None:
-        doc["year"] = int(row["year"])
+    yr = _year_for_document(row)
+    if yr is not None:
+        doc["year"] = int(yr)
     m_km = _mileage_from_row(row)
     if m_km is not None:
         doc["mileage"] = int(m_km)
