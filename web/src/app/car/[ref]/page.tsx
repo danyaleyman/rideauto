@@ -145,7 +145,7 @@ export default async function CarPage({ params }: PageProps) {
             className="mb-4 rounded-2xl border border-red-900/35 bg-red-950/25 px-4 py-3 text-sm text-red-50 shadow-sm backdrop-blur-sm"
             role="status"
           >
-            Объявление на Encar снято с продажи; карточка останется до следующего ночного обновления каталога.
+            Данный автомобиль забронирован или выкуплен. Объявление будет снято из каталога при ближайшем обновлении.
           </div>
         ) : null}
 
