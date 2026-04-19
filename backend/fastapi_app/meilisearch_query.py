@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Dict, FrozenSet, List, Optional, Sequence
 
+from fastapi_app.facet_normalize import expand_filter_values, merge_facet_distribution_rows
+
 
 def _csv(q: Dict[str, str], key: str) -> List[str]:
     raw = q.get(key)
@@ -18,6 +20,20 @@ def _in_clause(attr: str, values: Sequence[str]) -> Optional[str]:
     return f"{attr} IN [{inner}]"
 
 
+def _parse_range_number(raw: Optional[str], *, as_float: bool) -> Optional[float]:
+    if raw is None:
+        return None
+    s = str(raw).strip().replace("\u00a0", " ").replace(",", "").replace("'", "")
+    if not s:
+        return None
+    try:
+        if as_float:
+            return float(s)
+        return float(int(float(s)))
+    except ValueError:
+        return None
+
+
 def _append_range(
     clauses: List[str],
     attr: str,
@@ -26,18 +42,12 @@ def _append_range(
     *,
     as_float: bool,
 ) -> None:
-    if from_s:
-        try:
-            v = float(from_s) if as_float else int(from_s)
-            clauses.append(f"{attr} >= {v}")
-        except ValueError:
-            pass
-    if to_s:
-        try:
-            v = float(to_s) if as_float else int(to_s)
-            clauses.append(f"{attr} <= {v}")
-        except ValueError:
-            pass
+    v_from = _parse_range_number(from_s, as_float=as_float)
+    if v_from is not None:
+        clauses.append(f"{attr} >= {v_from}")
+    v_to = _parse_range_number(to_s, as_float=as_float)
+    if v_to is not None:
+        clauses.append(f"{attr} <= {v_to}")
 
 
 def build_meilisearch_filter(
@@ -69,28 +79,28 @@ def build_meilisearch_filter(
     elif reg == "korea":
         clauses.append('source = "encar"')
 
-    inc = _in_clause("brand", _csv(q, "marks"))
+    inc = _in_clause("brand", expand_filter_values("brand", _csv(q, "marks"), query_flat=q))
     if inc:
         clauses.append(inc)
-    inc = _in_clause("model", _csv(q, "models"))
+    inc = _in_clause("model_group", expand_filter_values("model_group", _csv(q, "models"), query_flat=q))
     if inc:
         clauses.append(inc)
-    inc = _in_clause("generation", _csv(q, "generations"))
+    inc = _in_clause("generation", expand_filter_values("generation", _csv(q, "generations"), query_flat=q))
     if inc:
         clauses.append(inc)
-    inc = _in_clause("trim", _csv(q, "trims"))
+    inc = _in_clause("trim", expand_filter_values("trim", _csv(q, "trims"), query_flat=q))
     if inc:
         clauses.append(inc)
-    inc = _in_clause("body_type", _csv(q, "body"))
+    inc = _in_clause("body_type", expand_filter_values("body_type", _csv(q, "body"), query_flat=q))
     if inc:
         clauses.append(inc)
-    inc = _in_clause("fuel", _csv(q, "fuel"))
+    inc = _in_clause("fuel", expand_filter_values("fuel", _csv(q, "fuel"), query_flat=q))
     if inc:
         clauses.append(inc)
-    inc = _in_clause("transmission", _csv(q, "trans"))
+    inc = _in_clause("transmission", expand_filter_values("transmission", _csv(q, "trans"), query_flat=q))
     if inc:
         clauses.append(inc)
-    inc = _in_clause("color", _csv(q, "color"))
+    inc = _in_clause("color", expand_filter_values("color", _csv(q, "color"), query_flat=q))
     if inc:
         clauses.append(inc)
 
@@ -130,7 +140,7 @@ def meilisearch_sort_list(sort_key: str) -> List[str]:
 
 FACET_SPECS_MEILI = (
     ("marks", frozenset({"marks"}), "brand"),
-    ("models", frozenset({"models"}), "model"),
+    ("models", frozenset({"models"}), "model_group"),
     ("generations", frozenset({"generations"}), "generation"),
     ("trims", frozenset({"trims"}), "trim"),
     ("bodies", frozenset({"body"}), "body_type"),
@@ -140,10 +150,14 @@ FACET_SPECS_MEILI = (
 )
 
 
-def facet_distribution_to_rows(dist: Optional[Dict[str, int]]) -> List[Dict[str, object]]:
+def facet_distribution_to_rows(
+    dist: Optional[Dict[str, int]],
+    *,
+    attr: str = "",
+    query_flat: Optional[Dict[str, str]] = None,
+) -> List[Dict[str, object]]:
     if not dist:
         return []
-    rows = [{"value": k, "count": int(v)} for k, v in dist.items() if k not in ("", None)]
-    rows.sort(key=lambda r: str(r["value"]).lower())
-    return rows
+    rows = [{"value": k, "count": int(v)} for k, v in dist.items() if k not in ("", None) and int(v) > 0]
+    return merge_facet_distribution_rows(attr, rows, query_flat=query_flat)
 

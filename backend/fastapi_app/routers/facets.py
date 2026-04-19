@@ -40,7 +40,7 @@ async def _facet_dimension(
 
     res = await asyncio.to_thread(_run)
     dist = (res.get("facetDistribution") or {}).get(meili_attr) or {}
-    return facet_distribution_to_rows(dist)
+    return facet_distribution_to_rows(dist, attr=meili_attr, query_flat=flat)
 
 
 async def _facets_body(request: Request) -> Dict[str, Any]:

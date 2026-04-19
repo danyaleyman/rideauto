@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict
 
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
+from localization.term_localizer import facet_canonical_english
 
 
 def _coerce_catalog_images_to_urls(parsed: list[Any]) -> list[str]:
@@ -87,15 +88,26 @@ def _extract_num(data: Dict[str, Any], key: str) -> float | None:
 
 
 def _car_title(data: Dict[str, Any]) -> str:
-    mark = (data.get("mark_en") or data.get("mark") or "").strip()
-    model = (data.get("model_en") or data.get("model") or "").strip()
+    def _pick(en_key: str, raw_key: str, domain: str) -> str:
+        t = (data.get(en_key) or "").strip()
+        if t:
+            return t
+        raw = data.get(raw_key)
+        c = facet_canonical_english(raw, domain).strip()
+        if c:
+            return c
+        return (raw or "").strip() if isinstance(raw, str) else ""
+
+    mark = _pick("mark_en", "mark", "mark")
+    model = _pick("model_en", "model", "model")
     generation = (
-        data.get("generation_en")
-        or data.get("generation")
-        or data.get("configuration_en")
-        or data.get("configuration")
-        or ""
-    ).strip()
+        (data.get("generation_en") or "").strip()
+        or facet_canonical_english(data.get("generation"), "generation").strip()
+        or (data.get("generation") or "").strip()
+        or (data.get("configuration_en") or "").strip()
+        or facet_canonical_english(data.get("configuration"), "configuration").strip()
+        or (data.get("configuration") or "").strip()
+    )
     return " ".join([x for x in [mark, model, generation] if x]).strip()
 
 

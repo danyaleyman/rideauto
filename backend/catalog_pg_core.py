@@ -21,6 +21,11 @@ def _safe_int(v: Any) -> Optional[int]:
     try:
         if v is None or v == "":
             return None
+        if isinstance(v, str):
+            s = v.strip().replace("\u00a0", " ").replace(" ", "").replace(",", "").replace("'", "")
+            if not s:
+                return None
+            return int(float(s))
         return int(float(v))
     except (TypeError, ValueError):
         return None

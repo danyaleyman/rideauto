@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -79,6 +80,51 @@ def _fmt_ts_for_meili(dt: Optional[Any]) -> Optional[str]:
     return str(dt)
 
 
+_MODEL_TRAILING_PAREN_RE = re.compile(r"\s*\([^)]*\)\s*$")
+
+
+def _parse_int_km(v: Any) -> Optional[int]:
+    if v is None or v == "":
+        return None
+    try:
+        if isinstance(v, str):
+            s = v.strip().replace("\u00a0", " ").replace(" ", "").replace(",", "").replace("'", "")
+            if not s:
+                return None
+            return int(float(s))
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
+def _mileage_from_row(row: Dict[str, Any]) -> Optional[int]:
+    km = _parse_int_km(row.get("mileage_km"))
+    if km is not None:
+        return km
+    raw = row.get("data")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = None
+    if isinstance(raw, dict):
+        return _parse_int_km(raw.get("km_age"))
+    return None
+
+
+def _model_group(model: str) -> str:
+    s = (model or "").strip()
+    if not s:
+        return s
+    prev = s
+    while True:
+        nxt = _MODEL_TRAILING_PAREN_RE.sub("", prev).strip()
+        if not nxt or nxt == prev:
+            break
+        prev = nxt
+    return prev or s
+
+
 def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
     car_id = row.get("car_id")
     if not car_id:
@@ -90,6 +136,7 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
         "car_id": str(car_id),
         "brand": (row.get("mark") or "").strip(),
         "model": (row.get("model") or "").strip(),
+        "model_group": _model_group((row.get("model") or "").strip()),
         "fuel": (row.get("fuel_type") or "").strip(),
         "color": (row.get("color") or "").strip(),
         "body_type": (row.get("body_type") or "").strip(),
@@ -107,8 +154,9 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
         doc["price"] = float(row["price_rub"])
     if row.get("year") is not None:
         doc["year"] = int(row["year"])
-    if row.get("mileage_km") is not None:
-        doc["mileage"] = int(row["mileage_km"])
+    m_km = _mileage_from_row(row)
+    if m_km is not None:
+        doc["mileage"] = int(m_km)
     if row.get("year_month") is not None:
         doc["year_month"] = int(row["year_month"])
 
@@ -175,6 +223,7 @@ def iter_car_rows(
                 c.year,
                 c.year_month,
                 c.mileage_km,
+                c.data,
                 c.source,
                 c.updated_at,
                 c.created_at

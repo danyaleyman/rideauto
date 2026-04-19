@@ -561,3 +561,50 @@ def localize_china_data(data: Dict[str, object], localizer: PgTermLocalizer) -> 
         if ru:
             data[f] = ru
             data[f"{f}_ru"] = ru
+
+
+def facet_canonical_english(text: object, domain: str) -> str:
+    """
+    Статическая канонизация для Meilisearch-фасетов и заголовков каталога (без БД).
+    Дублирует «раннюю» ветку translate() для EN, чтобы схлопнуть a-udi→Audi и корейские ключи.
+    """
+    s = _as_text(text)
+    if not s:
+        return ""
+    if domain == "mark":
+        exact_hit = _KOREA_MARK_EXACT_OVERRIDES.get(s)
+        if exact_hit:
+            return exact_hit
+        china_exact_hit = _CHINA_MARK_EXACT_OVERRIDES.get(s)
+        if china_exact_hit:
+            return china_exact_hit
+        alias_hit = _korea_mark_aliases().get(_alias_key(s))
+        if alias_hit:
+            return alias_hit
+        dm = (_korea_en_domain_aliases().get("mark") or {}).get(_alias_key(s))
+        if dm:
+            return dm
+        static_hit = _lookup_korea_static(_korea_static_maps(), s, "en", "mark")
+        if static_hit:
+            return static_hit
+        if _looks_english(s):
+            return s
+        if detect_lang(s) == "ko":
+            return _romanize_ko(s)
+        return s
+    if domain in _korea_en_domain_aliases():
+        dm = (_korea_en_domain_aliases().get(domain) or {}).get(_alias_key(s))
+        if dm:
+            return dm
+    static_hit = _lookup_korea_static(_korea_static_maps(), s, "en", domain)
+    if static_hit:
+        return static_hit
+    if domain == "trim_name":
+        sh2 = _lookup_korea_static(_korea_static_maps(), s, "en", "configuration")
+        if sh2:
+            return sh2
+    if _looks_english(s):
+        return s
+    if detect_lang(s) == "ko":
+        return _romanize_ko(s)
+    return s
