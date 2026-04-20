@@ -677,9 +677,12 @@ def sku_row_to_payload(
         return {"data": {}}
 
     params_raw: Optional[Dict[str, Any]] = None
-    if detail and isinstance(detail, dict) and isinstance(detail.get("_params_raw"), dict):
-        detail = dict(detail)
-        params_raw = detail.pop("_params_raw", None)
+    spec_car_id_hint: Optional[str] = None
+    if detail and isinstance(detail, dict):
+        spec_car_id_hint = dongchedi_spec_car_id(detail)
+        if isinstance(detail.get("_params_raw"), dict):
+            detail = dict(detail)
+            params_raw = detail.pop("_params_raw", None)
 
     title = str(row.get("title") or "").strip()
     brand_name = str(row.get("brand_name") or "").strip()
@@ -899,6 +902,9 @@ def sku_row_to_payload(
         data["km_age"] = km_age
 
     _apply_params_raw_to_data(data, params_raw, cny_to_rub=cny_to_rub)
+    if spec_car_id_hint and not data.get("dongchedi_specs_url"):
+        data["dongchedi_specs_car_id"] = spec_car_id_hint
+        data["dongchedi_specs_url"] = f"https://www.dongchedi.com/auto/params-carIds-{spec_car_id_hint}"
     _apply_china_static_mapping(data)
 
     return {"data": data}

@@ -248,6 +248,41 @@ def test_parse_params_raw_data_when_not_in_pageprops():
     assert rd["car_info"].get("car_id") == 36968
 
 
+def test_parse_params_raw_data_when_rawdata_is_json_string():
+    payload = {
+        "props": {
+            "pageProps": {
+                "rawData": json.dumps({"car_info": {"car_id": 88888}}, ensure_ascii=False),
+            }
+        }
+    }
+    html = (
+        '<script id="__NEXT_DATA__" type="application/json">'
+        + json.dumps(payload, ensure_ascii=False)
+        + "</script>"
+    )
+    rd = parse_params_raw_data_from_html(html)
+    assert rd is not None
+    assert rd.get("car_info", {}).get("car_id") == 88888
+
+
+def test_sku_row_sets_specs_url_from_detail_hint_without_params_raw():
+    row = {
+        "sku_id": 444,
+        "title": "T",
+        "brand_name": "B",
+        "series_name": "S",
+        "car_year": 2020,
+        "car_mileage": "1万公里",
+        "image": "https://example.com/x.jpg",
+    }
+    detail = {"_spec_car_id_hint": "36968"}
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    d = out["data"]
+    assert d["dongchedi_specs_car_id"] == "36968"
+    assert d["dongchedi_specs_url"] == "https://www.dongchedi.com/auto/params-carIds-36968"
+
+
 def test_km_from_car_info_mileage_int():
     row = {
         "sku_id": 3,

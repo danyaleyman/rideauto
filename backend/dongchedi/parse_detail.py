@@ -11,6 +11,8 @@ _NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re
 _SKU_DETAIL_MARK_RE = re.compile(r'"skuDetail"\s*:\s*\{', re.DOTALL)
 _SKU_DETAIL_ESC_MARK_RE = re.compile(r'\\"skuDetail\\"\s*:\s*\{', re.DOTALL)
 _PARAMS_CAR_ID_RE = re.compile(r"params-carIds-(\d{3,9})")
+_RAW_DATA_MARK_RE = re.compile(r'"rawData"\s*:\s*\{', re.DOTALL)
+_RAW_DATA_ESC_MARK_RE = re.compile(r'\\"rawData\\"\s*:\s*\{', re.DOTALL)
 
 _KM_HTML_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"【\s*行驶里程\s*】\s*([\d.]+)\s*万\s*公里"),
@@ -162,6 +164,57 @@ def _find_detail_like_obj(root: Any, depth: int = 0) -> Optional[Dict[str, Any]]
     return None
 
 
+def _find_key_obj(root: Any, key: str, depth: int = 0) -> Optional[Dict[str, Any]]:
+    if depth > 14 or root is None:
+        return None
+    if isinstance(root, dict):
+        v = root.get(key)
+        if isinstance(v, str) and v.strip():
+            try:
+                v = json.loads(v)
+            except json.JSONDecodeError:
+                v = None
+        if isinstance(v, dict):
+            return v
+        for vv in root.values():
+            found = _find_key_obj(vv, key, depth + 1)
+            if found:
+                return found
+    elif isinstance(root, list):
+        for item in root[:200]:
+            found = _find_key_obj(item, key, depth + 1)
+            if found:
+                return found
+    return None
+
+
+def _raw_data_from_raw_html(html: str) -> Optional[Dict[str, Any]]:
+    if not html:
+        return None
+    candidates = [
+        html,
+        html.replace('\\"', '"').replace("\\/", "/"),
+    ]
+    for cand in candidates:
+        m = _RAW_DATA_MARK_RE.search(cand) or _RAW_DATA_ESC_MARK_RE.search(cand)
+        if not m:
+            continue
+        open_idx = m.end() - 1
+        blob = _extract_balanced_object(cand, open_idx)
+        if not blob:
+            continue
+        try:
+            obj = json.loads(blob)
+        except json.JSONDecodeError:
+            try:
+                obj = json.loads(blob.replace('\\"', '"').replace("\\/", "/"))
+            except json.JSONDecodeError:
+                continue
+        if isinstance(obj, dict):
+            return obj
+    return None
+
+
 def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
     pp = _next_data_page_props(html)
     sd = pp.get("skuDetail")
@@ -194,14 +247,26 @@ def parse_params_raw_data_from_html(html: str) -> Optional[Dict[str, Any]]:
     """Страница /auto/params-carIds-{id} → pageProps.rawData (комплектация, МСРП, год модели)."""
     pp = _next_data_page_props(html)
     rd = pp.get("rawData")
+    if isinstance(rd, str) and rd.strip():
+        try:
+            rd = json.loads(rd)
+        except json.JSONDecodeError:
+            rd = None
     if isinstance(rd, dict):
         return rd
     # Fallback: структура может переехать в другие блоки.
     root = _next_data_root(html)
+    if isinstance(root, dict):
+        by_key = _find_key_obj(root, "rawData")
+        if isinstance(by_key, dict):
+            return by_key
     hit = _find_detail_like_obj(root.get("props")) if isinstance(root, dict) else None
     if isinstance(hit, dict) and isinstance(hit.get("car_info"), dict):
         return hit
     hit2 = _find_detail_like_obj(root) if isinstance(root, dict) else None
     if isinstance(hit2, dict) and isinstance(hit2.get("car_info"), dict):
         return hit2
+    raw = _raw_data_from_raw_html(html)
+    if isinstance(raw, dict):
+        return raw
     return None
