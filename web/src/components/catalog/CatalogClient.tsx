@@ -69,6 +69,7 @@ import {
   Fuel,
   Gauge,
   Plus,
+  Settings2,
   Sparkles,
   Zap,
 } from "lucide-react";
@@ -121,6 +122,25 @@ function carsAddedTodayLabel(n: number): string {
 }
 
 /** Чипы как на странице авто: дата регистрации гг/мм (или год), пробег, топливо — без дублирования заголовка. */
+function formatDisplacementLiters(cc: number): string {
+  const liters = cc / 1000;
+  const rounded = Math.round(liters * 10) / 10;
+  const isInt = Math.abs(rounded - Math.round(rounded)) < 1e-9;
+  const shown = isInt ? String(Math.round(rounded)) : String(rounded).replace(".", ",");
+  const n = rounded;
+  const last = Math.floor(n) % 10;
+  const last2 = Math.floor(n) % 100;
+  const word =
+    !isInt
+      ? "литра"
+      : last === 1 && last2 !== 11
+        ? "литр"
+        : last >= 2 && last <= 4 && !(last2 >= 12 && last2 <= 14)
+          ? "литра"
+          : "литров";
+  return `${shown} ${word}`;
+}
+
 function catalogCardAttributeChips(
   data: Record<string, unknown>,
   yearNum?: number | null,
@@ -147,7 +167,7 @@ function catalogCardAttributeChips(
       ? Math.trunc(ccRaw)
       : Number.parseInt(String(ccRaw ?? "").replace(/[^\d]/g, ""), 10);
   if (!isElectricFuel && Number.isFinite(ccNum) && ccNum > 0) {
-    chips.push({ key: "cc", label: `${ccNum.toLocaleString("ru-RU")} см³`, Icon: Gauge });
+    chips.push({ key: "cc", label: formatDisplacementLiters(ccNum), Icon: Settings2 });
   }
   const hpRaw = data.power_hp ?? data.power ?? data.hp;
   const hpNum =

@@ -1,0 +1,24 @@
+[Unit]
+Description=Prod Encar HP catalog LLM filler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prod-encar
+Group=prod-encar
+WorkingDirectory=/opt/prod-encar
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/prod-encar
+ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/scripts/fill_hp_catalog_deepseek.py --db /opt/prod-encar/data/hp_catalog.db --provider auto --model deepseek-chat --openai-model gpt-4o-mini --retry-errors --continuous --sleep-sec 0.5 --idle-sleep-sec 20 --max-attempts 8
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/prod-encar
+LockPersonality=true
+MemoryDenyWriteExecute=true
+

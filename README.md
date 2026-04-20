@@ -35,6 +35,29 @@ bash deploy/scripts/diagnose_nightly_updates.sh
 ```
 Ручной прогон индекса: `sudo bash deploy/scripts/run_meilisearch_sync_host.sh` (из `/opt/prod-encar`).
 
+### HP coverage: one-time backfill + background filler
+
+Чтобы добить `л.с.` до максимального покрытия:
+
+```bash
+# 1) One-time: подтянуть строки из Postgres в hp_catalog, заполнить pending и записать hp обратно в cars
+sudo -u prod-encar bash /opt/prod-encar/deploy/scripts/run_hp_catalog_backfill_once.sh /opt/prod-encar
+
+# 1.1) После массового backfill обновить индекс (чтобы фильтры/карточки увидели новые power_hp)
+sudo bash /opt/prod-encar/deploy/scripts/run_meilisearch_sync_host.sh
+
+# 2) Continuous: держать фоновый LLM-filler (pending/no_data/error)
+sudo cp deploy/systemd/prod-encar-hp-catalog-fill.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now prod-encar-hp-catalog-fill.service
+sudo systemctl status prod-encar-hp-catalog-fill.service --no-pager
+
+# 3) Progress
+sudo -u prod-encar /opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/scripts/hp_catalog_stats.py --db /opt/prod-encar/data/hp_catalog.db
+```
+
+Ключи LLM задаются в `/etc/default/prod-encar`: `DEEPSEEK_API_KEY` и/или `OPENAI_API_KEY`.
+
 Глубина списка Encar задаётся в [`scraper_config.yaml`](scraper_config.yaml): `max_list_offset: 0` означает проход до пустого ответа (с верхней границей `list_offset_hard_cap`). Дополнительные срезы запроса — `list_q_suffixes`.
 
 ## API каталога (FastAPI)
