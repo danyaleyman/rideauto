@@ -499,3 +499,107 @@ def test_china_generation_trim_and_specs_numbers_from_params_raw():
     assert d["power_kw"] == 167
     assert d["hp"] == 227
     assert d["torque_nm"] == 385
+
+
+def test_params_raw_car_info_list_is_supported():
+    row = {
+        "sku_id": 999,
+        "title": "魏牌 VV7 2019款 升级款 2.0T 旗舰型 国VI",
+        "brand_name": "魏牌",
+        "series_name": "VV7",
+        "car_name": "升级款 2.0T 旗舰型 国VI",
+        "car_year": 2019,
+        "car_mileage": "8万公里",
+        "image": "https://example.com/vv7.jpg",
+    }
+    detail = {
+        "_params_raw": {
+            "car_info": [
+                {
+                    "car_id": "36968",
+                    "car_name": "升级款 2.0T 旗舰型 国VI",
+                    "car_year": "2019",
+                    "official_price": "19.28万",
+                    "info": {
+                        "max_power": {"value": "167(227Ps)"},
+                        "max_torque": {"value": "385"},
+                        "gearbox_description": {"value": "7挡双离合"},
+                        "engine_description": {"value": "2.0T 227马力 L4"},
+                    },
+                }
+            ]
+        }
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    d = out["data"]
+    assert d["dongchedi_specs_car_id"] == "36968"
+    assert d["dongchedi_specs_url"] == "https://www.dongchedi.com/auto/params-carIds-36968"
+    assert d["power_kw"] == 167
+    assert d["hp"] == 227
+    assert d["torque_nm"] == 385
+
+
+def test_params_raw_alt_power_torque_keys_are_supported():
+    row = {
+        "sku_id": 1001,
+        "title": "测试车",
+        "brand_name": "品牌",
+        "series_name": "车系",
+        "car_name": "2.0T 旗舰型",
+        "car_year": 2020,
+        "car_mileage": "1万公里",
+        "image": "https://example.com/a.jpg",
+    }
+    detail = {
+        "_params_raw": {
+            "car_info": [
+                {
+                    "car_id": "12345",
+                    "info": {
+                        "energy_elect_max_power": {"value": "167(227Ps)"},
+                        "energy_elect_max_torque": {"value": "385"},
+                        "engine_max_horsepower": {"value": "227"},
+                        "fuel_form": {"value": "汽油"},
+                        "car_body_struct": {"value": "5门5座SUV"},
+                    },
+                }
+            ]
+        }
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    d = out["data"]
+    assert d["power_kw"] == 167
+    assert d["hp"] == 227
+    assert d["torque_nm"] == 385
+    assert d["engine_type"] in ("汽油", "Бензин")
+    assert d["body_type"] == "5门5座SUV"
+
+
+def test_params_raw_uses_trim_name_when_car_name_missing():
+    row = {
+        "sku_id": 1002,
+        "title": "测试车",
+        "brand_name": "品牌",
+        "series_name": "车系",
+        "car_name": "",
+        "car_year": 2021,
+        "car_mileage": "1万公里",
+        "image": "https://example.com/a.jpg",
+    }
+    detail = {
+        "_params_raw": {
+            "car_info": [
+                {
+                    "car_id": "54321",
+                    "trim_name": "超长续航智驾版",
+                    "car_year": "2024",
+                    "info": {"energy_elect_max_power": {"value": "360(490Ps)"}},
+                }
+            ]
+        }
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    d = out["data"]
+    assert d["configuration"] == "超长续航智驾版"
+    assert d["trim_name"] == "超长续航智驾版"
+    assert d["dongchedi_model_year"] == "2024"

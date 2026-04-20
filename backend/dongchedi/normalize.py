@@ -499,6 +499,23 @@ def _params_info_cell_value(info: Any, item_key: str) -> str:
     return str(cell or "").strip()
 
 
+def _pick_params_car_info(params_raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    ci_top = params_raw.get("car_info")
+    if isinstance(ci_top, dict):
+        return ci_top
+    if isinstance(ci_top, list):
+        # На части страниц car_info — список комплектаций; берём первую валидную.
+        for item in ci_top:
+            if not isinstance(item, dict):
+                continue
+            if isinstance(item.get("info"), dict) or item.get("car_id") is not None:
+                return item
+        for item in ci_top:
+            if isinstance(item, dict):
+                return item
+    return None
+
+
 def _apply_params_raw_to_data(
     data: Dict[str, Any],
     params_raw: Optional[Dict[str, Any]],
@@ -514,7 +531,7 @@ def _apply_params_raw_to_data(
         data["dongchedi_params_raw"] = json.dumps(params_raw, ensure_ascii=False)
     except Exception:
         pass
-    ci_top = params_raw.get("car_info")
+    ci_top = _pick_params_car_info(params_raw)
     if not isinstance(ci_top, dict):
         return
     car_id = str(ci_top.get("car_id") or "").strip()
@@ -522,7 +539,14 @@ def _apply_params_raw_to_data(
         data["dongchedi_specs_car_id"] = car_id
         data["dongchedi_specs_url"] = f"https://www.dongchedi.com/auto/params-carIds-{car_id}"
 
-    cn = _first_nonempty_str(ci_top.get("car_name"))
+    cn = _first_nonempty_str(
+        ci_top.get("car_name"),
+        ci_top.get("trim_name"),
+        ci_top.get("grade_name"),
+        ci_top.get("version_name"),
+        ci_top.get("sub_name"),
+        ci_top.get("name"),
+    )
     if cn:
         data["configuration"] = cn
         data["gradeName"] = cn
@@ -561,19 +585,39 @@ def _apply_params_raw_to_data(
         if gbx:
             data["transmission_type"] = gbx
             data["dongchedi_gearbox_description"] = gbx
-        body = _params_info_cell_value(info, "body_struct")
+        body = _first_nonempty_str(
+            _params_info_cell_value(info, "body_struct"),
+            _params_info_cell_value(info, "car_body_struct"),
+        )
         if body:
             data["body_type"] = body
-        fuel = _params_info_cell_value(info, "fuel_label")
+        fuel = _first_nonempty_str(
+            _params_info_cell_value(info, "fuel_form"),
+            _params_info_cell_value(info, "fuel_label"),
+        )
         if fuel and not data.get("engine_type"):
             data["engine_type"] = fuel
-        kw = _parse_power_kw_text(_params_info_cell_value(info, "max_power"))
+        power_text = _first_nonempty_str(
+            _params_info_cell_value(info, "max_power"),
+            _params_info_cell_value(info, "energy_elect_max_power"),
+            _params_info_cell_value(info, "engine_max_power"),
+        )
+        kw = _parse_power_kw_text(power_text)
         if kw is not None:
             data["power_kw"] = kw
-        hp = _parse_horsepower_ma(_params_info_cell_value(info, "max_power"))
+        hp_text = _first_nonempty_str(
+            power_text,
+            _params_info_cell_value(info, "engine_max_horsepower"),
+        )
+        hp = _parse_horsepower_ma(hp_text)
         if hp is not None and not data.get("hp"):
             data["hp"] = hp
-        nm = _parse_torque_nm_text(_params_info_cell_value(info, "max_torque"))
+        torque_text = _first_nonempty_str(
+            _params_info_cell_value(info, "max_torque"),
+            _params_info_cell_value(info, "energy_elect_max_torque"),
+            _params_info_cell_value(info, "engine_max_torque"),
+        )
+        nm = _parse_torque_nm_text(torque_text)
         if nm is not None:
             data["torque_nm"] = nm
 
