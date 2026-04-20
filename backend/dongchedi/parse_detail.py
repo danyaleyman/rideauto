@@ -11,6 +11,8 @@ _NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re
 _SKU_DETAIL_MARK_RE = re.compile(r'"skuDetail"\s*:\s*\{', re.DOTALL)
 _SKU_DETAIL_ESC_MARK_RE = re.compile(r'\\"skuDetail\\"\s*:\s*\{', re.DOTALL)
 _PARAMS_CAR_ID_RE = re.compile(r"params-carIds-(\d{3,9})")
+_CAR_ID_RE = re.compile(r'"car_id"\s*:\s*"?(\d{3,9})"?')
+_SPEC_ID_RE = re.compile(r'"spec(?:_id|Id)"\s*:\s*"?(\d{3,9})"?')
 _RAW_DATA_MARK_RE = re.compile(r'"rawData"\s*:\s*\{', re.DOTALL)
 _RAW_DATA_ESC_MARK_RE = re.compile(r'\\"rawData\\"\s*:\s*\{', re.DOTALL)
 _SOURCE_SH_PRICE_RE = re.compile(r'"source_sh_price"\s*:\s*(\d{3,12})')
@@ -242,7 +244,14 @@ def _extract_detail_minimal_from_html(html: str) -> Optional[Dict[str, Any]]:
                 pass
             break
     # car_id
-    cid = _PARAMS_CAR_ID_RE.search(src) or _PARAMS_CAR_ID_RE.search(unesc)
+    cid = (
+        _PARAMS_CAR_ID_RE.search(src)
+        or _PARAMS_CAR_ID_RE.search(unesc)
+        or _CAR_ID_RE.search(src)
+        or _CAR_ID_RE.search(unesc)
+        or _SPEC_ID_RE.search(src)
+        or _SPEC_ID_RE.search(unesc)
+    )
     if cid:
         out["car_info"] = {"car_id": int(cid.group(1))}
     if out:
@@ -257,7 +266,14 @@ def _extract_params_minimal_from_html(html: str) -> Optional[Dict[str, Any]]:
     unesc = src.replace('\\"', '"').replace("\\/", "/")
     candidates = (src, unesc)
     car_id: Optional[int] = None
-    cid = _PARAMS_CAR_ID_RE.search(src) or _PARAMS_CAR_ID_RE.search(unesc)
+    cid = (
+        _PARAMS_CAR_ID_RE.search(src)
+        or _PARAMS_CAR_ID_RE.search(unesc)
+        or _CAR_ID_RE.search(src)
+        or _CAR_ID_RE.search(unesc)
+        or _SPEC_ID_RE.search(src)
+        or _SPEC_ID_RE.search(unesc)
+    )
     if cid:
         try:
             car_id = int(cid.group(1))
