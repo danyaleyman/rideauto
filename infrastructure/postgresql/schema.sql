@@ -45,7 +45,10 @@ CREATE TABLE IF NOT EXISTS cars (
     source                   TEXT NOT NULL DEFAULT 'encar',
     listing_partition_key    TEXT NOT NULL,
     power_hp                 INTEGER,
+    power_kw                 INTEGER,
+    torque_nm                INTEGER,
     displacement_cc          INTEGER,
+    displacement_label       TEXT,
     price_rub                DOUBLE PRECISION,
     mileage_km               INTEGER,
     year                     INTEGER,
@@ -109,7 +112,10 @@ CREATE INDEX IF NOT EXISTS idx_cars_generation ON cars (generation);
 CREATE INDEX IF NOT EXISTS idx_cars_trim ON cars (trim_name);
 
 CREATE INDEX IF NOT EXISTS idx_cars_power ON cars (power_hp);
+CREATE INDEX IF NOT EXISTS idx_cars_power_kw ON cars (power_kw);
+CREATE INDEX IF NOT EXISTS idx_cars_torque ON cars (torque_nm);
 CREATE INDEX IF NOT EXISTS idx_cars_displacement ON cars (displacement_cc);
+CREATE INDEX IF NOT EXISTS idx_cars_displacement_label ON cars (displacement_label);
 
 CREATE INDEX IF NOT EXISTS idx_cars_source ON cars (source);
 CREATE INDEX IF NOT EXISTS idx_cars_source_brand_model ON cars (source, brand_id, model_id);

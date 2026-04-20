@@ -180,6 +180,38 @@ function catalogCardAttributeChips(
   return chips;
 }
 
+function cardOverlayBadges(
+  data: Record<string, unknown>,
+  yearNum?: number | null,
+  market: Market = "korea",
+): string[] {
+  const out: string[] = [];
+  if (yearNum && Number.isFinite(yearNum)) out.push(String(Math.trunc(yearNum)));
+  const dispLabel =
+    asStr(data.dongchedi_displacement_label) ??
+    (() => {
+      const ccRaw = data.displacement ?? data.displacement_cc;
+      const ccNum =
+        typeof ccRaw === "number"
+          ? Math.trunc(ccRaw)
+          : Number.parseInt(String(ccRaw ?? "").replace(/[^\d]/g, ""), 10);
+      if (Number.isFinite(ccNum) && ccNum > 0) {
+        return formatDisplacementLiters(ccNum);
+      }
+      return null;
+    })();
+  const trans = asStr(data.transmission_type);
+  const generation = asStr(data.generation);
+  const trim = asStr(data.trim_name) ?? asStr(data.gradeName) ?? asStr(data.configuration);
+  if (market === "china") {
+    if (dispLabel) out.push(dispLabel);
+    if (trans) out.push(trans);
+    if (generation) out.push(generation);
+    if (trim && trim !== generation) out.push(trim);
+  }
+  return out.slice(0, 4);
+}
+
 function FacetGroup({
   title,
   rows,
@@ -1086,10 +1118,12 @@ export function CatalogClient({
           <ul className="flex flex-col gap-3">
             {search.result.map((car, idx) => {
               const preview = previewImageUrls(car);
+              const cardData = (car.data ?? {}) as Record<string, unknown>;
               const attrChips = catalogCardAttributeChips(
-                (car.data ?? {}) as Record<string, unknown>,
+                cardData,
                 car.year_num,
               );
+              const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
               return (
@@ -1112,12 +1146,25 @@ export function CatalogClient({
                         />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/55 via-black/20 to-transparent px-2 pb-2 pt-14">
                           <div className="flex flex-wrap items-center gap-1">
-                            <Badge
-                              variant="secondary"
-                              className="rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:text-xs"
-                            >
-                              {car.year_num ? `${car.year_num}` : "—"}
-                            </Badge>
+                            {overlayBadges.length ? (
+                              overlayBadges.map((b, i) => (
+                                <Badge
+                                  key={`${car.id}-ob-${i}`}
+                                  variant={i === 0 ? "secondary" : "outline"}
+                                  className="max-w-[10rem] truncate rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:max-w-[12rem] sm:text-xs"
+                                  title={b}
+                                >
+                                  {b}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:text-xs"
+                              >
+                                {car.year_num ? `${car.year_num}` : "—"}
+                              </Badge>
+                            )}
                             {car.encar_listing_sold ? (
                               <Badge className="rounded-md border border-red-900/30 bg-red-600 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm sm:text-xs">
                                 Продан

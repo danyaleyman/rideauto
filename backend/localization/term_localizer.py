@@ -591,6 +591,8 @@ def facet_canonical_english(text: object, domain: str) -> str:
         if dm:
             return dm
         static_hit = _lookup_korea_static(_korea_static_maps(), s, "en", "mark")
+        if not static_hit:
+            static_hit = _lookup_china_static(_china_static_maps(), s, "en", "mark")
         if static_hit:
             return static_hit
         if _looks_english(s):
@@ -603,10 +605,14 @@ def facet_canonical_english(text: object, domain: str) -> str:
         if dm:
             return dm
     static_hit = _lookup_korea_static(_korea_static_maps(), s, "en", domain)
+    if not static_hit:
+        static_hit = _lookup_china_static(_china_static_maps(), s, "en", domain)
     if static_hit:
         return static_hit
     if domain == "trim_name":
         sh2 = _lookup_korea_static(_korea_static_maps(), s, "en", "configuration")
+        if not sh2:
+            sh2 = _lookup_china_static(_china_static_maps(), s, "en", "configuration")
         if sh2:
             return sh2
     if _looks_english(s):

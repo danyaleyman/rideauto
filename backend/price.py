@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 DOCUMENTS_KRW = 440_000
 FREIGHT_USD = 1000
 BROKER_RUB = 86_000
+CHINA_DOCS_DELIVERY_CNY = 13_500
+CHINA_BROKER_RUB = 86_100
 COMMISSION_RATE_DEFAULT = 0.10
 # Порог «дорогого» авто (только цена авто+доки в ₽) для фиксированной комиссии
 COMMISSION_CAR_RUB_THRESHOLD = 4_000_000
@@ -172,14 +174,14 @@ def ice_engine_inputs(car_data: Dict[str, Any], fuel: str) -> Tuple[int, Optiona
     Для гибрида: в данных Encar часто одна мощность на всю установку — без поля «только ДВС»
     берём указанную мощность как оценку (серийный генератор не выделяется).
     """
-    disp = car_data.get("engine_volume") or car_data.get("displacement") or car_data.get("displacement_cc")
-    if disp is None:
-        engine_cc = 0
-    elif isinstance(disp, str):
-        digits = "".join(c for c in disp if c.isdigit())
-        engine_cc = int(digits) if digits else 0
-    else:
-        engine_cc = int(disp)
+    disp = (
+        car_data.get("engine_volume")
+        or car_data.get("displacement")
+        or car_data.get("displacement_cc")
+        or car_data.get("displacement_label")
+        or car_data.get("dongchedi_displacement_label")
+    )
+    engine_cc = parse_engine_cc(disp)
 
     if fuel == "electric":
         return 0, None
@@ -197,6 +199,14 @@ def ice_engine_inputs(car_data: Dict[str, Any], fuel: str) -> Tuple[int, Optiona
 def parse_power_hp(car_data: Dict[str, Any]) -> Optional[float]:
     p = car_data.get("power") or car_data.get("power_hp") or car_data.get("outputHorsepower")
     if p is None:
+        kw = car_data.get("power_kw")
+        if kw is not None:
+            try:
+                v = float(kw)
+                if v > 0:
+                    return v / 0.7355
+            except (TypeError, ValueError):
+                pass
         return None
     s = "".join(c for c in str(p) if c.isdigit() or c in ".,")
     if not s:
@@ -205,6 +215,52 @@ def parse_power_hp(car_data: Dict[str, Any]) -> Optional[float]:
         return float(s.replace(",", "."))
     except ValueError:
         return None
+
+
+def parse_engine_cc(v: Any) -> int:
+    if v is None or v == "":
+        return 0
+    if isinstance(v, (int, float)):
+        iv = int(v)
+        return iv if iv > 0 else 0
+    s = str(v).strip().replace(",", ".")
+    if not s:
+        return 0
+    up = s.upper()
+    try:
+        if "T" in up or "L" in up:
+            num = "".join(ch for ch in up if ch.isdigit() or ch == ".")
+            if not num:
+                return 0
+            liters = float(num)
+            cc = int(round(liters * 1000))
+            return cc if cc > 0 else 0
+        digits = "".join(ch for ch in up if ch.isdigit())
+        if not digits:
+            return 0
+        iv = int(digits)
+        # 15/20/25 обычно значит 1.5/2.0/2.5L из короткой записи.
+        if iv < 100 and "." not in up:
+            return iv * 100
+        return iv
+    except (TypeError, ValueError):
+        return 0
+
+
+def parse_price_cny(car_data: Dict[str, Any]) -> float:
+    raw = car_data.get("price_cny")
+    if raw is None or raw == "":
+        return 0.0
+    if isinstance(raw, (int, float)):
+        return float(raw) if float(raw) > 0 else 0.0
+    s = str(raw).strip().replace(" ", "").replace(",", "")
+    if not s:
+        return 0.0
+    try:
+        v = float(s)
+        return v if v > 0 else 0.0
+    except ValueError:
+        return 0.0
 
 
 def customs_fee(car_value_rub: float) -> float:
@@ -392,6 +448,8 @@ class PriceCalculator:
             "documents_krw": DOCUMENTS_KRW,
             "freight_usd": FREIGHT_USD,
             "broker_rub": BROKER_RUB,
+            "china_docs_delivery_cny": CHINA_DOCS_DELIVERY_CNY,
+            "china_broker_rub": CHINA_BROKER_RUB,
             "commission_rate": COMMISSION_RATE_DEFAULT,
             "excise_hp_tiers_rub_per_hp": [[hp, rate] for hp, rate in EXCISE_HP_TIERS_RUB_PER_HP],
         }
@@ -488,6 +546,25 @@ class PriceCalculator:
         except Exception as e:
             logger.warning("ЦБ EUR: %s, используем 105", e)
             return self.exchange_rates.get(key, 105.0)
+
+    def get_cbr_cny_rub_safe(self) -> float:
+        """Курс ЦБ РФ CNY/RUB за 1 ¥."""
+        key = "cbr_cny_rub"
+        if self._rate_cached(key):
+            return self.exchange_rates[key]
+        try:
+            r = requests.get("https://www.cbr-xml-daily.ru/daily_json.js", timeout=8)
+            r.raise_for_status()
+            data = r.json()
+            cny = data.get("Valute", {}).get("CNY", {})
+            nom = max(1, int(cny.get("Nominal", 1)))
+            rate = float(cny.get("Value", 12.0)) / nom
+            self.exchange_rates[key] = rate
+            self._touch_cache()
+            return rate
+        except Exception as e:
+            logger.warning("ЦБ CNY: %s, используем 12", e)
+            return self.exchange_rates.get(key, 12.0)
 
     # --- Совместимость со старыми именами методов ---
     def calculate_customs_fee_tiered(self, car_value_rub: float) -> float:
@@ -600,6 +677,85 @@ class PriceCalculator:
             "eur_rub": eur_rub,
         }
 
+    def calculate_total_cost_china(self, car_data: Dict[str, Any]) -> Dict[str, float]:
+        cfg = self._get_price_config()
+        docs_delivery_cny = float(cfg.get("china_docs_delivery_cny", CHINA_DOCS_DELIVERY_CNY))
+        broker_rub = float(cfg.get("china_broker_rub", CHINA_BROKER_RUB))
+        commission_rate = float(cfg.get("commission_rate", COMMISSION_RATE_DEFAULT))
+
+        price_cny = parse_price_cny(car_data)
+        if price_cny <= 0:
+            raise ValueError("price_cny is missing or non-positive")
+
+        cny_rub = self.get_cbr_cny_rub_safe()
+        eur_rub = self.get_cbr_eur_rub_safe()
+        car_value_rub = price_cny * cny_rub
+        docs_delivery_rub = docs_delivery_cny * cny_rub
+
+        fuel = classify_fuel(car_data)
+        engine_cc, power_ice = ice_engine_inputs(car_data, fuel)
+        year = parse_year(car_data)
+        age = age_years_car(year)
+
+        fee = customs_fee(car_value_rub)
+        duty = duty_phys_person_rub(
+            car_value_rub=car_value_rub,
+            eur_rub=eur_rub,
+            engine_cc=engine_cc,
+            age_years=age,
+            fuel=fuel,
+        )
+        excise_tiers_cfg = cfg.get("excise_hp_tiers_rub_per_hp")
+        excise_tiers: Optional[List[Tuple[float, float]]] = None
+        if isinstance(excise_tiers_cfg, list):
+            parsed: List[Tuple[float, float]] = []
+            for item in excise_tiers_cfg:
+                if not isinstance(item, (list, tuple)) or len(item) != 2:
+                    continue
+                try:
+                    parsed.append((float(item[0]), float(item[1])))
+                except (TypeError, ValueError):
+                    continue
+            if parsed:
+                excise_tiers = sorted(parsed, key=lambda x: x[0])
+        power_for_excise = parse_power_hp(car_data)
+        if power_for_excise is None:
+            power_for_excise = power_ice
+        excise = excise_rub(power_for_excise, excise_tiers)
+        util = utilization_phys_person_rub(
+            engine_cc=engine_cc,
+            age_years=age,
+            power_hp_ice=power_ice,
+            fuel=fuel,
+        )
+        vat = vat_import_rub(car_value_rub, duty, excise, fuel=fuel, age_years=age)
+        customs_total = fee + duty + excise + util + vat
+
+        vehicle_sum = car_value_rub + docs_delivery_rub + customs_total + broker_rub
+        commission = vehicle_sum * commission_rate
+        total_with_commission = vehicle_sum + commission
+
+        return {
+            "price_cny": price_cny,
+            "price_rub": car_value_rub,
+            "china_docs_delivery_cny": docs_delivery_cny,
+            "china_docs_delivery_rub": docs_delivery_rub,
+            "customs_fee": fee,
+            "duty": duty,
+            "excise": excise,
+            "utilization": util,
+            "vat": vat,
+            "customs_total": customs_total,
+            "broker_rub": broker_rub,
+            "commission": commission,
+            "commission_rate_effective": commission_rate,
+            "commission_rate_default": commission_rate,
+            "vehicle_sum": vehicle_sum,
+            "total_with_commission": total_with_commission,
+            "cny_rub": cny_rub,
+            "eur_rub": eur_rub,
+        }
+
     def update_car_with_prices(self, car_data: Dict[str, Any]) -> Dict[str, Any]:
         prices = self.calculate_total_cost(car_data)
         car_data["price_rub_estimate"] = prices["price_rub"]
@@ -617,6 +773,26 @@ class PriceCalculator:
         car_data["my_price"] = prices["total_with_commission"]
         car_data["krw_per_usdt"] = prices.get("krw_per_usdt")
         car_data["usdt_rub"] = prices.get("usdt_rub")
+        car_data["commission_rate_effective"] = prices.get("commission_rate_effective")
+        car_data["commission_rate_default"] = prices.get("commission_rate_default")
+        return car_data
+
+    def update_china_car_with_prices(self, car_data: Dict[str, Any]) -> Dict[str, Any]:
+        prices = self.calculate_total_cost_china(car_data)
+        car_data["price_rub_estimate"] = prices["price_rub"]
+        car_data["china_docs_delivery_cny"] = prices["china_docs_delivery_cny"]
+        car_data["china_docs_delivery_rub"] = prices["china_docs_delivery_rub"]
+        car_data["customs_fee_rub"] = prices["customs_fee"]
+        car_data["duty_rub"] = prices["duty"]
+        car_data["excise_rub"] = prices["excise"]
+        car_data["util_rub"] = prices["utilization"]
+        car_data["vat_rub"] = prices["vat"]
+        car_data["customs_total_rub"] = prices["customs_total"]
+        car_data["broker_rub"] = prices["broker_rub"]
+        car_data["commission_rub"] = prices["commission"]
+        car_data["vehicle_sum_rub"] = prices["vehicle_sum"]
+        car_data["my_price"] = prices["total_with_commission"]
+        car_data["cny_rub"] = prices.get("cny_rub")
         car_data["commission_rate_effective"] = prices.get("commission_rate_effective")
         car_data["commission_rate_default"] = prices.get("commission_rate_default")
         return car_data

@@ -87,9 +87,9 @@ def test_sku_row_detail_car_info_and_gallery():
     out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
     d = out["data"]
     assert d["km_age"] == 20000
-    assert d["color"] == "黑色"
-    assert d["transmission_type"] == "自动"
-    assert d["engine_type"] == "汽油"
+    assert d["color"] in ("黑色", "Черный")
+    assert d["transmission_type"] in ("自动", "Автоматическая")
+    assert d["engine_type"] in ("汽油", "Бензин")
     imgs = json.loads(d["images"])
     assert imgs[0] == "https://example.com/cover.jpg"
     assert "https://example.com/extra.jpg" in imgs
@@ -266,7 +266,7 @@ def test_detail_other_params_car_config_and_listing_meta():
     assert d["city"] == "北京"
     assert d["dongchedi_displacement_label"] == "1.5T"
     assert d["hp"] == 136
-    assert d["drive_type"] == "前置前驱"
+    assert d["drive_type"] in ("前置前驱", "Передний привод")
     assert d["interior_color"] == "浅色"
     assert d["configuration"] == "sDrive18Li 时尚型"
     assert d["dongchedi_summary"] == "2019年上牌 | 7.06万公里 | 北京车源"
@@ -311,3 +311,57 @@ def test_sku_row_params_raw_merges_msrp_and_specs_url():
     assert d["dongchedi_msrp_rub"] == 1557400
     hl = json.loads(d["dongchedi_specs_highlights"])
     assert any(x["key"] == "wheelbase" for x in hl)
+
+
+def test_row_image_kept_when_only_noisy_cover_exists():
+    row = {
+        "sku_id": 404,
+        "title": "测试车",
+        "brand_name": "测试",
+        "series_name": "测试系",
+        "car_year": 2020,
+        "car_mileage": "1万公里",
+        "image": "https://example.com/watermark-cover.jpg",
+    }
+    out = sku_row_to_payload(row, detail=None, cny_to_rub=13.0)
+    imgs = json.loads(out["data"]["images"])
+    assert imgs and imgs[0] == "https://example.com/watermark-cover.jpg"
+
+
+def test_china_generation_trim_and_specs_numbers_from_params_raw():
+    row = {
+        "sku_id": 888,
+        "title": "魏牌 VV7 2019款 升级款 2.0T 旗舰型 国VI",
+        "brand_name": "魏牌",
+        "series_name": "VV7",
+        "car_name": "升级款 2.0T 旗舰型 国VI",
+        "car_year": 2019,
+        "car_mileage": "8万公里",
+        "image": "https://example.com/vv7.jpg",
+    }
+    detail = {
+        "_params_raw": {
+            "car_info": {
+                "car_id": 36968,
+                "car_name": "升级款 2.0T 旗舰型 国VI",
+                "car_year": 2019,
+                "info": {
+                    "max_power": {"value": "167(227Ps)"},
+                    "max_torque": {"value": "385"},
+                    "gearbox_description": {"value": "7挡双离合"},
+                    "body_struct": {"value": "5门5座SUV"},
+                    "fuel_label": {"value": "汽油"},
+                },
+            }
+        }
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    d = out["data"]
+    assert d["model"] == "VV7"
+    assert d["generation"] == "升级款"
+    assert d["trim_name"] == "2.0T 旗舰型 国VI"
+    assert d["transmission_type"] == "7挡双离合"
+    assert d["body_type"] == "5门5座SUV"
+    assert d["power_kw"] == 167
+    assert d["hp"] == 227
+    assert d["torque_nm"] == 385

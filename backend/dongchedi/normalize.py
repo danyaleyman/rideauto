@@ -12,8 +12,13 @@ _WAN_KM_RE = re.compile(r"([\d.]+)\s*万\s*公里")
 _PLAIN_KM_RE = re.compile(r"(?<![\d.])(\d{3,7})\s*公里")
 _WAN_PRICE_RE = re.compile(r"([\d]+(?:\.[\d]+)?)\s*万")
 _HP_RE = re.compile(r"(\d+)\s*马力")
+_HP_PS_RE = re.compile(r"(\d+)\s*ps", re.IGNORECASE)
+_POWER_KW_RE = re.compile(r"(\d{2,4})(?:\s*\(\s*\d+\s*Ps\s*\))?")
+_TORQUE_NM_RE = re.compile(r"(\d{2,5})")
 _TRANSFER_CNT_RE = re.compile(r"(\d+)\s*次")
 _REG_YM_RE = re.compile(r"(\d{4})年\s*(\d{1,2})\s*月")
+_TITLE_YEAR_RE = re.compile(r"^\s*(\d{4})\s*款\s*")
+_DISP_LABEL_RE = re.compile(r"(\d(?:\.\d)?)\s*[TL]")
 _CHINA_STATIC_MAPS: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 
 
@@ -181,7 +186,10 @@ def _parse_register_year_month(s: str) -> tuple[str, str]:
 
 
 def _parse_horsepower_ma(s: Any) -> Optional[int]:
-    m = _HP_RE.search(str(s or ""))
+    raw = str(s or "")
+    m = _HP_RE.search(raw)
+    if not m:
+        m = _HP_PS_RE.search(raw)
     if not m:
         return None
     try:
@@ -199,6 +207,54 @@ def _parse_transfer_times(s: str) -> Optional[int]:
         return int(m.group(1))
     except ValueError:
         return None
+
+
+def _parse_power_kw_text(s: Any) -> Optional[int]:
+    raw = str(s or "").strip()
+    if not raw:
+        return None
+    m = _POWER_KW_RE.search(raw)
+    if not m:
+        return None
+    try:
+        kw = int(m.group(1))
+    except ValueError:
+        return None
+    return kw if 20 <= kw <= 1600 else None
+
+
+def _parse_torque_nm_text(s: Any) -> Optional[int]:
+    raw = str(s or "").strip()
+    if not raw:
+        return None
+    m = _TORQUE_NM_RE.search(raw)
+    if not m:
+        return None
+    try:
+        nm = int(m.group(1))
+    except ValueError:
+        return None
+    return nm if 40 <= nm <= 3000 else None
+
+
+def _split_generation_and_trim(text: str) -> tuple[str, str]:
+    """
+    "2019款 升级款 2.0T 旗舰型 国VI" -> ("升级款", "2.0T 旗舰型 国VI")
+    "超长续航智驾版" -> ("", "超长续航智驾版")
+    """
+    src = str(text or "").strip()
+    if not src:
+        return "", ""
+    s = _TITLE_YEAR_RE.sub("", src).strip()
+    if not s:
+        return "", ""
+    m = _DISP_LABEL_RE.search(s.upper())
+    if not m:
+        return "", s
+    cut = m.start()
+    left = s[:cut].strip()
+    right = s[cut:].strip()
+    return left, right or s
 
 
 def _displacement_cc_from_label(s: str) -> Optional[str]:
@@ -338,13 +394,20 @@ def _image_urls_from_row_and_detail(
     out: list[str] = []
     dup: set[str] = set()
 
-    def add(u: str) -> None:
+    def add(u: str, *, allow_noise: bool = False) -> None:
         s = _img_url_canonical(str(u or ""))
-        if s and s not in dup and not _is_likely_noise_image_url(s):
+        if not s or s in dup:
+            return
+        if not allow_noise and _is_likely_noise_image_url(s):
+            return
+        if not s.startswith("http"):
+            return
+        if s:
             dup.add(s)
             out.append(s)
 
-    add(row_img)
+    # Покрываем кейс, когда detail пустой/урезан, а в листинге есть только "грязная" обложка.
+    add(row_img, allow_noise=True)
     if not detail or not isinstance(detail, dict):
         return out
     for key in (
@@ -434,6 +497,11 @@ def _apply_params_raw_to_data(
     if cn:
         data["configuration"] = cn
         data["gradeName"] = cn
+        g0, t0 = _split_generation_and_trim(cn)
+        if g0:
+            data["generation"] = g0
+        if t0:
+            data["trim_name"] = t0
 
     cy = ci_top.get("car_year")
     if isinstance(cy, str) and cy.isdigit() and len(cy) == 4:
@@ -451,6 +519,34 @@ def _apply_params_raw_to_data(
     mt = _params_info_cell_value(info, "market_time")
     if mt:
         data["dongchedi_market_time"] = mt
+
+    if isinstance(info, dict):
+        engine_desc = _params_info_cell_value(info, "engine_description")
+        if engine_desc:
+            data["dongchedi_engine_description"] = engine_desc
+            if not data.get("dongchedi_displacement_label"):
+                m = _DISP_LABEL_RE.search(engine_desc.upper())
+                if m:
+                    data["dongchedi_displacement_label"] = m.group(1) + ("T" if "T" in m.group(0).upper() else "L")
+        gbx = _params_info_cell_value(info, "gearbox_description")
+        if gbx:
+            data["transmission_type"] = gbx
+            data["dongchedi_gearbox_description"] = gbx
+        body = _params_info_cell_value(info, "body_struct")
+        if body:
+            data["body_type"] = body
+        fuel = _params_info_cell_value(info, "fuel_label")
+        if fuel and not data.get("engine_type"):
+            data["engine_type"] = fuel
+        kw = _parse_power_kw_text(_params_info_cell_value(info, "max_power"))
+        if kw is not None:
+            data["power_kw"] = kw
+        hp = _parse_horsepower_ma(_params_info_cell_value(info, "max_power"))
+        if hp is not None and not data.get("hp"):
+            data["hp"] = hp
+        nm = _parse_torque_nm_text(_params_info_cell_value(info, "max_torque"))
+        if nm is not None:
+            data["torque_nm"] = nm
 
     highlights: list[Dict[str, str]] = []
     for key, label in (
@@ -560,7 +656,7 @@ def sku_row_to_payload(
     brand_name = str(row.get("brand_name") or "").strip()
     series_name = str(row.get("series_name") or "").strip()
     mark = brand_name or "中国二手车"
-    model = title or f"{series_name} {row.get('car_name') or ''}".strip() or f"Dongchedi #{sid}"
+    model = series_name or title or f"{series_name} {row.get('car_name') or ''}".strip() or f"Dongchedi #{sid}"
 
     ci: Dict[str, Any] = {}
     if detail and isinstance(detail.get("car_info"), dict):
@@ -672,9 +768,18 @@ def sku_row_to_payload(
         pass
 
     car_name_row = _first_nonempty_str(row.get("car_name"))
+    if not data.get("generation"):
+        g1, t1 = _split_generation_and_trim(car_name_row or title)
+        if g1:
+            data["generation"] = g1
+        if t1 and not data.get("trim_name"):
+            data["trim_name"] = t1
     if car_name_row:
         data.setdefault("configuration", car_name_row)
         data.setdefault("gradeName", car_name_row)
+    elif title:
+        data.setdefault("configuration", title)
+        data.setdefault("gradeName", title)
 
     params = _param_pairs_from_detail(detail)
     if params:

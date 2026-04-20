@@ -12,6 +12,9 @@
     "body_type",
     "mileage",
     "power_hp",
+    "power_kw",
+    "torque_nm",
+    "displacement_label",
     "displacement_cc"
   ],
   "filterableAttributes": [
@@ -31,6 +34,9 @@
     "drive_type",
     "source",
     "power_hp",
+    "power_kw",
+    "torque_nm",
+    "displacement_label",
     "displacement_cc"
   ],
   "sortableAttributes": [

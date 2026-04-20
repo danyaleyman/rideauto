@@ -39,7 +39,11 @@ def main():
         if obj is None:
             obj = car
         try:
-            calc.update_car_with_prices(obj)
+            source = str(obj.get("source") or "").strip().lower() if isinstance(obj, dict) else ""
+            if source == "dongchedi":
+                calc.update_china_car_with_prices(obj)
+            else:
+                calc.update_car_with_prices(obj)
             if isinstance(obj, dict):
                 obj.pop("price_calc_failed", None)
             if car.get("data") is not obj:

@@ -1,6 +1,7 @@
 from catalog_listing_price import (
     china_market_car,
     dongchedi_has_buyer_price,
+    dongchedi_has_source_price,
     encar_has_list_price,
 )
 
@@ -27,3 +28,8 @@ def test_china_market_car():
 def test_dongchedi_has_buyer_price():
     assert dongchedi_has_buyer_price({"my_price": 1.5}) is True
     assert dongchedi_has_buyer_price({"my_price": 0}) is False
+
+
+def test_dongchedi_has_source_price():
+    assert dongchedi_has_source_price({"price_cny": 50000}) is True
+    assert dongchedi_has_source_price({"price_cny": "0"}) is False

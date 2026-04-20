@@ -21,6 +21,7 @@ from catalog_listing_price import (
     china_market_car,
     clear_estimated_price_fields,
     dongchedi_has_buyer_price,
+    dongchedi_has_source_price,
     encar_has_list_price,
 )
 from catalog_pg_core import (
@@ -283,7 +284,7 @@ def run_sync(
                     _BACKEND_DIR / "config.json",
                 )
                 calc = PriceCalculator(config_path=str(cfg_path))
-                price_ok = price_failed = price_skipped_china = price_skipped_no_list = price_skipped_missing_engine = 0
+                price_ok = price_failed = price_ok_china = price_skipped_china = price_skipped_no_list = price_skipped_missing_engine = 0
                 for i, car in enumerate(cars_out):
                     data = car.get("data")
                     if data is None:
@@ -292,12 +293,23 @@ def run_sync(
                         continue
 
                     if _uses_china_pipeline_pricing(car):
-                        price_skipped_china += 1
-                        if not dongchedi_has_buyer_price(data):
+                        if not dongchedi_has_source_price(data):
+                            price_skipped_china += 1
                             data["price_on_request"] = True
                             clear_estimated_price_fields(data)
+                            data.pop("price_calc_failed", None)
                         else:
-                            data.pop("price_on_request", None)
+                            try:
+                                calc.update_china_car_with_prices(data)
+                                data.pop("price_on_request", None)
+                                data.pop("price_calc_failed", None)
+                                price_ok += 1
+                                price_ok_china += 1
+                            except Exception as e:
+                                price_failed += 1
+                                if i == 0:
+                                    print(f"Warning: china price calc failed for first car: {e}", file=sys.stderr)
+                                data["price_calc_failed"] = True
                         if car.get("data") is not data:
                             car["data"] = data
                         continue
@@ -348,7 +360,8 @@ def run_sync(
                             car["data"] = data
                 print(
                     f"Price calc summary: ok={price_ok} failed={price_failed} "
-                    f"skipped_china={price_skipped_china} skipped_no_list_price={price_skipped_no_list} "
+                    f"ok_china={price_ok_china} skipped_china_no_price={price_skipped_china} "
+                    f"skipped_no_list_price={price_skipped_no_list} "
                     f"skipped_missing_hp_or_cc={price_skipped_missing_engine} "
                     f"total={len(cars_out)}",
                     file=sys.stderr,

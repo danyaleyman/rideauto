@@ -12,7 +12,10 @@ Field mapping (Meilisearch document):
   mileage     ← cars.mileage_km
   fuel        ← cars.fuel_type  (Encar `engine_type`, UI «топливо»)
   power_hp    ← cars.power_hp
+  power_kw    ← cars.power_kw
+  torque_nm   ← cars.torque_nm
   displacement_cc ← cars.displacement_cc
+  displacement_label ← cars.displacement_label
 
 Primary key: document `id` = cars.car_id (string).
 
@@ -182,8 +185,14 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
         doc["mileage"] = int(m_km)
     if row.get("power_hp") is not None:
         doc["power_hp"] = int(row["power_hp"])
+    if row.get("power_kw") is not None:
+        doc["power_kw"] = int(row["power_kw"])
+    if row.get("torque_nm") is not None:
+        doc["torque_nm"] = int(row["torque_nm"])
     if row.get("displacement_cc") is not None:
         doc["displacement_cc"] = int(row["displacement_cc"])
+    if row.get("displacement_label") is not None and str(row.get("displacement_label")).strip():
+        doc["displacement_label"] = str(row.get("displacement_label")).strip()
     if row.get("year_month") is not None:
         doc["year_month"] = int(row["year_month"])
 
@@ -251,7 +260,10 @@ def iter_car_rows(
                 c.year_month,
                 c.mileage_km,
                 c.power_hp,
+                c.power_kw,
+                c.torque_nm,
                 c.displacement_cc,
+                c.displacement_label,
                 c.data,
                 c.source,
                 c.updated_at,

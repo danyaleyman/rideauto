@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -38,6 +39,31 @@ def _safe_float(v: Any) -> Optional[float]:
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+_DISP_LABEL_RE = re.compile(r"(\d(?:\.\d)?)\s*([TL])", re.IGNORECASE)
+
+
+def _displacement_cc_with_label(v: Any) -> Tuple[Optional[int], Optional[str]]:
+    s = _optional_str(v)
+    if not s:
+        return None, None
+    n = _safe_int(s)
+    if n is not None:
+        if 600 <= n <= 9000:
+            return n, None
+        return None, s
+    m = _DISP_LABEL_RE.search(s)
+    if not m:
+        return None, s
+    liters = _safe_float(m.group(1))
+    if liters is None:
+        return None, s
+    cc = int(round(liters * 1000))
+    if 600 <= cc <= 9000:
+        unit = m.group(2).upper()
+        return cc, f"{liters:g}{unit}"
+    return None, s
 
 
 def extract_image_urls(payload: Dict[str, Any]) -> List[str]:
@@ -83,7 +109,7 @@ def year_month_ordinal(data: Dict[str, Any]) -> Optional[int]:
 
 def power_hp(payload: Dict[str, Any]) -> Optional[int]:
     d = _d(payload)
-    return _safe_int(d.get("power") or d.get("horsepower"))
+    return _safe_int(d.get("power_hp") or d.get("hp") or d.get("outputHorsepower") or d.get("power") or d.get("horsepower"))
 
 
 def offer_created_at(payload: Dict[str, Any]) -> Optional[datetime]:
@@ -184,6 +210,7 @@ def row_to_car_fields(
     model = (d.get("model") or "").strip() or None
     generation = _optional_str(d.get("generation") or d.get("configuration"))
     trim_name = _optional_str(d.get("gradeName") or d.get("configuration") or d.get("generation"))
+    displacement_cc, displacement_label = _displacement_cc_with_label(d.get("displacement") or d.get("dongchedi_displacement_label"))
     ins_n, ins_krw = insurance_cases_and_payout_krw(payload)
     ins_n_safe = 0 if ins_n is None else ins_n
     ins_krw_safe = 0 if ins_krw is None else ins_krw
@@ -204,7 +231,10 @@ def row_to_car_fields(
         "source": src,
         "listing_partition_key": listing_partition_key(car_id, d),
         "power_hp": power_hp(payload),
-        "displacement_cc": _safe_int(d.get("displacement")),
+        "power_kw": _safe_int(d.get("power_kw")),
+        "torque_nm": _safe_int(d.get("torque_nm")),
+        "displacement_cc": displacement_cc,
+        "displacement_label": displacement_label,
         "price_rub": _safe_float(d.get("my_price")),
         "mileage_km": _safe_int(d.get("km_age")),
         "year": year_from_data(d),
@@ -223,14 +253,14 @@ INSERT INTO cars (
     car_id, brand_id, model_id, mark, model, generation, trim_name,
     body_type, fuel_type, transmission_type, drive_type, color,
     source, listing_partition_key,
-    power_hp, displacement_cc, price_rub, mileage_km, year, year_month,
+    power_hp, power_kw, torque_nm, displacement_cc, displacement_label, price_rub, mileage_km, year, year_month,
     insurance_cases, insurance_payout_krw, insurance_payout_rub, damaged_parts_count,
     offer_created_at, data, raw, source_internal_id, created_at, updated_at
 ) VALUES (
     %(car_id)s, %(brand_id)s, %(model_id)s, %(mark)s, %(model)s, %(generation)s, %(trim_name)s,
     %(body_type)s, %(fuel_type)s, %(transmission_type)s, %(drive_type)s, %(color)s,
     %(source)s, %(listing_partition_key)s,
-    %(power_hp)s, %(displacement_cc)s, %(price_rub)s, %(mileage_km)s, %(year)s, %(year_month)s,
+    %(power_hp)s, %(power_kw)s, %(torque_nm)s, %(displacement_cc)s, %(displacement_label)s, %(price_rub)s, %(mileage_km)s, %(year)s, %(year_month)s,
     %(insurance_cases)s, %(insurance_payout_krw)s, %(insurance_payout_rub)s, %(damaged_parts_count)s,
     %(offer_created_at)s, %(data)s, %(raw)s,
     %(source_internal_id)s, COALESCE(%(created_at)s, now()), now()
@@ -250,7 +280,10 @@ ON CONFLICT (car_id) DO UPDATE SET
     source = EXCLUDED.source,
     listing_partition_key = EXCLUDED.listing_partition_key,
     power_hp = EXCLUDED.power_hp,
+    power_kw = EXCLUDED.power_kw,
+    torque_nm = EXCLUDED.torque_nm,
     displacement_cc = EXCLUDED.displacement_cc,
+    displacement_label = EXCLUDED.displacement_label,
     price_rub = EXCLUDED.price_rub,
     mileage_km = EXCLUDED.mileage_km,
     year = EXCLUDED.year,

@@ -21,6 +21,9 @@ _FIELDS_FROM_KOREAN_PRICE_CALC = (
     "usdt_rub",
     "commission_rate_effective",
     "commission_rate_default",
+    "china_docs_delivery_cny",
+    "china_docs_delivery_rub",
+    "cny_rub",
     "price_calc_failed",
 )
 
@@ -58,6 +61,18 @@ def dongchedi_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:
     mp = data.get("my_price")
     try:
         if mp is not None and float(mp) > 0:
+            return True
+    except (TypeError, ValueError):
+        pass
+    return False
+
+
+def dongchedi_has_source_price(data: Optional[Dict[str, Any]]) -> bool:
+    if not isinstance(data, dict):
+        return False
+    p = data.get("price_cny")
+    try:
+        if p is not None and float(p) > 0:
             return True
     except (TypeError, ValueError):
         pass
