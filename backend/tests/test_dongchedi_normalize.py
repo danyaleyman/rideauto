@@ -222,6 +222,22 @@ def test_parse_detail_from_escaped_sku_detail_blob():
     assert sd.get("source_sh_price") == 1230000
 
 
+def test_parse_detail_minimal_fallback_from_raw_html_strings():
+    html = """
+    <html><body>
+    <script>
+      window.__bad = "source_sh_price";
+      var x = {"source_sh_price": 9800000, "misc":"ok"};
+    </script>
+    <a href="/auto/params-carIds-36968">params</a>
+    </body></html>
+    """
+    sd = parse_sku_detail_from_html(html)
+    assert sd is not None
+    assert sd.get("source_sh_price") == 9800000
+    assert sd.get("car_info", {}).get("car_id") == 36968
+
+
 def test_parse_params_raw_data_when_not_in_pageprops():
     payload = {
         "props": {
@@ -264,6 +280,29 @@ def test_parse_params_raw_data_when_rawdata_is_json_string():
     rd = parse_params_raw_data_from_html(html)
     assert rd is not None
     assert rd.get("car_info", {}).get("car_id") == 88888
+
+
+def test_parse_params_raw_data_minimal_fallback_from_html():
+    html = """
+    <html><body>
+    <a href="/auto/params-carIds-8520">specs</a>
+    <script>
+      var y = {
+        "max_power":{"value":"167(227Ps)"},
+        "max_torque":{"value":"385"},
+        "gearbox_description":{"value":"7挡双离合"},
+        "fuel_label":{"value":"汽油"}
+      };
+    </script>
+    </body></html>
+    """
+    rd = parse_params_raw_data_from_html(html)
+    assert rd is not None
+    ci = rd.get("car_info", {})
+    assert ci.get("car_id") == 8520
+    info = ci.get("info", {})
+    assert info.get("max_power", {}).get("value") == "167(227Ps)"
+    assert info.get("max_torque", {}).get("value") == "385"
 
 
 def test_sku_row_sets_specs_url_from_detail_hint_without_params_raw():

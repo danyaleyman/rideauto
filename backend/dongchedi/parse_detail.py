@@ -13,6 +13,16 @@ _SKU_DETAIL_ESC_MARK_RE = re.compile(r'\\"skuDetail\\"\s*:\s*\{', re.DOTALL)
 _PARAMS_CAR_ID_RE = re.compile(r"params-carIds-(\d{3,9})")
 _RAW_DATA_MARK_RE = re.compile(r'"rawData"\s*:\s*\{', re.DOTALL)
 _RAW_DATA_ESC_MARK_RE = re.compile(r'\\"rawData\\"\s*:\s*\{', re.DOTALL)
+_SOURCE_SH_PRICE_RE = re.compile(r'"source_sh_price"\s*:\s*(\d{3,12})')
+_MAX_POWER_VALUE_RE = re.compile(
+    r'"max_power"\s*:\s*\{[^{}]*?"value"\s*:\s*"([^"]{1,120})"',
+    re.DOTALL,
+)
+_MAX_TORQUE_VALUE_RE = re.compile(
+    r'"max_torque"\s*:\s*\{[^{}]*?"value"\s*:\s*"([^"]{1,120})"',
+    re.DOTALL,
+)
+_INFO_VALUE_FIELD_TPL = r'"{field}"\s*:\s*\{{[^{{}}]*?"value"\s*:\s*"([^"]{{1,120}})"'
 
 _KM_HTML_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"【\s*行驶里程\s*】\s*([\d.]+)\s*万\s*公里"),
@@ -215,6 +225,73 @@ def _raw_data_from_raw_html(html: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _extract_detail_minimal_from_html(html: str) -> Optional[Dict[str, Any]]:
+    if not html:
+        return None
+    src = html if isinstance(html, str) else str(html)
+    unesc = src.replace('\\"', '"').replace("\\/", "/")
+    candidates = (src, unesc)
+    out: Dict[str, Any] = {}
+    # price
+    for cand in candidates:
+        m = _SOURCE_SH_PRICE_RE.search(cand)
+        if m:
+            try:
+                out["source_sh_price"] = int(m.group(1))
+            except ValueError:
+                pass
+            break
+    # car_id
+    cid = _PARAMS_CAR_ID_RE.search(src) or _PARAMS_CAR_ID_RE.search(unesc)
+    if cid:
+        out["car_info"] = {"car_id": int(cid.group(1))}
+    if out:
+        return out
+    return None
+
+
+def _extract_params_minimal_from_html(html: str) -> Optional[Dict[str, Any]]:
+    if not html:
+        return None
+    src = html if isinstance(html, str) else str(html)
+    unesc = src.replace('\\"', '"').replace("\\/", "/")
+    candidates = (src, unesc)
+    car_id: Optional[int] = None
+    cid = _PARAMS_CAR_ID_RE.search(src) or _PARAMS_CAR_ID_RE.search(unesc)
+    if cid:
+        try:
+            car_id = int(cid.group(1))
+        except ValueError:
+            car_id = None
+    info: Dict[str, Dict[str, str]] = {}
+    m_power = None
+    m_torque = None
+    for cand in candidates:
+        if m_power is None:
+            m_power = _MAX_POWER_VALUE_RE.search(cand)
+        if m_torque is None:
+            m_torque = _MAX_TORQUE_VALUE_RE.search(cand)
+        for fld in ("gearbox_description", "body_struct", "fuel_label", "engine_description"):
+            if fld in info:
+                continue
+            rx = re.compile(_INFO_VALUE_FIELD_TPL.format(field=re.escape(fld)), re.DOTALL)
+            mf = rx.search(cand)
+            if mf and mf.group(1).strip():
+                info[fld] = {"value": mf.group(1).strip()}
+    if m_power and m_power.group(1).strip():
+        info["max_power"] = {"value": m_power.group(1).strip()}
+    if m_torque and m_torque.group(1).strip():
+        info["max_torque"] = {"value": m_torque.group(1).strip()}
+    if not info and car_id is None:
+        return None
+    car_info: Dict[str, Any] = {}
+    if car_id is not None:
+        car_info["car_id"] = car_id
+    if info:
+        car_info["info"] = info
+    return {"car_info": car_info}
+
+
 def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
     pp = _next_data_page_props(html)
     sd = pp.get("skuDetail")
@@ -232,6 +309,8 @@ def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
             sd = _find_detail_like_obj(root.get("props")) or _find_detail_like_obj(root)
         if not isinstance(sd, dict):
             sd = _sku_detail_from_raw_html(html)
+        if not isinstance(sd, dict):
+            sd = _extract_detail_minimal_from_html(html)
         if not isinstance(sd, dict):
             return None
     hint = _km_hint_from_usedcar_html(html)
@@ -269,4 +348,7 @@ def parse_params_raw_data_from_html(html: str) -> Optional[Dict[str, Any]]:
     raw = _raw_data_from_raw_html(html)
     if isinstance(raw, dict):
         return raw
+    minimal = _extract_params_minimal_from_html(html)
+    if isinstance(minimal, dict):
+        return minimal
     return None
