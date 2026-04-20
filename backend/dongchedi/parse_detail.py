@@ -12,7 +12,10 @@ _SKU_DETAIL_MARK_RE = re.compile(r'"skuDetail"\s*:\s*\{', re.DOTALL)
 _SKU_DETAIL_ESC_MARK_RE = re.compile(r'\\"skuDetail\\"\s*:\s*\{', re.DOTALL)
 _PARAMS_CAR_ID_RE = re.compile(r"params-carIds-(\d{3,9})")
 _CAR_ID_RE = re.compile(r'"car_id"\s*:\s*"?(\d{3,9})"?')
+_CAR_ID_CAMEL_RE = re.compile(r'"carId"\s*:\s*"?(\d{3,9})"?')
 _SPEC_ID_RE = re.compile(r'"spec(?:_id|Id)"\s*:\s*"?(\d{3,9})"?')
+_CAR_ID_LIST_RE = re.compile(r'"car_id_list"\s*:\s*\[\s*"?(\d{3,9})"?')
+_CAR_ID_LIST_CAMEL_RE = re.compile(r'"carIdList"\s*:\s*\[\s*"?(\d{3,9})"?')
 _RAW_DATA_MARK_RE = re.compile(r'"rawData"\s*:\s*\{', re.DOTALL)
 _RAW_DATA_ESC_MARK_RE = re.compile(r'\\"rawData\\"\s*:\s*\{', re.DOTALL)
 _SOURCE_SH_PRICE_RE = re.compile(r'"source_sh_price"\s*:\s*(\d{3,12})')
@@ -103,6 +106,29 @@ def _extract_balanced_object(text: str, open_brace_idx: int) -> Optional[str]:
             depth -= 1
             if depth == 0:
                 return text[open_brace_idx : i + 1]
+    return None
+
+
+def _extract_car_id_hint(text: str) -> Optional[int]:
+    if not text:
+        return None
+    cand = text if isinstance(text, str) else str(text)
+    unesc = cand.replace('\\"', '"').replace("\\/", "/")
+    for rx in (
+        _PARAMS_CAR_ID_RE,
+        _CAR_ID_RE,
+        _CAR_ID_CAMEL_RE,
+        _SPEC_ID_RE,
+        _CAR_ID_LIST_RE,
+        _CAR_ID_LIST_CAMEL_RE,
+    ):
+        m = rx.search(cand) or rx.search(unesc)
+        if not m:
+            continue
+        try:
+            return int(m.group(1))
+        except ValueError:
+            continue
     return None
 
 
@@ -244,16 +270,9 @@ def _extract_detail_minimal_from_html(html: str) -> Optional[Dict[str, Any]]:
                 pass
             break
     # car_id
-    cid = (
-        _PARAMS_CAR_ID_RE.search(src)
-        or _PARAMS_CAR_ID_RE.search(unesc)
-        or _CAR_ID_RE.search(src)
-        or _CAR_ID_RE.search(unesc)
-        or _SPEC_ID_RE.search(src)
-        or _SPEC_ID_RE.search(unesc)
-    )
-    if cid:
-        out["car_info"] = {"car_id": int(cid.group(1))}
+    cid = _extract_car_id_hint(src)
+    if cid is not None:
+        out["car_info"] = {"car_id": cid}
     if out:
         return out
     return None
@@ -266,17 +285,10 @@ def _extract_params_minimal_from_html(html: str) -> Optional[Dict[str, Any]]:
     unesc = src.replace('\\"', '"').replace("\\/", "/")
     candidates = (src, unesc)
     car_id: Optional[int] = None
-    cid = (
-        _PARAMS_CAR_ID_RE.search(src)
-        or _PARAMS_CAR_ID_RE.search(unesc)
-        or _CAR_ID_RE.search(src)
-        or _CAR_ID_RE.search(unesc)
-        or _SPEC_ID_RE.search(src)
-        or _SPEC_ID_RE.search(unesc)
-    )
-    if cid:
+    cid = _extract_car_id_hint(src)
+    if cid is not None:
         try:
-            car_id = int(cid.group(1))
+            car_id = int(cid)
         except ValueError:
             car_id = None
     info: Dict[str, Dict[str, str]] = {}
@@ -332,9 +344,9 @@ def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
     hint = _km_hint_from_usedcar_html(html)
     if hint is not None:
         sd.setdefault("_mileage_hint_km", hint)
-    cid = _PARAMS_CAR_ID_RE.search(html or "")
-    if cid:
-        sd.setdefault("_spec_car_id_hint", cid.group(1))
+    cid = _extract_car_id_hint(html or "")
+    if cid is not None:
+        sd.setdefault("_spec_car_id_hint", str(cid))
     return sd
 
 

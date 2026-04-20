@@ -252,6 +252,19 @@ def test_parse_detail_minimal_fallback_from_car_id_field_without_params_link():
     assert sd.get("car_info", {}).get("car_id") == 8520
 
 
+def test_parse_detail_sets_spec_car_id_hint_from_car_id_list():
+    html = """
+    <html><body>
+    <script>
+      var x = {"car_config_overview":{"car_id_list":[74061,74062]},"source_sh_price":9800000};
+    </script>
+    </body></html>
+    """
+    sd = parse_sku_detail_from_html(html)
+    assert sd is not None
+    assert sd.get("_spec_car_id_hint") == "74061"
+
+
 def test_parse_params_raw_data_when_not_in_pageprops():
     payload = {
         "props": {
