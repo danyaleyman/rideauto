@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import html as html_lib
 import re
 from typing import Any, Dict, Optional
 
 _NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.DOTALL)
 _SKU_DETAIL_MARK_RE = re.compile(r'"skuDetail"\s*:\s*\{', re.DOTALL)
+_SKU_DETAIL_ESC_MARK_RE = re.compile(r'\\"skuDetail\\"\s*:\s*\{', re.DOTALL)
 
 _KM_HTML_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"【\s*行驶里程\s*】\s*([\d.]+)\s*万\s*公里"),
@@ -34,15 +36,27 @@ def _km_hint_from_usedcar_html(html: str) -> Optional[int]:
     return None
 
 
-def _next_data_page_props(html: str) -> Dict[str, Any]:
+def _next_data_root(html: str) -> Dict[str, Any]:
     if not html:
         return {}
     m = _NEXT_DATA_RE.search(html)
     if not m:
         return {}
+    blob = m.group(1)
     try:
-        root = json.loads(m.group(1))
+        root = json.loads(blob)
     except json.JSONDecodeError:
+        # Иногда контент script HTML-escaped.
+        try:
+            root = json.loads(html_lib.unescape(blob))
+        except json.JSONDecodeError:
+            return {}
+    return root if isinstance(root, dict) else {}
+
+
+def _next_data_page_props(html: str) -> Dict[str, Any]:
+    root = _next_data_root(html)
+    if not root:
         return {}
     pp = (root.get("props") or {}).get("pageProps") or {}
     return pp if isinstance(pp, dict) else {}
@@ -84,19 +98,30 @@ def _sku_detail_from_raw_html(html: str) -> Optional[Dict[str, Any]]:
     """
     if not html:
         return None
-    m = _SKU_DETAIL_MARK_RE.search(html)
-    if not m:
-        return None
-    # marker ends right after first '{' for skuDetail object
-    open_idx = m.end() - 1
-    blob = _extract_balanced_object(html, open_idx)
-    if not blob:
-        return None
-    try:
-        obj = json.loads(blob)
-    except json.JSONDecodeError:
-        return None
-    return obj if isinstance(obj, dict) else None
+    candidates = [
+        html or "",
+        (html or "").replace('\\"', '"').replace("\\/", "/"),
+    ]
+    for cand in candidates:
+        m = _SKU_DETAIL_MARK_RE.search(cand) or _SKU_DETAIL_ESC_MARK_RE.search(cand)
+        if not m:
+            continue
+        # marker ends right after first '{' for skuDetail object
+        open_idx = m.end() - 1
+        blob = _extract_balanced_object(cand, open_idx)
+        if not blob:
+            continue
+        try:
+            obj = json.loads(blob)
+        except json.JSONDecodeError:
+            # Иногда объект сериализован как escaped JSON-фрагмент в JS-строке.
+            try:
+                obj = json.loads(blob.replace('\\"', '"').replace("\\/", "/"))
+            except json.JSONDecodeError:
+                continue
+        if isinstance(obj, dict):
+            return obj
+    return None
 
 
 def _find_detail_like_obj(root: Any, depth: int = 0) -> Optional[Dict[str, Any]]:
@@ -139,8 +164,18 @@ def _find_detail_like_obj(root: Any, depth: int = 0) -> Optional[Dict[str, Any]]
 def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
     pp = _next_data_page_props(html)
     sd = pp.get("skuDetail")
+    if isinstance(sd, str) and sd.strip():
+        try:
+            sd = json.loads(sd)
+        except json.JSONDecodeError:
+            sd = None
     if not isinstance(sd, dict):
         sd = _find_detail_like_obj(pp)
+    if not isinstance(sd, dict):
+        root = _next_data_root(html)
+        if root:
+            # На части версий Dongchedi detail бывает глубже, вне pageProps.
+            sd = _find_detail_like_obj(root.get("props")) or _find_detail_like_obj(root)
         if not isinstance(sd, dict):
             sd = _sku_detail_from_raw_html(html)
         if not isinstance(sd, dict):
@@ -155,4 +190,14 @@ def parse_params_raw_data_from_html(html: str) -> Optional[Dict[str, Any]]:
     """Страница /auto/params-carIds-{id} → pageProps.rawData (комплектация, МСРП, год модели)."""
     pp = _next_data_page_props(html)
     rd = pp.get("rawData")
-    return rd if isinstance(rd, dict) else None
+    if isinstance(rd, dict):
+        return rd
+    # Fallback: структура может переехать в другие блоки.
+    root = _next_data_root(html)
+    hit = _find_detail_like_obj(root.get("props")) if isinstance(root, dict) else None
+    if isinstance(hit, dict) and isinstance(hit.get("car_info"), dict):
+        return hit
+    hit2 = _find_detail_like_obj(root) if isinstance(root, dict) else None
+    if isinstance(hit2, dict) and isinstance(hit2.get("car_info"), dict):
+        return hit2
+    return None

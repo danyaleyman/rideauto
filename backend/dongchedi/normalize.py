@@ -485,6 +485,12 @@ def _apply_params_raw_to_data(
     """Данные с страницы параметров (МСРП нового, год модели, краткая комплектация)."""
     if not params_raw or not isinstance(params_raw, dict):
         return
+    try:
+        # Полный слепок параметров модели с страницы params-carIds-*.
+        # Нужен как source-of-truth, чтобы не терять поля при изменениях структуры.
+        data["dongchedi_params_raw"] = json.dumps(params_raw, ensure_ascii=False)
+    except Exception:
+        pass
     ci_top = params_raw.get("car_info")
     if not isinstance(ci_top, dict):
         return

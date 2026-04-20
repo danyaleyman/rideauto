@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from dongchedi.normalize import row_matches_filters, sku_row_to_payload
-from dongchedi.parse_detail import parse_sku_detail_from_html
+from dongchedi.parse_detail import parse_params_raw_data_from_html, parse_sku_detail_from_html
 
 
 def test_sku_row_to_payload_with_detail_fen():
@@ -192,6 +192,44 @@ def test_parse_detail_from_raw_html_sku_detail_blob():
     assert isinstance(sd.get("image_list"), list)
 
 
+def test_parse_detail_from_escaped_sku_detail_blob():
+    html = r"""
+    <html><body>
+    <script>window.__x = "{\"skuDetail\":{\"car_info\":{\"mileage\":\"1.2万公里\"},\"source_sh_price\":1230000}}";</script>
+    </body></html>
+    """
+    sd = parse_sku_detail_from_html(html)
+    assert sd is not None
+    assert isinstance(sd.get("car_info"), dict)
+    assert sd.get("source_sh_price") == 1230000
+
+
+def test_parse_params_raw_data_when_not_in_pageprops():
+    payload = {
+        "props": {
+            "alt": {
+                "nested": {
+                    "rawData": {
+                        "car_info": {
+                            "car_id": 36968,
+                            "info": {"max_power": {"value": "167(227Ps)"}},
+                        }
+                    }
+                }
+            }
+        }
+    }
+    html = (
+        '<script id="__NEXT_DATA__" type="application/json">'
+        + json.dumps(payload, ensure_ascii=False)
+        + "</script>"
+    )
+    rd = parse_params_raw_data_from_html(html)
+    assert rd is not None
+    assert isinstance(rd.get("car_info"), dict)
+    assert rd["car_info"].get("car_id") == 36968
+
+
 def test_km_from_car_info_mileage_int():
     row = {
         "sku_id": 3,
@@ -309,6 +347,10 @@ def test_sku_row_params_raw_merges_msrp_and_specs_url():
     assert d["dongchedi_market_time"] == "2014.12"
     assert d["dongchedi_msrp_cny"] == 119800.0
     assert d["dongchedi_msrp_rub"] == 1557400
+    assert "dongchedi_params_raw" in d
+    raw = json.loads(d["dongchedi_params_raw"])
+    assert isinstance(raw, dict)
+    assert raw.get("car_info", {}).get("car_id") == 8520
     hl = json.loads(d["dongchedi_specs_highlights"])
     assert any(x["key"] == "wheelbase" for x in hl)
 

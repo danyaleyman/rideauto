@@ -52,6 +52,7 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "yearMonth",
         "displacement",
         "dongchedi_displacement_label",
+        "dongchedi_params_raw",
         "engine_type",
         "drive_type",
         "prep_drive_type",
