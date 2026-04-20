@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 _NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.DOTALL)
 _SKU_DETAIL_MARK_RE = re.compile(r'"skuDetail"\s*:\s*\{', re.DOTALL)
 _SKU_DETAIL_ESC_MARK_RE = re.compile(r'\\"skuDetail\\"\s*:\s*\{', re.DOTALL)
+_PARAMS_CAR_ID_RE = re.compile(r"params-carIds-(\d{3,9})")
 
 _KM_HTML_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"【\s*行驶里程\s*】\s*([\d.]+)\s*万\s*公里"),
@@ -183,6 +184,9 @@ def parse_sku_detail_from_html(html: str) -> Optional[Dict[str, Any]]:
     hint = _km_hint_from_usedcar_html(html)
     if hint is not None:
         sd.setdefault("_mileage_hint_km", hint)
+    cid = _PARAMS_CAR_ID_RE.search(html or "")
+    if cid:
+        sd.setdefault("_spec_car_id_hint", cid.group(1))
     return sd
 
 

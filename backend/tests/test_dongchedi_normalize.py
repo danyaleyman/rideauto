@@ -157,6 +157,24 @@ def test_parse_detail_injects_mileage_hint_from_raw_html():
     assert out["data"]["km_age"] == 66800
 
 
+def test_parse_detail_sets_spec_car_id_hint_from_html_link():
+    payload = {
+        "props": {
+            "pageProps": {
+                "skuDetail": {"car_info": {}},
+            }
+        }
+    }
+    html = (
+        '<script id="__NEXT_DATA__" type="application/json">'
+        + json.dumps(payload, ensure_ascii=False)
+        + '</script><a href="/auto/params-carIds-36968">spec</a>'
+    )
+    sd = parse_sku_detail_from_html(html)
+    assert sd is not None
+    assert sd.get("_spec_car_id_hint") == "36968"
+
+
 def test_parse_detail_fallback_when_sku_detail_missing():
     payload = {
         "props": {

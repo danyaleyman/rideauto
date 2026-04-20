@@ -458,13 +458,36 @@ def dongchedi_spec_car_id(detail: Optional[Dict[str, Any]]) -> Optional[str]:
     """ID комплектации для /auto/params-carIds-{id} — из карточки б/у."""
     if not detail or not isinstance(detail, dict):
         return None
+    hint = detail.get("_spec_car_id_hint")
+    if hint is not None and str(hint).strip().isdigit():
+        return str(hint).strip()
     for key in ("car_info", "car_config_overview"):
         block = detail.get(key)
         if isinstance(block, dict):
             cid = block.get("car_id")
             if cid is not None and str(cid).strip():
                 return str(cid).strip()
-    return None
+    # Fallback: в некоторых версиях payload car_id лежит глубже.
+    def walk(o: Any, depth: int = 0) -> Optional[str]:
+        if depth > 10 or o is None:
+            return None
+        if isinstance(o, dict):
+            cid = o.get("car_id")
+            if cid is not None and str(cid).strip().isdigit():
+                s = str(cid).strip()
+                if 3 <= len(s) <= 9:
+                    return s
+            for v in o.values():
+                got = walk(v, depth + 1)
+                if got:
+                    return got
+        elif isinstance(o, list):
+            for it in o[:100]:
+                got = walk(it, depth + 1)
+                if got:
+                    return got
+        return None
+    return walk(detail)
 
 
 def _params_info_cell_value(info: Any, item_key: str) -> str:
