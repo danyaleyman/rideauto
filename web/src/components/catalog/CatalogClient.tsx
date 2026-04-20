@@ -70,6 +70,7 @@ import {
   Gauge,
   Plus,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
 
@@ -134,6 +135,28 @@ function catalogCardAttributeChips(
   if (km) chips.push({ key: "km", label: km, Icon: Gauge });
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
   if (fuel) chips.push({ key: "fuel", label: fuel, Icon: Fuel });
+  const fuelLower = (fuel || "").toLowerCase();
+  const isElectricFuel =
+    fuelLower.includes("electric") ||
+    fuelLower.includes("ev") ||
+    fuelLower.includes("электро") ||
+    fuelLower.includes("전기");
+  const ccRaw = data.displacement ?? data.displacement_cc ?? data.engine_volume;
+  const ccNum =
+    typeof ccRaw === "number"
+      ? Math.trunc(ccRaw)
+      : Number.parseInt(String(ccRaw ?? "").replace(/[^\d]/g, ""), 10);
+  if (!isElectricFuel && Number.isFinite(ccNum) && ccNum > 0) {
+    chips.push({ key: "cc", label: `${ccNum.toLocaleString("ru-RU")} см³`, Icon: Gauge });
+  }
+  const hpRaw = data.power_hp ?? data.power ?? data.hp;
+  const hpNum =
+    typeof hpRaw === "number"
+      ? Math.trunc(hpRaw)
+      : Number.parseInt(String(hpRaw ?? "").replace(/[^\d]/g, ""), 10);
+  if (Number.isFinite(hpNum) && hpNum > 0) {
+    chips.push({ key: "hp", label: `${hpNum} л.с.`, Icon: Zap });
+  }
   return chips;
 }
 
@@ -386,6 +409,8 @@ function RangeBlock({
     mileage_to: state.mileage_to,
     year_from: state.year_from,
     year_to: state.year_to,
+    engine_cc_from: state.engine_cc_from,
+    engine_cc_to: state.engine_cc_to,
   });
   useEffect(() => {
     setDraft({
@@ -395,6 +420,8 @@ function RangeBlock({
       mileage_to: state.mileage_to,
       year_from: state.year_from,
       year_to: state.year_to,
+      engine_cc_from: state.engine_cc_from,
+      engine_cc_to: state.engine_cc_to,
     });
   }, [
     state.price_from,
@@ -403,6 +430,8 @@ function RangeBlock({
     state.mileage_to,
     state.year_from,
     state.year_to,
+    state.engine_cc_from,
+    state.engine_cc_to,
   ]);
   const apply = () => {
     navigate({
@@ -443,6 +472,16 @@ function RangeBlock({
           placeholder="Год до"
           value={draft.year_to}
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
+        />
+        <Input
+          placeholder="Объём от (см³)"
+          value={draft.engine_cc_from}
+          onChange={(e) => setDraft((d) => ({ ...d, engine_cc_from: e.target.value }))}
+        />
+        <Input
+          placeholder="Объём до (см³)"
+          value={draft.engine_cc_to}
+          onChange={(e) => setDraft((d) => ({ ...d, engine_cc_to: e.target.value }))}
         />
       </div>
       <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
@@ -634,6 +673,9 @@ export function CatalogClient({
       mileage_to: "",
       year_from: "",
       year_to: "",
+      engine_cc_from: "",
+      engine_cc_to: "",
+      power_hp_le_160: false,
       drive_awd: false,
       sort: "date_new",
       page: 1,
@@ -659,6 +701,9 @@ export function CatalogClient({
       mileage_to: "",
       year_from: "",
       year_to: "",
+      engine_cc_from: "",
+      engine_cc_to: "",
+      power_hp_le_160: false,
       drive_awd: false,
       page: 1,
     });
@@ -687,12 +732,15 @@ export function CatalogClient({
     state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${v}`, value: v }));
     state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${v}`, value: v }));
     if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
+    if (state.power_hp_le_160) chips.push({ key: "power_hp_le_160", label: "До 160 л.с." });
     if (state.price_from) chips.push({ key: "price_from", label: `Цена от: ${state.price_from}` });
     if (state.price_to) chips.push({ key: "price_to", label: `Цена до: ${state.price_to}` });
     if (state.mileage_from) chips.push({ key: "mileage_from", label: `Пробег от: ${state.mileage_from}` });
     if (state.mileage_to) chips.push({ key: "mileage_to", label: `Пробег до: ${state.mileage_to}` });
     if (state.year_from) chips.push({ key: "year_from", label: `Год от: ${state.year_from}` });
     if (state.year_to) chips.push({ key: "year_to", label: `Год до: ${state.year_to}` });
+    if (state.engine_cc_from) chips.push({ key: "engine_cc_from", label: `Объём от: ${state.engine_cc_from}` });
+    if (state.engine_cc_to) chips.push({ key: "engine_cc_to", label: `Объём до: ${state.engine_cc_to}` });
     return chips;
   }, [state]);
 
@@ -713,6 +761,10 @@ export function CatalogClient({
     }
     if (chip.key === "drive_awd") {
       navigate({ ...state, drive_awd: false, page: 1 });
+      return;
+    }
+    if (chip.key === "power_hp_le_160") {
+      navigate({ ...state, power_hp_le_160: false, page: 1 });
       return;
     }
     navigate({ ...state, [chip.key]: "", page: 1 });
@@ -865,6 +917,16 @@ export function CatalogClient({
                       className="shrink-0"
                     />
                     Только полный привод (AWD)
+                  </label>
+                  <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm [overflow-wrap:anywhere]">
+                    <Checkbox
+                      checked={state.power_hp_le_160}
+                      onCheckedChange={(v) =>
+                        navigate({ ...state, power_hp_le_160: Boolean(v), page: 1 })
+                      }
+                      className="shrink-0"
+                    />
+                    Только авто до 160 л.с.
                   </label>
                   {facets ? (
                     <>

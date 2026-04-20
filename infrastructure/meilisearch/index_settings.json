@@ -10,7 +10,9 @@
     "year_month",
     "color",
     "body_type",
-    "mileage"
+    "mileage",
+    "power_hp",
+    "displacement_cc"
   ],
   "filterableAttributes": [
     "brand",
@@ -27,7 +29,9 @@
     "trim",
     "transmission",
     "drive_type",
-    "source"
+    "source",
+    "power_hp",
+    "displacement_cc"
   ],
   "sortableAttributes": [
     "price",

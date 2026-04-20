@@ -11,6 +11,8 @@ Field mapping (Meilisearch document):
   body_type   ← cars.body_type
   mileage     ← cars.mileage_km
   fuel        ← cars.fuel_type  (Encar `engine_type`, UI «топливо»)
+  power_hp    ← cars.power_hp
+  displacement_cc ← cars.displacement_cc
 
 Primary key: document `id` = cars.car_id (string).
 
@@ -178,6 +180,10 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
     m_km = _mileage_from_row(row)
     if m_km is not None:
         doc["mileage"] = int(m_km)
+    if row.get("power_hp") is not None:
+        doc["power_hp"] = int(row["power_hp"])
+    if row.get("displacement_cc") is not None:
+        doc["displacement_cc"] = int(row["displacement_cc"])
     if row.get("year_month") is not None:
         doc["year_month"] = int(row["year_month"])
 
@@ -244,6 +250,8 @@ def iter_car_rows(
                 c.year,
                 c.year_month,
                 c.mileage_km,
+                c.power_hp,
+                c.displacement_cc,
                 c.data,
                 c.source,
                 c.updated_at,

@@ -21,6 +21,9 @@ export type CatalogUrlState = {
   mileage_to: string;
   year_from: string;
   year_to: string;
+  engine_cc_from: string;
+  engine_cc_to: string;
+  power_hp_le_160: boolean;
   drive_awd: boolean;
   sort: string;
   page: number;
@@ -76,6 +79,9 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
     mileage_to: (sp.get("mileage_to") || "").trim(),
     year_from: (sp.get("year_from") || "").trim(),
     year_to: (sp.get("year_to") || "").trim(),
+    engine_cc_from: (sp.get("engine_cc_from") || "").trim(),
+    engine_cc_to: (sp.get("engine_cc_to") || "").trim(),
+    power_hp_le_160: sp.get("power_hp_le_160") === "1",
     drive_awd: sp.get("drive_awd") === "1",
     sort: (sp.get("sort") || "date_new").trim() || "date_new",
     page,
@@ -130,6 +136,9 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   if (state.mileage_to) u.set("mileage_to", state.mileage_to);
   if (state.year_from) u.set("year_from", state.year_from);
   if (state.year_to) u.set("year_to", state.year_to);
+  if (state.engine_cc_from) u.set("engine_cc_from", state.engine_cc_from);
+  if (state.engine_cc_to) u.set("engine_cc_to", state.engine_cc_to);
+  if (state.power_hp_le_160) u.set("power_hp_le_160", "1");
   if (state.drive_awd) u.set("drive_awd", "1");
   if (state.sort && state.sort !== "date_new") u.set("sort", state.sort);
   if (state.page > 1) u.set("page", String(state.page));
@@ -164,6 +173,9 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   if (state.mileage_to) p.set("mileage_to", state.mileage_to);
   if (state.year_from) p.set("year_from", state.year_from);
   if (state.year_to) p.set("year_to", state.year_to);
+  if (state.engine_cc_from) p.set("engine_cc_from", state.engine_cc_from);
+  if (state.engine_cc_to) p.set("engine_cc_to", state.engine_cc_to);
+  if (state.power_hp_le_160) p.set("power_hp_le_160", "1");
   if (state.drive_awd) p.set("drive_awd", "1");
   if (state.sort && state.sort !== "date_new") p.set("sort", state.sort);
   if (state.page > 1) {

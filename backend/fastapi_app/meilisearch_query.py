@@ -58,8 +58,7 @@ def build_meilisearch_filter(
     """
     Строит Meilisearch `filter` по query keys каталога (совместимость с API query-параметрами).
 
-    Не покрыто индексом (пока игнорируется): страховые суммы/кол-во, ДТП, passage_cars,
-    объём двигателя / мощность — после добавления полей в Meilisearch расширить sync + settings.
+    Не покрыто индексом (пока игнорируется): страховые суммы/кол-во, ДТП, passage_cars.
     """
     omit = omit_keys or frozenset()
     q = {k: str(v) for k, v in raw_q.items() if k not in omit and v is not None and str(v) != ""}
@@ -108,6 +107,21 @@ def build_meilisearch_filter(
     _append_range(clauses, "mileage", q.get("mileage_from"), q.get("mileage_to"), as_float=False)
     _append_range(clauses, "year", q.get("year_from"), q.get("year_to"), as_float=False)
     _append_range(clauses, "year_month", q.get("ym_from"), q.get("ym_to"), as_float=False)
+    _append_range(clauses, "power_hp", q.get("power_hp_from"), q.get("power_hp_to"), as_float=False)
+    cc_from = _parse_range_number(q.get("engine_cc_from"), as_float=False)
+    cc_to = _parse_range_number(q.get("engine_cc_to"), as_float=False)
+    if cc_from is not None or cc_to is not None:
+        cc_parts: List[str] = []
+        if cc_from is not None:
+            cc_parts.append(f"displacement_cc >= {cc_from}")
+        if cc_to is not None:
+            cc_parts.append(f"displacement_cc <= {cc_to}")
+        joined = " AND ".join(cc_parts) if cc_parts else "true"
+        # Машины без данных по объёму (часто EV/часть гибридов) не выкидываем фильтром.
+        clauses.append(f"(displacement_cc IS NULL OR ({joined}))")
+
+    if q.get("power_hp_le_160") == "1":
+        clauses.append("power_hp <= 160")
 
     if q.get("drive_awd") == "1":
         clauses.append(

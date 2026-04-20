@@ -201,6 +201,21 @@ def run_sync(
     model_cache: Dict[Tuple[int, str], int] = {}
 
     try:
+        def _parse_positive_int(value: Any) -> Optional[int]:
+            if value is None or value == "":
+                return None
+            try:
+                if isinstance(value, str):
+                    digits = "".join(ch for ch in value if ch.isdigit())
+                    if not digits:
+                        return None
+                    iv = int(digits)
+                else:
+                    iv = int(float(value))
+                return iv if iv > 0 else None
+            except (TypeError, ValueError):
+                return None
+
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -268,7 +283,7 @@ def run_sync(
                     _BACKEND_DIR / "config.json",
                 )
                 calc = PriceCalculator(config_path=str(cfg_path))
-                price_ok = price_failed = price_skipped_china = price_skipped_no_list = 0
+                price_ok = price_failed = price_skipped_china = price_skipped_no_list = price_skipped_missing_engine = 0
                 for i, car in enumerate(cars_out):
                     data = car.get("data")
                     if data is None:
@@ -295,6 +310,26 @@ def run_sync(
                             car["data"] = data
                         continue
 
+                    hp_val = _parse_positive_int(
+                        data.get("power")
+                        or data.get("power_hp")
+                        or data.get("hp")
+                        or data.get("outputHorsepower")
+                    )
+                    cc_val = _parse_positive_int(
+                        data.get("displacement")
+                        or data.get("displacement_cc")
+                        or data.get("engine_volume")
+                    )
+                    if hp_val is None or cc_val is None:
+                        # Для каталога не показываем «оценочную» финальную цену без базовых параметров.
+                        price_skipped_missing_engine += 1
+                        data["price_on_request"] = True
+                        clear_estimated_price_fields(data)
+                        if car.get("data") is not data:
+                            car["data"] = data
+                        continue
+
                     data.pop("price_on_request", None)
                     try:
                         calc.update_car_with_prices(data)
@@ -314,6 +349,7 @@ def run_sync(
                 print(
                     f"Price calc summary: ok={price_ok} failed={price_failed} "
                     f"skipped_china={price_skipped_china} skipped_no_list_price={price_skipped_no_list} "
+                    f"skipped_missing_hp_or_cc={price_skipped_missing_engine} "
                     f"total={len(cars_out)}",
                     file=sys.stderr,
                 )
