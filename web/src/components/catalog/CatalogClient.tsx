@@ -39,6 +39,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -68,7 +70,7 @@ import {
   Copy,
   Fuel,
   Gauge,
-  Plus,
+  Heart,
   Settings2,
   Sparkles,
   Zap,
@@ -212,60 +214,6 @@ function cardOverlayBadges(
   return out.slice(0, 4);
 }
 
-function FacetGroup({
-  title,
-  rows,
-  selected,
-  onToggle,
-}: {
-  title: string;
-  rows: FacetRow[];
-  selected: Set<string>;
-  onToggle: (v: string) => void;
-}) {
-  if (!rows.length) return null;
-  return (
-    <fieldset className="rounded-xl border border-border bg-muted/25 p-3">
-      <legend className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </legend>
-      <div className="max-h-44 space-y-1 overflow-y-auto pr-1 text-sm">
-        {rows.map((r) => (
-          <label
-            key={r.value}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-muted/50"
-          >
-            <Checkbox
-              checked={selected.has(r.value)}
-              onCheckedChange={() => onToggle(r.value)}
-              className="shrink-0"
-            />
-            <span className="min-w-0 flex-1 text-sm leading-snug [overflow-wrap:anywhere]" title={r.value}>
-              {r.value}
-            </span>
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-              {r.count.toLocaleString("ru-RU")}
-            </span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
-
-function FacetSkeleton() {
-  return (
-    <div className="rounded-xl border border-border bg-muted/25 p-3">
-      <Skeleton className="mb-2 h-4 w-24 rounded-md" />
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-full rounded-md" />
-        <Skeleton className="h-4 w-5/6 rounded-md" />
-        <Skeleton className="h-4 w-4/6 rounded-md" />
-      </div>
-    </div>
-  );
-}
-
 function FacetMultiDropdown({
   label,
   rows,
@@ -302,7 +250,7 @@ function FacetMultiDropdown({
           type="button"
           variant="outline"
           disabled={disabled || !rows.length}
-          className="h-9 w-full justify-between gap-2 rounded-2xl font-normal"
+          className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
         >
           <span className="min-w-0 text-start [overflow-wrap:anywhere]">
             {label}
@@ -355,6 +303,53 @@ function FacetMultiDropdown({
   );
 }
 
+const COLOR_SWATCH_BY_NAME: Array<{ re: RegExp; className: string }> = [
+  { re: /(бел|white)/i, className: "bg-white ring-1 ring-border" },
+  { re: /(черн|black)/i, className: "bg-zinc-900 ring-1 ring-zinc-700" },
+  { re: /(сер|gray|grey|silver|сереб)/i, className: "bg-zinc-400" },
+  { re: /(син|blue)/i, className: "bg-blue-500" },
+  { re: /(крас|red)/i, className: "bg-red-500" },
+  { re: /(зелен|green)/i, className: "bg-emerald-500" },
+  { re: /(желт|gold|orange|оранж)/i, className: "bg-amber-400" },
+  { re: /(корич|brown|beige|беж)/i, className: "bg-amber-700" },
+  { re: /(фиолет|purple|violet)/i, className: "bg-violet-500" },
+];
+
+function colorSwatchClass(colorName: string): string {
+  const match = COLOR_SWATCH_BY_NAME.find((item) => item.re.test(colorName));
+  return match?.className ?? "bg-gradient-to-br from-slate-200 to-slate-500";
+}
+
+function SortDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const active = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" className="mt-2 h-10 w-full justify-between rounded-2xl font-normal">
+          <span className="min-w-0 truncate text-start">{active.label}</span>
+          <ChevronsUpDown className="size-4 shrink-0 opacity-55" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[13rem] p-1.5">
+        <DropdownMenuLabel>Сортировка списка</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+          {SORT_OPTIONS.map((o) => (
+            <DropdownMenuRadioItem key={o.value} value={o.value} className="cursor-pointer">
+              {o.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ListRowSkeleton() {
   return (
     <li>
@@ -363,15 +358,24 @@ function ListRowSkeleton() {
         className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/60 sm:flex-row"
       >
         <Skeleton className="h-44 w-full shrink-0 rounded-none sm:h-auto sm:w-56 sm:min-h-36 md:w-64" />
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 py-3 sm:px-4 md:px-5">
-          <Skeleton className="h-4 w-[90%] rounded-md" />
-          <Skeleton className="h-3 w-1/2 rounded-md" />
-          <Skeleton className="h-6 w-28 rounded-md" />
-        </div>
-        <div className="flex shrink-0 flex-row items-center justify-end gap-1.5 border-t border-border/50 px-3 py-2 sm:w-auto sm:border-s sm:border-t-0 sm:px-2">
-          <Skeleton className="h-8 w-20 rounded-lg sm:hidden" />
-          <Skeleton className="size-8 rounded-lg" />
-          <Skeleton className="size-8 rounded-lg" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0">
+          <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
+            <Skeleton className="h-4 w-[70%] rounded-md" />
+            <div className="flex items-center gap-1.5">
+              <Skeleton className="size-8 rounded-lg" />
+              <Skeleton className="size-8 rounded-lg" />
+            </div>
+          </div>
+          <div className="flex flex-1 items-center px-3 py-3 sm:px-4 md:px-5">
+            <div className="flex w-full flex-wrap gap-1.5">
+              <Skeleton className="h-6 w-24 rounded-xl" />
+              <Skeleton className="h-6 w-20 rounded-xl" />
+              <Skeleton className="h-6 w-28 rounded-xl" />
+            </div>
+          </div>
+          <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
+            <Skeleton className="h-8 w-28 rounded-lg" />
+          </div>
         </div>
       </Card>
     </li>
@@ -499,41 +503,49 @@ function RangeBlock({
           placeholder="Цена от"
           value={draft.price_from}
           onChange={(e) => setDraft((d) => ({ ...d, price_from: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder="Цена до"
           value={draft.price_to}
           onChange={(e) => setDraft((d) => ({ ...d, price_to: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder="Пробег от"
           value={draft.mileage_from}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_from: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder="Пробег до"
           value={draft.mileage_to}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_to: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder="Год от"
           value={draft.year_from}
           onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder="Год до"
           value={draft.year_to}
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder="Объём от (см³)"
           value={draft.engine_cc_from}
           onChange={(e) => setDraft((d) => ({ ...d, engine_cc_from: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder="Объём до (см³)"
           value={draft.engine_cc_to}
           onChange={(e) => setDraft((d) => ({ ...d, engine_cc_to: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
         />
       </div>
       <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
@@ -851,16 +863,16 @@ export function CatalogClient({
           </div>
         ) : null}
 
-        <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-          <aside className="w-full min-w-0 shrink-0 lg:sticky lg:top-24 lg:w-80 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pe-1">
+        <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-7">
+          <aside className="w-full min-w-0 shrink-0 lg:sticky lg:top-24 lg:w-[22.5rem] lg:max-h-[calc(100dvh-6.25rem)] lg:overflow-y-auto lg:overscroll-contain lg:pb-2 lg:pe-2 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="flex max-w-full flex-col gap-3 rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:rounded-3xl sm:p-5">
-            <MarketSegmentedControl market={state.market} onChange={switchMarket} />
+              <MarketSegmentedControl market={state.market} onChange={switchMarket} />
 
-            <Accordion
-              type="multiple"
-              defaultValue={[]}
-              className="max-w-full min-w-0 overflow-hidden rounded-xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
-            >
+              <Accordion
+                type="multiple"
+                defaultValue={[]}
+                className="max-w-full min-w-0 overflow-visible rounded-2xl border border-border/80 bg-muted/10 shadow-sm dark:bg-muted/5"
+              >
               <AccordionItem value="basics" className="border-border/60">
                 <AccordionTrigger className="py-3 hover:no-underline sm:ps-5 sm:pe-12">
                   <div className="min-w-0 flex-1 text-start">
@@ -935,17 +947,10 @@ export function CatalogClient({
                   </div>
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground">Сортировка</Label>
-                    <select
+                    <SortDropdown
                       value={state.sort}
-                      onChange={(e) => navigate({ ...state, sort: e.target.value, page: 1 })}
-                      className="mt-2 flex h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-                    >
-                      {SORT_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(sort) => navigate({ ...state, sort, page: 1 })}
+                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -981,32 +986,32 @@ export function CatalogClient({
                     Только авто до 160 л.с.
                   </label>
                   {facets ? (
-                    <>
-                      <FacetGroup
-                        title="Кузов"
+                    <div className="space-y-2">
+                      <FacetMultiDropdown
+                        label="Кузов"
                         rows={facets.bodies}
                         selected={new Set(state.body)}
                         onToggle={(v) => toggle("body", v)}
                       />
-                      <FacetGroup
-                        title="Топливо"
+                      <FacetMultiDropdown
+                        label="Топливо"
                         rows={facets.fuels}
                         selected={new Set(state.fuel)}
                         onToggle={(v) => toggle("fuel", v)}
                       />
-                      <FacetGroup
-                        title="КПП"
+                      <FacetMultiDropdown
+                        label="КПП"
                         rows={facets.transmissions}
                         selected={new Set(state.trans)}
                         onToggle={(v) => toggle("trans", v)}
                       />
-                    </>
+                    </div>
                   ) : (
-                    <>
-                      <FacetSkeleton />
-                      <FacetSkeleton />
-                      <FacetSkeleton />
-                    </>
+                    <div className="space-y-2">
+                      <Skeleton className="h-10 w-full rounded-2xl" />
+                      <Skeleton className="h-10 w-full rounded-2xl" />
+                      <Skeleton className="h-10 w-full rounded-2xl" />
+                    </div>
                   )}
                 </AccordionContent>
               </AccordionItem>
@@ -1032,16 +1037,47 @@ export function CatalogClient({
                     <div className="mt-1 text-xs font-normal text-muted-foreground">Цвет кузова</div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="sm:px-5">
+                <AccordionContent className="space-y-3 sm:px-5">
                   {facets ? (
-                    <FacetGroup
-                      title="Цвет"
-                      rows={facets.colors}
-                      selected={new Set(state.color)}
-                      onToggle={(v) => toggle("color", v)}
-                    />
+                    <>
+                      <div className="rounded-xl border border-border bg-muted/20 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Популярные цвета
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {facets.colors.slice(0, 8).map((row) => {
+                            const active = state.color.includes(row.value);
+                            return (
+                              <Button
+                                key={row.value}
+                                type="button"
+                                variant={active ? "default" : "secondary"}
+                                size="xs"
+                                className="h-8 max-w-full rounded-full px-2.5"
+                                onClick={() => toggle("color", row.value)}
+                              >
+                                <span
+                                  className={cn("size-3 shrink-0 rounded-full", colorSwatchClass(row.value))}
+                                  aria-hidden
+                                />
+                                <span className="truncate">{row.value}</span>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <FacetMultiDropdown
+                        label="Все цвета"
+                        rows={facets.colors}
+                        selected={new Set(state.color)}
+                        onToggle={(v) => toggle("color", v)}
+                      />
+                    </>
                   ) : (
-                    <FacetSkeleton />
+                    <div className="space-y-2">
+                      <Skeleton className="h-20 w-full rounded-xl" />
+                      <Skeleton className="h-10 w-full rounded-2xl" />
+                    </div>
                   )}
                 </AccordionContent>
               </AccordionItem>
@@ -1055,12 +1091,12 @@ export function CatalogClient({
 
         <div className="min-w-0 flex-1">
           <div className="mb-5 rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:mb-6 sm:rounded-3xl sm:p-5">
-            <h1 className="text-xl font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-2xl md:text-3xl">
+            <h1 className="text-lg font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-xl md:text-2xl">
               {title}
             </h1>
             <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
               <p className="min-w-0 text-sm leading-snug text-muted-foreground [overflow-wrap:anywhere]">
-                Найдено:{" "}
+                Автомобилей в каталоге:{" "}
                 <span className="font-medium text-foreground">
                   {search.meta.total.toLocaleString("ru-RU")}
                 </span>
@@ -1130,14 +1166,14 @@ export function CatalogClient({
                 <li key={car.id}>
                   <Card
                     size="sm"
-                    className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 sm:flex-row shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md"
+                    className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:flex-row"
                   >
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
-                      className="flex min-w-0 flex-1 flex-col items-stretch sm:flex-row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                      className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-auto sm:w-56 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-64"
                     >
-                      <div className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted sm:h-auto sm:w-56 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-64">
+                      <div className="relative size-full">
                         <CatalogCardImage
                           images={preview}
                           alt={car.title || car.id}
@@ -1181,13 +1217,63 @@ export function CatalogClient({
                           ) : null}
                         </div>
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col justify-start gap-1.5 px-3 py-3 sm:px-4 md:px-5">
-                        <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
-                          {car.title || car.id}
-                        </p>
+                    </Link>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0 sm:rounded-e-2xl">
+                      <div className="flex items-start justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
+                        <Link
+                          href={`/car/${encodeURIComponent(car.id)}`}
+                          prefetch
+                          className="min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
+                            {car.title || car.id}
+                          </p>
+                        </Link>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon-sm"
+                            className="rounded-lg shadow-sm"
+                            title={showCopied ? "Скопировано" : "Копировать ссылку на объявление"}
+                            aria-label="Копировать ссылку"
+                            onClick={() => {
+                              void navigator.clipboard
+                                .writeText(getCarPageAbsoluteUrl(car.id))
+                                .then(() => {
+                                  setCopiedId(car.id);
+                                  window.setTimeout(
+                                    () => setCopiedId((c) => (c === car.id ? null : c)),
+                                    1800,
+                                  );
+                                })
+                                .catch(() => {});
+                            }}
+                          >
+                            {showCopied ? (
+                              <Check className="size-4 text-green-600 dark:text-green-400" />
+                            ) : (
+                              <Copy className="size-4" />
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={fav ? "default" : "secondary"}
+                            size="icon-sm"
+                            className="rounded-lg shadow-sm"
+                            title={fav ? "Убрать из избранного" : "В избранное"}
+                            aria-pressed={fav}
+                            aria-label={fav ? "Убрать из избранного" : "Добавить в избранное"}
+                            onClick={() => toggleFavorite(car)}
+                          >
+                            <Heart className={cn("size-4", fav ? "fill-current" : "")} />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex min-h-16 items-center px-3 py-3 sm:px-4 md:px-5">
                         {attrChips.length ? (
                           <ul
-                            className="flex min-w-0 flex-wrap gap-1.5"
+                            className="flex min-w-0 flex-wrap justify-center gap-1.5"
                             aria-label="Краткие характеристики"
                           >
                             {attrChips.map((c) => {
@@ -1206,63 +1292,15 @@ export function CatalogClient({
                             })}
                           </ul>
                         ) : null}
+                      </div>
+                      <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
                         <Badge
                           variant="secondary"
-                          className="hidden w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50 sm:inline-flex"
+                          className="inline-flex w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
                         >
                           {formatCatalogCardPrice(car.price, car.price_on_request)}
                         </Badge>
                       </div>
-                    </Link>
-                    <div className="flex shrink-0 flex-row items-center justify-end gap-1.5 border-t border-border/50 px-3 py-2 sm:rounded-e-2xl sm:border-s sm:border-t-0 sm:px-2">
-                      <Badge
-                        variant="secondary"
-                        className="me-auto inline-flex max-w-[calc(100%-5rem)] rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50 sm:hidden"
-                      >
-                        {formatCatalogCardPrice(car.price, car.price_on_request)}
-                      </Badge>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon-sm"
-                        className="rounded-lg shadow-sm"
-                        title={showCopied ? "Скопировано" : "Копировать ссылку на объявление"}
-                        aria-label="Копировать ссылку"
-                        onClick={() => {
-                          void navigator.clipboard
-                            .writeText(getCarPageAbsoluteUrl(car.id))
-                            .then(() => {
-                              setCopiedId(car.id);
-                              window.setTimeout(
-                                () => setCopiedId((c) => (c === car.id ? null : c)),
-                                1800,
-                              );
-                            })
-                            .catch(() => {});
-                        }}
-                      >
-                        {showCopied ? (
-                          <Check className="size-4 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <Copy className="size-4" />
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={fav ? "default" : "secondary"}
-                        size="icon-sm"
-                        className="rounded-lg shadow-sm"
-                        title={fav ? "Убрать из избранного" : "В избранное"}
-                        aria-pressed={fav}
-                        aria-label={fav ? "Убрать из избранного" : "Добавить в избранное"}
-                        onClick={() => toggleFavorite(car)}
-                      >
-                        {fav ? (
-                          <Check className="size-4" />
-                        ) : (
-                          <Plus className="size-4" />
-                        )}
-                      </Button>
                     </div>
                   </Card>
                 </li>
@@ -1327,9 +1365,6 @@ export function CatalogClient({
               </PaginationItem>
             </PaginationContent>
           </Pagination>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            Страница {state.page} из {pages}
-          </p>
         </div>
       </div>
       </div>

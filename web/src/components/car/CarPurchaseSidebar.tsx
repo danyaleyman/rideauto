@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Copy, ExternalLink, Heart, Plus } from "lucide-react";
+import { Check, Copy, ExternalLink, Heart } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
@@ -135,7 +135,7 @@ export function CarPurchaseSidebar({
           aria-pressed={fav}
           onClick={() => toggle(slimForFavorite(carId, title, priceRub))}
         >
-          {fav ? <Check className="size-4" /> : <Plus className="size-4" />}
+          <Heart className={fav ? "size-4 fill-current" : "size-4"} />
         </Button>
       </div>
 

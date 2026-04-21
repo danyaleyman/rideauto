@@ -51,7 +51,7 @@ export function FavoritesDialog() {
         </DialogHeader>
         {count === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Пока пусто. В каталоге нажмите «+» на карточке, чтобы добавить объявление.
+            Пока пусто. В каталоге нажмите на иконку сердца на карточке, чтобы добавить объявление.
           </p>
         ) : (
           <ScrollArea className="max-h-[min(50vh,360px)] pr-3">
