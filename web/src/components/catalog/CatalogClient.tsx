@@ -682,7 +682,7 @@ export function CatalogClient({
         const sRes = await searchP;
         if (ac.signal.aborted) return;
         // #region agent log
-        fetch("http://127.0.0.1:7292/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"200d91"},body:JSON.stringify({sessionId:"200d91",runId:"pre-fix",hypothesisId:"H4",location:"CatalogClient.tsx:searchEffect.afterFetch",message:"Search response received",data:{total:sRes.meta.total,page:sRes.meta.page,pages:sRes.meta.pages,resultCount:sRes.result.length},timestamp:Date.now()})}).catch(()=>{});
+        fetch("http://127.0.0.1:7292/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"200d91"},body:JSON.stringify({sessionId:"200d91",runId:"pre-fix",hypothesisId:"H4",location:"CatalogClient.tsx:searchEffect.afterFetch",message:"Search response received",data:{total:sRes.meta.total,pages:sRes.meta.pages,offset:sRes.meta.offset,limit:sRes.meta.limit,resultCount:sRes.result.length},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
         setSearch(sRes);
       } catch (e) {
