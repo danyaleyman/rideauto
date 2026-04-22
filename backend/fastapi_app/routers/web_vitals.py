@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any, Dict, Optional
 
@@ -107,7 +108,7 @@ async def ingest_web_events(request: Request, payload: WebClientEvent) -> dict:
             """,
             payload.session_id[:128],
             payload.event_type[:64],
-            payload.payload,
+            json.dumps(payload.payload, ensure_ascii=False),
             payload.pathname,
             payload.user_agent,
         )
