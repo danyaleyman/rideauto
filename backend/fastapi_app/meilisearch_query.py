@@ -84,11 +84,22 @@ def _append_year_range(clauses: List[str], year_from_raw: Optional[str], year_to
     year_from = _parse_year(year_from_raw)
     year_to = _parse_year(year_to_raw)
     if year_from is not None:
-        # Совместимость с историческим индексом, где у части документов year=YYYYMM.
-        clauses.append(f"(year >= {year_from} OR year >= {year_from}00)")
+        # Совместимость с mixed-форматом year:
+        # - YYYY  : проверяем как обычный год
+        # - YYYYMM: проверяем по нижней границе года*100
+        clauses.append(
+            "("
+            f"(year < 10000 AND year >= {year_from}) OR "
+            f"(year >= 100000 AND year >= {year_from}00)"
+            ")"
+        )
     if year_to is not None:
-        # Если year хранится как YYYY, сработает левая часть; если YYYYMM — правая.
-        clauses.append(f"(year <= {year_to} OR (year >= 190001 AND year <= {year_to}12))")
+        clauses.append(
+            "("
+            f"(year < 10000 AND year <= {year_to}) OR "
+            f"(year >= 100000 AND year <= {year_to}12)"
+            ")"
+        )
 
 
 def _append_year_month_range(clauses: List[str], q: Dict[str, str]) -> None:
