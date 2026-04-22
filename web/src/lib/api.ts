@@ -39,7 +39,7 @@ function buildQuery(
 
 export async function fetchSearch(
   params: Record<string, string | string[] | undefined>,
-  options?: { revalidate?: number; timeoutMs?: number },
+  options?: { revalidate?: number },
 ): Promise<SearchResponse> {
   const base = getServerApiBase();
   const q = buildQuery(params, { per_page: "12" });
@@ -50,7 +50,7 @@ export async function fetchSearch(
     headers: { Accept: "application/json" },
     next: { revalidate: options?.revalidate ?? 30 },
     },
-    options?.timeoutMs ?? 12000,
+    12000,
   );
   if (!res.ok) {
     throw new Error(`search failed: ${res.status} ${res.statusText}`);
@@ -60,7 +60,7 @@ export async function fetchSearch(
 
 export async function fetchCar(
   ref: string,
-  options?: { revalidate?: number; timeoutMs?: number },
+  options?: { revalidate?: number },
 ): Promise<CarDetailResponse> {
   const base = getServerApiBase();
   const enc = encodeURIComponent(ref);
@@ -71,7 +71,7 @@ export async function fetchCar(
     headers: { Accept: "application/json" },
     next: { revalidate: options?.revalidate ?? 60 },
     },
-    options?.timeoutMs ?? 15000,
+    15000,
   );
   if (res.status === 404) {
     return { result: {} };
@@ -85,7 +85,7 @@ export async function fetchCar(
 export async function fetchSimilar(
   carId: string,
   limit = 8,
-  options?: { revalidate?: number; timeoutMs?: number },
+  options?: { revalidate?: number },
 ): Promise<SimilarResponse> {
   const base = getServerApiBase();
   const qs = new URLSearchParams({
@@ -99,7 +99,7 @@ export async function fetchSimilar(
     headers: { Accept: "application/json" },
     next: { revalidate: options?.revalidate ?? 60 },
     },
-    options?.timeoutMs ?? 12000,
+    12000,
   );
   if (res.status === 404) {
     return {
