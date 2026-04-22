@@ -675,8 +675,6 @@ export function CatalogClient({
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
   const uiNavigationStartedAtRef = useRef<number | null>(null);
   const searchCompletedAtRef = useRef<number | null>(null);
-  const searchRequestSeqRef = useRef(0);
-  const facetsRequestSeqRef = useRef(0);
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
 
   useEffect(() => {
@@ -749,7 +747,6 @@ export function CatalogClient({
 
   useEffect(() => {
     const ac = new AbortController();
-    const reqSeq = ++searchRequestSeqRef.current;
     (async () => {
       const started = Date.now();
       try {
@@ -766,7 +763,7 @@ export function CatalogClient({
             ? Promise.resolve(initialSearch)
             : fetchSearchClient(sq, { signal: ac.signal });
         const sRes = await searchP;
-        if (ac.signal.aborted || reqSeq !== searchRequestSeqRef.current) return;
+        if (ac.signal.aborted) return;
         setSearch(sRes);
         searchCompletedAtRef.current = Date.now();
         sendCatalogDiagEvent(diagEnabled, "catalog_search_ok", {
@@ -776,7 +773,7 @@ export function CatalogClient({
           result_len: sRes.result?.length ?? null,
         }, { market: state.market });
       } catch (e) {
-        if (ac.signal.aborted || reqSeq !== searchRequestSeqRef.current) return;
+        if (ac.signal.aborted) return;
         setErr(e instanceof Error ? e.message : "Ошибка загрузки");
         sendCatalogDiagEvent(diagEnabled, "catalog_search_failed", {
           key,
@@ -784,7 +781,7 @@ export function CatalogClient({
           error: e instanceof Error ? e.message : "unknown",
         }, { level: "error", market: state.market });
       } finally {
-        if (!ac.signal.aborted && reqSeq === searchRequestSeqRef.current) setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     })();
     return () => {
@@ -818,7 +815,6 @@ export function CatalogClient({
       return;
     }
     const ac = new AbortController();
-    const reqSeq = ++facetsRequestSeqRef.current;
     (async () => {
       const started = Date.now();
       try {
@@ -828,7 +824,7 @@ export function CatalogClient({
           query: fq.toString(),
         }, { market: state.market });
         const fRes = await fetchFacetsClient(fq, { signal: ac.signal });
-        if (ac.signal.aborted || reqSeq !== facetsRequestSeqRef.current) return;
+        if (ac.signal.aborted) return;
         facetsCacheRef.current.set(facetKey, fRes);
         setFacets(fRes);
         sendCatalogDiagEvent(diagEnabled, "catalog_facets_ok", {
