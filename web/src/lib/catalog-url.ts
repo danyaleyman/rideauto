@@ -23,6 +23,7 @@ export type CatalogUrlState = {
   year_to: string;
   engine_cc_from: string;
   engine_cc_to: string;
+  passable_only: boolean;
   power_hp_le_160: boolean;
   drive_awd: boolean;
   sort: string;
@@ -81,6 +82,7 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
     year_to: (sp.get("year_to") || "").trim(),
     engine_cc_from: (sp.get("engine_cc_from") || "").trim(),
     engine_cc_to: (sp.get("engine_cc_to") || "").trim(),
+    passable_only: sp.get("passable_only") === "1",
     power_hp_le_160: sp.get("power_hp_le_160") === "1",
     drive_awd: sp.get("drive_awd") === "1",
     sort: (sp.get("sort") || "date_new").trim() || "date_new",
@@ -138,6 +140,7 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   if (state.year_to) u.set("year_to", state.year_to);
   if (state.engine_cc_from) u.set("engine_cc_from", state.engine_cc_from);
   if (state.engine_cc_to) u.set("engine_cc_to", state.engine_cc_to);
+  if (state.passable_only) u.set("passable_only", "1");
   if (state.power_hp_le_160) u.set("power_hp_le_160", "1");
   if (state.drive_awd) u.set("drive_awd", "1");
   if (state.sort && state.sort !== "date_new") u.set("sort", state.sort);
@@ -175,6 +178,7 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   if (state.year_to) p.set("year_to", state.year_to);
   if (state.engine_cc_from) p.set("engine_cc_from", state.engine_cc_from);
   if (state.engine_cc_to) p.set("engine_cc_to", state.engine_cc_to);
+  if (state.passable_only) p.set("passable_only", "1");
   if (state.power_hp_le_160) p.set("power_hp_le_160", "1");
   if (state.drive_awd) p.set("drive_awd", "1");
   if (state.sort && state.sort !== "date_new") p.set("sort", state.sort);

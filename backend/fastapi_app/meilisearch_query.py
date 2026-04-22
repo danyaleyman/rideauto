@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from typing import Dict, FrozenSet, List, Optional, Sequence
 
@@ -130,6 +131,25 @@ def build_meilisearch_filter(
             'drive_type = "Полный" OR drive_type = "Полный привод" OR '
             'drive_type = "全时四驱" OR drive_type = "适时四驱" OR drive_type = "分时四驱"'
             ')'
+        )
+
+    if q.get("passable_only") == "1":
+        now = datetime.now(timezone.utc)
+        ym_from = (now.year - 5) * 100 + now.month
+        ym_to = (now.year - 3) * 100 + now.month
+        year_from = now.year - 5
+        year_to = now.year - 3
+        clauses.append(
+            "("
+            f"(year_month >= {ym_from} AND year_month <= {ym_to}) OR "
+            "("
+            "year_month IS NULL AND "
+            "("
+            f"(year >= {year_from} AND year <= {year_to}) OR "
+            f"(year >= {year_from}00 AND year <= {year_to}12)"
+            ")"
+            ")"
+            ")"
         )
 
     if not clauses:

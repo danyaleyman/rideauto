@@ -64,6 +64,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
+  CircleHelp,
   Check,
   ChevronsUpDown,
   ChevronLeft,
@@ -122,6 +123,38 @@ function carsAddedTodayLabel(n: number): string {
   else if (n10 >= 2 && n10 <= 4) word = "автомобиля";
   else word = "автомобилей";
   return `${n.toLocaleString("ru-RU")} ${word} добавлено сегодня`;
+}
+
+type PassabilityStatus = "passable" | "young" | "old";
+
+function parseYmValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const iv = Math.trunc(value);
+    if (iv >= 190001 && iv % 100 >= 1 && iv % 100 <= 12) return iv;
+  }
+  const s = String(value ?? "").trim();
+  if (!s) return null;
+  const digits = s.replace(/[^\d]/g, "");
+  if (digits.length < 6) return null;
+  const y = Number.parseInt(digits.slice(0, 4), 10);
+  const m = Number.parseInt(digits.slice(4, 6), 10);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || y <= 1900 || m < 1 || m > 12) return null;
+  return y * 100 + m;
+}
+
+function carPassabilityStatus(data: Record<string, unknown>, yearNum?: number | null): PassabilityStatus | null {
+  const ym = parseYmValue(data.yearMonth) ?? parseYmValue(data.year) ?? (
+    yearNum && Number.isFinite(yearNum) && yearNum > 0 ? (Math.trunc(yearNum) * 100 + 1) : null
+  );
+  if (!ym) return null;
+  const now = new Date();
+  const nowYm = now.getUTCFullYear() * 100 + (now.getUTCMonth() + 1);
+  const nowMonths = Math.floor(nowYm / 100) * 12 + (nowYm % 100 - 1);
+  const carMonths = Math.floor(ym / 100) * 12 + (ym % 100 - 1);
+  const ageMonths = nowMonths - carMonths;
+  if (ageMonths < 36) return "young";
+  if (ageMonths <= 60) return "passable";
+  return "old";
 }
 
 /** Чипы как на странице авто: дата регистрации гг/мм (или год), пробег, топливо — без дублирования заголовка. */
@@ -468,6 +501,7 @@ function RangeBlock({
     year_to: state.year_to,
     engine_cc_from: state.engine_cc_from,
     engine_cc_to: state.engine_cc_to,
+    passable_only: state.passable_only,
   });
   useEffect(() => {
     setDraft({
@@ -479,6 +513,7 @@ function RangeBlock({
       year_to: state.year_to,
       engine_cc_from: state.engine_cc_from,
       engine_cc_to: state.engine_cc_to,
+      passable_only: state.passable_only,
     });
   }, [
     state.price_from,
@@ -489,6 +524,7 @@ function RangeBlock({
     state.year_to,
     state.engine_cc_from,
     state.engine_cc_to,
+    state.passable_only,
   ]);
   const apply = () => {
     navigate({
@@ -549,6 +585,23 @@ function RangeBlock({
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
       </div>
+      <label className="mt-2 flex cursor-pointer items-start justify-between gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm">
+        <span className="inline-flex items-start gap-2">
+          <Checkbox
+            checked={draft.passable_only}
+            onCheckedChange={(v) => setDraft((d) => ({ ...d, passable_only: Boolean(v) }))}
+            className="mt-0.5 shrink-0"
+          />
+          Только проходные авто
+        </span>
+        <span
+          title={'"Проходными" считаются автомобили возрастом от 3 до 5 лет. Для них обычно действуют льготные таможенные тарифы.'}
+          className="inline-flex shrink-0 text-muted-foreground"
+          aria-label="Что такое проходные авто"
+        >
+          <CircleHelp className="size-4" />
+        </span>
+      </label>
       <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
         Применить диапазоны
       </Button>
@@ -785,6 +838,7 @@ export function CatalogClient({
       year_to: "",
       engine_cc_from: "",
       engine_cc_to: "",
+      passable_only: false,
       power_hp_le_160: false,
       drive_awd: false,
       sort: "date_new",
@@ -813,6 +867,7 @@ export function CatalogClient({
       year_to: "",
       engine_cc_from: "",
       engine_cc_to: "",
+      passable_only: false,
       power_hp_le_160: false,
       drive_awd: false,
       page: 1,
@@ -843,6 +898,7 @@ export function CatalogClient({
     state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${v}`, value: v }));
     if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
     if (state.power_hp_le_160) chips.push({ key: "power_hp_le_160", label: "До 160 л.с." });
+    if (state.passable_only) chips.push({ key: "passable_only", label: "Только проходные авто" });
     if (state.price_from) chips.push({ key: "price_from", label: `Цена от: ${state.price_from}` });
     if (state.price_to) chips.push({ key: "price_to", label: `Цена до: ${state.price_to}` });
     if (state.mileage_from) chips.push({ key: "mileage_from", label: `Пробег от: ${state.mileage_from}` });
@@ -875,6 +931,10 @@ export function CatalogClient({
     }
     if (chip.key === "power_hp_le_160") {
       navigate({ ...state, power_hp_le_160: false, page: 1 });
+      return;
+    }
+    if (chip.key === "passable_only") {
+      navigate({ ...state, passable_only: false, page: 1 });
       return;
     }
     navigate({ ...state, [chip.key]: "", page: 1 });
@@ -1205,6 +1265,7 @@ export function CatalogClient({
                 cardData,
                 car.year_num,
               );
+              const passability = carPassabilityStatus(cardData, car.year_num);
               const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
@@ -1340,12 +1401,42 @@ export function CatalogClient({
                         ) : null}
                       </div>
                       <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
-                        <Badge
-                          variant="secondary"
-                          className="inline-flex w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
-                        >
-                          {formatCatalogCardPrice(car.price, car.price_on_request)}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant="secondary"
+                            className="inline-flex w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
+                          >
+                            {formatCatalogCardPrice(car.price, car.price_on_request)}
+                          </Badge>
+                          {passability === "passable" ? (
+                            <Badge
+                              variant="outline"
+                              className="inline-flex items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2 py-1 text-xs font-medium text-emerald-800 dark:text-emerald-200"
+                              title={'"Проходной автомобиль": на него действуют льготные таможенные тарифы.'}
+                            >
+                              <CircleHelp className="size-3.5" />
+                              Проходные
+                            </Badge>
+                          ) : passability === "young" ? (
+                            <Badge
+                              variant="outline"
+                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-800 dark:text-red-200"
+                              title="Автомобиль менее 3 лет: на него действуют повышенные таможенные тарифы."
+                            >
+                              <CircleHelp className="size-3.5" />
+                              Не проходные
+                            </Badge>
+                          ) : passability === "old" ? (
+                            <Badge
+                              variant="outline"
+                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-800 dark:text-red-200"
+                              title="Автомобиль старше 5 лет: на него действуют повышенные таможенные тарифы."
+                            >
+                              <CircleHelp className="size-3.5" />
+                              Не проходные
+                            </Badge>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </Card>
