@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   catalogStateKey,
   parseCatalogUrl,
@@ -131,17 +131,6 @@ function formatYmChipValue(v: string): string {
   if (!m) return s;
   return `${m[2]}.${m[1]}`;
 }
-
-function ymMonthPart(v: string): string {
-  const m = /^(\d{4})-(\d{2})$/.exec((v || "").trim());
-  return m ? m[2] : "";
-}
-
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => {
-  const n = i + 1;
-  const v = String(n).padStart(2, "0");
-  return { value: v, label: v };
-});
 
 /** Чипы как на странице авто: дата регистрации гг/мм (или год), пробег, топливо — без дублирования заголовка. */
 function formatDisplacementLiters(cc: number): string {
@@ -415,20 +404,10 @@ function CatalogCardImage({
 }) {
   const [idx, setIdx] = useState(0);
   const canCycle = images.length > 1;
-  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     setIdx(0);
   }, [images]);
-  useEffect(() => {
-    if (!hovered || !canCycle) return;
-    // Мягкий авто-превью режим вместо onMouseMove: меньше сетевого шума и отменённых запросов.
-    const frames = Math.min(images.length, 2);
-    const t = window.setInterval(() => {
-      setIdx((prev) => (prev + 1) % frames);
-    }, 900);
-    return () => window.clearInterval(t);
-  }, [hovered, canCycle, images.length]);
 
   const src = images[idx] ?? images[0] ?? "";
   if (!src) {
@@ -443,13 +422,18 @@ function CatalogCardImage({
     <div
       className="relative size-full"
       onMouseEnter={() => {
-        if (canCycle) {
-          setIdx(0);
-          setHovered(true);
-        }
+        if (canCycle) setIdx(0);
+      }}
+      onMouseMove={(e) => {
+        if (!canCycle) return;
+        const el = e.currentTarget.getBoundingClientRect();
+        if (el.width <= 0) return;
+        const relX = Math.min(Math.max(e.clientX - el.left, 0), el.width);
+        const slice = Math.min(images.length, 4);
+        const next = Math.min(slice - 1, Math.floor((relX / el.width) * slice));
+        setIdx(next);
       }}
       onMouseLeave={() => {
-        setHovered(false);
         setIdx(0);
       }}
     >
@@ -461,7 +445,7 @@ function CatalogCardImage({
         sizes="(min-width: 1024px) 224px, 44vw"
         className="h-full w-full object-cover object-center"
         loading={eager ? "eager" : "lazy"}
-        fetchPriority={eager ? "high" : "low"}
+        fetchPriority={eager ? "high" : "auto"}
         decoding="async"
         unoptimized
       />
@@ -479,11 +463,9 @@ function CatalogCardImage({
 function RangeBlock({
   state,
   navigate,
-  onPerfEvent,
 }: {
   state: CatalogUrlState;
-  navigate: (s: CatalogUrlState, reason?: string) => void;
-  onPerfEvent?: (event: string, payload: Record<string, unknown>) => void;
+  navigate: (s: CatalogUrlState) => void;
 }) {
   const [draft, setDraft] = useState({
     price_from: state.price_from,
@@ -492,8 +474,8 @@ function RangeBlock({
     mileage_to: state.mileage_to,
     year_from: state.year_from,
     year_to: state.year_to,
-    ym_from: ymMonthPart(state.ym_from),
-    ym_to: ymMonthPart(state.ym_to),
+    ym_from: state.ym_from,
+    ym_to: state.ym_to,
     engine_cc_from: state.engine_cc_from,
     engine_cc_to: state.engine_cc_to,
   });
@@ -505,8 +487,8 @@ function RangeBlock({
       mileage_to: state.mileage_to,
       year_from: state.year_from,
       year_to: state.year_to,
-      ym_from: ymMonthPart(state.ym_from),
-      ym_to: ymMonthPart(state.ym_to),
+      ym_from: state.ym_from,
+      ym_to: state.ym_to,
       engine_cc_from: state.engine_cc_from,
       engine_cc_to: state.engine_cc_to,
     });
@@ -523,23 +505,11 @@ function RangeBlock({
     state.engine_cc_to,
   ]);
   const apply = () => {
-    const ymFrom = draft.year_from && draft.ym_from ? `${draft.year_from}-${draft.ym_from}` : "";
-    const ymTo = draft.year_to && draft.ym_to ? `${draft.year_to}-${draft.ym_to}` : "";
-    onPerfEvent?.("catalog_ui_range_apply_click", {
-      year_from: draft.year_from || null,
-      year_to: draft.year_to || null,
-      month_from: draft.ym_from || null,
-      month_to: draft.ym_to || null,
-      ym_from: ymFrom || null,
-      ym_to: ymTo || null,
-    });
     navigate({
       ...state,
       ...draft,
-      ym_from: ymFrom,
-      ym_to: ymTo,
       page: 1,
-    }, "range_apply");
+    });
   };
   return (
     <>
@@ -588,36 +558,20 @@ function RangeBlock({
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
-        <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
-          <span>Месяц от</span>
-          <select
-            value={draft.ym_from}
-            onChange={(e) => setDraft((d) => ({ ...d, ym_from: e.target.value }))}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">—</option>
-            {MONTH_OPTIONS.map((m) => (
-              <option key={`m-from-${m.value}`} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
-          <span>Месяц до</span>
-          <select
-            value={draft.ym_to}
-            onChange={(e) => setDraft((d) => ({ ...d, ym_to: e.target.value }))}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">—</option>
-            {MONTH_OPTIONS.map((m) => (
-              <option key={`m-to-${m.value}`} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Input
+          type="month"
+          placeholder="Месяц от"
+          value={draft.ym_from}
+          onChange={(e) => setDraft((d) => ({ ...d, ym_from: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
+        />
+        <Input
+          type="month"
+          placeholder="Месяц до"
+          value={draft.ym_to}
+          onChange={(e) => setDraft((d) => ({ ...d, ym_to: e.target.value }))}
+          className="focus-visible:ring-2 focus-visible:ring-inset"
+        />
         <Input
           placeholder="Объём от (см³)"
           value={draft.engine_cc_from}
@@ -668,13 +622,10 @@ export function CatalogClient({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [qDraft, setQDraft] = useState(state.q);
-  const deferredQDraft = useDeferredValue(qDraft);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [dailyNewCount, setDailyNewCount] = useState<number | null>(null);
   const [dailyNewLoading, setDailyNewLoading] = useState(true);
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
-  const uiNavigationStartedAtRef = useRef<number | null>(null);
-  const searchCompletedAtRef = useRef<number | null>(null);
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
 
   useEffect(() => {
@@ -709,15 +660,13 @@ export function CatalogClient({
   }, [state.market]);
 
   const navigate = useCallback(
-    (next: CatalogUrlState, reason: string = "unknown") => {
-      uiNavigationStartedAtRef.current = Date.now();
+    (next: CatalogUrlState) => {
       const qs = stateToBrowserUrl(next);
       sendCatalogDiagEvent(diagEnabled, "catalog_navigate", {
         from: spStr,
         to: qs,
         next_page: next.page,
         next_sort: next.sort,
-        reason,
       }, { market: state.market });
       router.push(qs ? `/catalog?${qs}` : "/catalog", { scroll: false });
     },
@@ -725,14 +674,14 @@ export function CatalogClient({
   );
 
   useEffect(() => {
-    const nextQ = deferredQDraft.trim();
+    const nextQ = qDraft.trim();
     if (nextQ === state.q) return;
     if (nextQ.length > 0 && nextQ.length < 2) return;
     const t = window.setTimeout(() => {
-      navigate({ ...state, q: nextQ, page: 1 }, "q_debounce");
+      navigate({ ...state, q: nextQ, page: 1 });
     }, 450);
     return () => window.clearTimeout(t);
-  }, [deferredQDraft, state, navigate]);
+  }, [qDraft, state, navigate]);
 
   const facetState = useMemo(
     () => ({
@@ -765,7 +714,6 @@ export function CatalogClient({
         const sRes = await searchP;
         if (ac.signal.aborted) return;
         setSearch(sRes);
-        searchCompletedAtRef.current = Date.now();
         sendCatalogDiagEvent(diagEnabled, "catalog_search_ok", {
           key,
           duration_ms: Date.now() - started,
@@ -788,25 +736,6 @@ export function CatalogClient({
       ac.abort();
     };
   }, [diagEnabled, key, ssrKey, state, initialSearch]);
-
-  useEffect(() => {
-    if (loading) return;
-    const navStart = uiNavigationStartedAtRef.current;
-    const searchDone = searchCompletedAtRef.current;
-    if (!navStart || !searchDone) return;
-    const raf = window.requestAnimationFrame(() => {
-      sendCatalogDiagEvent(diagEnabled, "catalog_ui_settled", {
-        ui_total_ms: Date.now() - navStart,
-        post_search_paint_ms: Date.now() - searchDone,
-        result_len: search.result.length,
-        total: search.meta?.total ?? null,
-        facets_cached_variants: facetsCacheRef.current.size,
-      }, { market: state.market });
-      uiNavigationStartedAtRef.current = null;
-      searchCompletedAtRef.current = null;
-    });
-    return () => window.cancelAnimationFrame(raf);
-  }, [diagEnabled, loading, search, state.market]);
 
   useEffect(() => {
     const cached = facetsCacheRef.current.get(facetKey);
@@ -869,7 +798,7 @@ export function CatalogClient({
       selected_count: arr.length,
       current_page: state.page,
     }, { market: state.market });
-    navigate(next, `toggle_${field}`);
+    navigate(next);
   };
 
   const reset = () => {
@@ -898,7 +827,7 @@ export function CatalogClient({
       drive_awd: false,
       sort: "date_new",
       page: 1,
-    }, "reset");
+    });
   };
 
   const switchMarket = (market: CatalogUrlState["market"]) => {
@@ -927,7 +856,7 @@ export function CatalogClient({
       power_hp_le_160: false,
       drive_awd: false,
       page: 1,
-    }, "switch_market");
+    });
   };
 
   const title =
@@ -983,14 +912,14 @@ export function CatalogClient({
       return;
     }
     if (chip.key === "drive_awd") {
-      navigate({ ...state, drive_awd: false, page: 1 }, "chip_remove_drive_awd");
+      navigate({ ...state, drive_awd: false, page: 1 });
       return;
     }
     if (chip.key === "power_hp_le_160") {
-      navigate({ ...state, power_hp_le_160: false, page: 1 }, "chip_remove_power_hp_le_160");
+      navigate({ ...state, power_hp_le_160: false, page: 1 });
       return;
     }
-    navigate({ ...state, [chip.key]: "", page: 1 }, `chip_remove_${chip.key}`);
+    navigate({ ...state, [chip.key]: "", page: 1 });
   };
 
   return (
@@ -1088,7 +1017,7 @@ export function CatalogClient({
                         onChange={(e) => setQDraft(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
-                            navigate({ ...state, q: qDraft.trim(), page: 1 }, "q_enter");
+                            navigate({ ...state, q: qDraft.trim(), page: 1 });
                           }
                         }}
                         placeholder="Марка, модель…"
@@ -1098,7 +1027,7 @@ export function CatalogClient({
                         type="button"
                         size="sm"
                         className="h-9 w-full shrink-0 sm:w-auto"
-                        onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 }, "q_button")}
+                        onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
                       >
                         Найти
                       </Button>
@@ -1108,7 +1037,7 @@ export function CatalogClient({
                     <Label className="text-xs font-medium text-muted-foreground">Сортировка</Label>
                     <SortDropdown
                       value={state.sort}
-                      onChange={(sort) => navigate({ ...state, sort, page: 1 }, "sort_change")}
+                      onChange={(sort) => navigate({ ...state, sort, page: 1 })}
                     />
                   </div>
                 </AccordionContent>
@@ -1128,7 +1057,7 @@ export function CatalogClient({
                     <Checkbox
                       checked={state.drive_awd}
                       onCheckedChange={(v) =>
-                        navigate({ ...state, drive_awd: Boolean(v), page: 1 }, "toggle_drive_awd")
+                        navigate({ ...state, drive_awd: Boolean(v), page: 1 })
                       }
                       className="shrink-0"
                     />
@@ -1138,7 +1067,7 @@ export function CatalogClient({
                     <Checkbox
                       checked={state.power_hp_le_160}
                       onCheckedChange={(v) =>
-                        navigate({ ...state, power_hp_le_160: Boolean(v), page: 1 }, "toggle_power_hp_le_160")
+                        navigate({ ...state, power_hp_le_160: Boolean(v), page: 1 })
                       }
                       className="shrink-0"
                     />
@@ -1185,13 +1114,7 @@ export function CatalogClient({
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="sm:px-5">
-                  <RangeBlock
-                    state={state}
-                    navigate={navigate}
-                    onPerfEvent={(event, payload) =>
-                      sendCatalogDiagEvent(diagEnabled, event, payload, { market: state.market })
-                    }
-                  />
+                  <RangeBlock state={state} navigate={navigate} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1342,7 +1265,7 @@ export function CatalogClient({
                         <CatalogCardImage
                           images={preview}
                           alt={car.title || car.id}
-                          eager={idx < 2}
+                          eager={idx < 4}
                           sold={Boolean(car.encar_listing_sold)}
                         />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/55 via-black/20 to-transparent px-2 pb-2 pt-14">
@@ -1489,7 +1412,7 @@ export function CatalogClient({
                   size="sm"
                   className="gap-1 rounded-full ps-2"
                   disabled={state.page <= 1}
-                  onClick={() => navigate({ ...state, page: state.page - 1 }, "page_prev")}
+                  onClick={() => navigate({ ...state, page: state.page - 1 })}
                 >
                   <ChevronLeft className="size-4 rtl:rotate-180" />
                   <span className="hidden sm:inline">Назад</span>
@@ -1507,7 +1430,7 @@ export function CatalogClient({
                       variant={state.page === item ? "outline" : "ghost"}
                       size="sm"
                       className="min-w-9 rounded-full tabular-nums"
-                      onClick={() => navigate({ ...state, page: item }, "page_num")}
+                      onClick={() => navigate({ ...state, page: item })}
                       aria-current={state.page === item ? "page" : undefined}
                     >
                       {item}
@@ -1522,7 +1445,7 @@ export function CatalogClient({
                   size="sm"
                   className="gap-1 rounded-full pe-2"
                   disabled={!search.meta.next_cursor}
-                  onClick={() => navigate({ ...state, page: state.page + 1 }, "page_next")}
+                  onClick={() => navigate({ ...state, page: state.page + 1 })}
                 >
                   <span className="hidden sm:inline">Вперёд</span>
                   <ChevronRight className="size-4 rtl:rotate-180" />

@@ -20,7 +20,8 @@ export function getServerApiBase(): string {
 }
 
 export function getPublicApiBase(): string {
-  // Для браузера безопасный дефолт — same-origin (/api через текущий домен),
-  // иначе в проде можно случайно уйти на localhost пользователя.
-  return (process.env.NEXT_PUBLIC_API_BASE?.trim() || "").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_API_BASE?.trim() || "http://127.0.0.1:8080").replace(
+    /\/$/,
+    "",
+  );
 }
