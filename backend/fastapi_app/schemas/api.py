@@ -81,13 +81,3 @@ class WebVitalEvent(BaseModel):
     navigation_type: Optional[str] = None
     pathname: Optional[str] = None
     user_agent: Optional[str] = None
-
-
-class WebClientEvent(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    session_id: str = Field(min_length=1, max_length=128)
-    event_type: str = Field(min_length=1, max_length=64)
-    payload: Dict[str, Any] = Field(default_factory=dict)
-    pathname: Optional[str] = None
-    user_agent: Optional[str] = None

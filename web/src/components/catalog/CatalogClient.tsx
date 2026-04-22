@@ -21,7 +21,6 @@ import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { asStr, formatKm, formatRegYearMonth } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
-import { sendClientEvent } from "@/lib/client-telemetry";
 import { useFavorites } from "@/hooks/use-favorites";
 import { MarketSegmentedControl } from "@/components/catalog/MarketSegmentedControl";
 import { cn } from "@/lib/utils";
@@ -288,10 +287,7 @@ function FacetMultiDropdown({
               <DropdownMenuCheckboxItem
                 key={r.value}
                 checked={selected.has(r.value)}
-                onSelect={(e) => {
-                  e.preventDefault();
-                  onToggle(r.value);
-                }}
+                onCheckedChange={() => onToggle(r.value)}
                 className="cursor-text rounded-xl select-text [&>span:last-child]:ps-2"
               >
                 <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">{r.value}</span>
@@ -494,16 +490,6 @@ function RangeBlock({
     state.engine_cc_to,
   ]);
   const apply = () => {
-    sendClientEvent("catalog_range_apply", {
-      price_from: draft.price_from || null,
-      price_to: draft.price_to || null,
-      mileage_from: draft.mileage_from || null,
-      mileage_to: draft.mileage_to || null,
-      year_from: draft.year_from || null,
-      year_to: draft.year_to || null,
-      engine_cc_from: draft.engine_cc_from || null,
-      engine_cc_to: draft.engine_cc_to || null,
-    });
     navigate({
       ...state,
       ...draft,
@@ -610,16 +596,6 @@ export function CatalogClient({
   }, [state.q]);
 
   useEffect(() => {
-    sendClientEvent("catalog_open", {
-      market: state.market,
-      q: state.q || null,
-      page: state.page,
-      sort: state.sort,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     if (!spStr.trim()) {
       const qs = stateToBrowserUrl(parseCatalogUrl(new URLSearchParams()));
       router.replace(`/catalog?${qs}`, { scroll: false });
@@ -692,10 +668,6 @@ export function CatalogClient({
       } catch (e) {
         if (ac.signal.aborted) return;
         setErr(e instanceof Error ? e.message : "Ошибка загрузки");
-        sendClientEvent("catalog_search_failed", {
-          error: e instanceof Error ? e.message : "unknown",
-          key,
-        });
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -721,10 +693,6 @@ export function CatalogClient({
         setFacets(fRes);
       } catch (e) {
         console.error("facets fetch failed", e);
-        sendClientEvent("catalog_facets_failed", {
-          error: e instanceof Error ? e.message : "unknown",
-          facet_key: facetKey,
-        });
         // Автоповтор при временных сбоях API/кэша, чтобы фильтры сами «ожили».
         if (!ac.signal.aborted) {
           window.setTimeout(() => {
@@ -754,17 +722,10 @@ export function CatalogClient({
     } else if (field === "generations") {
       next.trims = [];
     }
-    sendClientEvent("catalog_filter_toggle", {
-      field,
-      value,
-      selected_count: arr.length,
-      market: state.market,
-    });
     navigate(next);
   };
 
   const reset = () => {
-    sendClientEvent("catalog_reset_filters", { market: state.market });
     navigate({
       market: state.market,
       q: "",
@@ -792,7 +753,6 @@ export function CatalogClient({
   };
 
   const switchMarket = (market: CatalogUrlState["market"]) => {
-    sendClientEvent("catalog_switch_market", { from: state.market, to: market });
     navigate({
       market,
       q: state.q,
@@ -855,7 +815,6 @@ export function CatalogClient({
   }, [state]);
 
   const removeChip = (chip: { key: keyof CatalogUrlState; value?: string }) => {
-    sendClientEvent("catalog_remove_chip", { key: chip.key, value: chip.value || null });
     if (
       chip.key === "marks" ||
       chip.key === "models" ||
@@ -986,10 +945,7 @@ export function CatalogClient({
                         type="button"
                         size="sm"
                         className="h-9 w-full shrink-0 sm:w-auto"
-                        onClick={() => {
-                          sendClientEvent("catalog_search_submit", { q: qDraft.trim() || null });
-                          navigate({ ...state, q: qDraft.trim(), page: 1 });
-                        }}
+                        onClick={() => navigate({ ...state, q: qDraft.trim(), page: 1 })}
                       >
                         Найти
                       </Button>
@@ -999,10 +955,7 @@ export function CatalogClient({
                     <Label className="text-xs font-medium text-muted-foreground">Сортировка</Label>
                     <SortDropdown
                       value={state.sort}
-                      onChange={(sort) => {
-                        sendClientEvent("catalog_sort_change", { sort });
-                        navigate({ ...state, sort, page: 1 });
-                      }}
+                      onChange={(sort) => navigate({ ...state, sort, page: 1 })}
                     />
                   </div>
                 </AccordionContent>
@@ -1021,11 +974,9 @@ export function CatalogClient({
                   <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm [overflow-wrap:anywhere]">
                     <Checkbox
                       checked={state.drive_awd}
-                      onCheckedChange={(v) => {
-                        const nv = Boolean(v);
-                        sendClientEvent("catalog_drive_awd_toggle", { value: nv });
-                        navigate({ ...state, drive_awd: nv, page: 1 });
-                      }}
+                      onCheckedChange={(v) =>
+                        navigate({ ...state, drive_awd: Boolean(v), page: 1 })
+                      }
                       className="shrink-0"
                     />
                     Только полный привод (AWD)
@@ -1033,11 +984,9 @@ export function CatalogClient({
                   <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm [overflow-wrap:anywhere]">
                     <Checkbox
                       checked={state.power_hp_le_160}
-                      onCheckedChange={(v) => {
-                        const nv = Boolean(v);
-                        sendClientEvent("catalog_power_160_toggle", { value: nv });
-                        navigate({ ...state, power_hp_le_160: nv, page: 1 });
-                      }}
+                      onCheckedChange={(v) =>
+                        navigate({ ...state, power_hp_le_160: Boolean(v), page: 1 })
+                      }
                       className="shrink-0"
                     />
                     Только авто до 160 л.с.
