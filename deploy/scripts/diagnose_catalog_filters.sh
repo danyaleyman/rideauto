@@ -65,4 +65,30 @@ echo "=== WEB log scan ($SINCE) ==="
 docker compose logs --since "$SINCE" web 2>/dev/null | rg -n -i "facets fetch failed|search fetch failed|TypeError|ERROR" || echo "(no matched WEB errors)"
 echo
 
+echo "=== Client event logs from PostgreSQL (last 30 min) ==="
+docker compose exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" <<'SQL'
+SELECT
+  to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS ts,
+  event_type,
+  left(session_id, 12) AS session,
+  pathname,
+  payload
+FROM web_client_events
+WHERE created_at >= now() - interval '30 minutes'
+ORDER BY created_at DESC
+LIMIT 120;
+SQL" 2>/dev/null || echo "(table web_client_events not found or query failed)"
+echo
+
+echo "=== Client event summary by type (last 30 min) ==="
+docker compose exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" <<'SQL'
+SELECT event_type, count(*)::int AS cnt
+FROM web_client_events
+WHERE created_at >= now() - interval '30 minutes'
+GROUP BY event_type
+ORDER BY cnt DESC, event_type ASC
+LIMIT 50;
+SQL" 2>/dev/null || echo "(table web_client_events not found or query failed)"
+echo
+
 echo "=== Done ==="

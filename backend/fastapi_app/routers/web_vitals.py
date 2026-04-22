@@ -8,7 +8,7 @@ import asyncpg
 from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 
 from fastapi_app.config import get_settings
-from fastapi_app.schemas.api import WebVitalEvent
+from fastapi_app.schemas.api import WebClientEvent, WebVitalEvent
 
 router = APIRouter(tags=["metrics"])
 _log = logging.getLogger(__name__)
@@ -31,6 +31,19 @@ CREATE TABLE IF NOT EXISTS web_vitals_events (
 CREATE INDEX IF NOT EXISTS idx_web_vitals_created_at ON web_vitals_events (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_web_vitals_name_created ON web_vitals_events (name, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_web_vitals_path_created ON web_vitals_events (pathname, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS web_client_events (
+    id BIGSERIAL PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    pathname TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_web_client_events_created ON web_client_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_web_client_events_type_created ON web_client_events (event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_web_client_events_session_created ON web_client_events (session_id, created_at DESC);
 """
 
 
@@ -75,6 +88,35 @@ async def ingest_web_vitals(request: Request, payload: WebVitalEvent) -> dict:
         payload.rating or "-",
         payload.pathname or "-",
         payload.navigation_type or "-",
+    )
+    return {"ok": True}
+
+
+@router.post("/web-events", status_code=status.HTTP_202_ACCEPTED)
+async def ingest_web_events(request: Request, payload: WebClientEvent) -> dict:
+    """Ingest client-side behavioral logs (filter interactions/errors)."""
+    pool: asyncpg.Pool = request.app.state.pg_pool
+    await _ensure_table(pool)
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO web_client_events
+                (session_id, event_type, payload, pathname, user_agent)
+            VALUES
+                ($1, $2, $3::jsonb, $4, $5)
+            """,
+            payload.session_id[:128],
+            payload.event_type[:64],
+            payload.payload,
+            payload.pathname,
+            payload.user_agent,
+        )
+    _log.info(
+        "web-event type=%s session=%s path=%s payload=%s",
+        payload.event_type,
+        payload.session_id[:12],
+        payload.pathname or "-",
+        str(payload.payload)[:400],
     )
     return {"ok": True}
 
