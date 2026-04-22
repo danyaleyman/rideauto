@@ -83,6 +83,7 @@ def _ru_transmission_map() -> Dict[str, str]:
     return out
 
 
+@lru_cache(maxsize=1)
 def _invert_map_forward(forward: Dict[str, str]) -> Dict[str, frozenset[str]]:
     inv: Dict[str, set[str]] = defaultdict(set)
     for raw, canon in forward.items():

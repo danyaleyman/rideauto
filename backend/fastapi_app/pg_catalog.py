@@ -15,9 +15,6 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
         SELECT car_id, data, created_at, encar_listing_sold
         FROM cars
         WHERE car_id = ANY($1::text[])
-           OR (data->>'id') = ANY($1::text[])
-           OR (data->'data'->>'inner_id') = ANY($1::text[])
-           OR (data->>'inner_id') = ANY($1::text[])
         """,
         car_ids,
     )
@@ -44,16 +41,7 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
                 pass
         if r["encar_listing_sold"] is True:
             obj["encar_listing_sold"] = True
-        aliases = {
-            cid,
-            str(obj.get("id") or "").strip(),
-            str(obj.get("inner_id") or "").strip(),
-            str((obj.get("data") or {}).get("inner_id") or "").strip() if isinstance(obj.get("data"), dict) else "",
-        }
-        for alias in aliases:
-            if not alias:
-                continue
-            out[alias] = obj
+        out[cid] = obj
     return out
 
 
