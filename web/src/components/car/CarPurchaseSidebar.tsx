@@ -6,7 +6,7 @@ import { Check, Copy, ExternalLink, Heart } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
-import { formatKrw } from "@/lib/car-detail-data";
+import { formatHumanDate, formatKrw } from "@/lib/car-detail-data";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +29,8 @@ type Props = {
   priceWon: number | null;
   priceCny: number | null;
   sourceLabel: string | null;
+  catalogCreatedAt?: string | null;
+  sourceUpdatedAt?: string | null;
 };
 
 function slimForFavorite(
@@ -53,6 +55,8 @@ export function CarPurchaseSidebar({
   priceWon,
   priceCny,
   sourceLabel,
+  catalogCreatedAt,
+  sourceUpdatedAt,
 }: Props) {
   const { toggle, isFavorite } = useFavorites();
   const fav = isFavorite(carId);
@@ -61,7 +65,7 @@ export function CarPurchaseSidebar({
   const breakdownRows: { label: string; value: string; note?: string }[] = [];
   if (!priceOnRequest && priceRub != null && !Number.isNaN(priceRub)) {
     breakdownRows.push({
-      label: "Стоимость автомобиля (оценка в каталоге)",
+      label: "Стоимость в России под ключ",
       value: formatPriceLabel(priceRub),
     });
   }
@@ -77,18 +81,23 @@ export function CarPurchaseSidebar({
       value: `${Math.round(priceCny).toLocaleString("ru-RU")} CN¥`,
     });
   }
+  breakdownRows.push(
+    { label: "Таможенные расходы (пошлина, сбор, утильсбор)", value: "Уточняется", note: "Считается под авто и маршрут." },
+    { label: "Брокерская комиссия", value: "Уточняется" },
+    { label: "Логистика и портовые расходы", value: "Уточняется" },
+    { label: "СБКТС / ЭПТС / регистрационные платежи", value: "Уточняется" },
+  );
+
+  const updatedLabel = formatHumanDate(sourceUpdatedAt);
+  const createdLabel = formatHumanDate(catalogCreatedAt);
 
   return (
     <aside
       id="car-order-panel"
       className="relative max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.08] sm:rounded-3xl sm:p-6 lg:sticky lg:top-24"
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500"
-        aria-hidden
-      />
       <h2 className="sr-only">Цена и заказ</h2>
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Оценка в каталоге</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Стоимость в России под ключ</p>
       <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums sm:text-3xl md:text-[2rem]">
         {priceOnRequest ? PRICE_ON_REQUEST_RU : priceRub != null && !Number.isNaN(priceRub) ? formatPriceLabel(priceRub) : PRICE_ON_REQUEST_RU}
       </p>
@@ -96,6 +105,12 @@ export function CarPurchaseSidebar({
         {title}
       </p>
       <p className="mt-2 font-mono text-xs tabular-nums text-muted-foreground">ID · {carId}</p>
+      {(updatedLabel || createdLabel) ? (
+        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+          {updatedLabel ? <p>Обновлено: {updatedLabel}</p> : null}
+          {createdLabel ? <p>Добавлено в каталог: {createdLabel}</p> : null}
+        </div>
+      ) : null}
       {sourceLabel ? (
         <Badge variant="secondary" className="mt-3 rounded-full px-3 py-1 text-xs font-medium">
           Источник · {sourceLabel}
@@ -157,8 +172,8 @@ export function CarPurchaseSidebar({
             <DialogHeader>
               <DialogTitle>Состав цены</DialogTitle>
               <DialogDescription>
-                Ниже только те суммы, которые есть в карточке. Расходы на логистику, таможню и услуги компании
-                фиксируются индивидуально.
+                Расчет показывает полную структуру стоимости под ключ. Точные суммы сервисных и логистических статей
+                зависят от маршрута и фиксируются менеджером.
               </DialogDescription>
             </DialogHeader>
             {breakdownRows.length === 0 ? (
@@ -177,18 +192,9 @@ export function CarPurchaseSidebar({
                 ))}
               </ul>
             )}
-            <p className="text-xs text-muted-foreground">
-              Итог «под ключ» и сроки — уточняйте у менеджера: мы учитываем курс, маршрут и комплектацию.
-            </p>
+            <p className="text-xs text-muted-foreground">Итоговую смету по договору высылаем перед выкупом автомобиля.</p>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-muted/25 px-3 py-3">
-        <p className="flex items-center gap-2 text-xs leading-relaxed text-muted-foreground">
-          <Heart className="size-3.5 shrink-0 text-blue-600/80 dark:text-sky-400" aria-hidden />
-          Подбор, доставка и оформление — World Ride Auto
-        </p>
       </div>
     </aside>
   );

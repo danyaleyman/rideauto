@@ -1,6 +1,6 @@
 import { CalendarDays, Fuel, Gauge, IdCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { asStr, formatKm, formatRegYearMonth } from "@/lib/car-detail-data";
+import { asStr, formatKm, formatRegYearMonth, translateKoToRuText } from "@/lib/car-detail-data";
 
 /** Заголовок и ключевые факты под галереей (чипы с иконками — как у крупных площадок). */
 export function CarHeroMeta({
@@ -28,7 +28,11 @@ export function CarHeroMeta({
   const km = formatKm(data.km_age);
   if (km) chips.push({ key: "km", label: km, icon: Gauge });
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
-  if (fuel) chips.push({ key: "fuel", label: fuel, icon: Fuel });
+  if (fuel) chips.push({ key: "fuel", label: translateKoToRuText(fuel), icon: Fuel });
+  const hp = asStr(data.power_kwhp) ?? asStr(data.power) ?? asStr(data.hp);
+  if (hp) chips.push({ key: "hp", label: `${translateKoToRuText(hp)} л.с.`, icon: Gauge });
+  const displacement = asStr(data.displacement) ?? asStr(data.engine_displacement);
+  if (displacement) chips.push({ key: "cc", label: `${translateKoToRuText(displacement)} см3`, icon: Fuel });
   const plate = asStr(data.vehicle_no) ?? asStr(data.car_no);
   if (plate) chips.push({ key: "plate", label: `Гос № ${plate}`, variant: "secondary", icon: IdCard });
 

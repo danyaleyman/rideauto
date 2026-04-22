@@ -103,6 +103,18 @@ export default async function CarPage({ params }: PageProps) {
     typeof d.description === "string" && d.description.trim() ? d.description.trim() : null;
 
   const sourceLabelStr = typeof d.source === "string" ? d.source : null;
+  const catalogCreatedAt =
+    typeof (raw as Record<string, unknown>)._catalog_created_at === "string"
+      ? ((raw as Record<string, unknown>)._catalog_created_at as string)
+      : null;
+  const sourceUpdatedAtCandidates = [
+    (d as Record<string, unknown>).updated_at,
+    (d as Record<string, unknown>).modified_at,
+    (d as Record<string, unknown>).updateDate,
+    (raw as Record<string, unknown>).updated_at,
+  ];
+  const sourceUpdatedAt =
+    sourceUpdatedAtCandidates.find((v) => typeof v === "string" && v.trim()) as string | undefined;
 
   const priceLine = priceOnRequest ? PRICE_ON_REQUEST_RU : formatPriceLabel(rubPrice);
 
@@ -197,7 +209,7 @@ export default async function CarPage({ params }: PageProps) {
             </section>
           </div>
 
-          <div className="w-full min-w-0 shrink-0 lg:w-[min(100%,380px)] xl:w-[400px]">
+          <div className="mt-6 w-full min-w-0 shrink-0 lg:w-[min(100%,380px)] xl:w-[400px]">
             <CarPurchaseSidebar
               carId={carId}
               title={title}
@@ -207,6 +219,8 @@ export default async function CarPage({ params }: PageProps) {
               priceWon={priceWon != null && !Number.isNaN(priceWon) ? priceWon : null}
               priceCny={priceCny != null && !Number.isNaN(priceCny) ? priceCny : null}
               sourceLabel={sourceLabelStr}
+              catalogCreatedAt={catalogCreatedAt}
+              sourceUpdatedAt={sourceUpdatedAt ?? null}
             />
           </div>
         </div>

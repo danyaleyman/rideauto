@@ -13,15 +13,29 @@ import {
   diagnosisStatusTone,
   flatScalarRows,
   formatCarHistoryObjectRow,
+  formatHumanDate,
   formatInspectionListItem,
   formatKm,
   formatKrw,
   formatRegYearMonth,
   getPath,
   joinUniqueSpecs,
+  prettifyDataKey,
   toneClass,
+  translateKoToRuText,
 } from "@/lib/car-detail-data";
-import { displayEncarStandardOption } from "@/lib/encar-options-display";
+import { displayEncarStandardOption, localizeEncarOptionText } from "@/lib/encar-options-display";
+
+function localizeLabel(label: string): string {
+  return translateKoToRuText(prettifyDataKey(label));
+}
+
+function localizeValue(value: string): string {
+  const t = translateKoToRuText(value);
+  if (t === "[]") return "Не выявлены";
+  if (t === "{}") return "Нет данных";
+  return t;
+}
 
 function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
   const filtered = rows.filter((r) => r.value.trim());
@@ -35,11 +49,11 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
           key={r.label}
           className="rounded-2xl border border-border/45 bg-muted/15 px-3 py-2.5 transition-colors hover:bg-muted/25 md:grid md:grid-cols-[minmax(0,42%)_minmax(0,1fr)] md:gap-3 md:px-3.5 md:py-3"
         >
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:pt-0.5">
-            {r.label}
+          <dt className="text-[11px] font-semibold tracking-wide text-muted-foreground md:pt-0.5">
+            {localizeLabel(r.label)}
           </dt>
           <dd className="mt-1 text-sm font-medium leading-snug [overflow-wrap:anywhere] text-foreground md:mt-0">
-            {r.value}
+            {localizeValue(r.value)}
           </dd>
         </div>
       ))}
@@ -51,7 +65,7 @@ function StatusBadge({ title }: { title: string }) {
   const tone = diagnosisStatusTone(title);
   return (
     <Badge variant="outline" className={`mt-0.5 rounded-lg text-xs font-medium ${toneClass(tone)}`}>
-      {title}
+      {translateKoToRuText(title)}
     </Badge>
   );
 }
@@ -72,13 +86,20 @@ function InnerInspectionTree({ nodes, depth }: { nodes: unknown[]; depth: number
         return (
           <li key={idx} className="rounded-lg bg-background/60 py-1">
             <div className="flex flex-wrap items-start gap-2">
-              {typeT ? <span className="text-sm font-medium">{typeT}</span> : null}
+              {typeT ? <span className="text-sm font-medium">{translateKoToRuText(typeT)}</span> : null}
               {statusT ? <StatusBadge title={statusT} /> : null}
             </div>
-            {desc ? <p className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">{desc}</p> : null}
+            {desc ? (
+              <p className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">{translateKoToRuText(desc)}</p>
+            ) : null}
             {diagnosisBlock && typeof diagnosisBlock === "object" ? (
               <div className="mt-2 rounded-lg border border-border/40 bg-muted/15 p-2 text-xs">
-                <JsonLight label="diagnosis" data={diagnosisBlock} />
+                <SpecGrid
+                  rows={flatScalarRows(diagnosisBlock).map(([k, v]) => ({
+                    label: prettifyDataKey(k),
+                    value: translateKoToRuText(v),
+                  }))}
+                />
               </div>
             ) : null}
             {Array.isArray(children) && children.length > 0 ? (
@@ -157,15 +178,15 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   add("Ущерб (мои)", ro.myAccidentCost, krwOrStr);
   add("Ущерб (прочие)", ro.otherAccidentCost, krwOrStr);
   add("Полная гибель (кол-во)", ro.totalLossCnt);
-  add("Дата полной гибели", ro.totalLossDate);
+  add("Дата полной гибели", ro.totalLossDate, (v) => formatHumanDate(v) ?? asStr(v));
   add("Затопление: тотал", ro.floodTotalLossCnt);
   add("Затопление: частичное", ro.floodPartLossCnt);
-  add("Дата затопления", ro.floodDate);
+  add("Дата затопления", ro.floodDate, (v) => formatHumanDate(v) ?? asStr(v));
   add("Угон (кол-во)", ro.robberCnt);
-  add("Дата угона", ro.robberDate);
-  add("Период без страховки 1", ro.notJoinDate1);
-  add("Период без страховки 2", ro.notJoinDate2);
-  add("Период без страховки 3", ro.notJoinDate3);
+  add("Дата угона", ro.robberDate, (v) => formatHumanDate(v) ?? asStr(v));
+  add("Период без страховки 1", ro.notJoinDate1, (v) => formatHumanDate(v) ?? asStr(v));
+  add("Период без страховки 2", ro.notJoinDate2, (v) => formatHumanDate(v) ?? asStr(v));
+  add("Период без страховки 3", ro.notJoinDate3, (v) => formatHumanDate(v) ?? asStr(v));
   add("Отзывные кампании", ro.recall);
   add("Отзывные (детализация)", ro.recallFullFillTypes);
 
@@ -200,10 +221,8 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
           </h4>
           <ul className="space-y-2 text-sm">
             {ownerChanges.map((oc, i) => (
-              <li key={i} className="rounded-lg border border-border/40 px-2 py-1">
-                <pre className="whitespace-pre-wrap text-xs [overflow-wrap:anywhere]">
-                  {JSON.stringify(oc, null, 2)}
-                </pre>
+              <li key={i} className="rounded-lg border border-border/40 bg-muted/10 px-3 py-2 [overflow-wrap:anywhere]">
+                {formatHumanDate(oc) ?? asStr(oc) ?? JSON.stringify(oc)}
               </li>
             ))}
           </ul>
@@ -271,7 +290,9 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
             {uniquePhotos.map((item, i) => {
               if (!item || typeof item !== "object") return null;
               const o = item as Record<string, unknown>;
-              const name = asStr(o.partName) ?? asStr(o.name) ?? "—";
+              const rawName = asStr(o.partName) ?? asStr(o.name) ?? "";
+              const name = localizeEncarOptionText(rawName);
+              if (!name) return null;
               return (
                 <li key={i} className="rounded-lg border border-border/50 px-2 py-1.5 text-sm">
                   {name}
@@ -289,7 +310,8 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
             {choicePhotos.map((item, i) => {
               if (!item || typeof item !== "object") return null;
               const o = item as Record<string, unknown>;
-              const name = asStr(o.partName) ?? asStr(o.name) ?? "Опция";
+              const name =
+                localizeEncarOptionText(asStr(o.partName) ?? asStr(o.name) ?? "") ?? "Опция";
               const url =
                 asStr(o.photoUrl) ?? asStr(o.imageUrl) ?? asStr(o.url) ?? asStr(o.imgUrl);
               return (
@@ -311,7 +333,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
         <div className="rounded-xl border border-border/50 bg-muted/15 p-3">
           <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Акцент продажи</h4>
           {asStr(sellingPoint.sentence) ? (
-            <p className="text-sm [overflow-wrap:anywhere]">{asStr(sellingPoint.sentence)}</p>
+            <p className="text-sm [overflow-wrap:anywhere]">{translateKoToRuText(asStr(sellingPoint.sentence)!)}</p>
           ) : null}
           {asStr(sellingPoint.photoUrl) ? (
             <div className="relative mt-2 aspect-video max-w-md overflow-hidden rounded-lg bg-muted">
@@ -372,14 +394,25 @@ export function CarDetailAccordions({
   };
 
   push(
-    "Марка / модель / поколение",
-    joinUniqueSpecs(data.mark, data.model, data.generation, data.gradeName, data.configuration),
+    "Наименование",
+    joinUniqueSpecs(
+      data.mark,
+      data.model,
+      data.generation,
+      data.gradeName,
+      data.configuration,
+      getPath(data, ["grade", "title"]),
+      getPath(data, ["trim", "title"]),
+    ),
   );
   push("Год / месяц", formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year));
   push("Цвет", asStr(data.color));
   push("Пробег", mileage);
   push("VIN", vin);
-  push("Двигатель / объём", [asStr(data.engine_type), asStr(data.displacement)].filter(Boolean).join(", ") || null);
+  push(
+    "Двигатель / объём",
+    [asStr(data.engine_type), asStr(data.displacement)].filter(Boolean).join(", ") || null,
+  );
   push("КПП / привод", [asStr(data.transmission_type), asStr(data.drive_type)].filter(Boolean).join(", ") || null);
   push("Мощность", power);
   push("Места", asStr(data.seatCount));
@@ -483,14 +516,14 @@ export function CarDetailAccordions({
                   <ul className="list-inside list-disc text-sm">
                     {paintPartTypes.map((x, i) => (
                       <li key={i} className="[overflow-wrap:anywhere]">
-                        {typeof x === "object" ? formatInspectionListItem(x) : String(x)}
+                        {translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x))}
                       </li>
                     ))}
                   </ul>
                 ) : typeof paintPartTypes === "object" ? (
                   <SpecGrid rows={flatScalarRows(paintPartTypes).map(([k, v]) => ({ label: k, value: v }))} />
                 ) : (
-                  <p className="text-sm">{asStr(paintPartTypes)}</p>
+                  <p className="text-sm">{translateKoToRuText(asStr(paintPartTypes) ?? "Не выявлены")}</p>
                 )}
               </div>
             ) : (
@@ -503,24 +536,24 @@ export function CarDetailAccordions({
                   <ul className="list-inside list-disc text-sm">
                     {seriousTypes.map((x, i) => (
                       <li key={i} className="[overflow-wrap:anywhere]">
-                        {typeof x === "object" ? formatInspectionListItem(x) : String(x)}
+                        {translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x))}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm [overflow-wrap:anywhere]">{JSON.stringify(seriousTypes)}</p>
+                  <p className="text-sm [overflow-wrap:anywhere]">Не выявлены</p>
                 )}
               </div>
             ) : null}
             {boardTitle ? (
               <p className="text-sm">
                 <span className="text-muted-foreground">Состояние кузова: </span>
-                {boardTitle}
+                {translateKoToRuText(boardTitle)}
               </p>
             ) : null}
 
             <div>
-              <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Внешние панели (outers)</h4>
+              <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Внешние элементы кузова</h4>
               <OutersBlock outers={outers} />
             </div>
 
@@ -573,13 +606,15 @@ export function CarDetailAccordions({
             {carStateTitle ? (
               <div>
                 <span className="text-xs font-semibold text-muted-foreground">Общий вердикт</span>
-                <p className="mt-1 text-sm font-medium">{carStateTitle}</p>
+                <p className="mt-1 text-sm font-medium">{translateKoToRuText(carStateTitle)}</p>
               </div>
             ) : null}
             {inspComments ? (
               <div>
                 <span className="text-xs font-semibold text-muted-foreground">Комментарии инспекции</span>
-                <p className="mt-1 whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{inspComments}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
+                  {translateKoToRuText(inspComments)}
+                </p>
               </div>
             ) : null}
 
@@ -591,12 +626,18 @@ export function CarDetailAccordions({
               >
                 {engineTransmission && Object.keys(engineTransmission).length > 0 ? (
                   <AccordionItem value="de-et">
-                    <AccordionTrigger className="text-sm">Двигатель и трансмиссия</AccordionTrigger>
+                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">
+                      Двигатель и трансмиссия
+                    </AccordionTrigger>
                     <AccordionContent>
                       <SpecGrid
                         rows={Object.entries(engineTransmission).map(([k, v]) => ({
-                          label: k,
-                          value: asStr(v) ?? (typeof v === "object" ? JSON.stringify(v) : "—"),
+                          label: prettifyDataKey(k),
+                          value: asStr(v)
+                            ? translateKoToRuText(asStr(v)!)
+                            : typeof v === "object"
+                              ? translateKoToRuText(JSON.stringify(v))
+                              : "—",
                         }))}
                       />
                     </AccordionContent>
@@ -604,12 +645,16 @@ export function CarDetailAccordions({
                 ) : null}
                 {chassis && Object.keys(chassis).length > 0 ? (
                   <AccordionItem value="de-ch">
-                    <AccordionTrigger className="text-sm">Ходовая и тормоза</AccordionTrigger>
+                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">Ходовая и тормоза</AccordionTrigger>
                     <AccordionContent>
                       <SpecGrid
                         rows={Object.entries(chassis).map(([k, v]) => ({
-                          label: k,
-                          value: asStr(v) ?? (typeof v === "object" ? JSON.stringify(v) : "—"),
+                          label: prettifyDataKey(k),
+                          value: asStr(v)
+                            ? translateKoToRuText(asStr(v)!)
+                            : typeof v === "object"
+                              ? translateKoToRuText(JSON.stringify(v))
+                              : "—",
                         }))}
                       />
                     </AccordionContent>
@@ -617,12 +662,16 @@ export function CarDetailAccordions({
                 ) : null}
                 {electrical && Object.keys(electrical).length > 0 ? (
                   <AccordionItem value="de-el">
-                    <AccordionTrigger className="text-sm">Электрика</AccordionTrigger>
+                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">Электрика</AccordionTrigger>
                     <AccordionContent>
                       <SpecGrid
                         rows={Object.entries(electrical).map(([k, v]) => ({
-                          label: k,
-                          value: asStr(v) ?? (typeof v === "object" ? JSON.stringify(v) : "—"),
+                          label: prettifyDataKey(k),
+                          value: asStr(v)
+                            ? translateKoToRuText(asStr(v)!)
+                            : typeof v === "object"
+                              ? translateKoToRuText(JSON.stringify(v))
+                              : "—",
                         }))}
                       />
                     </AccordionContent>
@@ -630,12 +679,18 @@ export function CarDetailAccordions({
                 ) : null}
                 {additional && Object.keys(additional).length > 0 ? (
                   <AccordionItem value="de-ad">
-                    <AccordionTrigger className="text-sm">Дополнительно (структурировано)</AccordionTrigger>
+                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">
+                      Дополнительные проверки
+                    </AccordionTrigger>
                     <AccordionContent>
                       <SpecGrid
                         rows={Object.entries(additional).map(([k, v]) => ({
-                          label: k,
-                          value: asStr(v) ?? (typeof v === "object" ? JSON.stringify(v) : "—"),
+                          label: prettifyDataKey(k),
+                          value: asStr(v)
+                            ? translateKoToRuText(asStr(v)!)
+                            : typeof v === "object"
+                              ? translateKoToRuText(JSON.stringify(v))
+                              : "—",
                         }))}
                       />
                     </AccordionContent>
@@ -687,17 +742,19 @@ export function CarDetailAccordions({
             ) : null}
             <SpecGrid
               rows={[
-                { label: "Станция инспекции", value: inspName ?? "" },
+                { label: "Станция инспекции", value: translateKoToRuText(inspName ?? "") },
                 { label: "Номер записи", value: recordNo ?? "" },
                 {
                   label: "Срок гарантии",
-                  value: [validityStart, validityEnd].filter(Boolean).join(" — "),
+                  value: [formatHumanDate(validityStart) ?? validityStart, formatHumanDate(validityEnd) ?? validityEnd]
+                    .filter(Boolean)
+                    .join(" — "),
                 },
-                { label: "Тип гарантии", value: guarantyTitle ?? "" },
-                { label: "Первая регистрация", value: firstReg ?? "" },
+                { label: "Тип гарантии", value: translateKoToRuText(guarantyTitle ?? "") },
+                { label: "Первая регистрация", value: formatHumanDate(firstReg) ?? firstReg ?? "" },
                 { label: "Номер кузова", value: carNo ?? "" },
-                { label: "Топливо", value: fuel ?? "" },
-                { label: "Форма кузова", value: carShape ?? "" },
+                { label: "Топливо", value: translateKoToRuText(fuel ?? "") },
+                { label: "Форма кузова", value: translateKoToRuText(carShape ?? "") },
               ]}
             />
           </div>

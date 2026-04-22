@@ -24,6 +24,77 @@ export function asStr(v: unknown): string | null {
   return null;
 }
 
+const KO_TO_RU_TERMS: [string, string][] = [
+  ["양호", "Исправно"],
+  ["없음", "Нет"],
+  ["적정", "В норме"],
+  ["자기진단", "Самодиагностика"],
+  ["원동기", "Двигатель"],
+  ["변속기", "Трансмиссия"],
+  ["작동상태(공회전)", "Работа на холостом ходу"],
+  ["오일누유", "Подтекание масла"],
+  ["오일 유량", "Уровень масла"],
+  ["냉각수누수", "Утечка охлаждающей жидкости"],
+  ["냉각수 수량", "Уровень охлаждающей жидкости"],
+  ["자동변속기(A/T)", "АКПП"],
+  ["수동변속기(M/T)", "МКПП"],
+  ["기어변속장치", "Механизм переключения передач"],
+  ["오일유량 및 상태", "Уровень и состояние масла"],
+  ["동력전달", "Привод"],
+  ["클러치 어셈블리", "Сцепление"],
+  ["등속조인트", "ШРУС"],
+  ["조향", "Рулевое управление"],
+  ["제동", "Тормозная система"],
+  ["전기", "Электрика"],
+  ["연료", "Топливная система"],
+  ["연료누출(LP가스포함)", "Утечка топлива (вкл. LPG)"],
+  ["발전기 출력", "Выход генератора"],
+  ["시동 모터", "Стартер"],
+  ["와이퍼 모터 기능", "Мотор стеклоочистителя"],
+  ["실내송풍 모터", "Мотор вентилятора салона"],
+  ["라디에이터 팬 모터", "Мотор вентилятора радиатора"],
+  ["윈도우 모터", "Электростеклоподъемники"],
+  ["고전원전기장치", "Высоковольтная система"],
+  ["충전구 절연 상태", "Изоляция зарядного порта"],
+  ["구동축전지 격리 상태", "Изоляция тяговой батареи"],
+  ["고전원전기배선 상태(접속단자, 피복, 보호기구)", "Состояние ВВ-проводки"],
+];
+
+export function translateKoToRuText(v: string): string {
+  let out = v.trim();
+  if (!out) return out;
+  const pairs = [...KO_TO_RU_TERMS].sort((a, b) => b[0].length - a[0].length);
+  for (const [ko, ru] of pairs) {
+    if (out.includes(ko)) out = out.split(ko).join(ru);
+  }
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
+export function prettifyDataKey(key: string): string {
+  const map: Record<string, string> = {
+    mileage: "Пробег",
+    carNo: "Госномер",
+    inspName: "Станция инспекции",
+    recordNo: "Номер записи",
+    validityStartDate: "Начало гарантии",
+    validityEndDate: "Окончание гарантии",
+    firstRegistrationDate: "Первая регистрация",
+    boardStateType: "Состояние кузова",
+    carStateType: "Общее состояние",
+    engineTransmission: "Двигатель и трансмиссия",
+    simpleRepair: "Косметический ремонт",
+    accident: "ДТП",
+    accdient: "ДТП",
+  };
+  if (map[key]) return map[key];
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^\p{L}/u, (s) => s.toUpperCase());
+}
+
 export function formatKm(v: unknown): string | null {
   if (v == null || v === "") return null;
   if (typeof v === "number" && Number.isFinite(v)) {
@@ -105,6 +176,22 @@ export function formatRegYearMonth(v: unknown): string | null {
   return null;
 }
 
+export function formatHumanDate(v: unknown): string | null {
+  if (v == null || v === "") return null;
+  const s = String(v).trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+  const flat = /^(\d{4})(\d{2})(\d{2})(?:\.0+)?$/.exec(s);
+  if (flat) return `${flat[3]}.${flat[2]}.${flat[1]}`;
+  const maybeTs = Date.parse(s);
+  if (!Number.isNaN(maybeTs)) {
+    return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }).format(
+      new Date(maybeTs),
+    );
+  }
+  return null;
+}
+
 function uniqStrings(parts: unknown[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -166,7 +253,7 @@ export function formatCarHistoryObjectRow(obj: unknown): string {
   const parts: string[] = [];
   const date = o.date ?? o.changeDate ?? o.regDate;
   if (date != null && date !== "") {
-    const fd = formatRegYearMonth(date) ?? asStr(date);
+    const fd = formatHumanDate(date) ?? formatRegYearMonth(date) ?? asStr(date);
     if (fd) parts.push(`Дата: ${fd}`);
   }
   const carNo = o.carNo ?? o.plateNo ?? o.vehicleNo;

@@ -22,7 +22,7 @@ export function CarStickyMobileBar({ priceLine }: Props) {
       <div className="mx-auto flex max-w-lg flex-col gap-2.5 px-4 pt-3 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between min-[420px]:gap-3">
         <div className="min-w-0 w-full flex-1 pb-0 min-[420px]:pb-0.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Оценка в каталоге
+            Стоимость в России под ключ
           </p>
           <p className="text-lg font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums">
             {priceLine}

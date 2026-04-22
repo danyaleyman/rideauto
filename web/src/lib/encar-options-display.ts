@@ -61,6 +61,21 @@ function translateKoCarRough(s: string): string {
   return out;
 }
 
+function normalizeOptionLabel(raw: string): string {
+  const cleaned = translateKoCarRough(raw).replace(/\s{2,}/g, " ").trim();
+  if (!cleaned) return "";
+  // Иногда Encar присылает только числовой код вместо названия опции.
+  if (/^\d{3,}$/.test(cleaned)) return "";
+  return cleaned;
+}
+
+export function localizeEncarOptionText(raw: unknown): string | null {
+  const s = asStr(raw);
+  if (!s) return null;
+  const translated = normalizeOptionLabel(s);
+  return translated || null;
+}
+
 function collectPhotoRows(uniquePhotos: unknown, choicePhotos: unknown): unknown[] {
   const u = Array.isArray(uniquePhotos) ? uniquePhotos : [];
   const c = Array.isArray(choicePhotos) ? choicePhotos : [];
@@ -224,9 +239,15 @@ export function displayEncarStandardOption(
     (data ?? {}) as Record<string, unknown>,
   );
   const fromPhotos = nameFromOptionRows(c, rows);
-  if (fromPhotos) return translateKoCarRough(fromPhotos);
+  if (fromPhotos) {
+    const t = normalizeOptionLabel(fromPhotos);
+    if (t) return t;
+  }
   const fromStatic = lookupEncarStaticRu(c);
   if (fromStatic) return fromStatic;
-  if (/[가-힣]/.test(c)) return translateKoCarRough(c);
+  if (/[가-힣]/.test(c)) {
+    const t = normalizeOptionLabel(c);
+    if (t) return t;
+  }
   return `Опция ${c}`;
 }
