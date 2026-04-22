@@ -198,7 +198,7 @@ async def catalog_filter_events_dump(
                 market,
                 payload
             FROM catalog_filter_events
-            WHERE created_at >= now() - ($1::text || ' minutes')::interval
+            WHERE created_at >= now() - ($1::int * interval '1 minute')
             ORDER BY created_at DESC
             LIMIT $2
             """,
