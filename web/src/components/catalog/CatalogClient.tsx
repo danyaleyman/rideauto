@@ -594,12 +594,6 @@ export function CatalogClient({
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
 
   useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7292/ingest/a27cae89-c3df-45f6-82a6-66918c5d9d94",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"200d91"},body:JSON.stringify({sessionId:"200d91",runId:"pre-fix",hypothesisId:"H6",location:"CatalogClient.tsx:mount",message:"CatalogClient mounted and debug pipeline attempted",data:{market:state.market,page:state.page,hasQuery:Boolean(spStr)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  }, []);
-
-  useEffect(() => {
     setQDraft(state.q);
   }, [state.q]);
 
