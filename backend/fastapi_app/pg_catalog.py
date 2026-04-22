@@ -10,13 +10,21 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
     """Возвращает полные JSON-карточки из колонки `cars.data`."""
     if not car_ids:
         return {}
+    requested = [str(x).strip() for x in car_ids if str(x).strip()]
+    if not requested:
+        return {}
+    requested_set = set(requested)
     rows = await pool.fetch(
         """
-        SELECT car_id, data, created_at, encar_listing_sold
+        SELECT id::text AS pg_id_text, car_id, data, created_at, encar_listing_sold
         FROM cars
         WHERE car_id = ANY($1::text[])
+           OR id::text = ANY($1::text[])
+           OR (data->>'id') = ANY($1::text[])
+           OR (data->'data'->>'inner_id') = ANY($1::text[])
+           OR (data->>'inner_id') = ANY($1::text[])
         """,
-        car_ids,
+        requested,
     )
     out: Dict[str, Dict[str, Any]] = {}
     for r in rows:
@@ -41,7 +49,16 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
                 pass
         if r["encar_listing_sold"] is True:
             obj["encar_listing_sold"] = True
-        out[cid] = obj
+        aliases = (
+            cid,
+            str(r.get("pg_id_text") or "").strip(),
+            str(data.get("id") or "").strip() if isinstance(data, dict) else "",
+            str((data.get("data") or {}).get("inner_id") or "").strip() if isinstance(data, dict) and isinstance(data.get("data"), dict) else "",
+            str(data.get("inner_id") or "").strip() if isinstance(data, dict) else "",
+        )
+        for alias in aliases:
+            if alias and alias in requested_set and alias not in out:
+                out[alias] = obj
     return out
 
 

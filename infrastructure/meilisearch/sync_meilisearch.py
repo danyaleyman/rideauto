@@ -107,6 +107,8 @@ def _year_for_document(row: Dict[str, Any]) -> Optional[int]:
     if row.get("year") is not None and str(row.get("year")).strip() != "":
         try:
             y = int(row["year"])
+            if y >= 190001:
+                y = y // 100
             if y > 0:
                 return y
         except (TypeError, ValueError):
@@ -119,6 +121,43 @@ def _year_for_document(row: Dict[str, Any]) -> Optional[int]:
                 return iv // 100
         except (TypeError, ValueError):
             pass
+    return None
+
+
+def _parse_year_month_any(value: Any) -> Optional[int]:
+    if value is None or str(value).strip() == "":
+        return None
+    s = str(value).strip()
+    digits = "".join(ch for ch in s if ch.isdigit())
+    if len(digits) < 6:
+        return None
+    try:
+        y = int(digits[:4])
+        m = int(digits[4:6])
+    except ValueError:
+        return None
+    if y <= 0 or m < 1 or m > 12:
+        return None
+    return y * 100 + m
+
+
+def _year_month_for_document(row: Dict[str, Any]) -> Optional[int]:
+    ym = _parse_year_month_any(row.get("year_month"))
+    if ym is not None:
+        return ym
+    ym = _parse_year_month_any(row.get("year"))
+    if ym is not None:
+        return ym
+    raw = row.get("data")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = None
+    if isinstance(raw, dict):
+        ym = _parse_year_month_any(raw.get("yearMonth") or raw.get("year_month"))
+        if ym is not None:
+            return ym
     return None
 
 
@@ -193,8 +232,9 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
         doc["displacement_cc"] = int(row["displacement_cc"])
     if row.get("displacement_label") is not None and str(row.get("displacement_label")).strip():
         doc["displacement_label"] = str(row.get("displacement_label")).strip()
-    if row.get("year_month") is not None:
-        doc["year_month"] = int(row["year_month"])
+    ym = _year_month_for_document(row)
+    if ym is not None:
+        doc["year_month"] = ym
 
     updated = _fmt_ts_for_meili(row.get("updated_at"))
     if updated:
