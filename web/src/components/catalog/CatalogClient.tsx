@@ -466,8 +466,6 @@ function RangeBlock({
     mileage_to: state.mileage_to,
     year_from: state.year_from,
     year_to: state.year_to,
-    ym_from: state.ym_from,
-    ym_to: state.ym_to,
     engine_cc_from: state.engine_cc_from,
     engine_cc_to: state.engine_cc_to,
   });
@@ -479,8 +477,6 @@ function RangeBlock({
       mileage_to: state.mileage_to,
       year_from: state.year_from,
       year_to: state.year_to,
-      ym_from: state.ym_from,
-      ym_to: state.ym_to,
       engine_cc_from: state.engine_cc_from,
       engine_cc_to: state.engine_cc_to,
     });
@@ -491,8 +487,6 @@ function RangeBlock({
     state.mileage_to,
     state.year_from,
     state.year_to,
-    state.ym_from,
-    state.ym_to,
     state.engine_cc_from,
     state.engine_cc_to,
   ]);
@@ -540,20 +534,6 @@ function RangeBlock({
           placeholder="Год до"
           value={draft.year_to}
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          type="month"
-          placeholder="Месяц от"
-          value={draft.ym_from}
-          onChange={(e) => setDraft((d) => ({ ...d, ym_from: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          type="month"
-          placeholder="Месяц до"
-          value={draft.ym_to}
-          onChange={(e) => setDraft((d) => ({ ...d, ym_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
@@ -803,8 +783,6 @@ export function CatalogClient({
       mileage_to: "",
       year_from: "",
       year_to: "",
-      ym_from: "",
-      ym_to: "",
       engine_cc_from: "",
       engine_cc_to: "",
       power_hp_le_160: false,
@@ -833,8 +811,6 @@ export function CatalogClient({
       mileage_to: "",
       year_from: "",
       year_to: "",
-      ym_from: "",
-      ym_to: "",
       engine_cc_from: "",
       engine_cc_to: "",
       power_hp_le_160: false,
@@ -873,8 +849,6 @@ export function CatalogClient({
     if (state.mileage_to) chips.push({ key: "mileage_to", label: `Пробег до: ${state.mileage_to}` });
     if (state.year_from) chips.push({ key: "year_from", label: `Год от: ${state.year_from}` });
     if (state.year_to) chips.push({ key: "year_to", label: `Год до: ${state.year_to}` });
-    if (state.ym_from) chips.push({ key: "ym_from", label: `Месяц от: ${state.ym_from}` });
-    if (state.ym_to) chips.push({ key: "ym_to", label: `Месяц до: ${state.ym_to}` });
     if (state.engine_cc_from) chips.push({ key: "engine_cc_from", label: `Объём от: ${state.engine_cc_from}` });
     if (state.engine_cc_to) chips.push({ key: "engine_cc_to", label: `Объём до: ${state.engine_cc_to}` });
     return chips;

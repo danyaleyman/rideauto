@@ -21,8 +21,6 @@ export type CatalogUrlState = {
   mileage_to: string;
   year_from: string;
   year_to: string;
-  ym_from: string;
-  ym_to: string;
   engine_cc_from: string;
   engine_cc_to: string;
   power_hp_le_160: boolean;
@@ -81,8 +79,6 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
     mileage_to: (sp.get("mileage_to") || "").trim(),
     year_from: (sp.get("year_from") || "").trim(),
     year_to: (sp.get("year_to") || "").trim(),
-    ym_from: (sp.get("ym_from") || sp.get("month_from") || "").trim(),
-    ym_to: (sp.get("ym_to") || sp.get("month_to") || "").trim(),
     engine_cc_from: (sp.get("engine_cc_from") || "").trim(),
     engine_cc_to: (sp.get("engine_cc_to") || "").trim(),
     power_hp_le_160: sp.get("power_hp_le_160") === "1",
@@ -140,8 +136,6 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   if (state.mileage_to) u.set("mileage_to", state.mileage_to);
   if (state.year_from) u.set("year_from", state.year_from);
   if (state.year_to) u.set("year_to", state.year_to);
-  if (state.ym_from) u.set("ym_from", state.ym_from);
-  if (state.ym_to) u.set("ym_to", state.ym_to);
   if (state.engine_cc_from) u.set("engine_cc_from", state.engine_cc_from);
   if (state.engine_cc_to) u.set("engine_cc_to", state.engine_cc_to);
   if (state.power_hp_le_160) u.set("power_hp_le_160", "1");
@@ -179,8 +173,6 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   if (state.mileage_to) p.set("mileage_to", state.mileage_to);
   if (state.year_from) p.set("year_from", state.year_from);
   if (state.year_to) p.set("year_to", state.year_to);
-  if (state.ym_from) p.set("ym_from", state.ym_from);
-  if (state.ym_to) p.set("ym_to", state.ym_to);
   if (state.engine_cc_from) p.set("engine_cc_from", state.engine_cc_from);
   if (state.engine_cc_to) p.set("engine_cc_to", state.engine_cc_to);
   if (state.power_hp_le_160) p.set("power_hp_le_160", "1");

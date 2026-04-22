@@ -93,8 +93,6 @@ def normalized_source(data: Dict[str, Any]) -> Optional[str]:
 def year_from_data(data: Dict[str, Any]) -> Optional[int]:
     y = _safe_int(data.get("year"))
     if y:
-        if y >= 190001:
-            return y // 100
         return y
     ym = _optional_str(data.get("yearMonth")) or _optional_str(data.get("year_month"))
     if ym and len(ym) >= 4 and ym[:4].isdigit():
@@ -104,19 +102,8 @@ def year_from_data(data: Dict[str, Any]) -> Optional[int]:
 
 def year_month_ordinal(data: Dict[str, Any]) -> Optional[int]:
     ym = _optional_str(data.get("yearMonth")) or _optional_str(data.get("year_month"))
-    if ym and len(ym) >= 6 and ym[:6].isdigit():
-        y = int(ym[:4])
-        m = int(ym[4:6])
-        if y > 0 and 1 <= m <= 12:
-            return y * 100 + m
     if ym and len(ym) >= 7 and ym[4] == "-" and ym[:4].isdigit() and ym[5:7].isdigit():
         return int(ym[:4]) * 100 + int(ym[5:7])
-    y = _safe_int(data.get("year"))
-    if y and y >= 190001:
-        yy = y // 100
-        mm = y % 100
-        if yy > 0 and 1 <= mm <= 12:
-            return yy * 100 + mm
     return None
 
 

@@ -62,7 +62,7 @@ async def _search_catalog(request: Request) -> SearchResponse:
 
     ms = await asyncio.to_thread(_run_search)
     hits = ms.get("hits") or []
-    car_ids = [str(h.get("id") or h.get("car_id") or "").strip() for h in hits]
+    car_ids = [str(h.get("id") or h.get("car_id") or "") for h in hits]
     car_ids = [x for x in car_ids if x]
 
     by_id = await fetch_cars_by_ids(pool, car_ids)
@@ -71,9 +71,8 @@ async def _search_catalog(request: Request) -> SearchResponse:
         car = by_id.get(cid)
         if not car:
             continue
-        canonical_id = str(car.get("id") or cid)
         if slim:
-            result.append(slim_catalog_car(car, canonical_id))
+            result.append(slim_catalog_car(car, cid))
         else:
             result.append(car)
 
