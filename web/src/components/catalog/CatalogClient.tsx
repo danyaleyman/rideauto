@@ -1339,7 +1339,7 @@ export function CatalogClient({
                   >
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
-                      prefetch={false}
+                      prefetch
                       className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-auto sm:w-56 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-64"
                     >
                       <div className="relative size-full">
@@ -1391,7 +1391,7 @@ export function CatalogClient({
                       <div className="flex items-start justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
                         <Link
                           href={`/car/${encodeURIComponent(car.id)}`}
-                          prefetch={false}
+                          prefetch
                           className="min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
