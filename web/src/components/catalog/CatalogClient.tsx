@@ -124,14 +124,6 @@ function carsAddedTodayLabel(n: number): string {
   return `${n.toLocaleString("ru-RU")} ${word} добавлено сегодня`;
 }
 
-function formatYmChipValue(v: string): string {
-  const s = (v || "").trim();
-  if (!s) return s;
-  const m = /^(\d{4})-(\d{2})$/.exec(s);
-  if (!m) return s;
-  return `${m[2]}.${m[1]}`;
-}
-
 /** Чипы как на странице авто: дата регистрации гг/мм (или год), пробег, топливо — без дублирования заголовка. */
 function formatDisplacementLiters(cc: number): string {
   const liters = cc / 1000;
@@ -539,20 +531,12 @@ function RangeBlock({
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          type="number"
-          min={1900}
-          max={2100}
-          inputMode="numeric"
           placeholder="Год от"
           value={draft.year_from}
           onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          type="number"
-          min={1900}
-          max={2100}
-          inputMode="numeric"
           placeholder="Год до"
           value={draft.year_to}
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
@@ -889,8 +873,8 @@ export function CatalogClient({
     if (state.mileage_to) chips.push({ key: "mileage_to", label: `Пробег до: ${state.mileage_to}` });
     if (state.year_from) chips.push({ key: "year_from", label: `Год от: ${state.year_from}` });
     if (state.year_to) chips.push({ key: "year_to", label: `Год до: ${state.year_to}` });
-    if (state.ym_from) chips.push({ key: "ym_from", label: `Месяц от: ${formatYmChipValue(state.ym_from)}` });
-    if (state.ym_to) chips.push({ key: "ym_to", label: `Месяц до: ${formatYmChipValue(state.ym_to)}` });
+    if (state.ym_from) chips.push({ key: "ym_from", label: `Месяц от: ${state.ym_from}` });
+    if (state.ym_to) chips.push({ key: "ym_to", label: `Месяц до: ${state.ym_to}` });
     if (state.engine_cc_from) chips.push({ key: "engine_cc_from", label: `Объём от: ${state.engine_cc_from}` });
     if (state.engine_cc_to) chips.push({ key: "engine_cc_to", label: `Объём до: ${state.engine_cc_to}` });
     return chips;
