@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useReportWebVitals } from "next/web-vitals";
 
 type VitalMetric = {
@@ -41,53 +40,7 @@ function sendMetric(metric: VitalMetric) {
   });
 }
 
-function sendClientRuntimeEvent(eventType: string, payload: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
-  const body = JSON.stringify({
-    session_id: `runtime-${Date.now()}`,
-    event_type: eventType,
-    payload,
-    pathname: window.location.pathname + window.location.search,
-    user_agent: navigator.userAgent,
-  });
-  const blob = new Blob([body], { type: "application/json" });
-  if (navigator.sendBeacon) {
-    navigator.sendBeacon("/api/web-events", blob);
-    return;
-  }
-  void fetch("/api/web-events", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-    keepalive: true,
-  }).catch(() => {});
-}
-
 export default function WebVitalsReporter() {
-  useEffect(() => {
-    const onError = (e: ErrorEvent) => {
-      sendClientRuntimeEvent("client_error", {
-        message: e.message || "unknown error",
-        source: e.filename || null,
-        line: e.lineno || null,
-        col: e.colno || null,
-      });
-    };
-    const onRejection = (e: PromiseRejectionEvent) => {
-      const reason =
-        typeof e.reason === "string"
-          ? e.reason
-          : (e.reason && typeof e.reason.message === "string" && e.reason.message) || "unhandled rejection";
-      sendClientRuntimeEvent("client_unhandled_rejection", { reason: String(reason).slice(0, 400) });
-    };
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
-    return () => {
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onRejection);
-    };
-  }, []);
-
   useReportWebVitals((metric) => {
     sendMetric(metric as VitalMetric);
   });

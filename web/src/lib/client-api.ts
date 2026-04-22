@@ -5,21 +5,11 @@ import type { CatalogDailyAdditionsResponse, FacetsResponse, SearchResponse } fr
 import type { Market } from "./catalog-url";
 
 async function readJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const ac = new AbortController();
-  const timeout = setTimeout(() => ac.abort(), 12000);
-  const relay = () => ac.abort();
-  signal?.addEventListener("abort", relay, { once: true });
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-      signal: ac.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", relay);
-  }
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+    signal,
+  });
   if (!res.ok) {
     throw new Error(`${res.status} ${res.statusText}`);
   }

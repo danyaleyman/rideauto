@@ -1,20 +1,6 @@
 import { getServerApiBase } from "./env";
 import type { CarDetailResponse, SearchResponse, SimilarResponse } from "./types";
 
-async function fetchWithTimeout(
-  input: string,
-  init: RequestInit,
-  timeoutMs: number,
-): Promise<Response> {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: ac.signal });
-  } finally {
-    clearTimeout(t);
-  }
-}
-
 function buildQuery(
   params: Record<string, string | string[] | undefined>,
   extras?: Record<string, string>,
@@ -44,14 +30,10 @@ export async function fetchSearch(
   const base = getServerApiBase();
   const q = buildQuery(params, { per_page: "12" });
   const url = `${base}/api/search${q}`;
-  const res = await fetchWithTimeout(
-    url,
-    {
+  const res = await fetch(url, {
     headers: { Accept: "application/json" },
     next: { revalidate: options?.revalidate ?? 30 },
-    },
-    12000,
-  );
+  });
   if (!res.ok) {
     throw new Error(`search failed: ${res.status} ${res.statusText}`);
   }
@@ -65,14 +47,10 @@ export async function fetchCar(
   const base = getServerApiBase();
   const enc = encodeURIComponent(ref);
   const url = `${base}/api/car/${enc}`;
-  const res = await fetchWithTimeout(
-    url,
-    {
+  const res = await fetch(url, {
     headers: { Accept: "application/json" },
     next: { revalidate: options?.revalidate ?? 60 },
-    },
-    15000,
-  );
+  });
   if (res.status === 404) {
     return { result: {} };
   }
@@ -93,14 +71,10 @@ export async function fetchSimilar(
     limit: String(limit),
   });
   const url = `${base}/api/similar?${qs.toString()}`;
-  const res = await fetchWithTimeout(
-    url,
-    {
+  const res = await fetch(url, {
     headers: { Accept: "application/json" },
     next: { revalidate: options?.revalidate ?? 60 },
-    },
-    12000,
-  );
+  });
   if (res.status === 404) {
     return {
       result: [],
