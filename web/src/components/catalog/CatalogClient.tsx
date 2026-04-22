@@ -19,6 +19,7 @@ import { extractCarImageUrls } from "@/lib/car-images";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
+import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
 import { asStr, formatKm, formatRegYearMonth } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -576,6 +577,7 @@ export function CatalogClient({
   const router = useRouter();
   const sp = useSearchParams();
   const spStr = sp.toString();
+  const diagEnabled = useMemo(() => isCatalogDiagEnabled(spStr), [spStr]);
   const state = useMemo(() => parseCatalogUrl(new URLSearchParams(spStr)), [spStr]);
   const key = useMemo(() => catalogStateKey(state), [state]);
 
@@ -624,9 +626,15 @@ export function CatalogClient({
   const navigate = useCallback(
     (next: CatalogUrlState) => {
       const qs = stateToBrowserUrl(next);
+      sendCatalogDiagEvent(diagEnabled, "catalog_navigate", {
+        from: spStr,
+        to: qs,
+        next_page: next.page,
+        next_sort: next.sort,
+      }, { market: state.market });
       router.push(qs ? `/catalog?${qs}` : "/catalog", { scroll: false });
     },
-    [router],
+    [diagEnabled, router, spStr, state.market],
   );
 
   useEffect(() => {
@@ -653,10 +661,16 @@ export function CatalogClient({
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
+      const started = Date.now();
       try {
         setErr(null);
         setLoading(true);
         const sq = toApiSearchParams(state);
+        sendCatalogDiagEvent(diagEnabled, "catalog_search_start", {
+          key,
+          query: sq.toString(),
+          page: state.page,
+        }, { market: state.market });
         const searchP =
           key === ssrKey
             ? Promise.resolve(initialSearch)
@@ -664,9 +678,20 @@ export function CatalogClient({
         const sRes = await searchP;
         if (ac.signal.aborted) return;
         setSearch(sRes);
+        sendCatalogDiagEvent(diagEnabled, "catalog_search_ok", {
+          key,
+          duration_ms: Date.now() - started,
+          total: sRes.meta?.total ?? null,
+          result_len: sRes.result?.length ?? null,
+        }, { market: state.market });
       } catch (e) {
         if (ac.signal.aborted) return;
         setErr(e instanceof Error ? e.message : "Ошибка загрузки");
+        sendCatalogDiagEvent(diagEnabled, "catalog_search_failed", {
+          key,
+          duration_ms: Date.now() - started,
+          error: e instanceof Error ? e.message : "unknown",
+        }, { level: "error", market: state.market });
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -674,7 +699,7 @@ export function CatalogClient({
     return () => {
       ac.abort();
     };
-  }, [key, ssrKey, state, initialSearch]);
+  }, [diagEnabled, key, ssrKey, state, initialSearch]);
 
   useEffect(() => {
     const cached = facetsCacheRef.current.get(facetKey);
@@ -684,19 +709,34 @@ export function CatalogClient({
     }
     const ac = new AbortController();
     (async () => {
+      const started = Date.now();
       try {
         const fq = toFacetApiParams(facetState);
+        sendCatalogDiagEvent(diagEnabled, "catalog_facets_start", {
+          facet_key: facetKey,
+          query: fq.toString(),
+        }, { market: state.market });
         const fRes = await fetchFacetsClient(fq, { signal: ac.signal });
         if (ac.signal.aborted) return;
         facetsCacheRef.current.set(facetKey, fRes);
         setFacets(fRes);
+        sendCatalogDiagEvent(diagEnabled, "catalog_facets_ok", {
+          facet_key: facetKey,
+          duration_ms: Date.now() - started,
+          marks_len: fRes.marks?.length ?? null,
+        }, { market: state.market });
       } catch (e) {
         console.error("facets fetch failed", e);
+        sendCatalogDiagEvent(diagEnabled, "catalog_facets_failed", {
+          facet_key: facetKey,
+          duration_ms: Date.now() - started,
+          error: e instanceof Error ? e.message : "unknown",
+        }, { level: "error", market: state.market });
         // Keep previous facets on transient errors; if there were none, leave null (accordion shows skeletons).
       }
     })();
     return () => ac.abort();
-  }, [facetKey, facetState]);
+  }, [diagEnabled, facetKey, facetState, state.market]);
 
   const toggle = (field: keyof CatalogUrlState, value: string) => {
     const cur = state[field];
@@ -716,6 +756,12 @@ export function CatalogClient({
     } else if (field === "generations") {
       next.trims = [];
     }
+    sendCatalogDiagEvent(diagEnabled, "catalog_filter_toggle", {
+      field,
+      value,
+      selected_count: arr.length,
+      current_page: state.page,
+    }, { market: state.market });
     navigate(next);
   };
 

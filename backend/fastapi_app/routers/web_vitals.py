@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any, Dict, Optional
 
@@ -8,7 +9,7 @@ import asyncpg
 from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 
 from fastapi_app.config import get_settings
-from fastapi_app.schemas.api import WebVitalEvent
+from fastapi_app.schemas.api import CatalogFilterEvent, WebVitalEvent
 
 router = APIRouter(tags=["metrics"])
 _log = logging.getLogger(__name__)
@@ -31,6 +32,23 @@ CREATE TABLE IF NOT EXISTS web_vitals_events (
 CREATE INDEX IF NOT EXISTS idx_web_vitals_created_at ON web_vitals_events (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_web_vitals_name_created ON web_vitals_events (name, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_web_vitals_path_created ON web_vitals_events (pathname, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS catalog_filter_events (
+    id BIGSERIAL PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    event_name TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'info',
+    pathname TEXT,
+    market TEXT,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_catalog_filter_events_created_at
+    ON catalog_filter_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_catalog_filter_events_session_created
+    ON catalog_filter_events (session_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_catalog_filter_events_event_created
+    ON catalog_filter_events (event_name, created_at DESC);
 """
 
 
@@ -76,6 +94,30 @@ async def ingest_web_vitals(request: Request, payload: WebVitalEvent) -> dict:
         payload.pathname or "-",
         payload.navigation_type or "-",
     )
+    return {"ok": True}
+
+
+@router.post("/catalog-filter-events", status_code=status.HTTP_202_ACCEPTED)
+async def ingest_catalog_filter_events(request: Request, payload: CatalogFilterEvent) -> dict:
+    """Ingest client-side catalog diagnostics events for filter troubleshooting."""
+    pool: asyncpg.Pool = request.app.state.pg_pool
+    await _ensure_table(pool)
+    payload_json = json.dumps(payload.payload or {}, ensure_ascii=False)
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO catalog_filter_events
+                (session_id, event_name, level, pathname, market, payload)
+            VALUES
+                ($1, $2, $3, $4, $5, $6::jsonb)
+            """,
+            payload.session_id,
+            payload.event,
+            payload.level,
+            payload.pathname,
+            payload.market,
+            payload_json,
+        )
     return {"ok": True}
 
 
@@ -127,4 +169,54 @@ async def web_vitals_summary(
         "path": path or None,
         "samples_total": int(total_samples or 0),
         "metrics": items,
+    }
+
+
+@router.get("/ops/catalog-filter-events")
+async def catalog_filter_events_dump(
+    request: Request,
+    minutes: int = Query(default=60, ge=1, le=10080),
+    limit: int = Query(default=500, ge=1, le=5000),
+    x_wra_admin_key: Optional[str] = Header(default=None, alias="X-WRA-Admin-Key"),
+) -> Dict[str, Any]:
+    """Dump recent catalog filter diagnostics events."""
+    secret = (get_settings().cache_invalidate_secret or "").strip()
+    if secret and (x_wra_admin_key or "").strip() != secret:
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    pool: asyncpg.Pool = request.app.state.pg_pool
+    await _ensure_table(pool)
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+                created_at,
+                session_id,
+                event_name,
+                level,
+                pathname,
+                market,
+                payload
+            FROM catalog_filter_events
+            WHERE created_at >= now() - ($1::text || ' minutes')::interval
+            ORDER BY created_at DESC
+            LIMIT $2
+            """,
+            minutes,
+            limit,
+        )
+
+    events = []
+    for r in rows:
+        item = dict(r)
+        created = item.get("created_at")
+        item["created_at"] = created.isoformat() if created is not None else None
+        events.append(item)
+
+    return {
+        "ok": True,
+        "window_minutes": minutes,
+        "limit": limit,
+        "count": len(events),
+        "events": events,
     }

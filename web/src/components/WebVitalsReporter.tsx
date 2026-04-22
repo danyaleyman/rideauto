@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useReportWebVitals } from "next/web-vitals";
+import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
 
 type VitalMetric = {
   id: string;
@@ -41,6 +43,47 @@ function sendMetric(metric: VitalMetric) {
 }
 
 export default function WebVitalsReporter() {
+  useEffect(() => {
+    const enabledForCatalog = () =>
+      typeof window !== "undefined" &&
+      window.location.pathname.startsWith("/catalog") &&
+      isCatalogDiagEnabled(window.location.search.replace(/^\?/, ""));
+
+    const onError = (e: ErrorEvent) => {
+      if (!enabledForCatalog()) return;
+      sendCatalogDiagEvent(
+        true,
+        "catalog_client_error",
+        {
+          message: e.message || "unknown",
+          source: e.filename || null,
+          line: e.lineno || null,
+          col: e.colno || null,
+        },
+        { level: "error" },
+      );
+    };
+    const onUnhandledRejection = (e: PromiseRejectionEvent) => {
+      if (!enabledForCatalog()) return;
+      const reason =
+        typeof e.reason === "string"
+          ? e.reason
+          : (e.reason && typeof e.reason.message === "string" && e.reason.message) || "unknown";
+      sendCatalogDiagEvent(
+        true,
+        "catalog_unhandled_rejection",
+        { reason: String(reason).slice(0, 500) },
+        { level: "error" },
+      );
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
+
   useReportWebVitals((metric) => {
     sendMetric(metric as VitalMetric);
   });

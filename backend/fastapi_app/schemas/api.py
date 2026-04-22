@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -81,3 +81,14 @@ class WebVitalEvent(BaseModel):
     navigation_type: Optional[str] = None
     pathname: Optional[str] = None
     user_agent: Optional[str] = None
+
+
+class CatalogFilterEvent(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    session_id: str = Field(min_length=1, max_length=128)
+    event: str = Field(min_length=1, max_length=128)
+    level: Literal["info", "warn", "error"] = "info"
+    pathname: Optional[str] = None
+    market: Optional[str] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
