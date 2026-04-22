@@ -33,6 +33,7 @@ function emptySearch(): SearchResponse {
     per_page: 12,
     pages: 1,
     offset: 0,
+    list_mode: "fallback",
   };
   return { result: [], meta };
 }
@@ -45,7 +46,8 @@ export default async function CatalogPage({ searchParams }: PageProps) {
 
   let initial: SearchResponse;
   try {
-    initial = await fetchSearch(flat, { revalidate: 30 });
+    // SSR should fail-fast: UI must stay responsive even when backend stalls.
+    initial = await fetchSearch(flat, { revalidate: 30, timeoutMs: 2500 });
   } catch {
     initial = emptySearch();
   }

@@ -682,8 +682,12 @@ export function CatalogClient({
         setErr(null);
         setLoading(true);
         const sq = toApiSearchParams(state);
+        const canUseSSR =
+          key === ssrKey &&
+          initialSearch?.meta?.list_mode !== "fallback" &&
+          Array.isArray(initialSearch?.result);
         const searchP =
-          key === ssrKey
+          canUseSSR
             ? Promise.resolve(initialSearch)
             : fetchSearchClient(sq, { signal: ac.signal });
         const sRes = await searchP;
