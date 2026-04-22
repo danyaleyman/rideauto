@@ -450,15 +450,6 @@ function CatalogCardImage({
       onMouseEnter={() => {
         if (canCycle) setIdx(0);
       }}
-      onMouseMove={(e) => {
-        if (!canCycle) return;
-        const el = e.currentTarget.getBoundingClientRect();
-        if (el.width <= 0) return;
-        const relX = Math.min(Math.max(e.clientX - el.left, 0), el.width);
-        const slice = Math.min(images.length, 4);
-        const next = Math.min(slice - 1, Math.floor((relX / el.width) * slice));
-        setIdx(next);
-      }}
       onMouseLeave={() => {
         setIdx(0);
       }}
@@ -469,7 +460,7 @@ function CatalogCardImage({
         width={448}
         height={288}
         sizes="(min-width: 1024px) 224px, 44vw"
-        className="h-full w-full object-cover object-center"
+        className="h-full w-full object-contain object-center bg-muted/20 p-1"
         loading={eager ? "eager" : "lazy"}
         fetchPriority={eager ? "high" : "auto"}
         decoding="async"
@@ -980,8 +971,8 @@ export function CatalogClient({
         ) : null}
 
         <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-7">
-          <aside className="w-full min-w-0 shrink-0 lg:sticky lg:top-24 lg:w-[22.5rem] lg:max-h-[calc(100dvh-6.25rem)] lg:overflow-y-auto lg:overscroll-contain lg:pb-2 lg:pe-2 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
-            <div className="flex max-w-full flex-col gap-3 rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:rounded-3xl sm:p-5">
+          <aside className="w-full min-w-0 shrink-0 self-start lg:w-[22.5rem]">
+            <div className="flex max-w-full flex-col gap-3 rounded-3xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:p-5">
               <MarketSegmentedControl market={state.market} onChange={switchMarket} />
 
               <Accordion
@@ -1206,8 +1197,8 @@ export function CatalogClient({
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-5 rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:mb-6 sm:rounded-3xl sm:p-5">
-            <h1 className="text-lg font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-xl md:text-2xl">
+          <div className="mb-5 rounded-3xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:mb-6 sm:p-5">
+            <h1 className="text-base font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-lg md:text-xl">
               {title}
             </h1>
             <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
@@ -1222,17 +1213,12 @@ export function CatalogClient({
                 <Skeleton className="h-7 w-full max-w-md rounded-full sm:w-[min(100%,20rem)]" />
               ) : dailyNewCount !== null ? (
                 <span
-                  className={
-                    dailyNewCount > 0
-                      ? "inline-flex max-w-full items-start gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/[0.09] px-3 py-1.5 text-xs font-medium leading-snug text-emerald-950 shadow-sm [overflow-wrap:anywhere] dark:border-emerald-400/35 dark:bg-emerald-400/10 dark:text-emerald-50 sm:items-center"
-                      : "inline-flex max-w-full items-start gap-1.5 rounded-full border border-border/70 bg-muted/40 px-3 py-1.5 text-xs font-medium leading-snug text-muted-foreground [overflow-wrap:anywhere] sm:items-center"
-                  }
+                  className="inline-flex max-w-full items-start gap-1.5 rounded-full border border-white/20 bg-black/50 px-3 py-1.5 text-xs font-medium leading-snug text-white shadow-sm [overflow-wrap:anywhere] sm:items-center"
                   title="Записи, впервые добавленные в каталог сегодня. Сутки по часовому поясу Екатеринбурга — как расписание ночных обновлений."
                 >
                   <Sparkles
                     className={cn(
-                      "mt-0.5 size-3.5 shrink-0 opacity-85 sm:mt-0",
-                      dailyNewCount > 0 ? "text-emerald-600 dark:text-emerald-300" : "opacity-60",
+                      "mt-0.5 size-3.5 shrink-0 opacity-85 text-white sm:mt-0",
                     )}
                     aria-hidden
                   />
@@ -1283,12 +1269,12 @@ export function CatalogClient({
                 <li key={car.id}>
                   <Card
                     size="sm"
-                    className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:flex-row"
+                    className="flex min-h-[13.5rem] flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[14.5rem] sm:flex-row"
                   >
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
-                      className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-auto sm:w-56 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-64"
+                      className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-auto sm:w-56 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-64"
                     >
                       <div className="relative size-full">
                         <CatalogCardImage
@@ -1297,14 +1283,14 @@ export function CatalogClient({
                           eager={idx < 4}
                           sold={Boolean(car.encar_listing_sold)}
                         />
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/55 via-black/20 to-transparent px-2 pb-2 pt-14">
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-2 pb-2 pt-14">
                           <div className="flex flex-wrap items-center gap-1">
                             {overlayBadges.length ? (
                               overlayBadges.map((b, i) => (
                                 <Badge
                                   key={`${car.id}-ob-${i}`}
                                   variant={i === 0 ? "secondary" : "outline"}
-                                  className="max-w-[10rem] truncate rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:max-w-[12rem] sm:text-xs"
+                                  className="max-w-[10rem] truncate rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:max-w-[12rem] sm:text-[11px]"
                                   title={b}
                                 >
                                   {b}
@@ -1313,7 +1299,7 @@ export function CatalogClient({
                             ) : (
                               <Badge
                                 variant="secondary"
-                                className="rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:text-xs"
+                                className="rounded-md border border-white/20 bg-background/95 px-1.5 py-0 text-[10px] font-medium shadow-sm sm:text-[11px]"
                               >
                                 {car.year_num ? `${car.year_num}` : "—"}
                               </Badge>
@@ -1326,7 +1312,7 @@ export function CatalogClient({
                           </div>
                           {isCatalogListedToday(car.catalog_created_at) ? (
                             <span
-                              className="max-w-[min(100%,10.5rem)] shrink-0 truncate rounded-md bg-black/60 px-2 py-0.5 text-center text-[10px] font-medium leading-tight text-white shadow-md ring-1 ring-white/15 backdrop-blur-[2px] sm:max-w-[12rem] sm:py-1 sm:text-[11px]"
+                              className="max-w-[min(100%,10.5rem)] shrink-0 truncate rounded-md bg-black/50 px-2 py-0.5 text-center text-[10px] font-medium leading-tight text-white shadow-md ring-1 ring-white/15 backdrop-blur-[2px] sm:max-w-[12rem] sm:py-1 sm:text-[11px]"
                               title="Впервые попало в каталог за сегодня (по дате сервера, Екатеринбург)"
                             >
                               Добавлено сегодня
@@ -1342,7 +1328,7 @@ export function CatalogClient({
                           prefetch
                           className="min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          <p className="font-heading line-clamp-2 text-sm font-medium leading-snug sm:text-base">
+                          <p className="font-heading line-clamp-2 text-[15px] font-semibold leading-snug sm:text-base">
                             {car.title || car.id}
                           </p>
                         </Link>
@@ -1390,7 +1376,7 @@ export function CatalogClient({
                       <div className="flex min-h-16 items-center px-3 py-3 sm:px-4 md:px-5">
                         {attrChips.length ? (
                           <ul
-                            className="flex min-w-0 flex-wrap justify-center gap-1.5"
+                            className="flex min-w-0 flex-wrap justify-start gap-2"
                             aria-label="Краткие характеристики"
                           >
                             {attrChips.map((c) => {
@@ -1399,7 +1385,7 @@ export function CatalogClient({
                                 <li key={c.key} className="min-w-0 max-w-full">
                                   <Badge
                                     variant="outline"
-                                    className="inline-flex h-auto max-w-full items-center gap-1 rounded-xl border-border/70 bg-muted/30 px-2 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/20"
+                                    className="inline-flex h-auto max-w-full items-center gap-1 rounded-xl border-border/70 bg-muted/25 px-2 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/20"
                                   >
                                     <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
                                     <span className="min-w-0">{c.label}</span>
@@ -1414,14 +1400,14 @@ export function CatalogClient({
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge
                             variant="secondary"
-                            className="inline-flex w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
+                            className="inline-flex w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-[15px] font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
                           >
                             {formatCatalogCardPrice(car.price, car.price_on_request)}
                           </Badge>
                           {passability === "passable" ? (
                             <Badge
                               variant="outline"
-                              className="inline-flex items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2 py-1 text-xs font-medium text-emerald-800 dark:text-emerald-200"
+                              className="inline-flex items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-200"
                             >
                               Проходной
                               <Tooltip>
@@ -1443,7 +1429,7 @@ export function CatalogClient({
                           ) : passability === "young" ? (
                             <Badge
                               variant="outline"
-                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-800 dark:text-red-200"
+                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-[11px] font-medium text-red-800 dark:text-red-200"
                             >
                               Высокая ставка
                               <Tooltip>
@@ -1465,7 +1451,7 @@ export function CatalogClient({
                           ) : passability === "old" ? (
                             <Badge
                               variant="outline"
-                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-800 dark:text-red-200"
+                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-[11px] font-medium text-red-800 dark:text-red-200"
                             >
                               Высокая ставка
                               <Tooltip>

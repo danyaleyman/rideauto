@@ -135,20 +135,16 @@ def build_meilisearch_filter(
 
     if q.get("passable_only") == "1":
         now = datetime.now(timezone.utc)
-        ym_from = (now.year - 5) * 100 + now.month
-        ym_to = (now.year - 3) * 100 + now.month
         year_from = now.year - 5
         year_to = now.year - 3
+        # Унифицированная логика для mixed-формата `year`:
+        # - часть документов хранится как YYYY
+        # - часть (Encar legacy) как YYYYMM
+        # Специально не опираемся на year_month, т.к. в продовых срезах он часто пустой/неоднородный.
         clauses.append(
-            "("
-            f"(year_month >= {ym_from} AND year_month <= {ym_to}) OR "
-            "("
-            "year_month IS NULL AND "
             "("
             f"(year >= {year_from} AND year <= {year_to}) OR "
             f"(year >= {year_from}00 AND year <= {year_to}12)"
-            ")"
-            ")"
             ")"
         )
 
