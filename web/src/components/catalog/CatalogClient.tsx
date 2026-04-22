@@ -61,6 +61,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
@@ -594,13 +595,22 @@ function RangeBlock({
           />
           Только проходные авто
         </span>
-        <span
-          title={'"Проходными" считаются автомобили возрастом от 3 до 5 лет. Для них обычно действуют льготные таможенные тарифы.'}
-          className="inline-flex shrink-0 text-muted-foreground"
-          aria-label="Что такое проходные авто"
-        >
-          <CircleHelp className="size-4" />
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex shrink-0 text-muted-foreground"
+              aria-label="Что такое проходные авто"
+              onClick={(e) => e.preventDefault()}
+            >
+              <CircleHelp className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            «Проходными» считаются автомобили возрастом от 3 до 5 лет. Для них обычно действуют
+            льготные таможенные тарифы.
+          </TooltipContent>
+        </Tooltip>
       </label>
       <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
         Применить диапазоны
@@ -1412,28 +1422,67 @@ export function CatalogClient({
                             <Badge
                               variant="outline"
                               className="inline-flex items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2 py-1 text-xs font-medium text-emerald-800 dark:text-emerald-200"
-                              title={'"Проходной автомобиль": на него действуют льготные таможенные тарифы.'}
                             >
-                              <CircleHelp className="size-3.5" />
-                              Проходные
+                              Проходной
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex shrink-0"
+                                    aria-label="Пояснение для проходного автомобиля"
+                                  >
+                                    <CircleHelp className="size-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  «Проходной автомобиль»: на него действуют льготные таможенные
+                                  тарифы.
+                                </TooltipContent>
+                              </Tooltip>
                             </Badge>
                           ) : passability === "young" ? (
                             <Badge
                               variant="outline"
                               className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-800 dark:text-red-200"
-                              title="Автомобиль менее 3 лет: на него действуют повышенные таможенные тарифы."
                             >
-                              <CircleHelp className="size-3.5" />
-                              Не проходные
+                              Высокая ставка
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex shrink-0"
+                                    aria-label="Пояснение для автомобиля менее 3 лет"
+                                  >
+                                    <CircleHelp className="size-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  Автомобиль менее 3 лет: на него действуют повышенные таможенные
+                                  тарифы.
+                                </TooltipContent>
+                              </Tooltip>
                             </Badge>
                           ) : passability === "old" ? (
                             <Badge
                               variant="outline"
                               className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-xs font-medium text-red-800 dark:text-red-200"
-                              title="Автомобиль старше 5 лет: на него действуют повышенные таможенные тарифы."
                             >
-                              <CircleHelp className="size-3.5" />
-                              Не проходные
+                              Высокая ставка
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex shrink-0"
+                                    aria-label="Пояснение для автомобиля старше 5 лет"
+                                  >
+                                    <CircleHelp className="size-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  Автомобиль старше 5 лет: на него действуют повышенные таможенные
+                                  тарифы.
+                                </TooltipContent>
+                              </Tooltip>
                             </Badge>
                           ) : null}
                         </div>
