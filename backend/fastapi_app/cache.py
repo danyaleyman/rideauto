@@ -6,6 +6,8 @@ import hashlib
 
 import json
 
+import logging
+
 from typing import Any, Awaitable, Callable, Dict, Optional, Protocol, Tuple, TypeVar
 
 from fastapi_app.config import get_settings
@@ -13,6 +15,7 @@ from fastapi_app.metrics.prometheus import inc_cache_lookup
 
 
 T = TypeVar("T")
+_log = logging.getLogger(__name__)
 
 
 
@@ -124,7 +127,12 @@ async def cached_json_response(
     if ttl_sec <= 0:
         return await compute()
 
-    hit = await cache.get_json(key)
+    try:
+        hit = await cache.get_json(key)
+    except Exception as e:
+        # Fail-open: проблемы Redis не должны ломать API фильтров/каталога.
+        _log.warning("cache get failed segment=%s key=%s err=%s", segment, key[:80], e)
+        hit = None
     metrics_on = get_settings().metrics_enabled
     if hit is not None:
         if metrics_on:
@@ -134,5 +142,8 @@ async def cached_json_response(
         inc_cache_lookup(segment, hit=False)
 
     data = await compute()
-    await cache.set_json(key, data, ttl_sec)
+    try:
+        await cache.set_json(key, data, ttl_sec)
+    except Exception as e:
+        _log.warning("cache set failed segment=%s key=%s err=%s", segment, key[:80], e)
     return data

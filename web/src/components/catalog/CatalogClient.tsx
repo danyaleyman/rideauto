@@ -587,6 +587,7 @@ export function CatalogClient({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [dailyNewCount, setDailyNewCount] = useState<number | null>(null);
   const [dailyNewLoading, setDailyNewLoading] = useState(true);
+  const [facetsRetryTick, setFacetsRetryTick] = useState(0);
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
 
@@ -692,11 +693,16 @@ export function CatalogClient({
         setFacets(fRes);
       } catch (e) {
         console.error("facets fetch failed", e);
-        // Keep previous facets on transient errors; if there were none, leave null (accordion shows skeletons).
+        // Автоповтор при временных сбоях API/кэша, чтобы фильтры сами «ожили».
+        if (!ac.signal.aborted) {
+          window.setTimeout(() => {
+            setFacetsRetryTick((x) => x + 1);
+          }, 2000);
+        }
       }
     })();
     return () => ac.abort();
-  }, [facetKey, facetState]);
+  }, [facetKey, facetState, facetsRetryTick]);
 
   const toggle = (field: keyof CatalogUrlState, value: string) => {
     const cur = state[field];

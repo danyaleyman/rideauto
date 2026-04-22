@@ -34,6 +34,7 @@ systemctl status prod-encar-auto-update.timer prod-dongchedi-update.timer prod-e
 bash deploy/scripts/diagnose_nightly_updates.sh
 ```
 Ручной прогон индекса: `sudo bash deploy/scripts/run_meilisearch_sync_host.sh` (из `/opt/prod-encar`).
+Диагностика каталожных фильтров (API/Redis/Web логи): `sudo bash deploy/scripts/diagnose_catalog_filters.sh /opt/prod-encar`.
 
 ### HP coverage: one-time backfill + background filler
 
