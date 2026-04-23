@@ -49,7 +49,7 @@
   ],
   "displayedAttributes": ["*"],
   "faceting": {
-    "maxValuesPerFacet": 200,
+    "maxValuesPerFacet": 4000,
     "sortFacetValuesBy": {
       "*": "count"
     }

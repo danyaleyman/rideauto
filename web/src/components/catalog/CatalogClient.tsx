@@ -972,7 +972,11 @@ export function CatalogClient({
       chip.key === "color"
     ) {
       if (!chip.value) return;
-      toggle(chip.key, chip.value);
+      const targetLabel = facetLabelByValue.get(chip.value) ?? chip.value;
+      const cur = state[chip.key];
+      if (!Array.isArray(cur)) return;
+      const toRemove = cur.filter((v) => (facetLabelByValue.get(v) ?? v) === targetLabel);
+      toggle(chip.key, toRemove.length ? toRemove : chip.value);
       return;
     }
     if (chip.key === "drive_awd") {

@@ -235,6 +235,9 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
             low0 = s.lower()
     for patt, repl in _CHINA_PINYIN_TOKEN_REPLACEMENTS.items():
         s = re.sub(patt, repl, s, flags=re.IGNORECASE)
+    s = re.sub(r"[()\[\]{}]+", " ", s)
+    if meili_attr in {"model_group", "generation", "trim"}:
+        s = re.sub(r"^\d+\s+", "", s).strip()
     s = " ".join(s.split())
     if _KO_OR_ZH_RE.search(s):
         # Для China-фасетов стараемся не показывать иероглифы в UI.
@@ -332,14 +335,31 @@ def merge_facet_distribution_rows(
     china_main_dims = {"brand", "model_group", "generation", "trim"}
     if not korea:
         if china and meili_attr in china_main_dims:
-            out_cn: List[Dict[str, object]] = []
+            grouped: Dict[str, Dict[str, object]] = {}
             for r in rows:
                 raw = _as_text(r.get("value"))
                 count = int(r.get("count") or 0)
                 if not raw or count <= 0:
                     continue
                 label = _cleanup_china_facet_value(raw, meili_attr) or raw
-                out_cn.append({"value": raw, "label": label, "count": count})
+                key = re.sub(r"\s+", " ", label.strip().lower())
+                if not key:
+                    continue
+                bucket = grouped.get(key)
+                if bucket is None:
+                    bucket = {
+                        "value": raw,  # первичный raw для обратной совместимости
+                        "label": label,
+                        "values": [raw],
+                        "count": 0,
+                    }
+                    grouped[key] = bucket
+                else:
+                    vals = bucket.get("values")
+                    if isinstance(vals, list) and raw not in vals:
+                        vals.append(raw)
+                bucket["count"] = int(bucket.get("count") or 0) + count
+            out_cn = list(grouped.values())
             out_cn.sort(key=lambda r: str(r.get("label") or r.get("value") or "").lower())
             return out_cn
         out = [{"value": str(r["value"]), "count": int(r["count"])} for r in rows if int(r.get("count") or 0) > 0]
