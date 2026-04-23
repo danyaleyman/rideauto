@@ -100,6 +100,9 @@ _KOREA_MARK_ALIASES: Optional[Dict[str, str]] = None
 _KOREA_EN_DOMAIN_ALIAS_LOCK = threading.Lock()
 _KOREA_EN_DOMAIN_ALIAS_CACHE: Dict[str, Dict[str, str]] = {}
 _KOREA_EN_DOMAIN_NAMES = frozenset({"mark", "model", "generation", "configuration", "gradeName", "trim_name"})
+_CHINA_EN_DOMAIN_ALIAS_LOCK = threading.Lock()
+_CHINA_EN_DOMAIN_ALIAS_CACHE: Dict[str, Dict[str, str]] = {}
+_CHINA_EN_DOMAIN_NAMES = frozenset({"mark", "model", "generation", "configuration", "gradeName", "trim_name"})
 _KOREA_MARK_EXACT_OVERRIDES: Dict[str, str] = {
     "KG모빌리티(쌍용)": "KG Mobility (SsangYong)",
     "기아": "Kia",
@@ -284,6 +287,42 @@ def _korea_en_domain_alias_map_for(domain: str) -> Dict[str, str]:
                     if k and k not in aliases:
                         aliases[k] = eng
         _KOREA_EN_DOMAIN_ALIAS_CACHE[domain] = aliases
+        return aliases
+
+
+def _china_en_domain_alias_map_for(domain: str) -> Dict[str, str]:
+    """
+    Алиасы ZH/romanized-ZH → EN для China static map домена.
+    Позволяет распознавать строки вроде 'bao ma', 'ben chi', 'xuan yi' и т.п.
+    """
+    if domain not in _CHINA_EN_DOMAIN_NAMES:
+        return {}
+    with _CHINA_EN_DOMAIN_ALIAS_LOCK:
+        cached = _CHINA_EN_DOMAIN_ALIAS_CACHE.get(domain)
+        if cached is not None:
+            return cached
+        aliases: Dict[str, str] = {}
+        bucket = ((_china_static_maps().get("en") or {}).get(domain) or {})
+        for original, english in bucket.items():
+            eng = _as_text(english)
+            if not eng:
+                continue
+            k_eng = _alias_key(eng)
+            if k_eng:
+                aliases[k_eng] = eng
+            src = _as_text(original)
+            if not src:
+                continue
+            k_src = _alias_key(src)
+            if k_src and k_src not in aliases:
+                aliases[k_src] = eng
+            if detect_lang(src) == "zh":
+                rom = _romanize_zh(src)
+                for cand in (rom, rom.replace("-", " "), rom.replace("-", ""), rom.replace(" ", "")):
+                    k = _alias_key(cand)
+                    if k and k not in aliases:
+                        aliases[k] = eng
+        _CHINA_EN_DOMAIN_ALIAS_CACHE[domain] = aliases
         return aliases
 
 
@@ -595,6 +634,9 @@ def facet_canonical_english(text: object, domain: str) -> str:
             static_hit = _lookup_china_static(_china_static_maps(), s, "en", "mark")
         if static_hit:
             return static_hit
+        cm = _china_en_domain_alias_map_for("mark").get(_alias_key(s))
+        if cm:
+            return cm
         if _looks_english(s):
             return s
         if detect_lang(s) == "ko":
@@ -604,6 +646,10 @@ def facet_canonical_english(text: object, domain: str) -> str:
         dm = _korea_en_domain_alias_map_for(domain).get(_alias_key(s))
         if dm:
             return dm
+    if domain in _CHINA_EN_DOMAIN_NAMES:
+        cm = _china_en_domain_alias_map_for(domain).get(_alias_key(s))
+        if cm:
+            return cm
     static_hit = _lookup_korea_static(_korea_static_maps(), s, "en", domain)
     if not static_hit:
         static_hit = _lookup_china_static(_china_static_maps(), s, "en", domain)

@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
+from localization.term_localizer import facet_canonical_english
 
 _WAN_KM_RE = re.compile(r"([\d.]+)\s*万\s*公里")
 _PLAIN_KM_RE = re.compile(r"(?<![\d.])(\d{3,7})\s*公里")
@@ -675,6 +676,9 @@ def _apply_china_static_mapping(data: Dict[str, Any]) -> None:
         en = (maps.get("en", {}).get(field, {}) or {}).get(src)
         if not en and field in ("configuration", "gradeName"):
             en = (maps.get("en", {}).get("trim_name", {}) or {}).get(src)
+        if not en:
+            domain = "trim_name" if field in ("configuration", "gradeName") else field
+            en = facet_canonical_english(src, domain)
         if en:
             data[field] = en
             data[f"{field}_en"] = en

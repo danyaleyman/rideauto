@@ -374,9 +374,9 @@ function ListRowSkeleton() {
     <li>
       <Card
         size="sm"
-        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/60 sm:flex-row"
+        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/60 sm:min-h-[13rem] sm:flex-row"
       >
-        <Skeleton className="h-44 w-full shrink-0 rounded-none sm:h-auto sm:w-56 sm:min-h-36 md:w-64" />
+        <Skeleton className="h-52 w-full shrink-0 rounded-none sm:h-auto sm:w-60 sm:min-h-[13rem] md:w-72" />
         <div className="flex min-w-0 flex-1 flex-col gap-0">
           <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
             <Skeleton className="h-4 w-[70%] rounded-md" />
@@ -385,7 +385,7 @@ function ListRowSkeleton() {
               <Skeleton className="size-8 rounded-lg" />
             </div>
           </div>
-          <div className="flex flex-1 items-center px-3 py-3 sm:px-4 md:px-5">
+          <div className="flex flex-1 items-start px-3 py-3 sm:px-4 md:px-5">
             <div className="flex w-full flex-wrap gap-1.5">
               <Skeleton className="h-6 w-24 rounded-xl" />
               <Skeleton className="h-6 w-20 rounded-xl" />
@@ -444,7 +444,7 @@ function CatalogCardImage({
         width={448}
         height={288}
         sizes="(min-width: 1024px) 224px, 44vw"
-        className="h-full w-full object-contain object-center bg-muted/20"
+        className="h-full w-full object-cover object-center"
         loading={eager ? "eager" : "lazy"}
         fetchPriority={eager ? "high" : "auto"}
         decoding="async"
@@ -1288,12 +1288,12 @@ export function CatalogClient({
                 <li key={car.id}>
                   <Card
                     size="sm"
-                    className="flex min-h-[13.5rem] flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[14.5rem] sm:flex-row"
+                    className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[13rem] sm:flex-row"
                   >
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
-                      className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-auto sm:w-56 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-64"
+                      className="relative h-52 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-auto sm:w-60 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-72"
                     >
                       <div className="relative size-full">
                         <CatalogCardImage
@@ -1340,7 +1340,7 @@ export function CatalogClient({
                         </div>
                       </div>
                     </Link>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0 sm:rounded-e-2xl">
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-0 sm:rounded-e-2xl">
                       <div className="flex items-start justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
                         <Link
                           href={`/car/${encodeURIComponent(car.id)}`}
@@ -1392,7 +1392,7 @@ export function CatalogClient({
                           </Button>
                         </div>
                       </div>
-                      <div className="flex min-h-16 items-center px-3 py-3 sm:px-4 md:px-5">
+                      <div className="flex items-start px-3 py-3 sm:px-4 md:px-5">
                         {attrChips.length ? (
                           <ul
                             className="flex min-w-0 flex-wrap justify-start gap-2"
