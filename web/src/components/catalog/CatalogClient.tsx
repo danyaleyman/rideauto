@@ -133,6 +133,30 @@ function facetRowLabel(row: FacetRow): string {
   return label || row.value;
 }
 
+function groupFacetRows(rows: FacetRow[]): Array<{ label: string; values: string[]; count: number }> {
+  const grouped = new Map<string, { label: string; values: Set<string>; count: number }>();
+  for (const row of rows) {
+    const label = facetRowLabel(row).trim();
+    if (!label) continue;
+    const key = label.toLowerCase().replace(/\s+/g, " ");
+    const rawValues = Array.isArray(row.values) && row.values.length ? row.values : [row.value];
+    const bucket = grouped.get(key) ?? { label, values: new Set<string>(), count: 0 };
+    for (const v of rawValues) {
+      const t = String(v ?? "").trim();
+      if (t) bucket.values.add(t);
+    }
+    bucket.count += Number(row.count || 0);
+    grouped.set(key, bucket);
+  }
+  const out = Array.from(grouped.values()).map((b) => ({
+    label: b.label,
+    values: Array.from(b.values),
+    count: b.count,
+  }));
+  out.sort((a, b) => a.label.localeCompare(b.label));
+  return out;
+}
+
 function parseYmValue(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     const iv = Math.trunc(value);
@@ -241,19 +265,20 @@ function FacetMultiDropdown({
   label: string;
   rows: FacetRow[];
   selected: Set<string>;
-  onToggle: (v: string) => void;
+  onToggle: (values: string[]) => void;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const groupedRows = useMemo(() => groupFacetRows(rows), [rows]);
   const filtered = useMemo(
     () =>
       !q.trim()
-        ? rows
-        : rows.filter((r) => facetRowLabel(r).toLowerCase().includes(q.trim().toLowerCase())),
-    [rows, q],
+        ? groupedRows
+        : groupedRows.filter((r) => r.label.toLowerCase().includes(q.trim().toLowerCase())),
+    [groupedRows, q],
   );
-  const n = selected.size;
+  const n = groupedRows.filter((r) => r.values.some((v) => selected.has(v))).length;
   return (
     <DropdownMenu
       open={open}
@@ -266,7 +291,7 @@ function FacetMultiDropdown({
         <Button
           type="button"
           variant="outline"
-          disabled={disabled || !rows.length}
+          disabled={disabled || !groupedRows.length}
           className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
         >
           <span className="min-w-0 text-start [overflow-wrap:anywhere]">
@@ -302,14 +327,12 @@ function FacetMultiDropdown({
           ) : (
             filtered.map((r) => (
               <DropdownMenuCheckboxItem
-                key={r.value}
-                checked={selected.has(r.value)}
-                onCheckedChange={() => onToggle(r.value)}
+                key={r.label}
+                checked={r.values.some((v) => selected.has(v))}
+                onCheckedChange={() => onToggle(r.values)}
                 className="cursor-text rounded-xl select-text [&>span:last-child]:ps-2"
               >
-                <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">
-                  {facetRowLabel(r)}
-                </span>
+                <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">{r.label}</span>
                 <span className="ms-1 shrink-0 tabular-nums text-xs text-muted-foreground">
                   {r.count.toLocaleString("ru-RU")}
                 </span>
@@ -776,13 +799,18 @@ export function CatalogClient({
     return () => ac.abort();
   }, [diagEnabled, facetKey, facetState, state.market]);
 
-  const toggle = (field: keyof CatalogUrlState, value: string) => {
+  const toggle = (field: keyof CatalogUrlState, values: string | string[]) => {
     const cur = state[field];
     if (!Array.isArray(cur)) return;
-    const arr = [...cur];
-    const i = arr.indexOf(value);
-    if (i >= 0) arr.splice(i, 1);
-    else arr.push(value);
+    const vals = Array.isArray(values) ? values.filter(Boolean) : [values].filter(Boolean);
+    if (!vals.length) return;
+    const set = new Set(cur);
+    const remove = vals.every((v) => set.has(v));
+    for (const v of vals) {
+      if (remove) set.delete(v);
+      else set.add(v);
+    }
+    const arr = Array.from(set);
     const next: CatalogUrlState = { ...state, [field]: arr, page: 1 };
     if (field === "marks") {
       next.models = [];
@@ -796,7 +824,7 @@ export function CatalogClient({
     }
     sendCatalogDiagEvent(diagEnabled, "catalog_filter_toggle", {
       field,
-      value,
+      value: vals.join(","),
       selected_count: arr.length,
       current_page: state.page,
     }, { market: state.market });
@@ -900,14 +928,20 @@ export function CatalogClient({
   const activeChips = useMemo(() => {
     const withLabel = (v: string) => facetLabelByValue.get(v) ?? v;
     const chips: Array<{ key: keyof CatalogUrlState; label: string; value?: string }> = [];
-    state.marks.forEach((v) => chips.push({ key: "marks", label: `Марка: ${withLabel(v)}`, value: v }));
-    state.models.forEach((v) => chips.push({ key: "models", label: `Модель: ${withLabel(v)}`, value: v }));
-    state.generations.forEach((v) =>
-      chips.push({ key: "generations", label: `Поколение: ${withLabel(v)}`, value: v }),
-    );
-    state.trims.forEach((v) =>
-      chips.push({ key: "trims", label: `Комплектация: ${withLabel(v)}`, value: v }),
-    );
+    const pushDedupByLabel = (key: keyof CatalogUrlState, prefix: string, values: string[]) => {
+      const seen = new Set<string>();
+      for (const raw of values) {
+        const shown = withLabel(raw);
+        const marker = shown.toLowerCase();
+        if (seen.has(marker)) continue;
+        seen.add(marker);
+        chips.push({ key, label: `${prefix}: ${shown}`, value: raw });
+      }
+    };
+    pushDedupByLabel("marks", "Марка", state.marks);
+    pushDedupByLabel("models", "Модель", state.models);
+    pushDedupByLabel("generations", "Поколение", state.generations);
+    pushDedupByLabel("trims", "Комплектация", state.trims);
     state.body.forEach((v) => chips.push({ key: "body", label: `Кузов: ${withLabel(v)}`, value: v }));
     state.fuel.forEach((v) => chips.push({ key: "fuel", label: `Топливо: ${withLabel(v)}`, value: v }));
     state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${withLabel(v)}`, value: v }));

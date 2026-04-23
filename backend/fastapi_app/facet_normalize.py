@@ -202,6 +202,24 @@ _CHINA_SUBSTRING_LABEL_OVERRIDES: Dict[str, str] = {
     "奕炫gs": "Yixuan GS",
 }
 
+_CHINA_PINYIN_TOKEN_REPLACEMENTS: Dict[str, str] = {
+    r"\bliang qu\b": "2WD",
+    r"\bsi qu\b": "4WD",
+    r"\bqian qu\b": "FWD",
+    r"\bhou qu\b": "RWD",
+    r"\bzeng cheng\b": "EREV",
+    r"\bchao chang xu hang\b": "Long Range",
+    r"\bchang xu hang\b": "Long Range",
+    r"\bbiao zhun\b": "Standard",
+    r"\bzhi tu\b": "Zhitu",
+    r"\bzhi xiang\b": "Zhixiang",
+    r"\bzhi zun\b": "Premium",
+    r"\bhao hua\b": "Luxury",
+    r"\bqi jian\b": "Flagship",
+    r"\bsheng ji\b": "Upgrade",
+    r"\bjin kou\b": "Import",
+}
+
 
 def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
     s = _as_text(raw)
@@ -215,6 +233,8 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
         if needle in low0:
             s = re.sub(re.escape(needle), repl, s, flags=re.IGNORECASE)
             low0 = s.lower()
+    for patt, repl in _CHINA_PINYIN_TOKEN_REPLACEMENTS.items():
+        s = re.sub(patt, repl, s, flags=re.IGNORECASE)
     s = " ".join(s.split())
     if _KO_OR_ZH_RE.search(s):
         # Для China-фасетов стараемся не показывать иероглифы в UI.
@@ -227,6 +247,7 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
         if _KO_OR_ZH_RE.search(s):
             s = " ".join(re.sub(r"[\u4e00-\u9fff\uac00-\ud7af]+", " ", s).split())
     # Для model_group гасим «длинные хвосты» комплектации.
+    # Для generation/trim наоборот сохраняем максимум смысла (только EN-cleanup).
     if meili_attr == "model_group":
         low = f" {s.lower()} "
         cut = None
