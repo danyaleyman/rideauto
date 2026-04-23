@@ -19,6 +19,13 @@ _CHINA_SUFFIX_MARKERS = (
     " zeng cheng ",
     " sheng ji ",
 )
+_CHINA_SUBSTRING_LABEL_OVERRIDES: Dict[str, str] = {
+    "fa xian yun dong": "Discovery Sport",
+    "ying lang": "Excelle GT",
+    "mao xian jia": "Corsair",
+    "凯迪拉克xts": "Cadillac XTS",
+    "奕炫gs": "Yixuan GS",
+}
 
 
 def _coerce_catalog_images_to_urls(parsed: list[Any]) -> list[str]:
@@ -111,6 +118,11 @@ def _cleanup_china_model_name(name: str) -> str:
     s = " ".join(str(name or "").split()).strip()
     if not s:
         return ""
+    low0 = s.lower()
+    for needle, repl in _CHINA_SUBSTRING_LABEL_OVERRIDES.items():
+        if needle in low0:
+            s = re.sub(re.escape(needle), repl, s, flags=re.IGNORECASE)
+            low0 = s.lower()
     low = f" {s.lower()} "
     cut = None
     for marker in _CHINA_SUFFIX_MARKERS:
@@ -122,6 +134,7 @@ def _cleanup_china_model_name(name: str) -> str:
     m = re.search(r"\b20\d{2}\b", s)
     if m and m.start() > 0:
         s = s[: m.start()].strip()
+    s = " ".join(re.sub(r"[\u4e00-\u9fff\uac00-\ud7af]+", " ", s).split())
     return s
 
 

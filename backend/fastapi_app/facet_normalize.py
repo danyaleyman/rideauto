@@ -194,6 +194,14 @@ _CHINA_SUFFIX_MARKERS = (
     " sheng ji ",
 )
 
+_CHINA_SUBSTRING_LABEL_OVERRIDES: Dict[str, str] = {
+    "fa xian yun dong": "Discovery Sport",
+    "ying lang": "Excelle GT",
+    "mao xian jia": "Corsair",
+    "凯迪拉克xts": "Cadillac XTS",
+    "奕炫gs": "Yixuan GS",
+}
+
 
 def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
     s = _as_text(raw)
@@ -202,7 +210,22 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
     s = facet_canonical_english(s, _MEILI_TO_EN_DOMAIN.get(meili_attr, ""))
     if not s:
         return ""
+    low0 = s.lower()
+    for needle, repl in _CHINA_SUBSTRING_LABEL_OVERRIDES.items():
+        if needle in low0:
+            s = re.sub(re.escape(needle), repl, s, flags=re.IGNORECASE)
+            low0 = s.lower()
     s = " ".join(s.split())
+    if _KO_OR_ZH_RE.search(s):
+        # Для China-фасетов стараемся не показывать иероглифы в UI.
+        try:
+            from localization.term_localizer import _romanize_zh  # lazy import
+
+            s = " ".join(str(_romanize_zh(s)).split())
+        except Exception:
+            pass
+        if _KO_OR_ZH_RE.search(s):
+            s = " ".join(re.sub(r"[\u4e00-\u9fff\uac00-\ud7af]+", " ", s).split())
     # Для model_group гасим «длинные хвосты» комплектации.
     if meili_attr == "model_group":
         low = f" {s.lower()} "
@@ -216,6 +239,7 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
         m = re.search(r"\b20\d{2}\b", s)
         if m and m.start() > 0:
             s = s[: m.start()].strip()
+    s = re.sub(r"^([A-Za-z0-9&\-]+)\s+\1\b", r"\1", s, flags=re.IGNORECASE)
     return s
 
 
@@ -284,21 +308,20 @@ def merge_facet_distribution_rows(
         return []
     korea = is_korea_catalog_flat(query_flat)
     china = is_china_catalog_flat(query_flat)
+    china_main_dims = {"brand", "model_group", "generation", "trim"}
     if not korea:
-        acc: Dict[str, int] = defaultdict(int)
-        for r in rows:
-            raw = _as_text(r.get("value"))
-            if not raw:
-                continue
-            value = raw
-            if china and meili_attr in {"brand", "model_group", "generation", "trim"}:
-                value = _cleanup_china_facet_value(raw, meili_attr)
-                if not value:
+        if china and meili_attr in china_main_dims:
+            out_cn: List[Dict[str, object]] = []
+            for r in rows:
+                raw = _as_text(r.get("value"))
+                count = int(r.get("count") or 0)
+                if not raw or count <= 0:
                     continue
-                if _KO_OR_ZH_RE.search(value):
-                    continue
-            acc[value] += int(r["count"])
-        out = [{"value": k, "count": int(v)} for k, v in acc.items() if k and int(v) > 0]
+                label = _cleanup_china_facet_value(raw, meili_attr) or raw
+                out_cn.append({"value": raw, "label": label, "count": count})
+            out_cn.sort(key=lambda r: str(r.get("label") or r.get("value") or "").lower())
+            return out_cn
+        out = [{"value": str(r["value"]), "count": int(r["count"])} for r in rows if int(r.get("count") or 0) > 0]
         out.sort(key=lambda r: str(r["value"]).lower())
         return out
 
@@ -346,30 +369,9 @@ def expand_filter_values(meili_attr: str, values: Sequence[str], *, query_flat: 
     china = is_china_catalog_flat(query_flat)
     if not korea:
         if china and meili_attr in {"brand", "model_group", "generation", "trim"}:
-            for v in values:
-                s = str(v).strip()
-                if not s:
-                    continue
-                domain = _MEILI_TO_EN_DOMAIN.get(meili_attr, "")
-                c = facet_canonical_english(s, domain) if domain else s
-                if meili_attr == "brand":
-                    bag = _brand_synonyms_by_canon().get(c) or frozenset({s, c})
-                elif meili_attr == "model_group":
-                    bag = _invert_en_domain("model").get(c) or frozenset({s, c})
-                elif meili_attr == "generation":
-                    bag = _invert_en_domain("generation").get(c) or frozenset({s, c})
-                else:
-                    bag = _trim_synonyms_by_canon().get(c) or frozenset({s, c})
-                out.extend(bag)
-            seen: set[str] = set()
-            dedup_cn: List[str] = []
-            for x in out:
-                t = str(x).strip()
-                if not t or t in seen:
-                    continue
-                seen.add(t)
-                dedup_cn.append(t)
-            return dedup_cn
+            # Для China-фасетов в UI хранится raw value из Meili, не расширяем,
+            # чтобы не терять связку бренд→модель→поколение→комплектация.
+            return [str(v).strip() for v in values if str(v).strip()]
         return [str(v).strip() for v in values if str(v).strip()]
 
     for v in values:

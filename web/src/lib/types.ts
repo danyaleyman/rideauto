@@ -63,6 +63,7 @@ export type CatalogDailyAdditionsResponse = {
 
 export type FacetRow = {
   value: string;
+  label?: string;
   count: number;
 };
 

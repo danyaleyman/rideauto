@@ -128,6 +128,11 @@ function carsAddedTodayLabel(n: number): string {
 
 type PassabilityStatus = "passable" | "young" | "old";
 
+function facetRowLabel(row: FacetRow): string {
+  const label = String(row.label ?? "").trim();
+  return label || row.value;
+}
+
 function parseYmValue(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     const iv = Math.trunc(value);
@@ -245,7 +250,7 @@ function FacetMultiDropdown({
     () =>
       !q.trim()
         ? rows
-        : rows.filter((r) => r.value.toLowerCase().includes(q.trim().toLowerCase())),
+        : rows.filter((r) => facetRowLabel(r).toLowerCase().includes(q.trim().toLowerCase())),
     [rows, q],
   );
   const n = selected.size;
@@ -302,7 +307,9 @@ function FacetMultiDropdown({
                 onCheckedChange={() => onToggle(r.value)}
                 className="cursor-text rounded-xl select-text [&>span:last-child]:ps-2"
               >
-                <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">{r.value}</span>
+                <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">
+                  {facetRowLabel(r)}
+                </span>
                 <span className="ms-1 shrink-0 tabular-nums text-xs text-muted-foreground">
                   {r.count.toLocaleString("ru-RU")}
                 </span>
@@ -862,18 +869,39 @@ export function CatalogClient({
 
   const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
 
+  const facetLabelByValue = useMemo(() => {
+    const map = new Map<string, string>();
+    const allRows = [
+      ...facets.marks,
+      ...facets.models,
+      ...facets.generations,
+      ...facets.trims,
+      ...facets.bodies,
+      ...facets.fuels,
+      ...facets.transmissions,
+      ...facets.colors,
+    ];
+    for (const row of allRows) {
+      map.set(row.value, facetRowLabel(row));
+    }
+    return map;
+  }, [facets]);
+
   const activeChips = useMemo(() => {
+    const withLabel = (v: string) => facetLabelByValue.get(v) ?? v;
     const chips: Array<{ key: keyof CatalogUrlState; label: string; value?: string }> = [];
-    state.marks.forEach((v) => chips.push({ key: "marks", label: `Марка: ${v}`, value: v }));
-    state.models.forEach((v) => chips.push({ key: "models", label: `Модель: ${v}`, value: v }));
+    state.marks.forEach((v) => chips.push({ key: "marks", label: `Марка: ${withLabel(v)}`, value: v }));
+    state.models.forEach((v) => chips.push({ key: "models", label: `Модель: ${withLabel(v)}`, value: v }));
     state.generations.forEach((v) =>
-      chips.push({ key: "generations", label: `Поколение: ${v}`, value: v }),
+      chips.push({ key: "generations", label: `Поколение: ${withLabel(v)}`, value: v }),
     );
-    state.trims.forEach((v) => chips.push({ key: "trims", label: `Комплектация: ${v}`, value: v }));
-    state.body.forEach((v) => chips.push({ key: "body", label: `Кузов: ${v}`, value: v }));
-    state.fuel.forEach((v) => chips.push({ key: "fuel", label: `Топливо: ${v}`, value: v }));
-    state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${v}`, value: v }));
-    state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${v}`, value: v }));
+    state.trims.forEach((v) =>
+      chips.push({ key: "trims", label: `Комплектация: ${withLabel(v)}`, value: v }),
+    );
+    state.body.forEach((v) => chips.push({ key: "body", label: `Кузов: ${withLabel(v)}`, value: v }));
+    state.fuel.forEach((v) => chips.push({ key: "fuel", label: `Топливо: ${withLabel(v)}`, value: v }));
+    state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${withLabel(v)}`, value: v }));
+    state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${withLabel(v)}`, value: v }));
     if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
     if (state.power_hp_le_160) chips.push({ key: "power_hp_le_160", label: "До 160 л.с." });
     if (state.passable_only) chips.push({ key: "passable_only", label: "Только проходные авто" });
@@ -886,7 +914,7 @@ export function CatalogClient({
     if (state.engine_cc_from) chips.push({ key: "engine_cc_from", label: `Объём от: ${state.engine_cc_from}` });
     if (state.engine_cc_to) chips.push({ key: "engine_cc_to", label: `Объём до: ${state.engine_cc_to}` });
     return chips;
-  }, [state]);
+  }, [state, facetLabelByValue]);
 
   const removeChip = (chip: { key: keyof CatalogUrlState; value?: string }) => {
     if (
@@ -1141,10 +1169,13 @@ export function CatalogClient({
                                 onClick={() => toggle("color", row.value)}
                               >
                                 <span
-                                  className={cn("size-3 shrink-0 rounded-full", colorSwatchClass(row.value))}
+                                  className={cn(
+                                    "size-3 shrink-0 rounded-full",
+                                    colorSwatchClass(facetRowLabel(row)),
+                                  )}
                                   aria-hidden
                                 />
-                                <span className="truncate">{row.value}</span>
+                                <span className="truncate">{facetRowLabel(row)}</span>
                               </Button>
                             );
                           })}

@@ -146,9 +146,21 @@ def build_meilisearch_filter(
         ym_3y = (now.year - 3) * 100 + now.month
         ym_from = _shift_ym(ym_5y, +1)
         ym_to = _shift_ym(ym_3y, -1)
+        ord_from = (ym_from // 100) * 12 + (ym_from % 100 - 1)
+        ord_to = (ym_to // 100) * 12 + (ym_to % 100 - 1)
         # Строгая фильтрация 3–5 лет с учетом того, что в индексе обычно только YYYYMM
         # (без дня): границы месяцев исключаем, чтобы не попадали авто «на 1 день» вне окна.
-        clauses.append(f"(year_month >= {ym_from} AND year_month <= {ym_to})")
+        # Поддерживаем mixed-форматы хранения:
+        # - year_month в YYYYMM
+        # - year_month в ordinal month index (year*12 + month-1)
+        # - legacy year в YYYYMM
+        clauses.append(
+            "("
+            f"(year_month >= {ym_from} AND year_month <= {ym_to}) OR "
+            f"(year_month >= {ord_from} AND year_month <= {ord_to}) OR "
+            f"(year >= {ym_from} AND year <= {ym_to})"
+            ")"
+        )
 
     if not clauses:
         return None
