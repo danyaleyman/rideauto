@@ -168,6 +168,106 @@ _CHINA_MARK_EXACT_OVERRIDES: Dict[str, str] = {
     "方程豹": "Fangchengbao",
     "迈巴赫": "Maybach",
 }
+_CHINA_PINYIN_SUBSTRING_REPLACEMENTS: Dict[str, str] = {
+    "bao ma": "BMW",
+    "ben chi": "Mercedes-Benz",
+    "da zhong": "Volkswagen",
+    "ao di": "Audi",
+    "bao shi jie": "Porsche",
+    "ka di la ke": "Cadillac",
+    "lu hu": "Land Rover",
+    "jie bao": "Jaguar",
+    "fu te": "Ford",
+    "xue fu lan": "Chevrolet",
+    "ying fei ni di": "Infiniti",
+    "lei ke sa si": "Lexus",
+    "ji li": "Geely",
+    "chang an": "Changan",
+    "hong qi": "Hongqi",
+    "tan xian zhe": "Explorer",
+    "rui jie": "Edge",
+    "gao er fu": "Golf",
+    "pu la duo": "Prado",
+    "da qie nuo ji": "Grand Cherokee",
+    "lan sheng ji guang": "Wrangler",
+    "ke wo zi": "Cruze",
+    "ke lu ze": "Cruze",
+    "mai teng": "Magotan",
+    "lan de ku lu ze": "Land Cruiser",
+    "hang hai jia": "Navigator",
+    "han lan da": "Highlander",
+    "fu ke si": "Focus",
+}
+_CHINA_PINYIN_TOKEN_REPLACEMENTS: Dict[str, str] = {
+    r"\bliang\s*qu\b": "2WD",
+    r"\bsi\s*qu\b": "4WD",
+    r"\bqian\s*qu\b": "FWD",
+    r"\bhou\s*qu\b": "RWD",
+    r"\bzeng\s*cheng\b": "EREV",
+    r"\bchao\s*chang\s*xu\s*hang\b": "Long Range",
+    r"\bchang\s*xu\s*hang\b": "Long Range",
+    r"\bbiao\s*zhun\b": "Standard",
+    r"\bhao\s*hua\b": "Luxury",
+    r"\bqi\s*jian\b": "Flagship",
+    r"\bzhi\s*xiang\b": "Zhixiang",
+    r"\bzhi\s*tu\b": "Zhitu",
+    r"\bzhi\s*zun\b": "Premium",
+    r"\bjin\s*kou\b": "Import",
+    r"\bgai\s*kuan\b": "Facelift",
+}
+_CHINA_TRIM_NOISE_TOKEN_RE = re.compile(
+    r"\b("
+    r"\d(?:\.\d)?t|"
+    r"\d{2,4}t|"
+    r"cvt|dct|amt|at|mt|"
+    r"ecoboost|pro|plus|vi|v6|v8|"
+    r"gw4[a-z0-9]+|"
+    r"\d{4}"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _cleanup_china_en_text(text: str, *, domain: str) -> str:
+    s = _as_text(text)
+    if not s:
+        return ""
+    low = s.lower()
+    for needle, repl in _CHINA_PINYIN_SUBSTRING_REPLACEMENTS.items():
+        if needle in low:
+            s = re.sub(re.escape(needle), repl, s, flags=re.IGNORECASE)
+            low = s.lower()
+    for patt, repl in _CHINA_PINYIN_TOKEN_REPLACEMENTS.items():
+        s = re.sub(patt, repl, s, flags=re.IGNORECASE)
+    s = re.sub(r"[()\[\]{}]+", " ", s)
+    s = re.sub(r"[\u4e00-\u9fff\uac00-\ud7af]+", " ", s)
+    s = " ".join(s.split())
+    s = re.sub(r"^([A-Za-z0-9&\-]+)\s+\1\b", r"\1", s, flags=re.IGNORECASE).strip()
+    if domain == "model":
+        # У моделей обрезаем хвосты комплектаций/моторов.
+        s = re.sub(r"\b20\d{2}\b.*$", "", s, flags=re.IGNORECASE).strip()
+        s = re.sub(r"\b\d(?:\.\d)?T\b.*$", "", s, flags=re.IGNORECASE).strip()
+        s = re.sub(r"\b(2WD|4WD|FWD|RWD|Long Range|EREV|Standard|Luxury|Flagship|Premium)\b.*$", "", s, flags=re.IGNORECASE).strip()
+        s = re.sub(r"\s+", " ", s).strip(" -")
+    if domain in {"generation", "trim_name", "configuration", "gradeName"}:
+        s = re.sub(r"^\d+\s+", "", s).strip()
+        s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+
+def is_china_trim_like_noise(text: object) -> bool:
+    s = _cleanup_china_en_text(_as_text(text), domain="trim_name")
+    if not s:
+        return True
+    letters = re.findall(r"[A-Za-z]+", s)
+    if not letters:
+        return True
+    meaningful = [w for w in letters if len(w) >= 3 and w.lower() not in {"cvt", "dct", "amt", "at", "mt", "pro", "plus", "import"}]
+    if meaningful:
+        return False
+    noisy = _CHINA_TRIM_NOISE_TOKEN_RE.sub(" ", s)
+    noisy = re.sub(r"[\W_]+", " ", noisy).strip()
+    return not bool(re.search(r"[A-Za-z]{3,}", noisy))
 
 
 def _korea_static_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
@@ -662,7 +762,11 @@ def facet_canonical_english(text: object, domain: str) -> str:
         if sh2:
             return sh2
     if _looks_english(s):
-        return s
+        out = _cleanup_china_en_text(s, domain=domain)
+        return out or s
     if detect_lang(s) == "ko":
         return _romanize_ko(s)
-    return s
+    if detect_lang(s) == "zh":
+        s = _romanize_zh(s)
+    out = _cleanup_china_en_text(s, domain=domain)
+    return out or s

@@ -58,6 +58,71 @@ def _shift_ym(ym: int, delta_months: int) -> int:
     return (ordinal // 12) * 100 + (ordinal % 12) + 1
 
 
+def _parse_year(raw: Optional[str]) -> Optional[int]:
+    n = _parse_range_number(raw, as_float=False)
+    if n is None:
+        return None
+    y = int(n)
+    if 1900 <= y <= 2100:
+        return y
+    return None
+
+
+def _append_year_range_mixed(clauses: List[str], year_from: Optional[str], year_to: Optional[str]) -> None:
+    """
+    Year range for mixed legacy storage:
+      - year as YYYY
+      - year as YYYYMM
+      - year_month as YYYYMM
+      - year_month as ordinal month index (year*12 + month-1)
+    """
+    y_from = _parse_year(year_from)
+    y_to = _parse_year(year_to)
+    if y_from is None and y_to is None:
+        return
+
+    ym_from = y_from * 100 + 1 if y_from is not None else None
+    ym_to = y_to * 100 + 12 if y_to is not None else None
+    ord_from = (y_from * 12) if y_from is not None else None
+    ord_to = (y_to * 12 + 11) if y_to is not None else None
+
+    parts: List[str] = []
+    range_year: List[str] = []
+    if y_from is not None:
+        range_year.append(f"year >= {y_from}")
+    if y_to is not None:
+        range_year.append(f"year <= {y_to}")
+    if range_year:
+        parts.append("(" + " AND ".join(range_year) + ")")
+
+    range_year_ym: List[str] = []
+    if ym_from is not None:
+        range_year_ym.append(f"year >= {ym_from}")
+    if ym_to is not None:
+        range_year_ym.append(f"year <= {ym_to}")
+    if range_year_ym:
+        parts.append("(" + " AND ".join(range_year_ym) + ")")
+
+    range_ym: List[str] = []
+    if ym_from is not None:
+        range_ym.append(f"year_month >= {ym_from}")
+    if ym_to is not None:
+        range_ym.append(f"year_month <= {ym_to}")
+    if range_ym:
+        parts.append("(" + " AND ".join(range_ym) + ")")
+
+    range_ord: List[str] = []
+    if ord_from is not None:
+        range_ord.append(f"year_month >= {ord_from}")
+    if ord_to is not None:
+        range_ord.append(f"year_month <= {ord_to}")
+    if range_ord:
+        parts.append("(" + " AND ".join(range_ord) + ")")
+
+    if parts:
+        clauses.append("(" + " OR ".join(parts) + ")")
+
+
 def build_meilisearch_filter(
     raw_q: Dict[str, str],
     *,
@@ -113,7 +178,7 @@ def build_meilisearch_filter(
 
     _append_range(clauses, "price", q.get("price_from"), q.get("price_to"), as_float=True)
     _append_range(clauses, "mileage", q.get("mileage_from"), q.get("mileage_to"), as_float=False)
-    _append_range(clauses, "year", q.get("year_from"), q.get("year_to"), as_float=False)
+    _append_year_range_mixed(clauses, q.get("year_from"), q.get("year_to"))
     _append_range(clauses, "year_month", q.get("ym_from"), q.get("ym_to"), as_float=False)
     _append_range(clauses, "power_hp", q.get("power_hp_from"), q.get("power_hp_to"), as_float=False)
     cc_from = _parse_range_number(q.get("engine_cc_from"), as_float=False)

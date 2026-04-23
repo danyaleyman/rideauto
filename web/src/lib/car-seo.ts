@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/env";
+import { asStr, buildNormalizedCarTitle } from "@/lib/car-detail-data";
 
 export function pickCarData(raw: Record<string, unknown>): Record<string, unknown> {
   const inner = raw.data;
@@ -11,9 +12,13 @@ export function pickCarData(raw: Record<string, unknown>): Record<string, unknow
 
 export function carHeading(raw: Record<string, unknown>): string {
   const d = pickCarData(raw);
-  const parts = [d.mark, d.model, d.generation ?? d.configuration]
-    .filter((x): x is string => typeof x === "string" && x.length > 0);
-  if (parts.length) return parts.join(" ");
+  const heading = buildNormalizedCarTitle(
+    d.mark,
+    d.model,
+    d.generation ?? d.configuration,
+    asStr(d.source) ?? asStr(raw.source),
+  );
+  if (heading) return heading.replace(/\s*·\s*/g, " ");
   return typeof raw.title === "string" ? raw.title : "Автомобиль";
 }
 

@@ -24,6 +24,48 @@ export function asStr(v: unknown): string | null {
   return null;
 }
 
+const CJK_RE = /[\u4e00-\u9fff\uac00-\ud7af]/;
+const CHINA_HINT_RE =
+  /\b(bao ma|ben chi|ao di|da zhong|ka di la ke|bao shi jie|gai kuan|liang qu|si qu|qian qu|hou qu|zeng cheng|kuan|ban|zhi zun|hao hua)\b/i;
+const CHINA_SUBSTRING_FIXES: Array<[RegExp, string]> = [
+  [/\bbao\s*ma\b/gi, "BMW"],
+  [/\bben\s*chi\b/gi, "Mercedes-Benz"],
+  [/\bao\s*di\b/gi, "Audi"],
+  [/\bda\s*zhong\b/gi, "Volkswagen"],
+  [/\bbao\s*shi\s*jie\b/gi, "Porsche"],
+  [/\bka\s*di\s*la\s*ke\b/gi, "Cadillac"],
+  [/\bji\s*li\b/gi, "Geely"],
+  [/\bchang\s*an\b/gi, "Changan"],
+];
+const CHINA_TOKEN_FIXES: Array<[RegExp, string]> = [
+  [/\bliang\s*qu\b/gi, "2WD"],
+  [/\bsi\s*qu\b/gi, "4WD"],
+  [/\bqian\s*qu\b/gi, "FWD"],
+  [/\bhou\s*qu\b/gi, "RWD"],
+  [/\bzeng\s*cheng\b/gi, "EREV"],
+  [/\bgai\s*kuan\b/gi, "Facelift"],
+  [/\bhao\s*hua\b/gi, "Luxury"],
+  [/\bzhi\s*zun\b/gi, "Premium"],
+  [/\bjin\s*kou\b/gi, "Import"],
+];
+
+function cleanupChinaNamePart(v: string, role: "mark" | "model" | "generation"): string {
+  let s = v;
+  for (const [rx, repl] of CHINA_SUBSTRING_FIXES) s = s.replace(rx, repl);
+  for (const [rx, repl] of CHINA_TOKEN_FIXES) s = s.replace(rx, repl);
+  s = s.replace(/[()[\]{}]+/g, " ").replace(CJK_RE, " ").replace(/\s+/g, " ").trim();
+  s = s.replace(/^([A-Za-z0-9&-]+)\s+\1\b/i, "$1").trim();
+  if (role === "model") {
+    s = s.replace(/\b20\d{2}\b.*$/i, "").trim();
+    s = s.replace(/\b\d(?:\.\d)?T\b.*$/i, "").trim();
+    s = s.replace(/\b(2WD|4WD|FWD|RWD|EREV|Premium|Luxury|Facelift|Import)\b.*$/i, "").trim();
+  }
+  if (role === "generation") {
+    s = s.replace(/^\d+\s+/, "").trim();
+  }
+  return s;
+}
+
 const KO_TO_RU_TERMS: [string, string][] = [
   ["양호", "Исправно"],
   ["없음", "Нет"],
@@ -210,6 +252,27 @@ function uniqStrings(parts: unknown[]): string[] {
 export function joinUniqueSpecs(...parts: unknown[]): string | null {
   const u = uniqStrings(parts);
   return u.length ? u.join(" · ") : null;
+}
+
+export function buildNormalizedCarTitle(
+  mark: unknown,
+  model: unknown,
+  generation: unknown,
+  source?: unknown,
+): string | null {
+  const markS = asStr(mark) ?? "";
+  const modelS = asStr(model) ?? "";
+  const genS = asStr(generation) ?? "";
+  const sourceS = (asStr(source) ?? "").toLowerCase();
+  const chinaLike =
+    sourceS === "dongchedi" ||
+    sourceS === "china" ||
+    [markS, modelS, genS].some((x) => CJK_RE.test(x) || CHINA_HINT_RE.test(x));
+  if (!chinaLike) return joinUniqueSpecs(markS, modelS, genS);
+  const m1 = cleanupChinaNamePart(markS, "mark");
+  const m2 = cleanupChinaNamePart(modelS, "model");
+  const m3 = cleanupChinaNamePart(genS, "generation");
+  return joinUniqueSpecs(m1 || markS, m2 || modelS, m3 || genS);
 }
 
 /** Элементы осмотра Encar: заголовок детали вместо сырого JSON. */

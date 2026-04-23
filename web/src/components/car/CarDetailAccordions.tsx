@@ -12,6 +12,7 @@ import {
   asStr,
   diagnosisStatusTone,
   flatScalarRows,
+  buildNormalizedCarTitle,
   formatCarHistoryObjectRow,
   formatHumanDate,
   formatInspectionListItem,
@@ -395,15 +396,13 @@ export function CarDetailAccordions({
 
   push(
     "Наименование",
-    joinUniqueSpecs(
+    buildNormalizedCarTitle(
       data.mark,
       data.model,
-      data.generation,
-      data.gradeName,
-      data.configuration,
-      getPath(data, ["grade", "title"]),
-      getPath(data, ["trim", "title"]),
-    ),
+      data.generation ?? data.configuration ?? data.gradeName,
+      data.source,
+    ) ??
+      joinUniqueSpecs(data.mark, data.model, data.generation),
   );
   push("Год / месяц", formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year));
   push("Цвет", asStr(data.color));

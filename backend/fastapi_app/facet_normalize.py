@@ -12,6 +12,7 @@ from localization.term_localizer import (
     _as_text,
     _korea_static_maps,
     facet_canonical_english,
+    is_china_trim_like_noise,
 )
 
 _KO_OR_ZH_RE = re.compile(r"[\uac00-\ud7af\u4e00-\u9fff]")
@@ -263,6 +264,10 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
         m = re.search(r"\b20\d{2}\b", s)
         if m and m.start() > 0:
             s = s[: m.start()].strip()
+        if is_china_trim_like_noise(s):
+            return ""
+    if meili_attr == "generation" and is_china_trim_like_noise(s):
+        return ""
     s = re.sub(r"^([A-Za-z0-9&\-]+)\s+\1\b", r"\1", s, flags=re.IGNORECASE)
     return s
 
