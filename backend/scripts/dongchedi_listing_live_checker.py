@@ -14,6 +14,7 @@ import argparse
 import asyncio
 import os
 import random
+import re
 import sys
 from pathlib import Path
 from typing import Any, List, Sequence, Tuple
@@ -59,7 +60,15 @@ def _fetch_batch_psycopg2(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT car_id, COALESCE(data->>'url', data->>'dongchedi_usedcar_url', '')
+                SELECT
+                  car_id,
+                  COALESCE(
+                    data->>'url',
+                    data->>'dongchedi_usedcar_url',
+                    data->'data'->>'url',
+                    data->'data'->>'dongchedi_usedcar_url',
+                    ''
+                  ) AS listing_url
                 FROM cars
                 WHERE source = 'dongchedi'
                   AND dongchedi_listing_sold = false
@@ -78,7 +87,14 @@ def _fetch_batch_psycopg2(
                     continue
                 cid = str(row[0] or "").strip()
                 url = str(row[1] or "").strip()
-                if cid and url:
+                if not cid:
+                    continue
+                if not url:
+                    # fallback: обычно car_id формата dongchedi-<sku_id>
+                    m = re.match(r"^dongchedi-(\d+)$", cid)
+                    if m:
+                        url = f"https://www.dongchedi.com/usedcar/{m.group(1)}"
+                if url:
                     out.append((cid, url))
             return out
 
