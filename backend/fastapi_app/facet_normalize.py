@@ -57,6 +57,14 @@ def is_korea_catalog_flat(q: Optional[Dict[str, str]]) -> bool:
     return reg == "korea" or src == "encar"
 
 
+def is_china_catalog_flat(q: Optional[Dict[str, str]]) -> bool:
+    if not q:
+        return False
+    src = (q.get("source") or "").strip().lower()
+    reg = (q.get("region") or "").strip().lower()
+    return reg == "china" or src in {"china", "dongchedi", "che168"}
+
+
 @lru_cache(maxsize=1)
 def _ru_engine_type_map() -> Dict[str, str]:
     m = (_korea_static_maps().get("ru") or {}).get("engine_type") or {}
@@ -149,8 +157,20 @@ def _brand_synonyms_by_canon() -> Dict[str, frozenset[str]]:
 @lru_cache(maxsize=1)
 def _invert_en_domain(domain: str) -> Dict[str, frozenset[str]]:
     inv: Dict[str, set[str]] = defaultdict(set)
-    bucket = ((_korea_static_maps().get("en") or {}).get(domain) or {})
-    for orig, eng in bucket.items():
+    for maps in (_korea_static_maps(),):
+        bucket = ((maps.get("en") or {}).get(domain) or {})
+        for orig, eng in bucket.items():
+            e = _as_text(eng)
+            o = _as_text(orig)
+            if not e:
+                continue
+            inv[e].add(e)
+            if o:
+                inv[e].add(o)
+    from localization.term_localizer import _china_static_maps  # lazy import
+
+    bucket_cn = ((_china_static_maps().get("en") or {}).get(domain) or {})
+    for orig, eng in bucket_cn.items():
         e = _as_text(eng)
         o = _as_text(orig)
         if not e:
@@ -159,6 +179,44 @@ def _invert_en_domain(domain: str) -> Dict[str, frozenset[str]]:
         if o:
             inv[e].add(o)
     return {k: frozenset(v) for k, v in inv.items()}
+
+
+_CHINA_SUFFIX_MARKERS = (
+    " kuan ",
+    " ban ",
+    " biao ",
+    " zhun ",
+    " xu hang ",
+    " hou qu ",
+    " qian qu ",
+    " si qu ",
+    " zeng cheng ",
+    " sheng ji ",
+)
+
+
+def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
+    s = _as_text(raw)
+    if not s:
+        return ""
+    s = facet_canonical_english(s, _MEILI_TO_EN_DOMAIN.get(meili_attr, ""))
+    if not s:
+        return ""
+    s = " ".join(s.split())
+    # Для model_group гасим «длинные хвосты» комплектации.
+    if meili_attr == "model_group":
+        low = f" {s.lower()} "
+        cut = None
+        for marker in _CHINA_SUFFIX_MARKERS:
+            idx = low.find(marker)
+            if idx > 0:
+                cut = idx if cut is None else min(cut, idx)
+        if cut is not None:
+            s = s[:cut].strip()
+        m = re.search(r"\b20\d{2}\b", s)
+        if m and m.start() > 0:
+            s = s[: m.start()].strip()
+    return s
 
 
 @lru_cache(maxsize=1)
@@ -225,8 +283,22 @@ def merge_facet_distribution_rows(
     if not rows:
         return []
     korea = is_korea_catalog_flat(query_flat)
+    china = is_china_catalog_flat(query_flat)
     if not korea:
-        out = [{"value": str(r["value"]), "count": int(r["count"])} for r in rows]
+        acc: Dict[str, int] = defaultdict(int)
+        for r in rows:
+            raw = _as_text(r.get("value"))
+            if not raw:
+                continue
+            value = raw
+            if china and meili_attr in {"brand", "model_group", "generation", "trim"}:
+                value = _cleanup_china_facet_value(raw, meili_attr)
+                if not value:
+                    continue
+                if _KO_OR_ZH_RE.search(value):
+                    continue
+            acc[value] += int(r["count"])
+        out = [{"value": k, "count": int(v)} for k, v in acc.items() if k and int(v) > 0]
         out.sort(key=lambda r: str(r["value"]).lower())
         return out
 
@@ -271,7 +343,33 @@ def expand_filter_values(meili_attr: str, values: Sequence[str], *, query_flat: 
     if not values:
         return out
     korea = is_korea_catalog_flat(query_flat)
+    china = is_china_catalog_flat(query_flat)
     if not korea:
+        if china and meili_attr in {"brand", "model_group", "generation", "trim"}:
+            for v in values:
+                s = str(v).strip()
+                if not s:
+                    continue
+                domain = _MEILI_TO_EN_DOMAIN.get(meili_attr, "")
+                c = facet_canonical_english(s, domain) if domain else s
+                if meili_attr == "brand":
+                    bag = _brand_synonyms_by_canon().get(c) or frozenset({s, c})
+                elif meili_attr == "model_group":
+                    bag = _invert_en_domain("model").get(c) or frozenset({s, c})
+                elif meili_attr == "generation":
+                    bag = _invert_en_domain("generation").get(c) or frozenset({s, c})
+                else:
+                    bag = _trim_synonyms_by_canon().get(c) or frozenset({s, c})
+                out.extend(bag)
+            seen: set[str] = set()
+            dedup_cn: List[str] = []
+            for x in out:
+                t = str(x).strip()
+                if not t or t in seen:
+                    continue
+                seen.add(t)
+                dedup_cn.append(t)
+            return dedup_cn
         return [str(v).strip() for v in values if str(v).strip()]
 
     for v in values:

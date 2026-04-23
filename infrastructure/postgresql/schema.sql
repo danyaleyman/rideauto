@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS cars (
     -- Дневной encar_listing_live_checker: снято с продажи на Encar до ночной выгрузки
     encar_listing_sold       BOOLEAN NOT NULL DEFAULT false,
     encar_listing_checked_at TIMESTAMPTZ,
+    -- Дневной dongchedi_listing_live_checker: снято с продажи на Dongchedi до ночной выгрузки
+    dongchedi_listing_sold       BOOLEAN NOT NULL DEFAULT false,
+    dongchedi_listing_checked_at TIMESTAMPTZ,
     data                     JSONB NOT NULL,
     raw                      JSONB,
     source_internal_id       BIGINT,
@@ -131,6 +134,10 @@ CREATE INDEX IF NOT EXISTS idx_cars_encar_listing_checker
     ON cars (encar_listing_checked_at NULLS FIRST)
     WHERE (source IS NULL OR source = 'encar')
       AND car_id NOT LIKE 'dongchedi-%';
+
+CREATE INDEX IF NOT EXISTS idx_cars_dongchedi_listing_checker
+    ON cars (dongchedi_listing_checked_at NULLS FIRST)
+    WHERE source = 'dongchedi';
 
 CREATE INDEX IF NOT EXISTS idx_cars_data_gin ON cars USING GIN (data);
 

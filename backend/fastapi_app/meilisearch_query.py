@@ -51,6 +51,13 @@ def _append_range(
         clauses.append(f"{attr} <= {v_to}")
 
 
+def _shift_ym(ym: int, delta_months: int) -> int:
+    year = ym // 100
+    month = ym % 100
+    ordinal = year * 12 + (month - 1) + delta_months
+    return (ordinal // 12) * 100 + (ordinal % 12) + 1
+
+
 def build_meilisearch_filter(
     raw_q: Dict[str, str],
     *,
@@ -135,18 +142,13 @@ def build_meilisearch_filter(
 
     if q.get("passable_only") == "1":
         now = datetime.now(timezone.utc)
-        year_from = now.year - 5
-        year_to = now.year - 3
-        # Унифицированная логика для mixed-формата `year`:
-        # - часть документов хранится как YYYY
-        # - часть (Encar legacy) как YYYYMM
-        # Специально не опираемся на year_month, т.к. в продовых срезах он часто пустой/неоднородный.
-        clauses.append(
-            "("
-            f"(year >= {year_from} AND year <= {year_to}) OR "
-            f"(year >= {year_from}00 AND year <= {year_to}12)"
-            ")"
-        )
+        ym_5y = (now.year - 5) * 100 + now.month
+        ym_3y = (now.year - 3) * 100 + now.month
+        ym_from = _shift_ym(ym_5y, +1)
+        ym_to = _shift_ym(ym_3y, -1)
+        # Строгая фильтрация 3–5 лет с учетом того, что в индексе обычно только YYYYMM
+        # (без дня): границы месяцев исключаем, чтобы не попадали авто «на 1 день» вне окна.
+        clauses.append(f"(year_month >= {ym_from} AND year_month <= {ym_to})")
 
     if not clauses:
         return None

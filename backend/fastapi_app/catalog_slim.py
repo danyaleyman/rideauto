@@ -1,10 +1,24 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict
 
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
 from localization.term_localizer import facet_canonical_english
+
+_CHINA_SUFFIX_MARKERS = (
+    " kuan ",
+    " ban ",
+    " biao ",
+    " zhun ",
+    " xu hang ",
+    " hou qu ",
+    " qian qu ",
+    " si qu ",
+    " zeng cheng ",
+    " sheng ji ",
+)
 
 
 def _coerce_catalog_images_to_urls(parsed: list[Any]) -> list[str]:
@@ -93,6 +107,24 @@ def _extract_num(data: Dict[str, Any], key: str) -> float | None:
         return None
 
 
+def _cleanup_china_model_name(name: str) -> str:
+    s = " ".join(str(name or "").split()).strip()
+    if not s:
+        return ""
+    low = f" {s.lower()} "
+    cut = None
+    for marker in _CHINA_SUFFIX_MARKERS:
+        idx = low.find(marker)
+        if idx > 0:
+            cut = idx if cut is None else min(cut, idx)
+    if cut is not None:
+        s = s[:cut].strip()
+    m = re.search(r"\b20\d{2}\b", s)
+    if m and m.start() > 0:
+        s = s[: m.start()].strip()
+    return s
+
+
 def _car_title(data: Dict[str, Any]) -> str:
     def _pick(en_key: str, raw_key: str, domain: str) -> str:
         t = (data.get(en_key) or "").strip()
@@ -106,6 +138,12 @@ def _car_title(data: Dict[str, Any]) -> str:
 
     mark = _pick("mark_en", "mark", "mark")
     model = _pick("model_en", "model", "model")
+    source = (data.get("source") or "").strip().lower()
+    if source == "dongchedi" or source == "china":
+        model = _cleanup_china_model_name(model) or model
+        if mark and model and model.lower().startswith(mark.lower()):
+            return model
+        return " ".join([x for x in [mark, model] if x]).strip()
     generation = (
         (data.get("generation_en") or "").strip()
         or facet_canonical_english(data.get("generation"), "generation").strip()
@@ -174,4 +212,6 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     out["year_num"] = int(str(slim_data.get("year") or 0)[:4] or 0)
     if car.get("encar_listing_sold") is True:
         out["encar_listing_sold"] = True
+    if car.get("dongchedi_listing_sold") is True:
+        out["dongchedi_listing_sold"] = True
     return out

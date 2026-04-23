@@ -12,7 +12,7 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
         return {}
     rows = await pool.fetch(
         """
-        SELECT car_id, data, created_at, encar_listing_sold
+        SELECT car_id, data, created_at, encar_listing_sold, dongchedi_listing_sold
         FROM cars
         WHERE car_id = ANY($1::text[])
         """,
@@ -41,6 +41,8 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
                 pass
         if r["encar_listing_sold"] is True:
             obj["encar_listing_sold"] = True
+        if r["dongchedi_listing_sold"] is True:
+            obj["dongchedi_listing_sold"] = True
         out[cid] = obj
     return out
 
@@ -52,7 +54,7 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
     q = ref.strip()
     row = await pool.fetchrow(
         """
-        SELECT car_id, data, created_at, encar_listing_sold
+        SELECT car_id, data, created_at, encar_listing_sold, dongchedi_listing_sold
         FROM cars
         WHERE car_id = $1
            OR (data->>'id') = $1
@@ -86,4 +88,6 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
             pass
     if row["encar_listing_sold"] is True:
         obj["encar_listing_sold"] = True
+    if row["dongchedi_listing_sold"] is True:
+        obj["dongchedi_listing_sold"] = True
     return obj

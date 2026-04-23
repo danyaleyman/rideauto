@@ -22,6 +22,8 @@ export type SlimCar = {
   catalog_created_at?: string | null;
   /** Дневной чекер Encar: объявление снято с продажи до ночной выгрузки. */
   encar_listing_sold?: boolean;
+  /** Дневной чекер Dongchedi: объявление снято с продажи до ночной выгрузки. */
+  dongchedi_listing_sold?: boolean;
   year_num?: number;
   data?: {
     images?: string[];

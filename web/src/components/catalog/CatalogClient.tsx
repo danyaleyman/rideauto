@@ -143,18 +143,16 @@ function parseYmValue(value: unknown): number | null {
   return y * 100 + m;
 }
 
-function carPassabilityStatus(data: Record<string, unknown>, yearNum?: number | null): PassabilityStatus | null {
-  const ym = parseYmValue(data.yearMonth) ?? parseYmValue(data.year) ?? (
-    yearNum && Number.isFinite(yearNum) && yearNum > 0 ? (Math.trunc(yearNum) * 100 + 1) : null
-  );
+function carPassabilityStatus(data: Record<string, unknown>): PassabilityStatus | null {
+  const ym = parseYmValue(data.yearMonth) ?? parseYmValue(data.year_month) ?? parseYmValue(data.year);
   if (!ym) return null;
   const now = new Date();
   const nowYm = now.getUTCFullYear() * 100 + (now.getUTCMonth() + 1);
   const nowMonths = Math.floor(nowYm / 100) * 12 + (nowYm % 100 - 1);
   const carMonths = Math.floor(ym / 100) * 12 + (ym % 100 - 1);
   const ageMonths = nowMonths - carMonths;
-  if (ageMonths < 36) return "young";
-  if (ageMonths <= 60) return "passable";
+  if (ageMonths <= 36) return "young";
+  if (ageMonths <= 59) return "passable";
   return "old";
 }
 
@@ -224,28 +222,7 @@ function cardOverlayBadges(
 ): string[] {
   const out: string[] = [];
   if (yearNum && Number.isFinite(yearNum)) out.push(String(Math.trunc(yearNum)));
-  const dispLabel =
-    asStr(data.dongchedi_displacement_label) ??
-    (() => {
-      const ccRaw = data.displacement ?? data.displacement_cc;
-      const ccNum =
-        typeof ccRaw === "number"
-          ? Math.trunc(ccRaw)
-          : Number.parseInt(String(ccRaw ?? "").replace(/[^\d]/g, ""), 10);
-      if (Number.isFinite(ccNum) && ccNum > 0) {
-        return formatDisplacementLiters(ccNum);
-      }
-      return null;
-    })();
-  const trans = asStr(data.transmission_type);
-  const generation = asStr(data.generation);
-  const trim = asStr(data.trim_name) ?? asStr(data.gradeName) ?? asStr(data.configuration);
-  if (market === "china") {
-    if (dispLabel) out.push(dispLabel);
-    if (trans) out.push(trans);
-    if (generation) out.push(generation);
-    if (trim && trim !== generation) out.push(trim);
-  }
+  if (market === "china") return out.slice(0, 1);
   return out.slice(0, 4);
 }
 
@@ -460,7 +437,7 @@ function CatalogCardImage({
         width={448}
         height={288}
         sizes="(min-width: 1024px) 224px, 44vw"
-        className="h-full w-full object-contain object-center bg-muted/20 p-1"
+        className="h-full w-full object-contain object-center bg-muted/20"
         loading={eager ? "eager" : "lazy"}
         fetchPriority={eager ? "high" : "auto"}
         decoding="async"
@@ -1261,8 +1238,9 @@ export function CatalogClient({
                 cardData,
                 car.year_num,
               );
-              const passability = carPassabilityStatus(cardData, car.year_num);
+              const passability = carPassabilityStatus(cardData);
               const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
+              const listingSold = Boolean(car.encar_listing_sold || car.dongchedi_listing_sold);
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
               return (
@@ -1281,7 +1259,7 @@ export function CatalogClient({
                           images={preview}
                           alt={car.title || car.id}
                           eager={idx < 4}
-                          sold={Boolean(car.encar_listing_sold)}
+                          sold={listingSold}
                         />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-2 pb-2 pt-14">
                           <div className="flex flex-wrap items-center gap-1">
@@ -1304,7 +1282,7 @@ export function CatalogClient({
                                 {car.year_num ? `${car.year_num}` : "—"}
                               </Badge>
                             )}
-                            {car.encar_listing_sold ? (
+                            {listingSold ? (
                               <Badge className="rounded-md border border-red-900/30 bg-red-600 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm sm:text-xs">
                                 Продан
                               </Badge>
