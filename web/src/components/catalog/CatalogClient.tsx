@@ -870,16 +870,26 @@ export function CatalogClient({
   const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
 
   const facetLabelByValue = useMemo(() => {
+    const f = facets ?? {
+      marks: [],
+      models: [],
+      generations: [],
+      trims: [],
+      bodies: [],
+      fuels: [],
+      transmissions: [],
+      colors: [],
+    };
     const map = new Map<string, string>();
     const allRows = [
-      ...facets.marks,
-      ...facets.models,
-      ...facets.generations,
-      ...facets.trims,
-      ...facets.bodies,
-      ...facets.fuels,
-      ...facets.transmissions,
-      ...facets.colors,
+      ...f.marks,
+      ...f.models,
+      ...f.generations,
+      ...f.trims,
+      ...f.bodies,
+      ...f.fuels,
+      ...f.transmissions,
+      ...f.colors,
     ];
     for (const row of allRows) {
       map.set(row.value, facetRowLabel(row));
