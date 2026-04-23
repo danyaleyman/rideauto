@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -8,8 +9,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   asStr,
+  cleanScalarText,
   diagnosisStatusTone,
   flatScalarRows,
   buildNormalizedCarTitle,
@@ -18,6 +21,7 @@ import {
   formatInspectionListItem,
   formatKm,
   formatKrw,
+  formatRubFromUnknown,
   formatRegYearMonth,
   getPath,
   joinUniqueSpecs,
@@ -25,29 +29,43 @@ import {
   toneClass,
   translateKoToRuText,
 } from "@/lib/car-detail-data";
-import { displayEncarStandardOption, localizeEncarOptionText } from "@/lib/encar-options-display";
+import {
+  collectSelectedEncarOptions,
+  displayEncarStandardOption,
+  localizeEncarOptionText,
+} from "@/lib/encar-options-display";
+import { translateTextClient } from "@/lib/client-api";
 
 function localizeLabel(label: string): string {
   return translateKoToRuText(prettifyDataKey(label));
 }
 
 function localizeValue(value: string): string {
-  const t = translateKoToRuText(value);
+  const cleaned = cleanScalarText(value);
+  if (!cleaned) return "Не указано";
+  const t = translateKoToRuText(cleaned);
   if (t === "[]") return "Не выявлены";
   if (t === "{}") return "Нет данных";
   return t;
 }
 
+const INSPECTION_SCHEMES = [
+  { src: "/image/inspection-schema-top.png", alt: "Схема осмотра кузова: вид сверху" },
+  { src: "/image/inspection-schema-bottom.png", alt: "Схема осмотра кузова: вид снизу" },
+];
+
 function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
-  const filtered = rows.filter((r) => r.value.trim());
+  const filtered = rows
+    .map((r) => ({ label: r.label, value: cleanScalarText(r.value) ?? "" }))
+    .filter((r) => r.value.trim());
   if (!filtered.length) {
     return <p className="text-sm text-muted-foreground">Нет данных.</p>;
   }
   return (
     <dl className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
-      {filtered.map((r) => (
+      {filtered.map((r, idx) => (
         <div
-          key={r.label}
+          key={`${r.label}-${idx}`}
           className="rounded-2xl border border-border/45 bg-muted/15 px-3 py-2.5 transition-colors hover:bg-muted/25 md:grid md:grid-cols-[minmax(0,42%)_minmax(0,1fr)] md:gap-3 md:px-3.5 md:py-3"
         >
           <dt className="text-[11px] font-semibold tracking-wide text-muted-foreground md:pt-0.5">
@@ -159,6 +177,68 @@ function parseJson(v: unknown): unknown {
   }
 }
 
+function StructuredRowsSection({
+  rows,
+}: {
+  rows: Array<{ label: string; value: string }>;
+}) {
+  const filtered = rows.filter((r) => cleanScalarText(r.value));
+  if (!filtered.length) {
+    return <p className="text-sm text-muted-foreground">Нет подтвержденных данных по этому блоку.</p>;
+  }
+  return <SpecGrid rows={filtered} />;
+}
+
+function formatInsuranceType(v: unknown): string | null {
+  const s = cleanScalarText(v);
+  if (!s) return null;
+  if (s === "1") return "Случай по моему авто";
+  if (s === "2") return "Случай по чужому авто";
+  return s;
+}
+
+function AccidentCases({ items }: { items: unknown[] }) {
+  const list = items
+    .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
+    .filter((x): x is Record<string, unknown> => Boolean(x));
+  if (!list.length) return null;
+  return (
+    <div>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Страховые случаи
+      </h4>
+      <ul className="space-y-2.5">
+        {list.map((a, i) => {
+          const date = formatHumanDate(a.date) ?? cleanScalarText(a.date);
+          const type = formatInsuranceType(a.type);
+          const part = formatRubFromUnknown(a.partCost) ?? formatKrw(Number(a.partCost ?? 0));
+          const labor = formatRubFromUnknown(a.laborCost) ?? formatKrw(Number(a.laborCost ?? 0));
+          const paint = formatRubFromUnknown(a.paintingCost) ?? formatKrw(Number(a.paintingCost ?? 0));
+          const payout = formatRubFromUnknown(a.insuranceBenefit) ?? formatKrw(Number(a.insuranceBenefit ?? 0));
+          return (
+            <li key={i} className="rounded-xl border border-border/50 bg-muted/15 p-3">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                {date ? <Badge variant="secondary">{date}</Badge> : null}
+                {type ? <Badge variant="outline">{type}</Badge> : null}
+              </div>
+              <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+                <p><span className="text-muted-foreground">Запчасти:</span> {part}</p>
+                <p><span className="text-muted-foreground">Работы:</span> {labor}</p>
+                <p><span className="text-muted-foreground">Покраска:</span> {paint}</p>
+                <p><span className="text-muted-foreground">Страховая выплата:</span> {payout}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Выплаты страховой не всегда означают повреждение силового каркаса кузова: часть случаев относится к
+        навесным элементам и косметическому ремонту.
+      </p>
+    </div>
+  );
+}
+
 function krwOrStr(v: unknown): string | null {
   if (v == null || v === "") return null;
   const n = typeof v === "number" ? v : Number(String(v).replace(/\s/g, ""));
@@ -199,22 +279,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   return (
     <div className="space-y-4">
       <SpecGrid rows={rows} />
-      {Array.isArray(accidents) && accidents.length > 0 ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Страховые случаи
-          </h4>
-          <ul className="space-y-2">
-            {accidents.map((a, i) => (
-              <li key={i} className="rounded-lg border border-border/40 bg-muted/10 p-2 text-xs">
-                <pre className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-                  {JSON.stringify(a, null, 2)}
-                </pre>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {Array.isArray(accidents) && accidents.length > 0 ? <AccidentCases items={accidents} /> : null}
       {Array.isArray(ownerChanges) && ownerChanges.length > 0 ? (
         <div>
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -223,7 +288,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
           <ul className="space-y-2 text-sm">
             {ownerChanges.map((oc, i) => (
               <li key={i} className="rounded-lg border border-border/40 bg-muted/10 px-3 py-2 [overflow-wrap:anywhere]">
-                {formatHumanDate(oc) ?? asStr(oc) ?? JSON.stringify(oc)}
+                {formatHumanDate(oc) ?? cleanScalarText(oc) ?? "—"}
               </li>
             ))}
           </ul>
@@ -256,33 +321,71 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
 function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
-  const codes = Array.isArray(standard) ? standard : [];
+  const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
   const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);
   const choicePhotos = getPath(sp, ["choiceOptionPhotos"]);
   const sellingPoint = getPath(sp, ["sellingPoint"]) as Record<string, unknown> | undefined;
   const advMasters = getPath(sp, ["advertisementMasters"]);
+  const selectedOptions = useMemo(
+    () => collectSelectedEncarOptions(uniquePhotos, choicePhotos, extra, d),
+    [uniquePhotos, choicePhotos, extra, d],
+  );
+  const selectedCodes = useMemo(
+    () => new Set(selectedOptions.map((x) => (x.code || "").trim()).filter(Boolean)),
+    [selectedOptions],
+  );
+  const selectedLabels = useMemo(() => {
+    const fromRows = selectedOptions.map((x) => x.label).filter(Boolean);
+    if (fromRows.length) return fromRows;
+    // fallback: на карточках без enriched rows показываем только ограниченный набор кодов.
+    return codes
+      .slice(0, 24)
+      .map((c) => displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d))
+      .filter((x) => x && !/^Опция\s+\d+$/i.test(x));
+  }, [selectedOptions, codes, uniquePhotos, choicePhotos, extra, d]);
+  const staticCodesFiltered = codes.filter((c) => {
+    const s = cleanScalarText(c);
+    if (!s) return false;
+    if (!selectedCodes.size) return true;
+    return selectedCodes.has(s);
+  });
 
   return (
     <div className="space-y-5">
-      {codes.length > 0 ? (
+      {selectedLabels.length > 0 ? (
         <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции</h4>
+          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции конкретного авто</h4>
           <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {codes.map((c, i) => (
+            {selectedLabels.map((label, i) => (
               <li
                 key={i}
-                className="rounded-xl border border-border/45 bg-muted/10 px-3 py-2 text-xs leading-snug transition-colors hover:bg-muted/20"
+                className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs leading-snug transition-colors hover:bg-emerald-500/10"
               >
-                {displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)}
+                {label}
               </li>
             ))}
           </ul>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">Стандартные опции не указаны.</p>
+        <p className="text-sm text-muted-foreground">По этой карточке опции не распознаны.</p>
       )}
+
+      {staticCodesFiltered.length > 0 ? (
+        <details className="rounded-xl border border-border/45 bg-muted/10 p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
+            Служебный список кодов комплектации ({staticCodesFiltered.length})
+          </summary>
+          <ul className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+            {staticCodesFiltered.map((c, i) => (
+              <li key={i} className="rounded-lg border border-border/35 bg-background/70 px-2 py-1.5 text-[11px]">
+                {displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       {Array.isArray(uniquePhotos) && uniquePhotos.length > 0 ? (
         <div>
@@ -439,6 +542,43 @@ export function CarDetailAccordions({
 
   const carStateTitle = asStr(getPath(detail, ["carStateType", "title"]));
   const inspComments = asStr(detail?.comments);
+  const fallbackTranslatedInspComment = inspComments ? translateKoToRuText(inspComments) : null;
+  const canToggleInspComment =
+    Boolean(inspComments) &&
+    Boolean(fallbackTranslatedInspComment) &&
+    fallbackTranslatedInspComment !== inspComments;
+  const [showTranslatedComment, setShowTranslatedComment] = useState(true);
+  const [remoteTranslatedComment, setRemoteTranslatedComment] = useState<string | null>(null);
+  const [translatePending, setTranslatePending] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRemoteTranslatedComment(null);
+    setTranslateError(null);
+    setTranslatePending(false);
+    setShowTranslatedComment(true);
+  }, [inspComments]);
+
+  useEffect(() => {
+    if (!canToggleInspComment || !showTranslatedComment) return;
+    void ensureRemoteTranslation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canToggleInspComment, showTranslatedComment, inspComments]);
+
+  const ensureRemoteTranslation = async () => {
+    if (!inspComments || remoteTranslatedComment || translatePending) return;
+    setTranslatePending(true);
+    setTranslateError(null);
+    try {
+      const res = await translateTextClient(inspComments);
+      const t = cleanScalarText(res.translated_text);
+      if (t) setRemoteTranslatedComment(t);
+    } catch (e) {
+      setTranslateError(e instanceof Error ? e.message : "Не удалось получить перевод");
+    } finally {
+      setTranslatePending(false);
+    }
+  };
 
   const inners = inspection?.inners;
   const innerList = Array.isArray(inners) ? inners : [];
@@ -477,6 +617,21 @@ export function CarDetailAccordions({
     !!(chassis && Object.keys(chassis).length > 0) ||
     !!(electrical && Object.keys(electrical).length > 0) ||
     !!(additional && Object.keys(additional).length > 0);
+
+  const toStructuredRows = (obj: Record<string, unknown> | undefined): Array<{ label: string; value: string }> => {
+    if (!obj) return [];
+    return Object.entries(obj)
+      .map(([k, v]) => {
+        const base = asStr(v)
+          ? translateKoToRuText(asStr(v)!)
+          : typeof v === "object"
+            ? translateKoToRuText(JSON.stringify(v))
+            : "";
+        const cleaned = cleanScalarText(base);
+        return cleaned ? { label: prettifyDataKey(k), value: cleaned } : null;
+      })
+      .filter((x): x is { label: string; value: string } => Boolean(x));
+  };
 
   return (
     <Accordion
@@ -552,6 +707,22 @@ export function CarDetailAccordions({
             ) : null}
 
             <div>
+              <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Схема осмотра кузова</h4>
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {INSPECTION_SCHEMES.map((img) => (
+                  <div key={img.src} className="overflow-hidden rounded-xl border border-border/50 bg-muted/10">
+                    <div className="relative aspect-[4/3] bg-muted/20">
+                      <Image src={img.src} alt={img.alt} fill className="object-contain p-2" unoptimized />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Внешние панели и силовые элементы ниже синхронизированы с данными листа проверки Encar.
+              </p>
+            </div>
+
+            <div>
               <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Внешние элементы кузова</h4>
               <OutersBlock outers={outers} />
             </div>
@@ -610,10 +781,42 @@ export function CarDetailAccordions({
             ) : null}
             {inspComments ? (
               <div>
-                <span className="text-xs font-semibold text-muted-foreground">Комментарии инспекции</span>
-                <p className="mt-1 whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
-                  {translateKoToRuText(inspComments)}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">Комментарии инспекции</span>
+                  {canToggleInspComment ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-full px-2.5 text-[11px]"
+                      onClick={() => {
+                        setShowTranslatedComment((v) => {
+                          const next = !v;
+                          if (next) {
+                            void ensureRemoteTranslation();
+                          }
+                          return next;
+                        });
+                      }}
+                    >
+                      {translatePending && showTranslatedComment
+                        ? "Переводим..."
+                        : showTranslatedComment
+                          ? "Показать оригинал"
+                          : "Показать перевод"}
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border/45 bg-muted/10 p-3 text-sm [overflow-wrap:anywhere]">
+                  {showTranslatedComment
+                    ? remoteTranslatedComment ?? fallbackTranslatedInspComment ?? inspComments
+                    : inspComments}
                 </p>
+                {showTranslatedComment && translateError ? (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-300">
+                    Не удалось получить перевод от API, показан локальный перевод.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -628,51 +831,24 @@ export function CarDetailAccordions({
                     <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">
                       Двигатель и трансмиссия
                     </AccordionTrigger>
-                    <AccordionContent>
-                      <SpecGrid
-                        rows={Object.entries(engineTransmission).map(([k, v]) => ({
-                          label: prettifyDataKey(k),
-                          value: asStr(v)
-                            ? translateKoToRuText(asStr(v)!)
-                            : typeof v === "object"
-                              ? translateKoToRuText(JSON.stringify(v))
-                              : "—",
-                        }))}
-                      />
+                    <AccordionContent className="overflow-hidden">
+                      <StructuredRowsSection rows={toStructuredRows(engineTransmission)} />
                     </AccordionContent>
                   </AccordionItem>
                 ) : null}
                 {chassis && Object.keys(chassis).length > 0 ? (
                   <AccordionItem value="de-ch">
                     <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">Ходовая и тормоза</AccordionTrigger>
-                    <AccordionContent>
-                      <SpecGrid
-                        rows={Object.entries(chassis).map(([k, v]) => ({
-                          label: prettifyDataKey(k),
-                          value: asStr(v)
-                            ? translateKoToRuText(asStr(v)!)
-                            : typeof v === "object"
-                              ? translateKoToRuText(JSON.stringify(v))
-                              : "—",
-                        }))}
-                      />
+                    <AccordionContent className="overflow-hidden">
+                      <StructuredRowsSection rows={toStructuredRows(chassis)} />
                     </AccordionContent>
                   </AccordionItem>
                 ) : null}
                 {electrical && Object.keys(electrical).length > 0 ? (
                   <AccordionItem value="de-el">
                     <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">Электрика</AccordionTrigger>
-                    <AccordionContent>
-                      <SpecGrid
-                        rows={Object.entries(electrical).map(([k, v]) => ({
-                          label: prettifyDataKey(k),
-                          value: asStr(v)
-                            ? translateKoToRuText(asStr(v)!)
-                            : typeof v === "object"
-                              ? translateKoToRuText(JSON.stringify(v))
-                              : "—",
-                        }))}
-                      />
+                    <AccordionContent className="overflow-hidden">
+                      <StructuredRowsSection rows={toStructuredRows(electrical)} />
                     </AccordionContent>
                   </AccordionItem>
                 ) : null}
@@ -681,17 +857,8 @@ export function CarDetailAccordions({
                     <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">
                       Дополнительные проверки
                     </AccordionTrigger>
-                    <AccordionContent>
-                      <SpecGrid
-                        rows={Object.entries(additional).map(([k, v]) => ({
-                          label: prettifyDataKey(k),
-                          value: asStr(v)
-                            ? translateKoToRuText(asStr(v)!)
-                            : typeof v === "object"
-                              ? translateKoToRuText(JSON.stringify(v))
-                              : "—",
-                        }))}
-                      />
+                    <AccordionContent className="overflow-hidden">
+                      <StructuredRowsSection rows={toStructuredRows(additional)} />
                     </AccordionContent>
                   </AccordionItem>
                 ) : null}

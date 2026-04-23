@@ -51,3 +51,28 @@ export async function fetchCatalogDailyAdditions(
 ): Promise<CatalogDailyAdditionsResponse> {
   return readJson<CatalogDailyAdditionsResponse>(clientCatalogDailyAdditionsUrl(market), signal);
 }
+
+export async function translateTextClient(
+  text: string,
+  options?: { signal?: AbortSignal; provider?: "openai" | "deepseek" },
+): Promise<{ translated_text: string; provider: string; model: string; cached: boolean }> {
+  const base = getPublicApiBase();
+  const res = await fetch(`${base}/api/translate`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      text,
+      target_lang: "ru",
+      ...(options?.provider ? { provider: options.provider } : {}),
+    }),
+    signal: options?.signal,
+  });
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as { translated_text: string; provider: string; model: string; cached: boolean };
+}

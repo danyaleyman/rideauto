@@ -67,6 +67,25 @@ function cleanupChinaNamePart(v: string, role: "mark" | "model" | "generation"):
 }
 
 const KO_TO_RU_TERMS: [string, string][] = [
+  ["동력조향 작동 오일 누유", "Подтекание масла ГУР"],
+  ["실린더 커버(로커암 커버)", "Крышка ГБЦ (клапанная)"],
+  ["실린더 헤드 / 개스킷", "ГБЦ / прокладка"],
+  ["실린더 블록 / 오일팬", "Блок цилиндров / поддон"],
+  ["워터펌프", "Водяной насос"],
+  ["라디에이터", "Радиатор"],
+  ["커먼레일", "Топливная рампа (Common Rail)"],
+  ["추진축 및 베어링", "Кардан/приводной вал и подшипники"],
+  ["추친축 및 베어링", "Кардан/приводной вал и подшипники"],
+  ["디피렌셜 기어", "Дифференциал"],
+  ["스티어링 펌프", "Насос ГУР"],
+  ["스티어링 기어(MDPS포함)", "Рулевая рейка (вкл. MDPS)"],
+  ["스티어링 조인트", "Рулевые шарниры"],
+  ["파워고압호스", "Шланг высокого давления ГУР"],
+  ["타이로드엔드 및 볼 조인트", "Наконечники тяг и шаровые"],
+  ["브레이크 마스터 실린더오일 누유", "Подтекание ГТЦ"],
+  ["브레이크 오일 누유", "Подтекание тормозной жидкости"],
+  ["배력장치 상태", "Вакуумный усилитель тормозов"],
+  ["작동상태", "Рабочее состояние"],
   ["양호", "Исправно"],
   ["없음", "Нет"],
   ["적정", "В норме"],
@@ -110,6 +129,24 @@ export function translateKoToRuText(v: string): string {
     if (out.includes(ko)) out = out.split(ko).join(ru);
   }
   return out.replace(/\s{2,}/g, " ").trim();
+}
+
+export function cleanScalarText(v: unknown): string | null {
+  const s = asStr(v);
+  if (!s) return null;
+  const t = s.trim();
+  const low = t.toLowerCase();
+  if (
+    low === "null" ||
+    low === "none" ||
+    low === "undefined" ||
+    low === "nan" ||
+    low === "-" ||
+    low === "—"
+  ) {
+    return null;
+  }
+  return t;
 }
 
 export function prettifyDataKey(key: string): string {

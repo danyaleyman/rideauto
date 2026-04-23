@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from typing import Optional
 
 from pydantic import Field
@@ -116,6 +117,43 @@ class Settings(BaseSettings):
     lead_smtp_use_tls: bool = Field(
         default=False,
         description="WRA_LEAD_SMTP_USE_TLS=1 — STARTTLS (для порта 587); при 465 оставьте false",
+    )
+
+    # --- Runtime translation API (inspection comments etc.) ---
+    translate_provider: str = Field(
+        default=(os.environ.get("WRA_TRANSLATE_PROVIDER") or "openai"),
+        description="WRA_TRANSLATE_PROVIDER: openai | deepseek",
+    )
+    translate_api_key: str = Field(
+        default=(
+            os.environ.get("WRA_TRANSLATE_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("DEEPSEEK_API_KEY")
+            or ""
+        ),
+        description="WRA_TRANSLATE_API_KEY (fallback: OPENAI_API_KEY / DEEPSEEK_API_KEY)",
+    )
+    translate_openai_base_url: str = Field(
+        default=(os.environ.get("WRA_TRANSLATE_OPENAI_BASE_URL") or "https://api.openai.com/v1"),
+        description="OpenAI chat completions base URL",
+    )
+    translate_openai_model: str = Field(
+        default=(os.environ.get("WRA_TRANSLATE_OPENAI_MODEL") or "gpt-4o-mini"),
+        description="OpenAI model for runtime translation",
+    )
+    translate_deepseek_base_url: str = Field(
+        default=(os.environ.get("WRA_TRANSLATE_DEEPSEEK_BASE_URL") or "https://api.deepseek.com/v1"),
+        description="DeepSeek chat completions base URL",
+    )
+    translate_deepseek_model: str = Field(
+        default=(os.environ.get("WRA_TRANSLATE_DEEPSEEK_MODEL") or "deepseek-chat"),
+        description="DeepSeek model for runtime translation",
+    )
+    translate_timeout_sec: float = Field(
+        default=20.0,
+        ge=3.0,
+        le=90.0,
+        description="HTTP timeout for translation API calls",
     )
 
 

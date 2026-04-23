@@ -185,6 +185,57 @@ export function collectEncarOptionLabelRows(
   return out;
 }
 
+function codeFromOptionRow(item: unknown): string | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const o = item as Record<string, unknown>;
+  const raw =
+    o.optionCode ??
+    o.code ??
+    o.partCode ??
+    o.optionId ??
+    o.stdOptionId ??
+    o.standardOptionId ??
+    o.standard_option_id;
+  const s = asStr(raw);
+  return s && s !== "null" && s !== "undefined" ? s : null;
+}
+
+function labelFromOptionRow(item: unknown): string | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const o = item as Record<string, unknown>;
+  const raw =
+    asStr(o.partName) ??
+    asStr(o.name) ??
+    asStr(o.optionName) ??
+    asStr(o.title) ??
+    asStr(o.optionTitle) ??
+    asStr(o.displayName);
+  if (!raw) return null;
+  const t = normalizeOptionLabel(raw);
+  return t || null;
+}
+
+export function collectSelectedEncarOptions(
+  uniquePhotos: unknown,
+  choicePhotos: unknown,
+  extra: Record<string, unknown> | undefined,
+  data: Record<string, unknown>,
+): Array<{ code: string | null; label: string }> {
+  const rows = collectEncarOptionLabelRows(uniquePhotos, choicePhotos, extra, data);
+  const out: Array<{ code: string | null; label: string }> = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const label = labelFromOptionRow(row);
+    if (!label) continue;
+    const code = codeFromOptionRow(row);
+    const key = `${(code || "").trim()}|${label.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ code, label });
+  }
+  return out;
+}
+
 function nameFromOptionRows(code: string, rows: unknown[]): string | null {
   const cs = String(code).trim();
   for (const item of rows) {
