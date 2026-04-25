@@ -14,6 +14,7 @@ import { CarHeroMeta } from "@/components/car/CarHeroMeta";
 import { CarStickyMobileBar } from "@/components/car/CarStickyMobileBar";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { Button } from "@/components/ui/button";
+import { MotionFadeUp, MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -121,107 +122,123 @@ export default async function CarPage({ params }: PageProps) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-32 pt-2 sm:pt-4 lg:pb-14">
       <div className="relative mx-auto min-w-0 max-w-[1440px] px-3 sm:px-6 lg:px-10">
-        <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-2xl border border-border/50 bg-card/70 px-3 py-3 shadow-sm backdrop-blur-sm sm:mb-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 sm:px-5">
-          <Breadcrumb className="min-w-0 flex-1">
-            <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/">Главная</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/catalog">Каталог</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem className="min-w-0 max-w-full">
-                <BreadcrumbPage className="line-clamp-2 break-words text-start font-medium [overflow-wrap:anywhere] sm:line-clamp-1">
-                  {title}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
-            <Button variant="outline" size="sm" className="h-auto min-h-9 w-full shrink-0 whitespace-normal rounded-xl px-3 py-2 text-center text-xs shadow-sm sm:h-9 sm:w-auto sm:rounded-full sm:text-sm" asChild>
-              <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
-                Параметры модели (Dongchedi)
-              </a>
-            </Button>
-          ) : null}
-        </div>
+        <MotionFadeUp>
+          <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-2xl border border-border/50 bg-card/70 px-3 py-3 shadow-sm backdrop-blur-sm sm:mb-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 sm:px-5">
+            <Breadcrumb className="min-w-0 flex-1">
+              <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/">Главная</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/catalog">Каталог</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem className="min-w-0 max-w-full">
+                  <BreadcrumbPage className="line-clamp-2 break-words text-start font-medium [overflow-wrap:anywhere] sm:line-clamp-1">
+                    {title}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
+              <Button variant="outline" size="sm" className="h-auto min-h-9 w-full shrink-0 whitespace-normal rounded-xl px-3 py-2 text-center text-xs shadow-sm sm:h-9 sm:w-auto sm:rounded-full sm:text-sm" asChild>
+                <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
+                  Параметры модели (Dongchedi)
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        </MotionFadeUp>
 
         {listingSold ? (
-          <div
-            className="mb-4 rounded-2xl border border-red-900/35 bg-red-950/25 px-4 py-3 text-sm text-red-50 shadow-sm backdrop-blur-sm"
-            role="status"
-          >
-            Данный автомобиль забронирован или выкуплен. Объявление будет снято из каталога при ближайшем обновлении.
-          </div>
+          <MotionFadeUp delay={0.03}>
+            <div
+              className="mb-4 rounded-2xl border border-red-900/35 bg-red-950/25 px-4 py-3 text-sm text-red-50 shadow-sm backdrop-blur-sm"
+              role="status"
+            >
+              Данный автомобиль забронирован или выкуплен. Объявление будет снято из каталога при ближайшем обновлении.
+            </div>
+          </MotionFadeUp>
         ) : null}
 
         {imgs.length ? (
-          <CarPhotoGallery
-            images={imgs}
-            title={title}
-            sourceKey={typeof d.source === "string" ? d.source : null}
-            catalogCreatedAt={
-              typeof (raw as Record<string, unknown>)._catalog_created_at === "string"
-                ? ((raw as Record<string, unknown>)._catalog_created_at as string)
-                : null
-            }
-            listingSold={listingSold}
-          />
+          <MotionFadeUp delay={0.04}>
+            <CarPhotoGallery
+              images={imgs}
+              title={title}
+              sourceKey={typeof d.source === "string" ? d.source : null}
+              catalogCreatedAt={
+                typeof (raw as Record<string, unknown>)._catalog_created_at === "string"
+                  ? ((raw as Record<string, unknown>)._catalog_created_at as string)
+                  : null
+              }
+              listingSold={listingSold}
+            />
+          </MotionFadeUp>
         ) : null}
 
-        <CarHeroMeta
-          title={title}
-          data={d as Record<string, unknown>}
-          sourceLabel={sourceLabelStr}
-        />
+        <MotionFadeUp delay={0.06}>
+          <CarHeroMeta
+            title={title}
+            data={d as Record<string, unknown>}
+            sourceLabel={sourceLabelStr}
+          />
+        </MotionFadeUp>
 
         <div className="flex min-w-0 flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
           <div className="min-w-0 flex-1 space-y-6 sm:space-y-8">
             {description ? (
-              <section
-                id="car-description"
-                className="scroll-mt-20 rounded-2xl border border-border/65 bg-card p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:scroll-mt-24 sm:rounded-3xl sm:p-6 lg:scroll-mt-32"
-              >
-                <h2 className="font-heading text-lg font-semibold tracking-tight">Описание</h2>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-                  {description}
-                </p>
-              </section>
+              <MotionFadeUp>
+                <section
+                  id="car-description"
+                  className="scroll-mt-20 rounded-2xl border border-border/65 bg-card p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:scroll-mt-24 sm:rounded-3xl sm:p-6 lg:scroll-mt-32"
+                >
+                  <h2 className="font-heading text-lg font-semibold tracking-tight">Описание</h2>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+                    {description}
+                  </p>
+                </section>
+              </MotionFadeUp>
             ) : null}
 
             {typeof d.dongchedi_msrp_rub === "number" && d.dongchedi_msrp_rub > 0 ? (
-              <p className="rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                Ориентир новой (КНР, MSRP):{" "}
-                <span className="font-semibold tabular-nums text-foreground">
-                  {formatPriceLabel(d.dongchedi_msrp_rub)}
-                </span>
-              </p>
+              <MotionFadeUp>
+                <p className="rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                  Ориентир новой (КНР, MSRP):{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {formatPriceLabel(d.dongchedi_msrp_rub)}
+                  </span>
+                </p>
+              </MotionFadeUp>
             ) : null}
 
-            <section id="car-details" className="scroll-mt-20 sm:scroll-mt-24 lg:scroll-mt-32">
-              <CarDetailAccordions data={d as Record<string, unknown>} diagnosisPhotosCount={diagnosisPhotosCount} />
-            </section>
+            <MotionFadeUp>
+              <section id="car-details" className="scroll-mt-20 sm:scroll-mt-24 lg:scroll-mt-32">
+                <CarDetailAccordions data={d as Record<string, unknown>} diagnosisPhotosCount={diagnosisPhotosCount} />
+              </section>
+            </MotionFadeUp>
           </div>
 
           <div className="mt-6 w-full min-w-0 shrink-0 lg:w-[min(100%,380px)] xl:w-[400px]">
-            <CarPurchaseSidebar
-              carId={carId}
-              title={title}
-              priceRub={rubFinite ? rubPrice : null}
-              priceOnRequest={priceOnRequest}
-              sourceUrl={sourceUrl}
-              priceWon={priceWon != null && !Number.isNaN(priceWon) ? priceWon : null}
-              priceCny={priceCny != null && !Number.isNaN(priceCny) ? priceCny : null}
-              sourceLabel={sourceLabelStr}
-              catalogCreatedAt={catalogCreatedAt}
-              sourceUpdatedAt={sourceUpdatedAt ?? null}
-            />
+            <MotionFadeUp>
+              <CarPurchaseSidebar
+                carId={carId}
+                title={title}
+                priceRub={rubFinite ? rubPrice : null}
+                priceOnRequest={priceOnRequest}
+                sourceUrl={sourceUrl}
+                priceWon={priceWon != null && !Number.isNaN(priceWon) ? priceWon : null}
+                priceCny={priceCny != null && !Number.isNaN(priceCny) ? priceCny : null}
+                sourceLabel={sourceLabelStr}
+                catalogCreatedAt={catalogCreatedAt}
+                sourceUpdatedAt={sourceUpdatedAt ?? null}
+              />
+            </MotionFadeUp>
           </div>
         </div>
       </div>
@@ -229,7 +246,7 @@ export default async function CarPage({ params }: PageProps) {
       <CarStickyMobileBar priceLine={priceLine} />
 
       {similar.length ? (
-        <div
+        <MotionFadeUp
           id="car-similar"
           className="relative mx-auto mt-12 min-w-0 max-w-[1440px] scroll-mt-20 border-t border-border/60 px-3 pb-6 pt-8 sm:scroll-mt-24 sm:px-6 sm:pt-10 lg:scroll-mt-32 lg:px-10"
         >
@@ -237,12 +254,12 @@ export default async function CarPage({ params }: PageProps) {
             Похожие автомобили
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">Подборка по соседним позициям в каталоге</p>
-          <ul className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+          <MotionStagger className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {similar.map((car) => {
               const img = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
               const simSold = Boolean(car.encar_listing_sold);
               return (
-                <li key={car.id}>
+                <MotionStaggerItem key={car.id}>
                   <Link
                     href={`/car/${encodeURIComponent(car.id)}`}
                     className="group block min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm ring-1 ring-black/[0.03] transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md active:scale-[0.99] dark:ring-white/[0.05]"
@@ -285,11 +302,11 @@ export default async function CarPage({ params }: PageProps) {
                       </p>
                     </div>
                   </Link>
-                </li>
+                </MotionStaggerItem>
               );
             })}
-          </ul>
-        </div>
+          </MotionStagger>
+        </MotionFadeUp>
       ) : null}
     </div>
   );

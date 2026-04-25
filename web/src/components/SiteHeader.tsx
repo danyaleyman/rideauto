@@ -6,6 +6,7 @@ import { Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FavoritesDialog } from "@/components/FavoritesDialog";
 import { Button } from "@/components/ui/button";
+import { MOTION_TOKENS } from "@/components/ui/motion";
 import { Switch } from "@/components/ui/switch";
 
 export function SiteHeader() {
@@ -104,7 +105,7 @@ export function SiteHeader() {
               initial={{ opacity: 0, y: -10, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.985 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.22, ease: MOTION_TOKENS.easeSoft }}
               className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden"
             >
               <motion.nav
@@ -113,37 +114,50 @@ export function SiteHeader() {
                 animate="show"
                 variants={{
                   hidden: {},
-                  show: { transition: { staggerChildren: 0.045, delayChildren: 0.04 } },
+                  show: {
+                    transition: {
+                      staggerChildren: MOTION_TOKENS.stagger.staggerChildren + 0.005,
+                      delayChildren: MOTION_TOKENS.stagger.delayChildren + 0.01,
+                    },
+                  },
                 }}
               >
-              <Link
-                className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                href="/about"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                О компании
-              </Link>
-              <Link
-                className="rounded-lg px-2 py-2 text-primary"
-                href="/catalog?region=korea&source=encar"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Каталог
-              </Link>
-              <Link
-                className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                href="/buy"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Как купить
-              </Link>
-              <Link
-                className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                href="/contacts"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Контакты
-              </Link>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                    href="/about"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    О компании
+                  </Link>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-primary"
+                    href="/catalog?region=korea&source=encar"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Каталог
+                  </Link>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                    href="/buy"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Как купить
+                  </Link>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                    href="/contacts"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Контакты
+                  </Link>
+                </motion.div>
               </motion.nav>
 
               <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">

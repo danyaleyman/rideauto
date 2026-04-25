@@ -63,6 +63,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
@@ -633,8 +634,8 @@ const cardListVariants = {
   hidden: {},
   show: {
     transition: {
-      staggerChildren: 0.035,
-      delayChildren: 0.03,
+      staggerChildren: MOTION_TOKENS.stagger.staggerChildren - 0.005,
+      delayChildren: MOTION_TOKENS.stagger.delayChildren,
     },
   },
 };
@@ -645,7 +646,7 @@ const cardItemVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] as const },
+    transition: { duration: MOTION_TOKENS.duration.base, ease: MOTION_TOKENS.easeSoft },
   },
 };
 
@@ -1314,10 +1315,10 @@ export function CatalogClient({
                     <motion.div
                       key={`${chip.key}-${chip.value ?? idx}`}
                       layout
-                      initial={{ opacity: 0, scale: 0.94 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.94 }}
-                      transition={{ duration: 0.16, ease: "easeOut" }}
+                      initial={MOTION_PRESETS.popInInitial}
+                      animate={MOTION_PRESETS.popInAnimate}
+                      exit={MOTION_PRESETS.popInExit}
+                      transition={{ duration: MOTION_TOKENS.duration.fast, ease: "easeOut" }}
                     >
                       <Button
                         type="button"
