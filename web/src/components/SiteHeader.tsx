@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FavoritesDialog } from "@/components/FavoritesDialog";
@@ -96,9 +97,25 @@ export function SiteHeader() {
           </Button>
         </div>
 
-        {mobileMenuOpen ? (
-          <div className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden">
-            <nav className="flex flex-col gap-1 text-sm font-medium">
+        <AnimatePresence initial={false}>
+          {mobileMenuOpen ? (
+            <motion.div
+              key="mobile-menu"
+              initial={{ opacity: 0, y: -10, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.985 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden"
+            >
+              <motion.nav
+                className="flex flex-col gap-1 text-sm font-medium"
+                initial="hidden"
+                animate="show"
+                variants={{
+                  hidden: {},
+                  show: { transition: { staggerChildren: 0.045, delayChildren: 0.04 } },
+                }}
+              >
               <Link
                 className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 href="/about"
@@ -127,24 +144,25 @@ export function SiteHeader() {
               >
                 Контакты
               </Link>
-            </nav>
+              </motion.nav>
 
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">
-              <span className="text-sm text-muted-foreground">Тёмная тема</span>
-              <div className="flex items-center gap-2">
-                <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
-                <Switch
-                  checked={mounted && dark}
-                  onCheckedChange={onThemeChange}
-                  disabled={!mounted}
-                  aria-label="Переключить тёмную тему"
-                  className="data-[state=checked]:border-primary"
-                />
-                <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">
+                <span className="text-sm text-muted-foreground">Тёмная тема</span>
+                <div className="flex items-center gap-2">
+                  <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
+                  <Switch
+                    checked={mounted && dark}
+                    onCheckedChange={onThemeChange}
+                    disabled={!mounted}
+                    aria-label="Переключить тёмную тему"
+                    className="data-[state=checked]:border-primary"
+                  />
+                  <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
+                </div>
               </div>
-            </div>
-          </div>
-        ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </header>
   );

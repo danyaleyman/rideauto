@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   catalogStateKey,
@@ -627,6 +628,26 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "mileage_low", label: "Пробег: меньше" },
   { value: "mileage_high", label: "Пробег: больше" },
 ];
+
+const cardListVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.035,
+      delayChildren: 0.03,
+    },
+  },
+};
+
+const cardItemVariants = {
+  hidden: { opacity: 0, y: 12, scale: 0.995 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] as const },
+  },
+};
 
 export function CatalogClient({
   initialSearch,
@@ -1283,20 +1304,34 @@ export function CatalogClient({
               ) : null}
             </div>
             {activeChips.length ? (
-              <div className="mt-4 flex min-w-0 flex-wrap items-stretch gap-2">
-                {activeChips.map((chip, idx) => (
-                  <Button
-                    key={`${chip.key}-${chip.value ?? idx}`}
-                    type="button"
-                    variant="secondary"
-                    size="xs"
-                    className="h-auto min-h-7 max-w-full justify-start whitespace-normal rounded-full px-2.5 py-1.5 text-start text-xs font-normal [overflow-wrap:anywhere]"
-                    onClick={() => removeChip(chip)}
-                    title="Убрать фильтр"
-                  >
-                    {chip.label} ×
-                  </Button>
-                ))}
+              <motion.div
+                className="mt-4 flex min-w-0 flex-wrap items-stretch gap-2"
+                layout
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <AnimatePresence initial={false}>
+                  {activeChips.map((chip, idx) => (
+                    <motion.div
+                      key={`${chip.key}-${chip.value ?? idx}`}
+                      layout
+                      initial={{ opacity: 0, scale: 0.94 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.94 }}
+                      transition={{ duration: 0.16, ease: "easeOut" }}
+                    >
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="xs"
+                        className="h-auto min-h-7 max-w-full justify-start whitespace-normal rounded-full px-2.5 py-1.5 text-start text-xs font-normal [overflow-wrap:anywhere]"
+                        onClick={() => removeChip(chip)}
+                        title="Убрать фильтр"
+                      >
+                        {chip.label} ×
+                      </Button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
                 <Button
                   type="button"
                   size="xs"
@@ -1305,11 +1340,17 @@ export function CatalogClient({
                 >
                   Сбросить все
                 </Button>
-              </div>
+              </motion.div>
             ) : null}
           </div>
 
-          <ul className="flex flex-col gap-3">
+          <motion.ul
+            className="flex flex-col gap-3"
+            variants={cardListVariants}
+            initial="hidden"
+            animate="show"
+            key={key}
+          >
             {search.result.map((car, idx) => {
               const preview = previewImageUrls(car);
               const cardData = (car.data ?? {}) as Record<string, unknown>;
@@ -1323,7 +1364,7 @@ export function CatalogClient({
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
               return (
-                <li key={car.id}>
+                <motion.li key={car.id} variants={cardItemVariants} layout>
                   <Card
                     size="sm"
                     className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[13rem] sm:flex-row"
@@ -1532,13 +1573,13 @@ export function CatalogClient({
                       </div>
                     </div>
                   </Card>
-                </li>
+                </motion.li>
               );
             })}
             {loading && search.result.length === 0
               ? Array.from({ length: PER_PAGE }).map((_, i) => <ListRowSkeleton key={`sk-${i}`} />)
               : null}
-          </ul>
+          </motion.ul>
 
           {search.result.length === 0 && !loading ? (
             <p className="mt-16 text-center text-muted-foreground">Ничего не найдено по текущим фильтрам.</p>
