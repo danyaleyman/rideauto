@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   catalogStateKey,
@@ -657,6 +657,7 @@ export function CatalogClient({
   initialSearch: SearchResponse;
   ssrKey: string;
 }) {
+  const reduceMotion = useReducedMotion();
   const router = useRouter();
   const sp = useSearchParams();
   const spStr = sp.toString();
@@ -1347,9 +1348,9 @@ export function CatalogClient({
 
           <motion.ul
             className="flex flex-col gap-3"
-            variants={cardListVariants}
-            initial="hidden"
-            animate="show"
+            variants={reduceMotion ? undefined : cardListVariants}
+            initial={reduceMotion ? false : "hidden"}
+            animate={reduceMotion ? undefined : "show"}
             key={key}
           >
             {search.result.map((car, idx) => {
@@ -1365,7 +1366,7 @@ export function CatalogClient({
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
               return (
-                <motion.li key={car.id} variants={cardItemVariants} layout>
+                <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout>
                   <Card
                     size="sm"
                     className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[13rem] sm:flex-row"

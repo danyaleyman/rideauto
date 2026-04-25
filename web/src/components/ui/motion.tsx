@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type MotionProps } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 
 export const MOTION_TOKENS = {
@@ -36,18 +36,23 @@ export function MotionFadeUp({
   className,
   delay = 0,
   ...props
-}: MotionProps & {
+}: React.ComponentProps<typeof motion.div> & {
   children: ReactNode;
   className?: string;
   delay?: number;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
       className={className}
-      initial={MOTION_PRESETS.fadeUpInitial}
+      initial={reduceMotion ? false : MOTION_PRESETS.fadeUpInitial}
       whileInView={MOTION_PRESETS.fadeUpAnimate}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ ...MOTION_PRESETS.revealTransition, delay }}
+      transition={
+        reduceMotion
+          ? { duration: 0.01 }
+          : { ...MOTION_PRESETS.revealTransition, delay }
+      }
       {...props}
     >
       {children}
@@ -66,19 +71,24 @@ export function MotionStagger({
   className?: string;
   delayChildren?: number;
   staggerChildren?: number;
-} & MotionProps) {
+} & React.ComponentProps<typeof motion.div>) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
       className={className}
-      initial="hidden"
-      whileInView="show"
+      initial={reduceMotion ? false : "hidden"}
+      whileInView={reduceMotion ? undefined : "show"}
       viewport={{ once: true, margin: "-80px" }}
-      variants={{
-        hidden: {},
-        show: {
-          transition: { delayChildren, staggerChildren },
-        },
-      }}
+      variants={
+        reduceMotion
+          ? undefined
+          : {
+              hidden: {},
+              show: {
+                transition: { delayChildren, staggerChildren },
+              },
+            }
+      }
       {...props}
     >
       {children}
@@ -93,19 +103,24 @@ export function MotionStaggerItem({
 }: {
   children: ReactNode;
   className?: string;
-} & MotionProps) {
+} & React.ComponentProps<typeof motion.div>) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
       className={className}
-      variants={{
-        hidden: { opacity: 0, y: MOTION_TOKENS.offsets.fadeUpSm, scale: 0.995 },
-        show: {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          transition: { duration: MOTION_TOKENS.duration.base, ease: MOTION_TOKENS.easeSoft },
-        },
-      }}
+      variants={
+        reduceMotion
+          ? undefined
+          : {
+              hidden: { opacity: 0, y: MOTION_TOKENS.offsets.fadeUpSm, scale: 0.995 },
+              show: {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                transition: { duration: MOTION_TOKENS.duration.base, ease: MOTION_TOKENS.easeSoft },
+              },
+            }
+      }
       {...props}
     >
       {children}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FavoritesDialog } from "@/components/FavoritesDialog";
@@ -10,6 +10,7 @@ import { MOTION_TOKENS } from "@/components/ui/motion";
 import { Switch } from "@/components/ui/switch";
 
 export function SiteHeader() {
+  const reduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   const [dark, setDark] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -102,16 +103,16 @@ export function SiteHeader() {
           {mobileMenuOpen ? (
             <motion.div
               key="mobile-menu"
-              initial={{ opacity: 0, y: -10, scale: 0.985 }}
+              initial={reduceMotion ? false : { opacity: 0, y: -10, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.985 }}
-              transition={{ duration: 0.22, ease: MOTION_TOKENS.easeSoft }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.985 }}
+              transition={reduceMotion ? { duration: 0.01 } : { duration: 0.22, ease: MOTION_TOKENS.easeSoft }}
               className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden"
             >
               <motion.nav
                 className="flex flex-col gap-1 text-sm font-medium"
-                initial="hidden"
-                animate="show"
+                initial={reduceMotion ? false : "hidden"}
+                animate={reduceMotion ? undefined : "show"}
                 variants={{
                   hidden: {},
                   show: {

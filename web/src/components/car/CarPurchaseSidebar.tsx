@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useState } from "react";
 import { Check, Copy, ExternalLink, Heart } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -60,6 +60,7 @@ export function CarPurchaseSidebar({
   catalogCreatedAt,
   sourceUpdatedAt,
 }: Props) {
+  const reduceMotion = useReducedMotion();
   const { toggle, isFavorite } = useFavorites();
   const fav = isFavorite(carId);
   const [copied, setCopied] = useState(false);
@@ -97,10 +98,10 @@ export function CarPurchaseSidebar({
     <motion.aside
       id="car-order-panel"
       className="relative max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.08] sm:rounded-3xl sm:p-6 lg:sticky lg:top-24"
-      initial={{ opacity: 0, y: MOTION_TOKENS.offsets.fadeUpSm }}
+      initial={reduceMotion ? false : { opacity: 0, y: MOTION_TOKENS.offsets.fadeUpSm }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.3, ease: MOTION_TOKENS.easeSoft }}
+      transition={reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: MOTION_TOKENS.easeSoft }}
     >
       <h2 className="sr-only">Цена и заказ</h2>
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Стоимость в России под ключ</p>
@@ -161,7 +162,7 @@ export function CarPurchaseSidebar({
       </div>
 
       <div className="mt-6 flex flex-col gap-2.5">
-        <motion.div {...MOTION_PRESETS.pressable}>
+        <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
           <Button
             className="h-11 w-full rounded-xl bg-blue-600 text-[15px] font-semibold text-white shadow-sm hover:bg-blue-700"
             asChild
@@ -172,7 +173,7 @@ export function CarPurchaseSidebar({
 
         <Dialog>
           <DialogTrigger asChild>
-            <motion.div {...MOTION_PRESETS.pressable}>
+            <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
               <Button variant="outline" className="h-11 w-full rounded-xl border-border/80 font-medium shadow-sm">
                 Подробный расчёт
               </Button>
