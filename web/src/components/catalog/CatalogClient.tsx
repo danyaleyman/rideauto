@@ -37,6 +37,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -76,6 +86,7 @@ import {
   Fuel,
   Gauge,
   Heart,
+  LayoutGrid,
   Settings2,
   Sparkles,
   Zap,
@@ -362,6 +373,117 @@ const COLOR_SWATCH_BY_NAME: Array<{ re: RegExp; className: string }> = [
 function colorSwatchClass(colorName: string): string {
   const match = COLOR_SWATCH_BY_NAME.find((item) => item.re.test(colorName));
   return match?.className ?? "bg-gradient-to-br from-slate-200 to-slate-500";
+}
+
+function ColorFacetDialog({
+  label,
+  rows,
+  selected,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  rows: FacetRow[];
+  selected: Set<string>;
+  onToggle: (values: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const groupedRows = useMemo(() => groupFacetRows(rows), [rows]);
+  const filtered = useMemo(
+    () =>
+      !q.trim()
+        ? groupedRows
+        : groupedRows.filter((r) => r.label.toLowerCase().includes(q.trim().toLowerCase())),
+    [groupedRows, q],
+  );
+  const n = groupedRows.filter((r) => r.values.some((v) => selected.has(v))).length;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setQ("");
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled || !groupedRows.length}
+          className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
+        >
+          <span className="min-w-0 text-start [overflow-wrap:anywhere]">
+            {label}
+            {n > 0 ? (
+              <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
+            ) : null}
+          </span>
+          <LayoutGrid className="size-4 shrink-0 opacity-50" aria-hidden />
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        showCloseButton
+        className="flex max-h-[min(90vh,44rem)] w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      >
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 pt-6 pb-4 pe-14">
+          <DialogTitle>{label}</DialogTitle>
+          <DialogDescription>Можно выбрать несколько</DialogDescription>
+        </DialogHeader>
+        <div className="shrink-0 border-b border-border px-6 py-3">
+          <Input
+            placeholder="Поиск…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-9 rounded-xl"
+          />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+          {filtered.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Нет совпадений</p>
+          ) : (
+            <div className="columns-2 gap-x-3 [column-fill:_balance] sm:columns-3 md:columns-4">
+              {filtered.map((r) => {
+                const active = r.values.some((v) => selected.has(v));
+                return (
+                  <div key={r.label} className="mb-2 break-inside-avoid">
+                    <Button
+                      type="button"
+                      variant={active ? "default" : "secondary"}
+                      size="sm"
+                      className="h-auto min-h-9 w-full justify-start gap-2 rounded-xl px-2.5 py-1.5 text-start font-normal"
+                      onClick={() => onToggle(r.values)}
+                    >
+                      <span
+                        className={cn(
+                          "size-3.5 shrink-0 rounded-full",
+                          colorSwatchClass(r.label),
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{r.label}</span>
+                      <span className="shrink-0 tabular-nums text-xs opacity-80">
+                        {r.count.toLocaleString("ru-RU")}
+                      </span>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+          <DialogClose asChild>
+            <Button type="button" variant="secondary" className="w-full sm:w-auto">
+              Закрыть
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function SortDropdown({
@@ -1252,7 +1374,7 @@ export function CatalogClient({
                           })}
                         </div>
                       </div>
-                      <FacetMultiDropdown
+                      <ColorFacetDialog
                         label="Все цвета"
                         rows={facets.colors}
                         selected={new Set(state.color)}
