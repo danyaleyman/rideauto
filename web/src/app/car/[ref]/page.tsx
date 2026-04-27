@@ -206,17 +206,6 @@ export default async function CarPage({ params }: PageProps) {
               </MotionFadeUp>
             ) : null}
 
-            {typeof d.dongchedi_msrp_rub === "number" && d.dongchedi_msrp_rub > 0 ? (
-              <MotionFadeUp>
-                <p className="rounded-2xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Ориентир новой (КНР, MSRP):{" "}
-                  <span className="font-semibold tabular-nums text-foreground">
-                    {formatPriceLabel(d.dongchedi_msrp_rub)}
-                  </span>
-                </p>
-              </MotionFadeUp>
-            ) : null}
-
             <MotionFadeUp>
               <section id="car-details" className="scroll-mt-20 sm:scroll-mt-24 lg:scroll-mt-32">
                 <CarDetailAccordions data={d as Record<string, unknown>} diagnosisPhotosCount={diagnosisPhotosCount} />

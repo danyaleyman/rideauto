@@ -118,7 +118,7 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   const u = new URLSearchParams();
   if (state.market === "china") {
     u.set("region", "china");
-    u.set("source", "china");
+    u.set("source", "dongchedi");
   } else {
     u.set("region", "korea");
     u.set("source", "encar");
@@ -156,7 +156,7 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   p.set("per_page", String(PER_PAGE));
   if (state.market === "china") {
     p.set("region", "china");
-    p.set("source", "china");
+    p.set("source", "dongchedi");
   } else {
     p.set("region", "korea");
     p.set("source", "encar");

@@ -178,6 +178,24 @@ function parseJson(v: unknown): unknown {
   }
 }
 
+function collectDongchediRecommendedFallback(d: Record<string, unknown>): string[] {
+  const raw = d.high_light_config;
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const item = entry as Record<string, unknown>;
+    const candidate = asStr(item.name) ?? asStr(item.title) ?? asStr(item.value);
+    if (!candidate) continue;
+    const ru = localizeDongchediOptionText(candidate);
+    if (!ru || seen.has(ru)) continue;
+    seen.add(ru);
+    out.push(ru);
+  }
+  return out;
+}
+
 function StructuredRowsSection({
   rows,
 }: {
@@ -326,8 +344,9 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   const standard = options?.standard;
   const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
   const dongchediRecommendedRaw = parseJson(d.dongchedi_recommended_options);
+  const dongchediRecommendedFallback = useMemo(() => collectDongchediRecommendedFallback(d), [d]);
   const dongchediRecommended = useMemo(() => {
-    if (!Array.isArray(dongchediRecommendedRaw)) return [] as string[];
+    if (!Array.isArray(dongchediRecommendedRaw)) return dongchediRecommendedFallback;
     const out: string[] = [];
     const seen = new Set<string>();
     for (const item of dongchediRecommendedRaw) {
@@ -336,8 +355,8 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       seen.add(ru);
       out.push(ru);
     }
-    return out;
-  }, [dongchediRecommendedRaw]);
+    return out.length ? out : dongchediRecommendedFallback;
+  }, [dongchediRecommendedRaw, dongchediRecommendedFallback]);
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
   const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);

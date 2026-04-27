@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import random
+import re
 import sys
 import time
 from dataclasses import dataclass, fields
@@ -66,6 +67,39 @@ class ScrapeConfig:
     browser_timeout_s: float = 25.0
     browser_concurrency: int = 2
     proxy_urls: Optional[List[str]] = None
+    # Устойчивость list endpoint (часто падает на отдельных прокси/ASN).
+    list_retries: int = 6
+    proxy_probe_enabled: bool = True
+    proxy_probe_timeout_s: float = 15.0
+    proxy_probe_brand_id: Optional[str] = "1"
+
+
+_PROXY_IPV6_RE = re.compile(r"^http://[^:@\s]+:[^@\s]+@\[[0-9a-fA-F:]+\]:(\d{2,5})$")
+
+
+def _normalize_proxy_urls(raw_urls: Optional[List[str]]) -> List[str]:
+    out: List[str] = []
+    seen: Set[str] = set()
+    for x in raw_urls or []:
+        s = str(x or "").strip()
+        if not s:
+            continue
+        # Защита от копипаста с обрезанными host вида "...".
+        if "..." in s:
+            continue
+        if not s.startswith("http://"):
+            continue
+        # Базовая валидация user:pass@host:port.
+        if "@" not in s:
+            continue
+        # Частый кейс: IPv6 без [] — пропускаем только корректный вариант.
+        if s.count(":") > 3 and "[" not in s and "]" not in s:
+            continue
+        if s in seen:
+            continue
+        seen.add(s)
+        out.append(s)
+    return out
 
 
 def _clamp_limit(v: int) -> int:
@@ -113,7 +147,7 @@ def config_from_mapping(raw: Dict[str, Any], defaults: Optional[ScrapeConfig] = 
         base.brand_ids = [str(x).strip() for x in raw_brand_ids if str(x).strip()]
     raw_proxy_urls = m.pop("proxy_urls", None)
     if isinstance(raw_proxy_urls, list):
-        base.proxy_urls = [str(x).strip() for x in raw_proxy_urls if str(x).strip()]
+        base.proxy_urls = _normalize_proxy_urls([str(x).strip() for x in raw_proxy_urls if str(x).strip()])
     if m.pop("no_checkpoint", False):
         base.persist_checkpoint = False
     known = {f.name for f in fields(ScrapeConfig)}
@@ -235,7 +269,25 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
     headers = _headers_with_cookie(cfg.cookie)
     timeout = aiohttp.ClientTimeout(total=cfg.request_timeout_s + 35)
     connector = aiohttp.TCPConnector(limit=max(12, cfg.concurrency + cfg.detail_concurrency))
-    proxy_pool = [str(p).strip() for p in (cfg.proxy_urls or []) if str(p).strip()]
+    proxy_pool = _normalize_proxy_urls([str(p).strip() for p in (cfg.proxy_urls or []) if str(p).strip()])
+
+    async def probe_proxy(url: str) -> bool:
+        # Быстрый health-check листинга, чтобы отсеять мёртвые прокси до старта.
+        st, payload = await post_sku_list(
+            session,
+            page=1,
+            limit=max(10, min(30, page_sz)),
+            brand_id=(cfg.proxy_probe_brand_id or None),
+            sh_city_name=cfg.sh_city_name,
+            age_range=cfg.age_range,
+            timeout_s=cfg.proxy_probe_timeout_s,
+            proxy=url,
+        )
+        if st != 200 or not isinstance(payload, dict):
+            return False
+        data = payload.get("data") or {}
+        rows = data.get("search_sh_sku_info_list")
+        return isinstance(rows, list)
 
     def pick_proxy() -> Optional[str]:
         if not proxy_pool:
@@ -288,6 +340,17 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
             cfg.shard_brands,
         )
     async with aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector) as session:
+        if proxy_pool and cfg.proxy_probe_enabled:
+            log.info("proxy probe: checking %s proxies for list endpoint", len(proxy_pool))
+            checked = await asyncio.gather(*(probe_proxy(p) for p in proxy_pool))
+            ok = [p for p, good in zip(proxy_pool, checked) if good]
+            bad_n = len(proxy_pool) - len(ok)
+            if ok:
+                proxy_pool = ok
+                log.info("proxy probe: %s healthy, %s rejected", len(ok), bad_n)
+            else:
+                log.warning("proxy probe: no healthy proxies, fallback to direct requests")
+                proxy_pool = []
 
         async def detail_for(sku: str) -> Optional[Dict[str, Any]]:
             """Несколько попыток: антибот/обрыв отдачи часто дают HTML без skuDetail."""
@@ -353,7 +416,8 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                 if cp_path and cfg.persist_checkpoint:
                     await asyncio.to_thread(_checkpoint_save, cp_path, global_shard_1based, page)
                 status, payload = 0, None
-                for list_try in range(3):
+                list_tries = max(1, int(cfg.list_retries))
+                for list_try in range(list_tries):
                     async with list_sem:
                         status, payload = await post_sku_list(
                             session,
@@ -367,15 +431,16 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                         )
                     if status == 200 and payload:
                         break
-                    if list_try < 2:
+                    if list_try < list_tries - 1:
                         log.warning(
-                            "list retry %s/3 page %s brand=%s http=%s (empty or non-json body)",
+                            "list retry %s/%s page %s brand=%s http=%s (empty or non-json body)",
                             list_try + 1,
+                            list_tries,
                             page,
                             brand_for_list,
                             status,
                         )
-                        await asyncio.sleep(0.45 * (list_try + 1))
+                        await asyncio.sleep(min(12.0, 0.7 * float(list_try + 1)))
 
                 if status != 200 or not payload:
                     log.warning(
@@ -545,6 +610,11 @@ def main(argv: Optional[List[str]] = None) -> None:
     p.add_argument("--page-size", type=int, default=None, help="1–100 на запрос")
     p.add_argument("--concurrency", type=int, default=None)
     p.add_argument("--detail-concurrency", type=int, default=None)
+    p.add_argument("--request-timeout-s", type=float, default=None, help="HTTP timeout for list/detail (sec)")
+    p.add_argument("--list-retries", type=int, default=None, help="Retries per list page when body is empty/non-json")
+    p.add_argument("--no-proxy-probe", action="store_true", help="Disable pre-run proxy health probe")
+    p.add_argument("--proxy-probe-timeout-s", type=float, default=None, help="Timeout for single proxy probe (sec)")
+    p.add_argument("--proxy-probe-brand-id", type=str, default=None, help="Brand id used by proxy probe list call")
     p.add_argument("--no-enrich-detail", action="store_true", help="Без запроса карточек (без my_price)")
     p.add_argument(
         "--browser-fallback",
@@ -608,6 +678,16 @@ def main(argv: Optional[List[str]] = None) -> None:
         cfg.concurrency = args.concurrency
     if args.detail_concurrency is not None:
         cfg.detail_concurrency = args.detail_concurrency
+    if args.request_timeout_s is not None:
+        cfg.request_timeout_s = max(10.0, float(args.request_timeout_s))
+    if args.list_retries is not None:
+        cfg.list_retries = max(1, int(args.list_retries))
+    if args.no_proxy_probe:
+        cfg.proxy_probe_enabled = False
+    if args.proxy_probe_timeout_s is not None:
+        cfg.proxy_probe_timeout_s = max(3.0, float(args.proxy_probe_timeout_s))
+    if args.proxy_probe_brand_id is not None:
+        cfg.proxy_probe_brand_id = (args.proxy_probe_brand_id or "").strip() or None
     if args.no_enrich_detail:
         cfg.enrich_detail = False
     if args.browser_fallback:

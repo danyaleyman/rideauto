@@ -209,6 +209,8 @@ def build_meilisearch_filter(
         now = datetime.now(timezone.utc)
         ym_5y = (now.year - 5) * 100 + now.month
         ym_3y = (now.year - 3) * 100 + now.month
+        y_from = now.year - 5
+        y_to = now.year - 3
         ym_from = _shift_ym(ym_5y, +1)
         ym_to = _shift_ym(ym_3y, -1)
         ord_from = (ym_from // 100) * 12 + (ym_from % 100 - 1)
@@ -223,7 +225,8 @@ def build_meilisearch_filter(
             "("
             f"(year_month >= {ym_from} AND year_month <= {ym_to}) OR "
             f"(year_month >= {ord_from} AND year_month <= {ord_to}) OR "
-            f"(year >= {ym_from} AND year <= {ym_to})"
+            f"(year >= {ym_from} AND year <= {ym_to}) OR "
+            f"(year >= {y_from} AND year <= {y_to})"
             ")"
         )
 

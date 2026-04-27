@@ -43,7 +43,18 @@ function isLikelyNonPhoto(url: string): boolean {
 }
 
 function collectRawImageUrls(raw: Record<string, unknown>): string[] {
-  const fields: unknown[] = [raw.image, raw.img, raw.photo, raw.images, raw.h_images];
+  const fields: unknown[] = [
+    raw.cover,
+    raw.cover_image,
+    raw.coverImage,
+    raw.main_image,
+    raw.mainImage,
+    raw.image,
+    raw.img,
+    raw.photo,
+    raw.images,
+    raw.h_images,
+  ];
   const out: string[] = [];
   for (const field of fields) {
     const value = unwrapJsonStrings(parseJsonMaybe(field));
