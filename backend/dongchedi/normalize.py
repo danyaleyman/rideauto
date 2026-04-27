@@ -177,6 +177,30 @@ def _param_pairs_from_detail(detail: Optional[Dict[str, Any]]) -> Dict[str, str]
     return out
 
 
+def _highlight_options_from_detail(detail: Optional[Dict[str, Any]]) -> list[str]:
+    """
+    Опции из блока 推荐理由/亮点配置.
+    В skuDetail обычно приходят как high_light_config[].name.
+    """
+    if not detail or not isinstance(detail, dict):
+        return []
+    raw = detail.get("high_light_config")
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        if isinstance(item, dict):
+            name = str(item.get("name") or "").strip()
+        else:
+            name = str(item or "").strip()
+        if not name or len(name) > 80 or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
+
+
 def _parse_register_year_month(s: str) -> tuple[str, str]:
     """'2019年06月' → ('2019', '201906'). Пустые строки если не распознано."""
     m = _REG_YM_RE.search(s or "")
@@ -902,6 +926,9 @@ def sku_row_to_payload(
     itext = _first_nonempty_str((detail or {}).get("important_text")) if detail else ""
     if itext:
         data["dongchedi_summary"] = itext
+    options = _highlight_options_from_detail(detail)
+    if options:
+        data["dongchedi_recommended_options"] = json.dumps(options, ensure_ascii=False)
     if km_age is None and itext:
         km_age = _km_from_mileage_str(itext)
     if km_age is None:

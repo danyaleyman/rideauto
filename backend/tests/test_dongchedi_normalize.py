@@ -431,6 +431,45 @@ def test_detail_other_params_car_config_and_listing_meta():
     assert "https://example.com/h1.jpg" in imgs
 
 
+def test_sku_row_extracts_recommended_options_from_high_light_config():
+    row = {
+        "sku_id": 22764429,
+        "title": "捷豹XEL",
+        "brand_name": "捷豹",
+        "series_name": "XEL",
+        "car_year": 2020,
+        "car_mileage": "3.11万公里",
+        "image": "https://example.com/jaguar.jpg",
+    }
+    detail = {
+        "high_light_config": [
+            {"name": "自动泊车入位"},
+            {"name": "上坡辅助"},
+            {"name": "定速巡航"},
+            {"name": "驻车雷达"},
+            {"name": "倒车影像"},
+            {"name": "语音识别控制系统"},
+            {"name": "车联网"},
+            {"name": "道路救援服务"},
+            {"name": "上坡辅助"},
+            {"name": ""},
+        ]
+    }
+    out = sku_row_to_payload(row, detail=detail, cny_to_rub=13.0)
+    d = out["data"]
+    opts = json.loads(d["dongchedi_recommended_options"])
+    assert opts == [
+        "自动泊车入位",
+        "上坡辅助",
+        "定速巡航",
+        "驻车雷达",
+        "倒车影像",
+        "语音识别控制系统",
+        "车联网",
+        "道路救援服务",
+    ]
+
+
 def test_sku_row_params_raw_merges_msrp_and_specs_url():
     row = {
         "sku_id": 23134642,

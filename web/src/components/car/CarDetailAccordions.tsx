@@ -34,6 +34,7 @@ import {
   displayEncarStandardOption,
   localizeEncarOptionText,
 } from "@/lib/encar-options-display";
+import { localizeDongchediOptionText } from "@/lib/dongchedi-option-ru-table";
 import { translateTextClient } from "@/lib/client-api";
 
 function localizeLabel(label: string): string {
@@ -319,9 +320,24 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
 }
 
 function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
+  const source = (asStr(d.source) || "").toLowerCase();
+  const isDongchedi = source === "dongchedi" || source === "china";
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
   const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
+  const dongchediRecommendedRaw = parseJson(d.dongchedi_recommended_options);
+  const dongchediRecommended = useMemo(() => {
+    if (!Array.isArray(dongchediRecommendedRaw)) return [] as string[];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const item of dongchediRecommendedRaw) {
+      const ru = localizeDongchediOptionText(typeof item === "string" ? item : item != null ? String(item) : "");
+      if (!ru || seen.has(ru)) continue;
+      seen.add(ru);
+      out.push(ru);
+    }
+    return out;
+  }, [dongchediRecommendedRaw]);
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
   const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);
@@ -351,9 +367,26 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     if (!selectedCodes.size) return true;
     return selectedCodes.has(s);
   });
+  const hasAnyRenderedOptions = dongchediRecommended.length > 0 || selectedLabels.length > 0;
 
   return (
     <div className="space-y-5">
+      {isDongchedi && dongchediRecommended.length > 0 ? (
+        <div>
+          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции конкретного авто</h4>
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {dongchediRecommended.map((label, i) => (
+              <li
+                key={i}
+                className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs leading-snug transition-colors hover:bg-emerald-500/10"
+              >
+                {label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {selectedLabels.length > 0 ? (
         <div>
           <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции конкретного авто</h4>
@@ -368,9 +401,9 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
             ))}
           </ul>
         </div>
-      ) : (
+      ) : !hasAnyRenderedOptions ? (
         <p className="text-sm text-muted-foreground">По этой карточке опции не распознаны.</p>
-      )}
+      ) : null}
 
       {staticCodesFiltered.length > 0 ? (
         <details className="rounded-xl border border-border/45 bg-muted/10 p-3">
