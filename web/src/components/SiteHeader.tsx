@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FavoritesDialog } from "@/components/FavoritesDialog";
 import { Button } from "@/components/ui/button";
+import { MOTION_TOKENS } from "@/components/ui/motion";
 import { Switch } from "@/components/ui/switch";
 
 export function SiteHeader() {
+  const reduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   const [dark, setDark] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -96,55 +99,85 @@ export function SiteHeader() {
           </Button>
         </div>
 
-        {mobileMenuOpen ? (
-          <div className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden">
-            <nav className="flex flex-col gap-1 text-sm font-medium">
-              <Link
-                className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                href="/about"
-                onClick={() => setMobileMenuOpen(false)}
+        <AnimatePresence initial={false}>
+          {mobileMenuOpen ? (
+            <motion.div
+              key="mobile-menu"
+              initial={reduceMotion ? false : { opacity: 0, y: -10, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.985 }}
+              transition={reduceMotion ? { duration: 0.01 } : { duration: 0.22, ease: MOTION_TOKENS.easeSoft }}
+              className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden"
+            >
+              <motion.nav
+                className="flex flex-col gap-1 text-sm font-medium"
+                initial={reduceMotion ? false : "hidden"}
+                animate={reduceMotion ? undefined : "show"}
+                variants={{
+                  hidden: {},
+                  show: {
+                    transition: {
+                      staggerChildren: MOTION_TOKENS.stagger.staggerChildren + 0.005,
+                      delayChildren: MOTION_TOKENS.stagger.delayChildren + 0.01,
+                    },
+                  },
+                }}
               >
-                О компании
-              </Link>
-              <Link
-                className="rounded-lg px-2 py-2 text-primary"
-                href="/catalog?region=korea&source=encar"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Каталог
-              </Link>
-              <Link
-                className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                href="/buy"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Как купить
-              </Link>
-              <Link
-                className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                href="/contacts"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Контакты
-              </Link>
-            </nav>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                    href="/about"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    О компании
+                  </Link>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-primary"
+                    href="/catalog?region=korea&source=encar"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Каталог
+                  </Link>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                    href="/buy"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Как купить
+                  </Link>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                    href="/contacts"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Контакты
+                  </Link>
+                </motion.div>
+              </motion.nav>
 
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">
-              <span className="text-sm text-muted-foreground">Тёмная тема</span>
-              <div className="flex items-center gap-2">
-                <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
-                <Switch
-                  checked={mounted && dark}
-                  onCheckedChange={onThemeChange}
-                  disabled={!mounted}
-                  aria-label="Переключить тёмную тему"
-                  className="data-[state=checked]:border-primary"
-                />
-                <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">
+                <span className="text-sm text-muted-foreground">Тёмная тема</span>
+                <div className="flex items-center gap-2">
+                  <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
+                  <Switch
+                    checked={mounted && dark}
+                    onCheckedChange={onThemeChange}
+                    disabled={!mounted}
+                    aria-label="Переключить тёмную тему"
+                    className="data-[state=checked]:border-primary"
+                  />
+                  <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
+                </div>
               </div>
-            </div>
-          </div>
-        ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </header>
   );

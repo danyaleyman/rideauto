@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   catalogStateKey,
@@ -36,6 +37,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -62,6 +73,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
@@ -74,6 +86,7 @@ import {
   Fuel,
   Gauge,
   Heart,
+  LayoutGrid,
   Settings2,
   Sparkles,
   Zap,
@@ -362,6 +375,117 @@ function colorSwatchClass(colorName: string): string {
   return match?.className ?? "bg-gradient-to-br from-slate-200 to-slate-500";
 }
 
+function ColorFacetDialog({
+  label,
+  rows,
+  selected,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  rows: FacetRow[];
+  selected: Set<string>;
+  onToggle: (values: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const groupedRows = useMemo(() => groupFacetRows(rows), [rows]);
+  const filtered = useMemo(
+    () =>
+      !q.trim()
+        ? groupedRows
+        : groupedRows.filter((r) => r.label.toLowerCase().includes(q.trim().toLowerCase())),
+    [groupedRows, q],
+  );
+  const n = groupedRows.filter((r) => r.values.some((v) => selected.has(v))).length;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setQ("");
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled || !groupedRows.length}
+          className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
+        >
+          <span className="min-w-0 text-start [overflow-wrap:anywhere]">
+            {label}
+            {n > 0 ? (
+              <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
+            ) : null}
+          </span>
+          <LayoutGrid className="size-4 shrink-0 opacity-50" aria-hidden />
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        showCloseButton
+        className="flex max-h-[min(90vh,44rem)] w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      >
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 pt-6 pb-4 pe-14">
+          <DialogTitle>{label}</DialogTitle>
+          <DialogDescription>Можно выбрать несколько</DialogDescription>
+        </DialogHeader>
+        <div className="shrink-0 border-b border-border px-6 py-3">
+          <Input
+            placeholder="Поиск…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-9 rounded-xl"
+          />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+          {filtered.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Нет совпадений</p>
+          ) : (
+            <div className="columns-2 gap-x-3 [column-fill:_balance] sm:columns-3 md:columns-4">
+              {filtered.map((r) => {
+                const active = r.values.some((v) => selected.has(v));
+                return (
+                  <div key={r.label} className="mb-2 break-inside-avoid">
+                    <Button
+                      type="button"
+                      variant={active ? "default" : "secondary"}
+                      size="sm"
+                      className="h-auto min-h-9 w-full justify-start gap-2 rounded-xl px-2.5 py-1.5 text-start font-normal"
+                      onClick={() => onToggle(r.values)}
+                    >
+                      <span
+                        className={cn(
+                          "size-3.5 shrink-0 rounded-full",
+                          colorSwatchClass(r.label),
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{r.label}</span>
+                      <span className="shrink-0 tabular-nums text-xs opacity-80">
+                        {r.count.toLocaleString("ru-RU")}
+                      </span>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+          <DialogClose asChild>
+            <Button type="button" variant="secondary" className="w-full sm:w-auto">
+              Закрыть
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SortDropdown({
   value,
   onChange,
@@ -628,6 +752,26 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "mileage_high", label: "Пробег: больше" },
 ];
 
+const cardListVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: MOTION_TOKENS.stagger.staggerChildren - 0.005,
+      delayChildren: MOTION_TOKENS.stagger.delayChildren,
+    },
+  },
+};
+
+const cardItemVariants = {
+  hidden: { opacity: 0, y: 12, scale: 0.995 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: MOTION_TOKENS.duration.base, ease: MOTION_TOKENS.easeSoft },
+  },
+};
+
 export function CatalogClient({
   initialSearch,
   ssrKey,
@@ -635,6 +779,7 @@ export function CatalogClient({
   initialSearch: SearchResponse;
   ssrKey: string;
 }) {
+  const reduceMotion = useReducedMotion();
   const router = useRouter();
   const sp = useSearchParams();
   const spStr = sp.toString();
@@ -1229,7 +1374,7 @@ export function CatalogClient({
                           })}
                         </div>
                       </div>
-                      <FacetMultiDropdown
+                      <ColorFacetDialog
                         label="Все цвета"
                         rows={facets.colors}
                         selected={new Set(state.color)}
@@ -1283,20 +1428,34 @@ export function CatalogClient({
               ) : null}
             </div>
             {activeChips.length ? (
-              <div className="mt-4 flex min-w-0 flex-wrap items-stretch gap-2">
-                {activeChips.map((chip, idx) => (
-                  <Button
-                    key={`${chip.key}-${chip.value ?? idx}`}
-                    type="button"
-                    variant="secondary"
-                    size="xs"
-                    className="h-auto min-h-7 max-w-full justify-start whitespace-normal rounded-full px-2.5 py-1.5 text-start text-xs font-normal [overflow-wrap:anywhere]"
-                    onClick={() => removeChip(chip)}
-                    title="Убрать фильтр"
-                  >
-                    {chip.label} ×
-                  </Button>
-                ))}
+              <motion.div
+                className="mt-4 flex min-w-0 flex-wrap items-stretch gap-2"
+                layout
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <AnimatePresence initial={false}>
+                  {activeChips.map((chip, idx) => (
+                    <motion.div
+                      key={`${chip.key}-${chip.value ?? idx}`}
+                      layout
+                      initial={MOTION_PRESETS.popInInitial}
+                      animate={MOTION_PRESETS.popInAnimate}
+                      exit={MOTION_PRESETS.popInExit}
+                      transition={{ duration: MOTION_TOKENS.duration.fast, ease: "easeOut" }}
+                    >
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="xs"
+                        className="h-auto min-h-7 max-w-full justify-start whitespace-normal rounded-full px-2.5 py-1.5 text-start text-xs font-normal [overflow-wrap:anywhere]"
+                        onClick={() => removeChip(chip)}
+                        title="Убрать фильтр"
+                      >
+                        {chip.label} ×
+                      </Button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
                 <Button
                   type="button"
                   size="xs"
@@ -1305,11 +1464,17 @@ export function CatalogClient({
                 >
                   Сбросить все
                 </Button>
-              </div>
+              </motion.div>
             ) : null}
           </div>
 
-          <ul className="flex flex-col gap-3">
+          <motion.ul
+            className="flex flex-col gap-3"
+            variants={reduceMotion ? undefined : cardListVariants}
+            initial={reduceMotion ? false : "hidden"}
+            animate={reduceMotion ? undefined : "show"}
+            key={key}
+          >
             {search.result.map((car, idx) => {
               const preview = previewImageUrls(car);
               const cardData = (car.data ?? {}) as Record<string, unknown>;
@@ -1323,7 +1488,7 @@ export function CatalogClient({
               const fav = isFavorite(car.id);
               const showCopied = copiedId === car.id;
               return (
-                <li key={car.id}>
+                <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout>
                   <Card
                     size="sm"
                     className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[13rem] sm:flex-row"
@@ -1532,13 +1697,13 @@ export function CatalogClient({
                       </div>
                     </div>
                   </Card>
-                </li>
+                </motion.li>
               );
             })}
             {loading && search.result.length === 0
               ? Array.from({ length: PER_PAGE }).map((_, i) => <ListRowSkeleton key={`sk-${i}`} />)
               : null}
-          </ul>
+          </motion.ul>
 
           {search.result.length === 0 && !loading ? (
             <p className="mt-16 text-center text-muted-foreground">Ничего не найдено по текущим фильтрам.</p>

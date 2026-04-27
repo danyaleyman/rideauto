@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { MotionFadeUp } from "@/components/ui/motion";
 
 /** Общие стили юр. страниц. */
 export function DocLegalChrome({ children }: { children: ReactNode }) {
@@ -22,7 +25,7 @@ export function DocLegalChrome({ children }: { children: ReactNode }) {
         .legal-back { margin-top: 22px; }
         .legal-page a { color: #1d4ed8; font-weight: 500; }
       `}</style>
-      <div className="wra-page-gray doc-legal-page">{children}</div>
+      <MotionFadeUp className="wra-page-gray doc-legal-page">{children}</MotionFadeUp>
     </>
   );
 }
