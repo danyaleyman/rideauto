@@ -6,7 +6,7 @@
 # Проверка БД: см. вывод «Проверка последних записей» в конце (PostgreSQL).
 set -euo pipefail
 
-ROOT="${ROOT:-/opt/prod-encar}"
+ROOT="${ROOT:-/opt/rideauto}"
 PY="${PY:-$ROOT/.venv/bin/python}"
 PG_DSN="${DATABASE_URL:-}"
 YAML_CAND=(

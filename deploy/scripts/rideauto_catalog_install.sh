@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Единый ночной Encar-каталог для rideauto: только prod-encar-auto-update.{service,timer}.
+# Единый ночной Encar-каталог для rideauto: только rideauto-auto-update.{service,timer}.
 # Снимает устаревшие encar-update.* (дубликат того же encar_daily_update), копирует актуальные юниты, reload.
 #
-#   sudo bash /opt/prod-encar/deploy/scripts/prod_encar_catalog_install.sh
+#   sudo bash /opt/rideauto/deploy/scripts/rideauto_catalog_install.sh
 #
-# Переменные: WRA_REPO_ROOT=/opt/prod-encar
+# Переменные: WRA_REPO_ROOT=/opt/rideauto
 set -euo pipefail
-ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
+ROOT="${WRA_REPO_ROOT:-/opt/rideauto}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Запустите от root: sudo bash $0" >&2
@@ -20,20 +20,20 @@ systemctl disable encar-update.timer 2>/dev/null || true
 systemctl disable encar-update.service 2>/dev/null || true
 rm -f /etc/systemd/system/encar-update.timer /etc/systemd/system/encar-update.service
 
-echo "== install prod-encar-auto-update =="
-install -m 644 "${ROOT}/deploy/systemd/prod-encar-auto-update.service" /etc/systemd/system/prod-encar-auto-update.service
-install -m 644 "${ROOT}/deploy/systemd/prod-encar-auto-update.timer" /etc/systemd/system/prod-encar-auto-update.timer
+echo "== install rideauto-auto-update =="
+install -m 644 "${ROOT}/deploy/systemd/rideauto-auto-update.service" /etc/systemd/system/rideauto-auto-update.service
+install -m 644 "${ROOT}/deploy/systemd/rideauto-auto-update.timer" /etc/systemd/system/rideauto-auto-update.timer
 
 chmod +x "${ROOT}/deploy/scripts/run_encar_daily_once_prod.sh" 2>/dev/null || true
 chmod +x "${ROOT}/deploy/scripts/encar_pull_kill_start.sh" 2>/dev/null || true
 chmod +x "${ROOT}/deploy/scripts/encar_set_proxy_urls.sh" 2>/dev/null || true
-chmod +x "${ROOT}/deploy/scripts/prod_encar_catalog_install.sh" 2>/dev/null || true
+chmod +x "${ROOT}/deploy/scripts/rideauto_catalog_install.sh" 2>/dev/null || true
 chmod +x "${ROOT}/deploy/scripts/run_postgres_catalog_sync_host.sh" 2>/dev/null || true
-chmod +x "${ROOT}/deploy/scripts/prod_encar_git_pull.sh" 2>/dev/null || true
+chmod +x "${ROOT}/deploy/scripts/rideauto_git_pull.sh" 2>/dev/null || true
 
 systemctl daemon-reload
-systemctl enable prod-encar-auto-update.timer
-systemctl start prod-encar-auto-update.timer
+systemctl enable rideauto-auto-update.timer
+systemctl start rideauto-auto-update.timer
 
-echo "OK. Ночной Encar: prod-encar-auto-update.timer → prod-encar-auto-update.service"
-systemctl status prod-encar-auto-update.timer --no-pager -l || true
+echo "OK. Ночной Encar: rideauto-auto-update.timer → rideauto-auto-update.service"
+systemctl status rideauto-auto-update.timer --no-pager -l || true

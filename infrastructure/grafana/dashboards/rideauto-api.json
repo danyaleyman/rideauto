@@ -148,7 +148,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["prod-encar", "fastapi"],
+  "tags": ["rideauto", "fastapi"],
   "templating": {
     "list": [
       {
@@ -170,8 +170,8 @@
   "time": {"from": "now-6h", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
-  "title": "Prod Encar — FastAPI",
-  "uid": "prod-encar-api",
+  "title": "RideAuto — FastAPI",
+  "uid": "rideauto-api",
   "version": 1,
   "weekStart": ""
 }

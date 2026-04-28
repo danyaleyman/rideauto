@@ -15,7 +15,7 @@ daily_update:
 
 # Прокси только здесь (не в git). FloppyData HTTP (UK rotational mobile и т.д.):
 #   http://LOGIN:PASSWORD@geo.floppydata.com:10080
-# На сервере удобнее одна строка в /etc/default/prod-encar: ENCAR_PROXY_URLS=...
+# На сервере удобнее одна строка в /etc/default/rideauto: ENCAR_PROXY_URLS=...
 proxy:
   enabled: true
   urls:

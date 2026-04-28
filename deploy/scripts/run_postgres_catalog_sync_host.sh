@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Ручной postgres_catalog_sync на хосте: DSN из /etc/default/prod-encar (как Meilisearch-скрипт).
+# Ручной postgres_catalog_sync на хосте: DSN из /etc/default/rideauto (как Meilisearch-скрипт).
 # Не передавайте пароль в argv — только через EnvironmentFile.
 # Полный каталог (сотни тыс. строк) + цены + Meili — часто десятки минут и дольше; не прерывайте без причины.
 #
-#   sudo -u prod-encar bash /opt/prod-encar/deploy/scripts/run_postgres_catalog_sync_host.sh
-#   sudo -u prod-encar bash .../run_postgres_catalog_sync_host.sh --no-meilisearch
+#   sudo -u rideauto bash /opt/rideauto/deploy/scripts/run_postgres_catalog_sync_host.sh
+#   sudo -u rideauto bash .../run_postgres_catalog_sync_host.sh --no-meilisearch
 set -euo pipefail
 
-ROOT="${ROOT:-/opt/prod-encar}"
-if [[ -f /etc/default/prod-encar ]]; then
+ROOT="${ROOT:-/opt/rideauto}"
+if [[ -f /etc/default/rideauto ]]; then
   set -a
   # shellcheck source=/dev/null
-  source /etc/default/prod-encar
+  source /etc/default/rideauto
   set +a
 fi
 
@@ -21,7 +21,7 @@ if [[ -z "${DATABASE_URL// /}" ]] && [[ -n "${PG_DSN// /}" ]]; then
 fi
 
 if [[ -z "${DATABASE_URL// /}" ]]; then
-  echo "run_postgres_catalog_sync_host: задайте DATABASE_URL, WRA_PG_DSN или SYNC_PG_DSN в /etc/default/prod-encar" >&2
+  echo "run_postgres_catalog_sync_host: задайте DATABASE_URL, WRA_PG_DSN или SYNC_PG_DSN в /etc/default/rideauto" >&2
   exit 1
 fi
 

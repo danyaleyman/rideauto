@@ -1,11 +1,11 @@
 [Unit]
-Description=Run Prod Encar auto update daily
+Description=Run RideAuto auto update daily
 
 [Timer]
 # Полночь по Екатеринбургу: новые объявления, выборочная проверка проданных, докачка деталей, export + цены → фронт
 OnCalendar=*-*-* 00:00:00 Asia/Yekaterinburg
 Persistent=true
-Unit=prod-encar-auto-update.service
+Unit=rideauto-auto-update.service
 
 [Install]
 WantedBy=timers.target

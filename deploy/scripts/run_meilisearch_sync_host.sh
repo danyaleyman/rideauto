@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Синхронизация PostgreSQL → Meilisearch с хоста (полный репозиторий в /opt/prod-encar).
-# Переменные: см. /etc/default/prod-encar — нужен DSN Postgres, доступный с этого хоста.
+# Синхронизация PostgreSQL → Meilisearch с хоста (полный репозиторий в /opt/rideauto).
+# Переменные: см. /etc/default/rideauto — нужен DSN Postgres, доступный с этого хоста.
 set -euo pipefail
 
-ROOT="${ROOT:-/opt/prod-encar}"
-if [[ -f /etc/default/prod-encar ]]; then
+ROOT="${ROOT:-/opt/rideauto}"
+if [[ -f /etc/default/rideauto ]]; then
   # shellcheck source=/dev/null
-  . /etc/default/prod-encar
+  . /etc/default/rideauto
 fi
 
 PG_DSN="${SYNC_PG_DSN:-${DATABASE_URL:-${WRA_PG_DSN:-}}}"
 
 if [[ -z "${PG_DSN// /}" ]]; then
-  echo "run_meilisearch_sync_host: задайте SYNC_PG_DSN или DATABASE_URL в /etc/default/prod-encar (DSN с хоста, напр. postgresql://wra:...@127.0.0.1:5432/wra)" >&2
+  echo "run_meilisearch_sync_host: задайте SYNC_PG_DSN или DATABASE_URL в /etc/default/rideauto (DSN с хоста, напр. postgresql://wra:...@127.0.0.1:5432/wra)" >&2
   exit 1
 fi
 

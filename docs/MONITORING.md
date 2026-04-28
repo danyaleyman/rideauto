@@ -15,7 +15,7 @@ curl -sS http://127.0.0.1:8080/metrics | head -30
 ### Шаг 2 — подтянуть конфиг из репозитория
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 git pull
 ```
 
@@ -29,7 +29,7 @@ git pull
 docker rm -f prometheus 2>/dev/null || true
 docker run -d --name prometheus --restart unless-stopped \
   --network host \
-  -v /opt/prod-encar/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
+  -v /opt/rideauto/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
   prom/prometheus:latest \
   --config.file=/etc/prometheus/prometheus.yml \
   --web.listen-address=127.0.0.1:9090
@@ -39,7 +39,7 @@ docker run -d --name prometheus --restart unless-stopped \
 
 ### Шаг 4 — проверить, что цель UP
 
-В UI: **Status → Targets** — job **`prod-encar-api`** должен быть **UP**.
+В UI: **Status → Targets** — job **`rideauto-api`** должен быть **UP**.
 
 ### Шаг 5 — пробный запрос в Graph
 
@@ -56,7 +56,7 @@ histogram_quantile(0.95, sum(rate(wra_http_request_duration_seconds_bucket[5m]))
 Проверка из shell (есть ли серии):
 
 ```bash
-curl -sG --data-urlencode 'query=up{job="prod-encar-api"}' http://127.0.0.1:9090/api/v1/query | head -c 400
+curl -sG --data-urlencode 'query=up{job="rideauto-api"}' http://127.0.0.1:9090/api/v1/query | head -c 400
 echo
 ```
 
@@ -70,7 +70,7 @@ echo
 Обнови код:
 
 ```bash
-cd /opt/prod-encar && git pull
+cd /opt/rideauto && git pull
 ```
 
 #### Telegram для Alertmanager
@@ -84,7 +84,7 @@ cd /opt/prod-encar && git pull
    В ответе смотри `message.chat.id` (для групп часто отрицательное число, например `-100…`).
 4. На сервере создай секреты (одна строка в файле, без лишних пробелов и переводов строки после числа по возможности):
    ```bash
-   cd /opt/prod-encar/deploy/monitoring/secrets
+   cd /opt/rideauto/deploy/monitoring/secrets
    sudo cp bot_token.example bot_token
    sudo cp chat_id.example chat_id
    sudo nano bot_token chat_id   # подставь реальные значения
@@ -99,10 +99,10 @@ cd /opt/prod-encar && git pull
 docker rm -f alertmanager 2>/dev/null || true
 docker run -d --name alertmanager --restart unless-stopped \
   --network host \
-  -v /opt/prod-encar/deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro \
-  -v /opt/prod-encar/deploy/monitoring/alertmanager_templates:/etc/alertmanager/templates:ro \
-  -v /opt/prod-encar/deploy/monitoring/secrets/bot_token:/etc/alertmanager/secrets/bot_token:ro \
-  -v /opt/prod-encar/deploy/monitoring/secrets/chat_id:/etc/alertmanager/secrets/chat_id:ro \
+  -v /opt/rideauto/deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro \
+  -v /opt/rideauto/deploy/monitoring/alertmanager_templates:/etc/alertmanager/templates:ro \
+  -v /opt/rideauto/deploy/monitoring/secrets/bot_token:/etc/alertmanager/secrets/bot_token:ro \
+  -v /opt/rideauto/deploy/monitoring/secrets/chat_id:/etc/alertmanager/secrets/chat_id:ro \
   prom/alertmanager:latest \
   --config.file=/etc/alertmanager/alertmanager.yml \
   --web.listen-address=127.0.0.1:9093
@@ -110,8 +110,8 @@ docker run -d --name alertmanager --restart unless-stopped \
 docker rm -f prometheus
 docker run -d --name prometheus --restart unless-stopped \
   --network host \
-  -v /opt/prod-encar/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
-  -v /opt/prod-encar/deploy/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro \
+  -v /opt/rideauto/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
+  -v /opt/rideauto/deploy/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro \
   prom/prometheus:latest \
   --config.file=/etc/prometheus/prometheus.yml \
   --web.listen-address=127.0.0.1:9090
@@ -145,7 +145,7 @@ docker run -d --name prometheus --restart unless-stopped \
 
 ```yaml
 # fragment: prometheus.yml scrape_configs
-  - job_name: prod-encar-api
+  - job_name: rideauto-api
     metrics_path: /metrics
     static_configs:
       - targets: ["127.0.0.1:8080"]
@@ -186,21 +186,21 @@ python3 deploy/scripts/load_profile.py \
 ## 5) Бэкап PostgreSQL (Compose)
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 chmod +x deploy/scripts/backup_postgres_compose.sh
 ./deploy/scripts/backup_postgres_compose.sh
 ```
 
-По умолчанию каталог **`./backups/`** (в `.gitignore`). Логи крона удобно писать в `/var/log/prod-encar-backup.log`.
+По умолчанию каталог **`./backups/`** (в `.gitignore`). Логи крона удобно писать в `/var/log/rideauto-backup.log`.
 
 **Cron (ежедневный бэкап + хранить 7 дней):**
 
 ```cron
-15 3 * * * cd /opt/prod-encar && ./deploy/scripts/backup_postgres_compose.sh >> /var/log/prod-encar-backup.log 2>&1
-20 3 * * * find /opt/prod-encar/backups -maxdepth 1 -type f -name 'wra_*.dump' -mtime +7 -delete
+15 3 * * * cd /opt/rideauto && ./deploy/scripts/backup_postgres_compose.sh >> /var/log/rideauto-backup.log 2>&1
+20 3 * * * find /opt/rideauto/backups -maxdepth 1 -type f -name 'wra_*.dump' -mtime +7 -delete
 ```
 
-`-mtime +7` удаляет дампы **старше 7 суток**. Путь `/opt/prod-encar` при необходимости замените.
+`-mtime +7` удаляет дампы **старше 7 суток**. Путь `/opt/rideauto` при необходимости замените.
 
 ## 6) Секреты и пароли
 

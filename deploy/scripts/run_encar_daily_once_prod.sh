@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Одноразовый encar_daily_update на проде (без подстановки DSN вручную).
 # Запуск от пользователя сервиса, например:
-#   sudo -u prod-encar bash /opt/prod-encar/deploy/scripts/run_encar_daily_once_prod.sh
+#   sudo -u rideauto bash /opt/rideauto/deploy/scripts/run_encar_daily_once_prod.sh
 #
-# Нужны: /etc/default/prod-encar (или иной файл) с реальным DATABASE_URL / WRA_PG_DSN;
-#         venv в /opt/prod-encar/.venv; права на logs/ — см. ensure_scraper_runtime_permissions.sh
+# Нужны: /etc/default/rideauto (или иной файл) с реальным DATABASE_URL / WRA_PG_DSN;
+#         venv в /opt/rideauto/.venv; права на logs/ — см. ensure_scraper_runtime_permissions.sh
 #
-# Опционально: WRA_SCRAPER_CONFIG=/opt/prod-encar/deploy/scraper_config.probe-20.yaml — тест на 20 новых INSERT.
+# Опционально: WRA_SCRAPER_CONFIG=/opt/rideauto/deploy/scraper_config.probe-20.yaml — тест на 20 новых INSERT.
 set -euo pipefail
-ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
-ENV_FILE="${WRA_ENV_FILE:-/etc/default/prod-encar}"
+ROOT="${WRA_REPO_ROOT:-/opt/rideauto}"
+ENV_FILE="${WRA_ENV_FILE:-/etc/default/rideauto}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a

@@ -1,20 +1,20 @@
 # Скопируйте в /etc/systemd/system/encar-api.service и подставьте пути, пользователя и порт.
-# Переменные окружения (DSN Postgres, Meilisearch, Redis): см. /etc/default/prod-encar или Environment= ниже.
+# Переменные окружения (DSN Postgres, Meilisearch, Redis): см. /etc/default/rideauto или Environment= ниже.
 # После правок: sudo systemctl daemon-reload && sudo systemctl enable --now encar-api
 
 [Unit]
-Description=Prod Encar catalog API (FastAPI / uvicorn)
+Description=RideAuto catalog API (FastAPI / uvicorn)
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/prod-encar/backend
+WorkingDirectory=/var/www/rideauto/backend
 Environment=PYTHONUNBUFFERED=1
-EnvironmentFile=-/etc/default/prod-encar
+EnvironmentFile=-/etc/default/rideauto
 # Environment=WRA_PG_DSN=postgresql://...
-ExecStart=/var/www/prod-encar/backend/.venv/bin/python -m uvicorn fastapi_app.main:app --host 127.0.0.1 --port 8765
+ExecStart=/var/www/rideauto/backend/.venv/bin/python -m uvicorn fastapi_app.main:app --host 127.0.0.1 --port 8765
 Restart=on-failure
 RestartSec=5
 

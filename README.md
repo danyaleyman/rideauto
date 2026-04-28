@@ -1,4 +1,4 @@
-# Prod Encar
+# RideAuto
 
 Проект разделён на слои:
 
@@ -25,15 +25,15 @@ cd web && npm install && npm run dev
 
 **Ночное обновление:** в [`backend/config.json`](backend/config.json) `update_config.catalog_encar_nightly` (по умолчанию `true`) — после цикла PostgreSQL вызывается `encar_daily_update.py --once` (discover, sold-check, скрейпер в Postgres). Без доступного Postgres `auto_update` завершается с ошибкой.
 
-**Расписание на VPS (systemd):** в `deploy/systemd/` — **`prod-encar-auto-update.timer`** (Корея, 00:00 Asia/Yekaterinburg), **`prod-dongchedi-update.timer`** (Китай, 01:00), **`prod-encar-meilisearch-sync.timer`** (выгрузка Postgres → Meilisearch для фронта, 04:00). Ставятся через [`deploy/deploy_prod.sh`](deploy/deploy_prod.sh). На сервере в **`/etc/default/prod-encar`** задайте **`SYNC_PG_DSN`** (Postgres с localhost, не `postgres:5432` из Docker) и при необходимости URL/ключ Meilisearch.
+**Расписание на VPS (systemd):** в `deploy/systemd/` — **`rideauto-auto-update.timer`** (Корея, 00:00 Asia/Yekaterinburg), **`prod-dongchedi-update.timer`** (Китай, 01:00), **`rideauto-meilisearch-sync.timer`** (выгрузка Postgres → Meilisearch для фронта, 04:00). Ставятся через [`deploy/deploy_prod.sh`](deploy/deploy_prod.sh). На сервере в **`/etc/default/rideauto`** задайте **`SYNC_PG_DSN`** (Postgres с localhost, не `postgres:5432` из Docker) и при необходимости URL/ключ Meilisearch.
 
 **Проверить, что запланировано:**
 ```bash
-systemctl list-timers --all | grep -E 'prod-encar|dongchedi'
-systemctl status prod-encar-auto-update.timer prod-dongchedi-update.timer prod-encar-meilisearch-sync.timer --no-pager
+systemctl list-timers --all | grep -E 'rideauto|dongchedi'
+systemctl status rideauto-auto-update.timer prod-dongchedi-update.timer rideauto-meilisearch-sync.timer --no-pager
 bash deploy/scripts/diagnose_nightly_updates.sh
 ```
-Ручной прогон индекса: `sudo bash deploy/scripts/run_meilisearch_sync_host.sh` (из `/opt/prod-encar`).
+Ручной прогон индекса: `sudo bash deploy/scripts/run_meilisearch_sync_host.sh` (из `/opt/rideauto`).
 
 ### HP coverage: one-time backfill + background filler
 
@@ -41,22 +41,22 @@ bash deploy/scripts/diagnose_nightly_updates.sh
 
 ```bash
 # 1) One-time: подтянуть строки из Postgres в hp_catalog, заполнить pending и записать hp обратно в cars
-sudo -u prod-encar bash /opt/prod-encar/deploy/scripts/run_hp_catalog_backfill_once.sh /opt/prod-encar
+sudo -u rideauto bash /opt/rideauto/deploy/scripts/run_hp_catalog_backfill_once.sh /opt/rideauto
 
 # 1.1) После массового backfill обновить индекс (чтобы фильтры/карточки увидели новые power_hp)
-sudo bash /opt/prod-encar/deploy/scripts/run_meilisearch_sync_host.sh
+sudo bash /opt/rideauto/deploy/scripts/run_meilisearch_sync_host.sh
 
 # 2) Continuous: держать фоновый LLM-filler (pending/no_data/error)
-sudo cp deploy/systemd/prod-encar-hp-catalog-fill.service /etc/systemd/system/
+sudo cp deploy/systemd/rideauto-hp-catalog-fill.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now prod-encar-hp-catalog-fill.service
-sudo systemctl status prod-encar-hp-catalog-fill.service --no-pager
+sudo systemctl enable --now rideauto-hp-catalog-fill.service
+sudo systemctl status rideauto-hp-catalog-fill.service --no-pager
 
 # 3) Progress
-sudo -u prod-encar /opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/scripts/hp_catalog_stats.py --db /opt/prod-encar/data/hp_catalog.db
+sudo -u rideauto /opt/rideauto/.venv/bin/python /opt/rideauto/backend/scripts/hp_catalog_stats.py --db /opt/rideauto/data/hp_catalog.db
 ```
 
-Ключи LLM задаются в `/etc/default/prod-encar`: `DEEPSEEK_API_KEY` и/или `OPENAI_API_KEY`.
+Ключи LLM задаются в `/etc/default/rideauto`: `DEEPSEEK_API_KEY` и/или `OPENAI_API_KEY`.
 
 Глубина списка Encar задаётся в [`scraper_config.yaml`](scraper_config.yaml): `max_list_offset: 0` означает проход до пустого ответа (с верхней границей `list_offset_hard_cap`). Дополнительные срезы запроса — `list_q_suffixes`.
 
@@ -89,10 +89,10 @@ curl -fsS "http://127.0.0.1:3000/catalog?region=china" > /dev/null
 
 В проект добавлен готовый набор:
 
-- `deploy/nginx/prod-encar.conf`
-- `deploy/systemd/prod-encar-api.service`
-- `deploy/systemd/prod-encar-auto-update.service`
-- `deploy/systemd/prod-encar-auto-update.timer`
+- `deploy/nginx/rideauto.conf`
+- `deploy/systemd/rideauto-api.service`
+- `deploy/systemd/rideauto-auto-update.service`
+- `deploy/systemd/rideauto-auto-update.timer`
 - `deploy/systemd/dongchedi-update.service` + `dongchedi-update.timer` (или **`prod-dongchedi-update.*`** — Китай **01:00 Asia/Yekaterinburg**, после корейского таймера)
 - `deploy/deploy_prod.sh`
 
@@ -103,7 +103,7 @@ chmod +x deploy/deploy_prod.sh
 ./deploy/deploy_prod.sh
 ```
 
-По умолчанию ставится в `/opt/prod-encar`, API (uvicorn FastAPI) слушает `127.0.0.1:8080`, Nginx публикует Next и проксирует `/api/*`. Китайский каталог — те же таблицы Postgres (`source`/region в данных), не отдельный `encar_china.db` в рантайме API.
+По умолчанию ставится в `/opt/rideauto`, API (uvicorn FastAPI) слушает `127.0.0.1:8080`, Nginx публикует Next и проксирует `/api/*`. Китайский каталог — те же таблицы Postgres (`source`/region в данных), не отдельный `encar_china.db` в рантайме API.
 
 ## Security hardening (рекомендуется)
 
@@ -155,16 +155,16 @@ sudo systemctl status fail2ban --no-pager
 
 ### 3) Разрешение на сервисы без root
 
-В systemd unit’ах используется отдельный пользователь `prod-encar`, deploy-скрипт создаёт его и выдаёт права на `/opt/prod-encar`.
+В systemd unit’ах используется отдельный пользователь `rideauto`, deploy-скрипт создаёт его и выдаёт права на `/opt/rideauto`.
 
 Проверь, что systemd unit’ы активны:
 
 ```bash
-systemctl status prod-encar-api.service --no-pager
-systemctl status prod-encar-auto-update.timer --no-pager
+systemctl status rideauto-api.service --no-pager
+systemctl status rideauto-auto-update.timer --no-pager
 ```
 
-В `backend/config.json` при необходимости отключите `update_config.catalog_encar_nightly`, если ночной `encar_daily_update` не нужен. Пост-экспорт `auto_learn_engine_map` включается только при **`WRA_LEARN_ENGINE_MAP=1`** в `/etc/default/prod-encar` (по умолчанию выключен).
+В `backend/config.json` при необходимости отключите `update_config.catalog_encar_nightly`, если ночной `encar_daily_update` не нужен. Пост-экспорт `auto_learn_engine_map` включается только при **`WRA_LEARN_ENGINE_MAP=1`** в `/etc/default/rideauto` (по умолчанию выключен).
 
 ### 4) TLS (HTTPS) через certbot
 

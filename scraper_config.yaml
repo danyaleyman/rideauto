@@ -76,7 +76,7 @@ retry:
   retry_statuses: [407, 429, 500, 502, 503, 504]
 
 proxy:
-  # Включите прокси списком URL (или ENCAR_PROXY_URLS в /etc/default — см. deploy/env.prod-encar.example).
+  # Включите прокси списком URL (или ENCAR_PROXY_URLS в /etc/default — см. deploy/env.rideauto.example).
   # Если enabled=true, но urls пусты и нет ENCAR_PROXY_URLS — load_config выставит enabled=false.
   enabled: true
   urls: []

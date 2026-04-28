@@ -2,7 +2,7 @@
 Description=Run Dongchedi China catalog update daily (same time as Korea)
 
 [Timer]
-# Полночь Asia/Yekaterinburg — как prod-encar-auto-update.timer
+# Полночь Asia/Yekaterinburg — как rideauto-auto-update.timer
 OnCalendar=*-*-* 00:00:00 Asia/Yekaterinburg
 Persistent=true
 Unit=dongchedi-update.service

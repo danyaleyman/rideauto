@@ -6,7 +6,7 @@
 #   sudo systemctl stop dongchedi-update.timer prod-dongchedi-update.timer 2>/dev/null || true
 set -euo pipefail
 
-ROOT="${ROOT:-/opt/prod-encar}"
+ROOT="${ROOT:-/opt/rideauto}"
 PY="${PY:-$ROOT/.venv/bin/python}"
 DB="${ENCAR_CHINA_DB:-$ROOT/encar_china.db}"
 YAML_CAND=(

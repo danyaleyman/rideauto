@@ -1,4 +1,4 @@
-# Prod Encar — API + PostgreSQL + Redis + Meilisearch + Next.js (web)
+# RideAuto — API + PostgreSQL + Redis + Meilisearch + Next.js (web)
 # Запуск из корня репозитория: docker compose up -d
 # Скопируйте .env.example → .env и при необходимости измените секреты.
 

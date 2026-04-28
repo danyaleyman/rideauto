@@ -4,7 +4,7 @@ Description=Run RideAuto subscription notifications every 10 minutes
 [Timer]
 OnCalendar=*:0/10
 Persistent=true
-Unit=encar-subscriptions-notify.service
+Unit=rideauto-subscriptions-notify.service
 
 [Install]
 WantedBy=timers.target

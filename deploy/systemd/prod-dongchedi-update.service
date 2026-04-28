@@ -1,23 +1,23 @@
 [Unit]
-Description=Prod Encar Dongchedi catalog → PostgreSQL or encar_china.db (see dongchedi_scraper.yaml storage)
+Description=RideAuto Dongchedi catalog → PostgreSQL or encar_china.db (see dongchedi_scraper.yaml storage)
 After=network.target
-# Аналог dongchedi-update.service для стека prod-encar (см. prod-encar-auto-update.service).
+# Аналог dongchedi-update.service для стека rideauto (см. rideauto-auto-update.service).
 
 [Service]
 Type=oneshot
-User=prod-encar
-Group=prod-encar
-WorkingDirectory=/opt/prod-encar/backend
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto/backend
 Environment=PYTHONUNBUFFERED=1
-EnvironmentFile=-/etc/default/prod-encar
-ExecStart=/usr/bin/python3 -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
-# DATABASE_URL в EnvironmentFile (prod-encar) для storage.backend=postgres; --db задаёт имя checkpoint (*.scraper.checkpoint.json).
+EnvironmentFile=-/etc/default/rideauto
+ExecStart=/usr/bin/python3 -m dongchedi.scraper --config /opt/rideauto/backend/dongchedi_scraper.yaml --db /opt/rideauto/encar_china.db
+# DATABASE_URL в EnvironmentFile (rideauto) для storage.backend=postgres; --db задаёт имя checkpoint (*.scraper.checkpoint.json).
 TimeoutStartSec=24h
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/opt/prod-encar
+ReadWritePaths=/opt/rideauto
 LockPersonality=true
 MemoryDenyWriteExecute=true
 

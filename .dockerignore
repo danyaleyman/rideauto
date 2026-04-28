@@ -16,5 +16,5 @@ e2e/
 infrastructure/
 scripts/
 playwright.config.mjs
-Prod Encar.code-workspace
+RideAuto.code-workspace
 README.md

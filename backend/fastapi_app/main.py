@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Prod Encar API", lifespan=lifespan)
+    app = FastAPI(title="RideAuto API", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -89,7 +89,7 @@ def create_app() -> FastAPI:
     async def health(request: Request):
         return {
             "status": "ok",
-            "service": "prod-encar-fastapi",
+            "service": "rideauto-fastapi",
             "redis_cache": getattr(request.app.state, "redis", None) is not None,
         }
 

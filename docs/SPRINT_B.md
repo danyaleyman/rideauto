@@ -9,14 +9,14 @@
 ## 1) Choose a sample car_id
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 docker-compose exec -T postgres psql -U wra -d wra -Atc "SELECT car_id FROM cars ORDER BY random() LIMIT 1;"
 ```
 
 ## 2) Run API load profile
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 python3 deploy/scripts/load_profile.py \
   --base-url http://127.0.0.1:8080 \
   --car-id "<SAMPLE_CAR_ID>"
@@ -31,7 +31,7 @@ The script runs 4 scenarios (`warmup`, 50/100/200 RPS) and prints:
 ## 3) Run PostgreSQL index audit
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 docker-compose exec -T postgres psql -U wra -d wra -f /dev/stdin < deploy/scripts/pg_index_audit.sql
 ```
 
@@ -55,7 +55,7 @@ Look for:
 1. Run a stability soak by repeating the standard profile 10 times:
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 for i in $(seq 1 10); do
   echo "==> run $i/10"
   python3 deploy/scripts/load_profile.py \
@@ -67,7 +67,7 @@ done
 2. During soak, monitor API errors and container restarts:
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 docker-compose ps
 docker-compose logs --tail=200 api
 ```
@@ -82,7 +82,7 @@ docker-compose logs --tail=200 api
 2. Build and start `web` after `api` is healthy:
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 git pull
 docker compose build web
 docker compose up -d web

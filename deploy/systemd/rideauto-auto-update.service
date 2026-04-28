@@ -1,23 +1,23 @@
 [Unit]
-Description=Prod Encar Auto Update (PostgreSQL)
+Description=RideAuto Auto Update (PostgreSQL)
 After=network.target
 
 [Service]
 Type=oneshot
-User=prod-encar
-Group=prod-encar
-WorkingDirectory=/opt/prod-encar
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
 Environment=PYTHONUNBUFFERED=1
-# auto_learn_engine_map после postgres_catalog_sync: только при WRA_LEARN_ENGINE_MAP=1 в /etc/default/prod-encar.
-EnvironmentFile=-/etc/default/prod-encar
+# auto_learn_engine_map после postgres_catalog_sync: только при WRA_LEARN_ENGINE_MAP=1 в /etc/default/rideauto.
+EnvironmentFile=-/etc/default/rideauto
 # Единственный ночной пайплайн Encar для rideauto: discover + sold + encar_scraper --only-pending (см. encar_daily_update.py).
-ExecStart=/opt/prod-encar/.venv/bin/python /opt/prod-encar/backend/encar_daily_update.py --once --config /opt/prod-encar/scraper_config.yaml
+ExecStart=/opt/rideauto/.venv/bin/python /opt/rideauto/backend/encar_daily_update.py --once --config /opt/rideauto/scraper_config.yaml
 # Без этого systemd по умолчанию (часто ~90s) убивает длинный scraper до конца цикла.
 TimeoutStartSec=24h
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/opt/prod-encar
+ReadWritePaths=/opt/rideauto
 LockPersonality=true
 MemoryDenyWriteExecute=true

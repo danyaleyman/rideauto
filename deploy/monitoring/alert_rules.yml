@@ -20,7 +20,7 @@ groups:
           description: "Проверь логи контейнера api и nginx на хосте."
 
       - alert: WraApiTargetDown
-        expr: up{job="prod-encar-api"} == 0
+        expr: up{job="rideauto-api"} == 0
         for: 2m
         labels:
           severity: critical

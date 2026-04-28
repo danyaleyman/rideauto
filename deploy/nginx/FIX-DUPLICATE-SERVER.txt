@@ -7,7 +7,7 @@
 
 Это значит: на порту 80 объявлено ДВА (или больше) блока server { } с одним и тем же
 server_name rideauto.ru. Nginx использует ПЕРВЫЙ такой блок, остальные ПОЛНОСТЬЮ
-игнорирует. Если первый — старый/пустой конфиг, а актуальный prod-encar.conf оказался
+игнорирует. Если первый — старый/пустой конфиг, а актуальный rideauto.conf оказался
 вторым, сайт перестаёт открываться.
 
 Что сделать на сервере
@@ -27,17 +27,17 @@ server_name rideauto.ru. Nginx использует ПЕРВЫЙ такой бл
 
 4) Оставить ОДИН источник правды для rideauto.ru на :80 (и при необходимости :443).
    Типичный лишний файл после certbot: отдельный sites-enabled/rideauto.ru рядом с
-   prod-encar.conf. Отключите дубликат (подставьте РЕАЛЬНОЕ имя из шага 2, не буквально):
+   rideauto.conf. Отключите дубликат (подставьте РЕАЛЬНОЕ имя из шага 2, не буквально):
 
    sudo rm /etc/nginx/sites-enabled/rideauto.ru
 
-   Если в sites-enabled только prod-encar.conf — ищите второй server{} в другом месте:
+   Если в sites-enabled только rideauto.conf — ищите второй server{} в другом месте:
 
    sudo nginx -T 2>/dev/null | grep -nE "server_name|listen 80"
    sudo grep -r "rideauto.ru" /etc/nginx/ --include="*.conf"
 
    (или перенесите listen/ssl в один общий server, как рекомендует комментарий в
-   deploy/nginx/prod-encar.conf)
+   deploy/nginx/rideauto.conf)
 
 5) Проверка и перезагрузка:
 
@@ -50,7 +50,7 @@ server_name rideauto.ru. Nginx использует ПЕРВЫЙ такой бл
 Дубликат MIME type "text/html"
 ------------------------------
 
-Предупреждение указывает на строку в вашем prod-encar.conf на сервере. Часто это
+Предупреждение указывает на строку в вашем rideauto.conf на сервере. Часто это
 дважды указанный text/html в gzip_types или в types { }. В актуальном шаблоне из репо
 gzip_types не содержит text/html (см. комментарий в файле). Сравните серверный файл с
-git: `git diff deploy/nginx/prod-encar.conf` после pull.
+git: `git diff deploy/nginx/rideauto.conf` после pull.

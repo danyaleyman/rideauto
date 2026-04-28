@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Разовый цикл Кореи (часто User=www-data). На rideauto VPS проще: deploy/scripts/run_encar_daily_once_prod.sh (User=prod-encar).
+# Разовый цикл Кореи (часто User=www-data). На rideauto VPS проще: deploy/scripts/run_encar_daily_once_prod.sh (User=rideauto).
 # encar_daily_update --once → encar_scraper (--only-pending) → postgres_catalog_sync внутри скрейпера.
 set -euo pipefail
 
-ROOT="${ROOT:-/opt/prod-encar}"
+ROOT="${ROOT:-/opt/rideauto}"
 PY="${PY:-$ROOT/.venv/bin/python}"
 CFG="${ENCAR_SCRAPER_CONFIG:-$ROOT/scraper_config.yaml}"
 RUN_USER="${ENCAR_RUN_USER:-www-data}"

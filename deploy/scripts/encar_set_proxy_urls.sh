@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Записать ENCAR_PROXY_URLS в defaults без хранения секретов в git.
-# Юнит prod-encar-auto-update и run_encar_daily_once_prod.sh читают /etc/default/prod-encar.
+# Юнит rideauto-auto-update и run_encar_daily_once_prod.sh читают /etc/default/rideauto.
 #
 # Пример (URL в одинарных кавычках — спецсимволы в пароле безопаснее):
-#   sudo bash /opt/prod-encar/deploy/scripts/encar_set_proxy_urls.sh \
-#     /etc/default/prod-encar 'http://LOGIN:PASSWORD@geo.floppydata.com:10080'
+#   sudo bash /opt/rideauto/deploy/scripts/encar_set_proxy_urls.sh \
+#     /etc/default/rideauto 'http://LOGIN:PASSWORD@geo.floppydata.com:10080'
 #
-# Для отдельного env-файла (например prod-encar-scrapers) и группы www-data:
-#   sudo bash .../encar_set_proxy_urls.sh /etc/default/prod-encar-scrapers 'http://...' www-data
+# Для отдельного env-файла (например rideauto-scrapers) и группы www-data:
+#   sudo bash .../encar_set_proxy_urls.sh /etc/default/rideauto-scrapers 'http://...' www-data
 set -euo pipefail
-ENV_FILE="${1:?первый аргумент: путь, например /etc/default/prod-encar}"
+ENV_FILE="${1:?первый аргумент: путь, например /etc/default/rideauto}"
 PROXY_URL="${2:?второй аргумент: полный URL http://user:pass@host:port}"
-GROUP="${3:-prod-encar}"
+GROUP="${3:-rideauto}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Запустите от root: sudo bash $0 ..." >&2

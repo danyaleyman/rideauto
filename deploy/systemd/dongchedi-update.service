@@ -1,5 +1,5 @@
 [Unit]
-Description=Prod Encar Dongchedi → Postgres or encar_china.db (dongchedi_scraper.yaml storage)
+Description=RideAuto Dongchedi → Postgres or encar_china.db (dongchedi_scraper.yaml storage)
 After=network.target
 # Первый раз: полный прогон вручную (см. deploy/DEPLOY.md). Далее — ежедневно в полночь по Екатеринбургу (dongchedi-update.timer).
 # Права: User=www-data (локальные *.db / логи при старом стеке)
@@ -8,17 +8,17 @@ After=network.target
 Type=oneshot
 User=www-data
 Group=www-data
-WorkingDirectory=/opt/prod-encar/backend
+WorkingDirectory=/opt/rideauto/backend
 Environment=PYTHONUNBUFFERED=1
-EnvironmentFile=-/etc/default/prod-encar-scrapers
-ExecStart=/opt/prod-encar/.venv/bin/python -m dongchedi.scraper --config /opt/prod-encar/backend/dongchedi_scraper.yaml --db /opt/prod-encar/encar_china.db
+EnvironmentFile=-/etc/default/rideauto-scrapers
+ExecStart=/opt/rideauto/.venv/bin/python -m dongchedi.scraper --config /opt/rideauto/backend/dongchedi_scraper.yaml --db /opt/rideauto/encar_china.db
 # При storage.backend=postgres задайте DATABASE_URL в окружении (EnvironmentFile) или в YAML.
 TimeoutStartSec=24h
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/opt/prod-encar
+ReadWritePaths=/opt/rideauto
 
 [Install]
 WantedBy=multi-user.target

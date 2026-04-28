@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# git pull в /opt/prod-encar от root: снимает типичную локальную правку скрипта, мешающую merge.
+# git pull в /opt/rideauto от root: снимает типичную локальную правку скрипта, мешающую merge.
 # Если правили другие файлы осознанно — сначала git stash -u (от root в репо).
 set -euo pipefail
-ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
+ROOT="${WRA_REPO_ROOT:-/opt/rideauto}"
 cd "$ROOT"
 if [[ ! -d .git ]]; then
-  echo "prod_encar_git_pull: нет .git в $ROOT" >&2
+  echo "rideauto_git_pull: нет .git в $ROOT" >&2
   exit 1
 fi
 if [[ "$(id -u)" -ne 0 ]]; then
-  echo "prod_encar_git_pull: запустите от root: sudo bash $0" >&2
+  echo "rideauto_git_pull: запустите от root: sudo bash $0" >&2
   exit 1
 fi
 

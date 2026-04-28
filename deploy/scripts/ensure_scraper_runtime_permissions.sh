@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Однократно на проде: владелец logs/ и локальных *.db под пользователя systemd-сервиса корейского цикла.
 #
-# prod-encar-auto-update.service → User=prod-encar (ночной Encar-каталог)
+# rideauto-auto-update.service → User=rideauto (ночной Encar-каталог)
 #
-# Если `sudo -u prod-encar pip install …` в .venv даёт Permission denied — владелец .venv после «pip от root»
+# Если `sudo -u rideauto pip install …` в .venv даёт Permission denied — владелец .venv после «pip от root»
 # не совпадает с пользователем сервиса. Исправление:
-#   sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar WRA_CHOWN_VENV=1 bash deploy/scripts/ensure_scraper_runtime_permissions.sh
+#   sudo WRA_RUNTIME_USER=rideauto WRA_RUNTIME_GROUP=rideauto WRA_CHOWN_VENV=1 bash deploy/scripts/ensure_scraper_runtime_permissions.sh
 #
 # Примеры:
 #   sudo bash deploy/scripts/ensure_scraper_runtime_permissions.sh
-#   sudo WRA_RUNTIME_USER=prod-encar WRA_RUNTIME_GROUP=prod-encar bash deploy/scripts/ensure_scraper_runtime_permissions.sh
+#   sudo WRA_RUNTIME_USER=rideauto WRA_RUNTIME_GROUP=rideauto bash deploy/scripts/ensure_scraper_runtime_permissions.sh
 set -euo pipefail
-ROOT="${WRA_REPO_ROOT:-/opt/prod-encar}"
+ROOT="${WRA_REPO_ROOT:-/opt/rideauto}"
 OWNER="${WRA_RUNTIME_USER:-www-data}"
 GROUP="${WRA_RUNTIME_GROUP:-www-data}"
 
@@ -47,7 +47,7 @@ done
 shopt -u nullglob
 
 if [[ "${WRA_CHOWN_VENV:-0}" == "1" ]] && [[ -d "$ROOT/.venv" ]]; then
-  # Частичная установка от root → каталоги в site-packages недоступны prod-encar для pip upgrade.
+  # Частичная установка от root → каталоги в site-packages недоступны rideauto для pip upgrade.
   shopt -s nullglob
   for sp in "$ROOT"/.venv/lib/python3.*/site-packages; do
     [[ -d "$sp" ]] || continue

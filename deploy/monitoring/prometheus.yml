@@ -1,4 +1,4 @@
-# Минимальный Prometheus на том же хосте, что и prod-encar API.
+# Минимальный Prometheus на том же хосте, что и rideauto API.
 # API слушает на хосте 8080; контейнер Prometheus с --network host видит 127.0.0.1:8080.
 #
 # Запуск: см. docs/MONITORING.md → «Порядок: Prometheus на сервере».
@@ -16,7 +16,7 @@ alerting:
         - targets: ["127.0.0.1:9093"]
 
 scrape_configs:
-  - job_name: prod-encar-api
+  - job_name: rideauto-api
     metrics_path: /metrics
     static_configs:
       - targets: ["127.0.0.1:8080"]

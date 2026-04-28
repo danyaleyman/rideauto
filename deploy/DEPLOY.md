@@ -1,11 +1,11 @@
-# Деплой API (prod-encar)
+# Деплой API (rideauto)
 
 ## Один systemd-юнит на порт
 
-На одном сервере и одном порту должен работать **только один** экземпляр API. Если когда-то ставили и `encar-api.service`, и `prod-encar-api.service`, оставьте один юнит и отключите второй:
+На одном сервере и одном порту должен работать **только один** экземпляр API. Если когда-то ставили и `encar-api.service`, и `rideauto-api.service`, оставьте один юнит и отключите второй:
 
 ```bash
-sudo systemctl disable --now prod-encar-api.service   # или encar-api — тот, который дублирует порт
+sudo systemctl disable --now rideauto-api.service   # или encar-api — тот, который дублирует порт
 sudo systemctl enable --now encar-api.service       # активный юнит
 ```
 
@@ -51,17 +51,17 @@ location ~ ^/detail/([^/]+)/?$ {
    NEXT_PUBLIC_SITE_URL=https://rideauto.ru
    ```
 
-   Браузер ходит на `https://rideauto.ru/api/...`; nginx, как в **`deploy/nginx/prod-encar.conf`**, проксирует `/api/` на **`127.0.0.1:8080`**.
+   Браузер ходит на `https://rideauto.ru/api/...`; nginx, как в **`deploy/nginx/rideauto.conf`**, проксирует `/api/` на **`127.0.0.1:8080`**.
 
 2. **Пересобрать и поднять `web`** после правок `NEXT_PUBLIC_*`:
 
    ```bash
-   cd /opt/prod-encar
+   cd /opt/rideauto
    docker compose build web
    docker compose up -d web
    ```
 
-3. **Nginx:** включить маршруты из **`deploy/nginx/nextjs-frontend.snippet.conf`** *выше* общего `location /` и `location = /` в **`prod-encar.conf`**: закомментировать старый `location = /` с `try_files /index.html` и вставить сниппет; в **`location @wra_extensionless`** убрать `rewrite ^/catalog$ /index.html`. Те же `location` продублировать в `server { listen 443 ssl; }`. См. комментарии в сниппете и **`TROUBLESHOOT-HTTPS.txt`**.
+3. **Nginx:** включить маршруты из **`deploy/nginx/nextjs-frontend.snippet.conf`** *выше* общего `location /` и `location = /` в **`rideauto.conf`**: закомментировать старый `location = /` с `try_files /index.html` и вставить сниппет; в **`location @wra_extensionless`** убрать `rewrite ^/catalog$ /index.html`. Те же `location` продублировать в `server { listen 443 ssl; }`. См. комментарии в сниппете и **`TROUBLESHOOT-HTTPS.txt`**.
 
 4. **Дым с сервера** (подставьте домен):
 
@@ -87,7 +87,7 @@ docker compose up -d
 Старый **`docker-compose`** (Python 1.29.x) при пересоздании контейнера иногда падает с этой ошибкой. Обход:
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 docker-compose rm -f api
 docker-compose up -d api
 ```
@@ -104,7 +104,7 @@ sudo apt-get install -y docker-compose-plugin
 docker compose version
 ```
 
-Должно показать что-то вроде `Docker Compose version v2.x.x`. Дальше из `/opt/prod-encar` используйте **`docker compose`** вместо **`docker-compose`**:
+Должно показать что-то вроде `Docker Compose version v2.x.x`. Дальше из `/opt/rideauto` используйте **`docker compose`** вместо **`docker-compose`**:
 
 ```bash
 docker compose ps
@@ -123,7 +123,7 @@ docker compose up -d api web
 1. Подтянуть актуальный код и поднять сервисы:
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 git fetch --all
 git pull --ff-only
 docker compose up -d --build api web
@@ -151,7 +151,7 @@ deploy/scripts/post_migration_check.sh
 1. Вернуть предыдущий коммит:
 
 ```bash
-cd /opt/prod-encar
+cd /opt/rideauto
 git log --oneline -n 5
 git checkout <PREVIOUS_GOOD_SHA>
 ```
@@ -176,17 +176,17 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 И Корея, и Китай лежат в **одной** базе Postgres (различаются полями `source` / регион в JSON).
 
 - Скрапер: из `backend/` выполните `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (в YAML — `storage.postgres.dsn` или `DATABASE_URL`; `db_path` — только префикс имени **checkpoint**-файла рядом с репо). При обрыве: **`--resume`** и тот же `db_path`.
-- Расписание: **`deploy/systemd/dongchedi-update.timer`** (или **`prod-dongchedi-update.timer`**) — **00:00 Asia/Yekaterinburg**, как **`prod-encar-auto-update.timer`**. Сначала один раз полный прогон вручную, затем включите timer.
+- Расписание: **`deploy/systemd/dongchedi-update.timer`** (или **`prod-dongchedi-update.timer`**) — **00:00 Asia/Yekaterinburg**, как **`rideauto-auto-update.timer`**. Сначала один раз полный прогон вручную, затем включите timer.
 - API: **FastAPI** читает Postgres и Meilisearch; отдельный `WRA_CHINA_DB_PATH` для каталога не требуется. После прогона при необходимости обновите индекс Meilisearch и сбросьте кэш nginx для `/api/*`.
 
 ### Ночное обновление не сработало — диагностика и ручной запуск
 
-- Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u prod-encar-auto-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
-- Частая причина по Корее: **`prod-encar-auto-update.service`** запускает **`encar_daily_update.py --once`**; при **ненулевом коде** юнит падает — смотрите `journalctl -u prod-encar-auto-update.service`.
+- Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u rideauto-auto-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
+- Частая причина по Корее: **`rideauto-auto-update.service`** запускает **`encar_daily_update.py --once`**; при **ненулевом коде** юнит падает — смотрите `journalctl -u rideauto-auto-update.service`.
 - Если в логе **`password authentication failed for user "postgres"`** — без рабочего Postgres ночной цикл Encar не выполнится. Проверьте `db_config` в **`backend/config.json`** и `DATABASE_URL` у скрапера.
 - Корея вручную (discover + pending): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо. **`auto_learn_engine_map`** после sync не запускается, пока не задано **`WRA_LEARN_ENGINE_MAP=1`** в env.
 - Китай полный перескрейп: остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
-- Китай **тест одной страницы**: **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/prod-encar` (лимит: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом обновите Meilisearch и проверьте каталог **`?region=china`**.
+- Китай **тест одной страницы**: **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/rideauto` (лимит: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом обновите Meilisearch и проверьте каталог **`?region=china`**.
 
 ## Заголовки безопасности (nginx)
 
@@ -215,7 +215,7 @@ location /api/ {
 npm run generate:seo-landings
 ```
 
-Файлы появляются в `web/public/seo/korea/<марка>/<модель>/index.html`. В nginx нужен префикс **`location ^~ /seo/korea/`** (см. `deploy/nginx/prod-encar.conf`).
+Файлы появляются в `web/public/seo/korea/<марка>/<модель>/index.html`. В nginx нужен префикс **`location ^~ /seo/korea/`** (см. `deploy/nginx/rideauto.conf`).
 
 ## Версии query-параметра `?v=` у JS/CSS
 
@@ -244,7 +244,7 @@ curl -sS -m 60 "https://ВАШ-ДОМЕН/api/cars?page=1&per_page=2&source=enca
 
 ### 2. Частая ошибка: в `server { listen 443 ssl; }` нет `location /api/`
 
-Certbot добавляет отдельный блок для HTTPS. Если туда **не скопированы** все `location /api/...` из [deploy/nginx/prod-encar.conf](nginx/prod-encar.conf), то запросы к `https://сайт/api/cars` попадают в `location /` и отдаются как статика (или 404) — в DevTools это часто выглядит как **долгий pending / timeout**.
+Certbot добавляет отдельный блок для HTTPS. Если туда **не скопированы** все `location /api/...` из [deploy/nginx/rideauto.conf](nginx/rideauto.conf), то запросы к `https://сайт/api/cars` попадают в `location /` и отдаются как статика (или 404) — в DevTools это часто выглядит как **долгий pending / timeout**.
 
 См. также [deploy/nginx/TROUBLESHOOT-HTTPS.txt](nginx/TROUBLESHOOT-HTTPS.txt).
 
@@ -256,6 +256,6 @@ Certbot добавляет отдельный блок для HTTPS. Если т
 
 ### 4. Кэш nginx
 
-В `prod-encar.conf` для каталога включён `proxy_cache_lock`. Если первый запрос к upstream «висит», остальные ждут замка. В актуальной версии конфига задан **`proxy_cache_lock_timeout 20s`**, чтобы запросы не копились бесконечно. После `git pull` перенесите эти строки в свой реальный `sites-enabled`.
+В `rideauto.conf` для каталога включён `proxy_cache_lock`. Если первый запрос к upstream «висит», остальные ждут замка. В актуальной версии конфига задан **`proxy_cache_lock_timeout 20s`**, чтобы запросы не копились бесконечно. После `git pull` перенесите эти строки в свой реальный `sites-enabled`.
 
 

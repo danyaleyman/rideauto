@@ -1,0 +1,23 @@
+[Unit]
+Description=Write shard XML sitemaps to disk (PostgreSQL catalog), rideauto
+After=network.target
+
+[Service]
+Type=oneshot
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+Environment=PYTHONUNBUFFERED=1
+Environment=PUBLIC_SITE_URL=https://rideauto.ru
+EnvironmentFile=-/etc/default/rideauto
+ExecStart=/opt/rideauto/.venv/bin/python /opt/rideauto/scripts/generate_sitemap_files.py --out /var/www/sitemap --base-url https://rideauto.ru --web-path /sitemap-gen/
+TimeoutStartSec=6h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/rideauto /var/www/sitemap
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

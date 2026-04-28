@@ -2,7 +2,7 @@
 # Первичная полная выгрузка Encar (storage.backend=postgres + DATABASE_URL / dsn в scraper_config.yaml).
 # После прогона: строки в Postgres, опционально postgres_catalog_sync / Meilisearch (см. encar_scraper.py).
 set -euo pipefail
-REPO_ROOT="${1:-/opt/prod-encar}"
+REPO_ROOT="${1:-/opt/rideauto}"
 cd "$REPO_ROOT"
 PY="${PYTHON:-${REPO_ROOT}/.venv/bin/python}"
 if [[ ! -x "$PY" ]]; then

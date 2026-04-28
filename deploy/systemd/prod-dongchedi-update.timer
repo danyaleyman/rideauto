@@ -1,8 +1,8 @@
 [Unit]
-Description=Run Dongchedi update daily (prod-encar, same time as Korea)
+Description=Run Dongchedi update daily (rideauto, same time as Korea)
 
 [Timer]
-# На час позже Кореи (prod-encar-auto-update), чтобы не бить API и Postgres одновременно.
+# На час позже Кореи (rideauto-auto-update), чтобы не бить API и Postgres одновременно.
 OnCalendar=*-*-* 01:00:00 Asia/Yekaterinburg
 Persistent=true
 Unit=prod-dongchedi-update.service

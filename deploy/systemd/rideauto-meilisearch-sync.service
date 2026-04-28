@@ -1,0 +1,15 @@
+[Unit]
+Description=RideAuto — PostgreSQL → Meilisearch (ночная выгрузка каталога на фронт)
+After=network.target
+
+[Service]
+Type=oneshot
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/rideauto
+ExecStart=/bin/bash /opt/rideauto/deploy/scripts/run_meilisearch_sync_host.sh
+TimeoutStartSec=6h
+NoNewPrivileges=true
+PrivateTmp=true

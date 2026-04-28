@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/opt/prod-encar}"
+PROJECT_DIR="${PROJECT_DIR:-/opt/rideauto}"
 API_URL="${API_URL:-http://127.0.0.1:8080}"
 MEILI_URL="${MEILI_URL:-http://127.0.0.1:7700}"
 POSTGRES_USER="${POSTGRES_USER:-wra}"

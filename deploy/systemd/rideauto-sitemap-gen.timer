@@ -1,10 +1,10 @@
 [Unit]
-Description=Daily disk sitemap generation (prod-encar)
+Description=Daily disk sitemap generation (rideauto)
 
 [Timer]
 OnCalendar=*-*-* 04:30:00 Asia/Yekaterinburg
 Persistent=true
-Unit=prod-encar-sitemap-gen.service
+Unit=rideauto-sitemap-gen.service
 
 [Install]
 WantedBy=timers.target
