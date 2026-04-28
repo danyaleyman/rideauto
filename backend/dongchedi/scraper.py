@@ -21,7 +21,11 @@ import aiohttp
 import yaml
 
 from dongchedi.brand_shards import DEFAULT_BRAND_SHARD_IDS
-from dongchedi.browser_fetch import fetch_usedcar_html_playwright
+from dongchedi.browser_fetch import (
+    build_cookie_header_playwright,
+    fetch_sku_list_playwright,
+    fetch_usedcar_html_playwright,
+)
 from dongchedi.client import DEFAULT_HEADERS, fetch_params_car_html, fetch_usedcar_html, post_sku_list
 from dongchedi.normalize import dongchedi_spec_car_id, row_matches_filters, sku_row_to_payload
 from dongchedi.parse_detail import parse_params_raw_data_from_html, parse_sku_detail_from_html
@@ -72,6 +76,10 @@ class ScrapeConfig:
     proxy_probe_enabled: bool = True
     proxy_probe_timeout_s: float = 15.0
     proxy_probe_brand_id: Optional[str] = "1"
+    session_user_data_dir: Optional[str] = None
+    session_refresh_sec: float = 1800.0
+    session_refresh_min_interval_s: float = 120.0
+    list_browser_fallback: bool = True
 
 
 _PROXY_IPV6_RE = re.compile(r"^http://[^:@\s]+:[^@\s]+@\[[0-9a-fA-F:]+\]:(\d{2,5})$")
@@ -270,6 +278,37 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
     timeout = aiohttp.ClientTimeout(total=cfg.request_timeout_s + 35)
     connector = aiohttp.TCPConnector(limit=max(12, cfg.concurrency + cfg.detail_concurrency))
     proxy_pool = _normalize_proxy_urls([str(p).strip() for p in (cfg.proxy_urls or []) if str(p).strip()])
+    current_cookie = (cfg.cookie or "").strip()
+    cookie_lock = asyncio.Lock()
+    last_cookie_refresh_mono = 0.0
+
+    async def refresh_cookie_from_browser(reason: str, *, force: bool = False) -> bool:
+        nonlocal current_cookie, last_cookie_refresh_mono
+        if not cfg.session_user_data_dir:
+            return False
+        now_mono = time.monotonic()
+        min_gap = max(1.0, float(cfg.session_refresh_min_interval_s))
+        if not force and last_cookie_refresh_mono > 0 and (now_mono - last_cookie_refresh_mono) < min_gap:
+            return False
+        async with cookie_lock:
+            now_mono = time.monotonic()
+            if not force and last_cookie_refresh_mono > 0 and (now_mono - last_cookie_refresh_mono) < min_gap:
+                return False
+            c = await build_cookie_header_playwright(
+                user_data_dir=cfg.session_user_data_dir,
+                user_agent=DEFAULT_HEADERS.get("User-Agent"),
+                timeout_s=min(45.0, max(8.0, cfg.browser_timeout_s)),
+                cookie_header=current_cookie or None,
+            )
+            last_cookie_refresh_mono = time.monotonic()
+            if not c:
+                log.warning("session refresh (%s): browser returned empty cookie", reason)
+                return False
+            current_cookie = c
+            cfg.cookie = c
+            headers["Cookie"] = c
+            log.info("session refresh (%s): cookie updated", reason)
+            return True
 
     async def probe_proxy(url: str) -> bool:
         # Быстрый health-check листинга, чтобы отсеять мёртвые прокси до старта.
@@ -340,6 +379,8 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
             cfg.shard_brands,
         )
     async with aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector) as session:
+        if cfg.session_user_data_dir and not current_cookie:
+            await refresh_cookie_from_browser("startup", force=True)
         if proxy_pool and cfg.proxy_probe_enabled:
             log.info("proxy probe: checking %s proxies for list endpoint", len(proxy_pool))
             checked = await asyncio.gather(*(probe_proxy(p) for p in proxy_pool))
@@ -364,6 +405,8 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                     sd = parse_sku_detail_from_html(html)
                     if sd:
                         break
+                if attempt == 0 and cfg.session_user_data_dir:
+                    await refresh_cookie_from_browser("detail_empty_html")
                 if attempt < 2:
                     await asyncio.sleep(0.4 * float(attempt + 1))
             if not sd:
@@ -372,6 +415,9 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                         st3, html3 = await fetch_usedcar_html_playwright(
                             sku,
                             timeout_s=cfg.browser_timeout_s,
+                            user_data_dir=cfg.session_user_data_dir,
+                            user_agent=DEFAULT_HEADERS.get("User-Agent"),
+                            cookie_header=current_cookie or None,
                         )
                     if st3 == 200 and html3:
                         sd = parse_sku_detail_from_html(html3)
@@ -402,6 +448,12 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
 
         first_shard_in_run = True
         for shard_i, brand_for_list in enumerate(brand_filters):
+            if cfg.session_user_data_dir and float(cfg.session_refresh_sec) > 0:
+                if (
+                    last_cookie_refresh_mono <= 0
+                    or (time.monotonic() - last_cookie_refresh_mono) >= float(cfg.session_refresh_sec)
+                ):
+                    await refresh_cookie_from_browser("periodic")
             global_shard_1based = slice_start + shard_i + 1
             if len(brand_filters) > 1 or brand_for_list:
                 log.info(
@@ -443,14 +495,34 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                         await asyncio.sleep(min(12.0, 0.7 * float(list_try + 1)))
 
                 if status != 200 or not payload:
-                    log.warning(
-                        "list page %s brand=%s http=%s api_status=%s",
-                        page,
-                        brand_for_list,
-                        status,
-                        None,
-                    )
-                    break
+                    if cfg.list_browser_fallback and cfg.session_user_data_dir:
+                        bst, bpayload = await fetch_sku_list_playwright(
+                            page=page,
+                            limit=page_sz,
+                            brand_id=brand_for_list,
+                            sh_city_name=cfg.sh_city_name,
+                            age_range=cfg.age_range,
+                            timeout_s=min(40.0, max(8.0, cfg.browser_timeout_s)),
+                            user_data_dir=cfg.session_user_data_dir,
+                            user_agent=DEFAULT_HEADERS.get("User-Agent"),
+                            cookie_header=current_cookie or None,
+                        )
+                        if bst == 200 and isinstance(bpayload, dict):
+                            status, payload = bst, bpayload
+                            if cfg.session_user_data_dir:
+                                await refresh_cookie_from_browser("list_browser_success")
+                        else:
+                            if cfg.session_user_data_dir:
+                                await refresh_cookie_from_browser("list_http_failed")
+                    if status != 200 or not payload:
+                        log.warning(
+                            "list page %s brand=%s http=%s api_status=%s",
+                            page,
+                            brand_for_list,
+                            status,
+                            None,
+                        )
+                        break
 
                 raw_st = payload.get("status")
                 if raw_st is None:
@@ -465,14 +537,37 @@ async def run_scrape(cfg: ScrapeConfig) -> int:
                     except (TypeError, ValueError):
                         api_st = -1
                     if api_st != 0:
-                        log.warning(
-                            "list page %s brand=%s http=%s api_status=%s",
-                            page,
-                            brand_for_list,
-                            status,
-                            raw_st,
-                        )
-                        break
+                        if cfg.list_browser_fallback and cfg.session_user_data_dir:
+                            bst, bpayload = await fetch_sku_list_playwright(
+                                page=page,
+                                limit=page_sz,
+                                brand_id=brand_for_list,
+                                sh_city_name=cfg.sh_city_name,
+                                age_range=cfg.age_range,
+                                timeout_s=min(40.0, max(8.0, cfg.browser_timeout_s)),
+                                user_data_dir=cfg.session_user_data_dir,
+                                user_agent=DEFAULT_HEADERS.get("User-Agent"),
+                                cookie_header=current_cookie or None,
+                            )
+                            if bst == 200 and isinstance(bpayload, dict):
+                                status, payload = bst, bpayload
+                                raw_st = payload.get("status")
+                                if cfg.session_user_data_dir:
+                                    await refresh_cookie_from_browser("list_browser_api_status")
+                        if raw_st is not None:
+                            try:
+                                api_st = int(raw_st)
+                            except (TypeError, ValueError):
+                                api_st = -1
+                        if api_st != 0:
+                            log.warning(
+                                "list page %s brand=%s http=%s api_status=%s",
+                                page,
+                                brand_for_list,
+                                status,
+                                raw_st,
+                            )
+                            break
 
                 data = payload.get("data") or {}
                 rows = data.get("search_sh_sku_info_list") or []
@@ -630,6 +725,15 @@ def main(argv: Optional[List[str]] = None) -> None:
         help="HTTP proxy URL, можно несколько раз: http://user:pass@host:port",
     )
     p.add_argument("--cny-to-rub", type=float, default=None)
+    p.add_argument("--session-user-data-dir", type=str, default=None, help="Playwright persistent profile dir")
+    p.add_argument("--session-refresh-sec", type=float, default=None, help="Cookie refresh interval via browser")
+    p.add_argument(
+        "--session-refresh-min-interval-s",
+        type=float,
+        default=None,
+        help="Min interval between browser cookie refresh attempts",
+    )
+    p.add_argument("--no-list-browser-fallback", action="store_true", help="Disable browser fallback for list endpoint")
     p.add_argument("--log-level", type=str, default="INFO")
     args = p.parse_args(argv)
 
@@ -700,6 +804,14 @@ def main(argv: Optional[List[str]] = None) -> None:
         cfg.proxy_urls = [str(x).strip() for x in args.proxy_url if str(x).strip()]
     if args.cny_to_rub is not None:
         cfg.cny_to_rub = args.cny_to_rub
+    if args.session_user_data_dir is not None:
+        cfg.session_user_data_dir = (args.session_user_data_dir or "").strip() or None
+    if args.session_refresh_sec is not None:
+        cfg.session_refresh_sec = max(60.0, float(args.session_refresh_sec))
+    if args.session_refresh_min_interval_s is not None:
+        cfg.session_refresh_min_interval_s = max(5.0, float(args.session_refresh_min_interval_s))
+    if args.no_list_browser_fallback:
+        cfg.list_browser_fallback = False
 
     setup_logging(args.log_level)
     t0 = time.perf_counter()
