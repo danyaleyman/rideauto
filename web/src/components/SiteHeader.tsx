@@ -4,12 +4,14 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { FavoritesDialog } from "@/components/FavoritesDialog";
 import { Button } from "@/components/ui/button";
 import { MOTION_TOKENS } from "@/components/ui/motion";
 import { Switch } from "@/components/ui/switch";
 
 export function SiteHeader() {
+  const { authenticated, user, logout } = useAuth();
   const reduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   const [dark, setDark] = useState(false);
@@ -18,10 +20,10 @@ export function SiteHeader() {
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem("wra-theme");
-    const isDark = stored === "dark";
+    const isDark = authenticated && stored === "dark";
     document.documentElement.classList.toggle("dark", isDark);
     setDark(isDark);
-  }, []);
+  }, [authenticated]);
 
   const onThemeChange = (checked: boolean) => {
     setDark(checked);
@@ -63,24 +65,28 @@ export function SiteHeader() {
             </Link>
           </nav>
 
-          <div className={mobileMenuOpen ? "hidden sm:block" : ""}>
-            <FavoritesDialog />
-          </div>
+          {authenticated ? (
+            <div className={mobileMenuOpen ? "hidden sm:block" : ""}>
+              <FavoritesDialog />
+            </div>
+          ) : null}
 
-          <div
-            className="hidden items-center gap-2 rounded-full border border-border/80 bg-muted/25 px-2 py-1 shadow-sm sm:flex"
-            title="Тёмная тема"
-          >
-            <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
-            <Switch
-              checked={mounted && dark}
-              onCheckedChange={onThemeChange}
-              disabled={!mounted}
-              aria-label="Переключить тёмную тему"
-              className="data-[state=checked]:border-primary"
-            />
-            <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
-          </div>
+          {authenticated ? (
+            <div
+              className="hidden items-center gap-2 rounded-full border border-border/80 bg-muted/25 px-2 py-1 shadow-sm sm:flex"
+              title="Тёмная тема"
+            >
+              <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
+              <Switch
+                checked={mounted && dark}
+                onCheckedChange={onThemeChange}
+                disabled={!mounted}
+                aria-label="Переключить тёмную тему"
+                className="data-[state=checked]:border-primary"
+              />
+              <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
+            </div>
+          ) : null}
 
           <Button
             variant="outline"
@@ -90,13 +96,27 @@ export function SiteHeader() {
           >
             <Link href="/contacts">Написать менеджеру</Link>
           </Button>
-          <Button
-            size="sm"
-            className={mobileMenuOpen ? "hidden rounded-full shadow-sm sm:inline-flex" : "rounded-full shadow-sm"}
-            asChild
-          >
-            <Link href="/login">Войти</Link>
-          </Button>
+          {authenticated ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className={mobileMenuOpen ? "hidden rounded-full shadow-sm sm:inline-flex" : "rounded-full shadow-sm"}
+              onClick={() => {
+                void logout();
+              }}
+              title={user?.email || "Выйти"}
+            >
+              Выйти
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className={mobileMenuOpen ? "hidden rounded-full shadow-sm sm:inline-flex" : "rounded-full shadow-sm"}
+              asChild
+            >
+              <Link href="/login">Войти</Link>
+            </Button>
+          )}
         </div>
 
         <AnimatePresence initial={false}>
@@ -161,20 +181,26 @@ export function SiteHeader() {
                 </motion.div>
               </motion.nav>
 
-              <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">
-                <span className="text-sm text-muted-foreground">Тёмная тема</span>
-                <div className="flex items-center gap-2">
-                  <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
-                  <Switch
-                    checked={mounted && dark}
-                    onCheckedChange={onThemeChange}
-                    disabled={!mounted}
-                    aria-label="Переключить тёмную тему"
-                    className="data-[state=checked]:border-primary"
-                  />
-                  <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
+              {authenticated ? (
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">
+                  <span className="text-sm text-muted-foreground">Тёмная тема</span>
+                  <div className="flex items-center gap-2">
+                    <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
+                    <Switch
+                      checked={mounted && dark}
+                      onCheckedChange={onThemeChange}
+                      disabled={!mounted}
+                      aria-label="Переключить тёмную тему"
+                      className="data-[state=checked]:border-primary"
+                    />
+                    <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="mt-3 rounded-xl border border-border/80 bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
+                  Войдите, чтобы включить избранное и настройку темы.
+                </p>
+              )}
             </motion.div>
           ) : null}
         </AnimatePresence>

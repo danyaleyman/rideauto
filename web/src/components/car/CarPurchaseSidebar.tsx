@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useState } from "react";
 import { Check, Copy, ExternalLink, Heart } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
@@ -61,8 +62,9 @@ export function CarPurchaseSidebar({
   sourceUpdatedAt,
 }: Props) {
   const reduceMotion = useReducedMotion();
+  const { authenticated } = useAuth();
   const { toggle, isFavorite } = useFavorites();
-  const fav = isFavorite(carId);
+  const fav = authenticated && isFavorite(carId);
   const [copied, setCopied] = useState(false);
 
   const breakdownRows: { label: string; value: string; note?: string }[] = [];
@@ -148,17 +150,21 @@ export function CarPurchaseSidebar({
         >
           {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
         </Button>
-        <Button
-          type="button"
-          variant={fav ? "default" : "outline"}
-          size="icon-sm"
-          className="rounded-xl shadow-sm"
-          title={fav ? "В избранном" : "В избранное"}
-          aria-pressed={fav}
-          onClick={() => toggle(slimForFavorite(carId, title, priceRub))}
-        >
-          <Heart className={fav ? "size-4 fill-current" : "size-4"} />
-        </Button>
+        {authenticated ? (
+          <Button
+            type="button"
+            variant={fav ? "default" : "outline"}
+            size="icon-sm"
+            className="rounded-xl shadow-sm"
+            title={fav ? "В избранном" : "В избранное"}
+            aria-pressed={fav}
+            onClick={() => {
+              void toggle(slimForFavorite(carId, title, priceRub));
+            }}
+          >
+            <Heart className={fav ? "size-4 fill-current" : "size-4"} />
+          </Button>
+        ) : null}
       </div>
 
       <div className="mt-6 flex flex-col gap-2.5">

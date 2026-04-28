@@ -61,6 +61,22 @@ export type CatalogDailyAdditionsResponse = {
   timezone: string;
 };
 
+export type AuthUser = {
+  id: number;
+  email: string;
+  is_active: boolean;
+  last_login_at?: string | null;
+};
+
+export type AuthMeResponse = {
+  authenticated: boolean;
+  user: AuthUser | null;
+};
+
+export type AuthSimpleOk = {
+  ok: boolean;
+};
+
 export type FacetRow = {
   value: string;
   label?: string;

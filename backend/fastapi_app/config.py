@@ -119,6 +119,39 @@ class Settings(BaseSettings):
         description="WRA_LEAD_SMTP_USE_TLS=1 — STARTTLS (для порта 587); при 465 оставьте false",
     )
 
+    # --- Email magic link auth ---
+    auth_enabled: bool = Field(default=True, description="WRA_AUTH_ENABLED — включить auth API")
+    auth_secret: str = Field(
+        default="",
+        description="WRA_AUTH_SECRET — секрет для хэширования токенов/сессий (обязателен в проде)",
+    )
+    auth_cookie_name: str = Field(default="wra_session", description="WRA_AUTH_COOKIE_NAME")
+    auth_cookie_secure: bool = Field(
+        default=True,
+        description="WRA_AUTH_COOKIE_SECURE=1 для HTTPS-only cookie",
+    )
+    auth_magic_ttl_min: int = Field(default=20, ge=5, le=120, description="WRA_AUTH_MAGIC_TTL_MIN")
+    auth_session_ttl_hours: int = Field(default=24 * 30, ge=1, le=24 * 365, description="WRA_AUTH_SESSION_TTL_HOURS")
+    auth_magic_link_base_url: str = Field(
+        default="https://rideauto.ru",
+        description="WRA_AUTH_MAGIC_LINK_BASE_URL — базовый URL для ссылки в письме",
+    )
+    auth_rate_limit_per_ip_hour: int = Field(default=40, ge=1, le=500)
+    auth_rate_limit_per_email_hour: int = Field(default=10, ge=1, le=100)
+
+    auth_smtp_host: Optional[str] = Field(
+        default=None,
+        description="WRA_AUTH_SMTP_HOST — например smtp.yandex.ru",
+    )
+    auth_smtp_port: int = Field(default=465, ge=1, le=65535)
+    auth_smtp_user: Optional[str] = Field(default=None)
+    auth_smtp_password: Optional[str] = Field(default=None)
+    auth_smtp_use_tls: bool = Field(default=False, description="STARTTLS для 587")
+    auth_email_from: Optional[str] = Field(
+        default=None,
+        description="WRA_AUTH_EMAIL_FROM — From, если пусто используется auth smtp user",
+    )
+
     # --- Runtime translation API (inspection comments etc.) ---
     translate_provider: str = Field(
         default=(os.environ.get("WRA_TRANSLATE_PROVIDER") or "openai"),

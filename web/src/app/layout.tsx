@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Roboto } from "next/font/google";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
+import { AuthProvider } from "@/components/AuthProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSiteUrl } from "@/lib/env";
 import "./globals.css";
@@ -55,10 +56,12 @@ export default function RootLayout({
       )}
     >
       <body className="antialiased">
-        <TooltipProvider>
-          <WebVitalsReporter />
-          {children}
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <WebVitalsReporter />
+            {children}
+          </TooltipProvider>
+        </AuthProvider>
       </body>
     </html>
   );

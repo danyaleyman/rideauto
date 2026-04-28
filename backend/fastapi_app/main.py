@@ -24,6 +24,7 @@ from fastapi_app.middleware.cdn_cache import CDNCacheMiddleware
 from fastapi_app.middleware.prometheus_http import PrometheusHTTPMiddleware
 from fastapi_app.redis_cache import RedisJSONCache, close_redis_client, create_redis_client
 from fastapi_app.routers import (
+    auth,
     cache_invalidate,
     car,
     catalog_stats,
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CDNCacheMiddleware)
     app.add_middleware(PrometheusHTTPMiddleware)
     app.include_router(search.router, prefix="/api")
+    app.include_router(auth.router, prefix="/api")
     app.include_router(catalog_stats.router, prefix="/api")
     app.include_router(car.router, prefix="/api")
     app.include_router(facets.router, prefix="/api")

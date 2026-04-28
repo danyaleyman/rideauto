@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Bookmark, Heart, Trash2 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { useFavorites } from "@/hooks/use-favorites";
 import { formatPriceLabel } from "@/lib/format-price";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function FavoritesDialog() {
+  const { authenticated } = useAuth();
   const { items, count, remove } = useFavorites();
 
   return (
@@ -49,7 +51,15 @@ export function FavoritesDialog() {
             Сохранено в этом браузере. Нажмите на строку, чтобы открыть карточку.
           </DialogDescription>
         </DialogHeader>
-        {count === 0 ? (
+        {!authenticated ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Избранное доступно после входа.
+            {" "}
+            <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+              Войти
+            </Link>
+          </p>
+        ) : count === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Пока пусто. В каталоге нажмите на иконку сердца на карточке, чтобы добавить объявление.
           </p>
@@ -82,7 +92,9 @@ export function FavoritesDialog() {
                       className="shrink-0 text-muted-foreground hover:text-destructive"
                       title="Убрать из избранного"
                       aria-label="Убрать из избранного"
-                      onClick={() => remove(car.id)}
+                      onClick={() => {
+                        void remove(car.id);
+                      }}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>

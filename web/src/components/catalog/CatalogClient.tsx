@@ -24,6 +24,7 @@ import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagno
 import { asStr, formatKm, formatRegYearMonth } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
+import { useAuth } from "@/components/AuthProvider";
 import { MarketSegmentedControl } from "@/components/catalog/MarketSegmentedControl";
 import { cn } from "@/lib/utils";
 import {
@@ -797,6 +798,7 @@ export function CatalogClient({
   const [dailyNewLoading, setDailyNewLoading] = useState(true);
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
+  const { authenticated } = useAuth();
 
   useEffect(() => {
     setQDraft(state.q);
@@ -1485,7 +1487,7 @@ export function CatalogClient({
               const passability = carPassabilityStatus(cardData);
               const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
               const listingSold = Boolean(car.encar_listing_sold || car.dongchedi_listing_sold);
-              const fav = isFavorite(car.id);
+              const fav = authenticated && isFavorite(car.id);
               const showCopied = copiedId === car.id;
               return (
                 <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout>
@@ -1581,18 +1583,22 @@ export function CatalogClient({
                               <Copy className="size-4" />
                             )}
                           </Button>
-                          <Button
-                            type="button"
-                            variant={fav ? "default" : "secondary"}
-                            size="icon-sm"
-                            className="rounded-lg shadow-sm"
-                            title={fav ? "Убрать из избранного" : "В избранное"}
-                            aria-pressed={fav}
-                            aria-label={fav ? "Убрать из избранного" : "Добавить в избранное"}
-                            onClick={() => toggleFavorite(car)}
-                          >
-                            <Heart className={cn("size-4", fav ? "fill-current" : "")} />
-                          </Button>
+                          {authenticated ? (
+                            <Button
+                              type="button"
+                              variant={fav ? "default" : "secondary"}
+                              size="icon-sm"
+                              className="rounded-lg shadow-sm"
+                              title={fav ? "Убрать из избранного" : "В избранное"}
+                              aria-pressed={fav}
+                              aria-label={fav ? "Убрать из избранного" : "Добавить в избранное"}
+                              onClick={() => {
+                                void toggleFavorite(car);
+                              }}
+                            >
+                              <Heart className={cn("size-4", fav ? "fill-current" : "")} />
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex items-start px-3 py-3 sm:px-4 md:px-5">

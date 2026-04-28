@@ -92,3 +92,27 @@ class CatalogFilterEvent(BaseModel):
     pathname: Optional[str] = None
     market: Optional[str] = None
     payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AuthMagicRequestPayload(BaseModel):
+    email: str = Field(min_length=5, max_length=320)
+
+
+class AuthMagicVerifyPayload(BaseModel):
+    token: str = Field(min_length=24, max_length=512)
+
+
+class AuthSimpleOkResponse(BaseModel):
+    ok: bool = True
+
+
+class AuthUserResponse(BaseModel):
+    id: int
+    email: str
+    is_active: bool = True
+    last_login_at: Optional[str] = None
+
+
+class AuthMeResponse(BaseModel):
+    authenticated: bool
+    user: Optional[AuthUserResponse] = None

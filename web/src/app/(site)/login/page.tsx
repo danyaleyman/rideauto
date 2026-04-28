@@ -1,16 +1,35 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { MotionFadeUp } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-export const metadata: Metadata = {
-  title: "Вход",
-  description: "Вход в личный кабинет World Ride Auto",
-};
+import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
+  const { requestMagicLink } = useAuth();
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
+
+  const submit = async () => {
+    const normalized = email.trim();
+    if (!normalized) return;
+    setSending(true);
+    setStatus("idle");
+    try {
+      await requestMagicLink(normalized);
+      setStatus("ok");
+    } catch {
+      setStatus("err");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-md px-4 py-16">
       <MotionFadeUp>
@@ -26,17 +45,31 @@ export default function LoginPage() {
           <CardHeader>
             <CardTitle className="font-heading text-xl">Вход</CardTitle>
             <CardDescription>
-              Раздел в разработке. Оформление заявки — через{" "}
-              <Link href="/contacts" className="font-medium text-primary underline-offset-4 hover:underline">
-                контакты
-              </Link>
-              .
+              Введите email — отправим одноразовую ссылку для входа.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button className="w-full rounded-full" asChild>
-              <Link href="/contacts">Связаться с менеджером</Link>
+          <CardContent className="space-y-3">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              disabled={sending}
+            />
+            <Button className="w-full rounded-full" onClick={submit} disabled={sending || !email.trim()}>
+              {sending ? "Отправляем..." : "Отправить ссылку"}
             </Button>
+            {status === "ok" ? (
+              <p className="text-sm text-emerald-600">
+                Ссылка отправлена. Проверьте почту и откройте письмо.
+              </p>
+            ) : null}
+            {status === "err" ? (
+              <p className="text-sm text-destructive">
+                Не удалось отправить ссылку. Попробуйте позже.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       </MotionFadeUp>
