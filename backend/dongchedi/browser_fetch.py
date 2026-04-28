@@ -130,6 +130,10 @@ async def fetch_sku_list_playwright(
     if age_range is not None and str(age_range).strip():
         form["age_range"] = str(age_range).strip()
     url = "https://www.dongchedi.com/motor/pc/sh/sh_sku_list?aid=1839&app_name=auto_web_pc"
+    warmup_candidates = [
+        "https://www.dongchedi.com/",
+        "https://www.dongchedi.com/usedcar",
+    ]
     script = """
         async ({ url, form }) => {
           const body = new URLSearchParams(form).toString();
@@ -155,7 +159,16 @@ async def fetch_sku_list_playwright(
                 except Exception:
                     pass
             page_obj = await context.new_page()
-            await page_obj.goto("https://www.dongchedi.com/usedcar", wait_until="domcontentloaded", timeout=timeout_ms)
+            warmed = False
+            for wu in warmup_candidates:
+                try:
+                    await page_obj.goto(wu, wait_until="domcontentloaded", timeout=timeout_ms)
+                    warmed = True
+                    break
+                except Exception:
+                    continue
+            if not warmed:
+                return 0, None
             await page_obj.wait_for_timeout(600)
             out = await page_obj.evaluate(script, {"url": url, "form": form})
             if not isinstance(out, dict):
@@ -173,7 +186,7 @@ async def build_cookie_header_playwright(
     *,
     user_data_dir: Optional[str] = None,
     user_agent: Optional[str] = None,
-    warmup_url: str = "https://www.dongchedi.com/usedcar",
+    warmup_url: str = "https://www.dongchedi.com/",
     timeout_s: float = 25.0,
     cookie_header: Optional[str] = None,
 ) -> Optional[str]:
@@ -189,7 +202,17 @@ async def build_cookie_header_playwright(
                 except Exception:
                     pass
             page = await context.new_page()
-            await page.goto(warmup_url, wait_until="domcontentloaded", timeout=timeout_ms)
+            warmup_candidates = [warmup_url, "https://www.dongchedi.com/usedcar"]
+            warmed = False
+            for wu in warmup_candidates:
+                try:
+                    await page.goto(wu, wait_until="domcontentloaded", timeout=timeout_ms)
+                    warmed = True
+                    break
+                except Exception:
+                    continue
+            if not warmed:
+                return None
             await page.wait_for_timeout(500)
             cookies = await context.cookies("https://www.dongchedi.com")
             parts = []
