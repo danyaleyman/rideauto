@@ -128,7 +128,9 @@ export function OrderLeadForm() {
             {status === "sending" ? "Отправка…" : "Отправить заявку"}
           </Button>
           {status === "ok" ? (
-            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Заявка отправлена. Спасибо!</p>
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              Ваша заявка отправлена, в ближайшее время с вами свяжется менеджер.
+            </p>
           ) : null}
           {status === "err" ? (
             <p className="text-sm text-destructive [overflow-wrap:anywhere]" role="alert">

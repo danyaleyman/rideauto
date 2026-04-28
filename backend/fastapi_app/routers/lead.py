@@ -60,9 +60,10 @@ def _send_lead_email_sync(
 async def submit_order_lead(request: Request, payload: OrderLeadPayload) -> dict:
     """Заявка с сайта: на почту через SMTP (Yandex и др.), пока без Telegram."""
     settings = get_settings()
-    host = (settings.lead_smtp_host or "").strip()
-    user = (settings.lead_smtp_user or "").strip()
-    password = (settings.lead_smtp_password or "").strip()
+    # Primary SMTP from lead settings; fallback to auth SMTP so all forms can use one mailbox.
+    host = (settings.lead_smtp_host or settings.auth_smtp_host or "").strip()
+    user = (settings.lead_smtp_user or settings.auth_smtp_user or "").strip()
+    password = (settings.lead_smtp_password or settings.auth_smtp_password or "").strip()
     if not host or not user or not password:
         _log.warning("lead submit rejected: SMTP not configured")
         raise HTTPException(
@@ -70,10 +71,10 @@ async def submit_order_lead(request: Request, payload: OrderLeadPayload) -> dict
             detail="Отправка заявок временно недоступна (не настроена почта на сервере).",
         )
 
-    to_addr = (settings.lead_email_to or "").strip() or "danyaleyman@yandex.ru"
-    from_addr = (settings.lead_email_from or "").strip() or user
-    port = int(settings.lead_smtp_port)
-    use_tls = settings.lead_smtp_use_tls
+    to_addr = (settings.lead_email_to or "").strip() or (settings.auth_smtp_user or "").strip() or "danyaleyman@yandex.ru"
+    from_addr = (settings.lead_email_from or settings.auth_email_from or "").strip() or user
+    port = int(settings.lead_smtp_port or settings.auth_smtp_port)
+    use_tls = bool(settings.lead_smtp_use_tls or settings.auth_smtp_use_tls)
 
     subject = f"Заявка с сайта — {payload.full_name[:80]}"
     xf = request.headers.get("x-forwarded-for")

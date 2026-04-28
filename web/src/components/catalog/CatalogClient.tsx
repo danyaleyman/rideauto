@@ -26,6 +26,7 @@ import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth } from "@/components/AuthProvider";
 import { MarketSegmentedControl } from "@/components/catalog/MarketSegmentedControl";
+import { CatalogQuickBuyDialog } from "@/components/catalog/CatalogQuickBuyDialog";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -1699,6 +1700,7 @@ export function CatalogClient({
                               </Tooltip>
                             </Badge>
                           ) : null}
+                          <CatalogQuickBuyDialog carId={car.id} carTitle={car.title || car.id} />
                         </div>
                       </div>
                     </div>
