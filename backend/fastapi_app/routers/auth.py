@@ -196,7 +196,7 @@ async def auth_magic_request(request: Request, payload: AuthMagicRequestPayload)
     await pool.execute(
         """
         INSERT INTO auth_magic_tokens (user_id, token_hash, expires_at, ip, ua)
-        VALUES ($1, $2, now() + ($3 || ' minutes')::interval, $4, $5)
+        VALUES ($1, $2, now() + make_interval(mins => $3::int), $4, $5)
         """,
         user_id,
         token_hash,
