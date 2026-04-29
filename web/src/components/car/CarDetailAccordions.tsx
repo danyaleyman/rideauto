@@ -101,6 +101,11 @@ function bodyStatusColor(text: string): string {
   return "bg-slate-100 text-slate-800 border-slate-300";
 }
 
+function isNegativeFlag(v: unknown): boolean {
+  const s = translateKoToRuText(String(v ?? "")).trim().toLowerCase();
+  return ["нет", "없음", "no", "normal", "0", "false", "n"].includes(s);
+}
+
 type BodyRow = { part: string; status: string };
 
 function bodyStatusWeight(status: string): number {
@@ -278,7 +283,15 @@ function collectDongchediRecommendedFallback(d: Record<string, unknown>): string
   return out;
 }
 
-function AccidentCases({ items, title }: { items: unknown[]; title: string }) {
+function AccidentCases({
+  items,
+  title,
+  krwRate,
+}: {
+  items: unknown[];
+  title: string;
+  krwRate: number;
+}) {
   const list = items
     .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
     .filter((x): x is Record<string, unknown> => Boolean(x));
@@ -299,7 +312,7 @@ function AccidentCases({ items, title }: { items: unknown[]; title: string }) {
           const rubOrNone = (v: unknown): string => {
             const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/\s/g, ""));
             if (!Number.isFinite(n) || n <= 0) return "Нет";
-            return formatRubFromUnknown(v) ?? formatKrw(n);
+            return formatPriceLabel(n * krwRate);
           };
           const part = rubOrNone(a.partCost);
           const labor = rubOrNone(a.laborCost);
@@ -321,9 +334,6 @@ function AccidentCases({ items, title }: { items: unknown[]; title: string }) {
           );
         })}
       </ul>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Показываются только случаи, относящиеся к текущему автомобилю. Данные по второму участнику скрыты.
-      </p>
     </div>
   );
 }
@@ -331,6 +341,7 @@ function AccidentCases({ items, title }: { items: unknown[]; title: string }) {
 function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   const reduceMotion = useReducedMotion();
   const [krwRate, setKrwRate] = useState<number | null>(null);
+  const krwRubRateSafe = krwRate && Number.isFinite(krwRate) && krwRate > 0 ? krwRate : 0.0539;
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -360,8 +371,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   const rubFromKrw = (v: unknown): string | null => {
     const n = num(v);
     if (n == null) return null;
-    if (krwRate == null) return `${Math.round(n).toLocaleString("ru-RU")} ₩`;
-    return formatPriceLabel(n * krwRate);
+    return formatPriceLabel(n * krwRubRateSafe);
   };
 
   const rows: { label: string; value: string }[] = [];
@@ -379,23 +389,20 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   const floodPartCnt = asCount(ro.floodPartLossCnt);
   const theftCnt = asCount(ro.robberCnt);
 
-  add("ДТП по текущему авто", myAccCnt > 0 ? `Зафиксировано случаев: ${myAccCnt}` : "Нет");
+  add("ДТП по текущему авто", String(myAccCnt));
   add("Сумма страховых выплат по текущему авто", ro.myAccidentCost, (v) => {
     const n = asCount(v);
     if (n <= 0) return "Нет";
     return rubFromKrw(v);
   });
-  add("Полная гибель", totalLossCnt > 0 ? `Да, случаев: ${totalLossCnt}` : "Нет");
-  add("Дата полной гибели", ro.totalLossDate, (v) => formatHumanDate(v) ?? null);
+  add("Конструктивная гибель", totalLossCnt > 0 ? `Да (${totalLossCnt})` : "Нет");
   add(
     "Затопления",
     floodTotalCnt > 0 || floodPartCnt > 0
       ? `Тотал: ${floodTotalCnt}, частичное: ${floodPartCnt}`
       : "Нет",
   );
-  add("Дата затопления", ro.floodDate, (v) => formatHumanDate(v) ?? null);
   add("Угон", theftCnt > 0 ? `Да, случаев: ${theftCnt}` : "Нет");
-  add("Дата угона", ro.robberDate, (v) => formatHumanDate(v) ?? null);
   add("Отзывные кампании", ro.recall, (v) => {
     const t = translateKoToRuText(String(v ?? "")).trim();
     if (!t || t === "0" || t.toLowerCase() === "none") return "Нет";
@@ -451,7 +458,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
                   insuranceTab === "other" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                По второму участнику ДТП
+                Соучастник(и) ДТП
               </button>
             </div>
           ) : null}
@@ -467,7 +474,8 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
             >
               <AccidentCases
                 items={insuranceTab === "other" ? otherCases : mineCases}
-                title={insuranceTab === "other" ? "Страховые случаи по второму участнику ДТП" : "Страховые случаи по текущему авто"}
+                title={insuranceTab === "other" ? "Страховые случаи соучастников ДТП" : "Страховые случаи по текущему авто"}
+                krwRate={krwRubRateSafe}
               />
             </motion.div>
           </AnimatePresence>
@@ -636,6 +644,19 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   );
 }
 
+function normalizeDiagLabel(raw: string): string {
+  const t = raw.toLowerCase();
+  if (t.includes("водяной насос")) return "Насос системы охлаждения";
+  if (t.includes("common rail")) return raw.replace(/\s*\(common rail\)\s*/gi, "");
+  return raw;
+}
+
+function normalizeDiagValue(raw: string): string {
+  const t = raw.trim().toLowerCase();
+  if (t === "нет") return "В норме";
+  return raw;
+}
+
 export function CarDetailAccordions({
   data,
   diagnosisPhotosCount,
@@ -730,7 +751,10 @@ export function CarDetailAccordions({
             ? translateKoToRuText(JSON.stringify(v))
             : "";
         const cleaned = cleanScalarText(base);
-        return cleaned ? { label: translateKoToRuText(prettifyDataKey(k)), value: translateKoToRuText(cleaned) } : null;
+        if (!cleaned) return null;
+        const ruLabel = normalizeDiagLabel(translateKoToRuText(prettifyDataKey(k)));
+        const ruValue = normalizeDiagValue(translateKoToRuText(cleaned));
+        return { label: ruLabel, value: ruValue };
       })
       .filter((x): x is { label: string; value: string } => Boolean(x));
   };
@@ -787,12 +811,12 @@ export function CarDetailAccordions({
               seriousTypes={seriousTypes}
             />
             <div className="flex flex-wrap gap-2">
-              {accident != null && !/^(нет|없음|no|normal)$/i.test(String(translateKoToRuText(String(accident))).trim()) ? (
+              {accident != null && !isNegativeFlag(accident) ? (
                 <Badge variant="outline" className="rounded-lg">
                   ДТП (данные осмотра): {asStr(accident) ?? JSON.stringify(accident)}
                 </Badge>
               ) : null}
-              {simpleRepair != null && !/^(нет|없음|no|normal)$/i.test(String(translateKoToRuText(String(simpleRepair))).trim()) ? (
+              {simpleRepair != null && !isNegativeFlag(simpleRepair) ? (
                 <Badge variant="outline" className="rounded-lg">
                   Косметический ремонт: {asStr(simpleRepair) ?? JSON.stringify(simpleRepair)}
                 </Badge>
@@ -840,20 +864,9 @@ export function CarDetailAccordions({
                     >
                       <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
                         {activeDiag.rows.map((row) => (
-                          <li key={`${activeDiag.key}-${row.label}`} className="rounded-xl border border-border/50 bg-background px-3 py-2">
+                          <li key={`${activeDiag.key}-${row.label}`} className="rounded-lg border border-border/45 bg-background px-2.5 py-2">
                             <p className="text-xs text-muted-foreground">{row.label}</p>
-                            <div className="mt-1 flex items-center justify-between gap-2">
-                              <p className="text-sm font-medium">{row.value}</p>
-                              <Badge variant="outline" className={toneClass(diagnosisStatusTone(row.value))}>
-                                {diagnosisStatusTone(row.value) === "ok"
-                                  ? "Исправно"
-                                  : diagnosisStatusTone(row.value) === "warn"
-                                    ? "Требует внимания"
-                                    : diagnosisStatusTone(row.value) === "bad"
-                                      ? "Проблема"
-                                      : "Проверить"}
-                              </Badge>
-                            </div>
+                            <p className="mt-1 text-sm font-medium">{row.value}</p>
                           </li>
                         ))}
                       </ul>
