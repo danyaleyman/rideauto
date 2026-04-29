@@ -13,7 +13,6 @@ import {
   asStr,
   cleanScalarText,
   diagnosisStatusTone,
-  flatScalarRows,
   buildNormalizedCarTitle,
   formatHumanDate,
   formatInspectionListItem,
@@ -33,6 +32,10 @@ import {
 } from "@/lib/encar-options-display";
 import { localizeDongchediOptionText } from "@/lib/dongchedi-option-ru-table";
 import { formatPriceLabel } from "@/lib/format-price";
+
+const SWITCH_BAR_CLASS = "inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1.5";
+const SWITCH_BUTTON_CLASS =
+  "flex-1 rounded-lg px-3.5 py-2 text-sm font-medium leading-none transition";
 
 function localizeLabel(label: string): string {
   return translateKoToRuText(prettifyDataKey(label));
@@ -73,29 +76,70 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
   );
 }
 
+function normalizeBodyStatus(raw: string): string {
+  const t = raw.toLowerCase();
+  if (t.includes("교환") || t.includes("замен")) return "Замена";
+  if (t.includes("용접") || t.includes("свар")) return "Сварка";
+  if (t.includes("도장") || t.includes("окрас")) return "Окрас";
+  if (t.includes("판금") || t.includes("ремонт")) return "Ремонт";
+  if (t.includes("부식") || t.includes("корроз")) return "Коррозия";
+  if (t.includes("흠집") || t.includes("царап")) return "Царапина";
+  if (t.includes("요철") || t.includes("вмят")) return "Вмятина";
+  if (t.includes("손상") || t.includes("повреж")) return "Повреждение";
+  if (t.includes("정상") || t.includes("양호") || t.includes("normal") || t.includes("없음") || t.includes("ориг")) {
+    return "Оригинал";
+  }
+  return translateKoToRuText(raw) || "Оригинал";
+}
+
 function bodyStatusColor(text: string): string {
-  const t = text.toLowerCase();
-  if (t.includes("ориг") || t.includes("정상") || t.includes("양호")) return "bg-emerald-100 text-emerald-900 border-emerald-300";
-  if (t.includes("окрас") || t.includes("판금") || t.includes("도장")) return "bg-amber-100 text-amber-900 border-amber-300";
-  if (t.includes("замен") || t.includes("교환")) return "bg-red-100 text-red-900 border-red-300";
-  if (t.includes("ремонт") || t.includes("수리")) return "bg-orange-100 text-orange-900 border-orange-300";
+  const t = normalizeBodyStatus(text).toLowerCase();
+  if (t.includes("ориг")) return "bg-emerald-100 text-emerald-900 border-emerald-300";
+  if (t.includes("окрас") || t.includes("ремонт") || t.includes("царап")) return "bg-amber-100 text-amber-900 border-amber-300";
+  if (t.includes("свар") || t.includes("замен")) return "bg-red-100 text-red-900 border-red-300";
+  if (t.includes("вмят") || t.includes("повреж") || t.includes("корроз")) return "bg-orange-100 text-orange-900 border-orange-300";
   return "bg-slate-100 text-slate-800 border-slate-300";
 }
 
-function BodyStateChips({
+type BodyRow = { part: string; status: string };
+
+function bodyStatusWeight(status: string): number {
+  const s = normalizeBodyStatus(status).toLowerCase();
+  if (s.includes("замен")) return 50;
+  if (s.includes("свар")) return 40;
+  if (s.includes("повреж") || s.includes("вмят")) return 30;
+  if (s.includes("окрас") || s.includes("ремонт") || s.includes("корроз")) return 20;
+  if (s.includes("царап")) return 10;
+  return 0;
+}
+
+function isInternalBodyPart(part: string): boolean {
+  const p = part.toLowerCase();
+  const keys = [
+    "pillar", "frame", "floor", "wheel housing", "member", "package tray", "대시", "필러", "플로어",
+    "휠하우스", "사이드실", "주요골격", "트렁크 플로어", "루프", "쿼터", "лонжерон", "стойк", "порог",
+  ];
+  return keys.some((k) => p.includes(k));
+}
+
+function collectBodyRows({
   outers,
   bodyChanged,
+  paintPartTypes,
+  seriousTypes,
 }: {
   outers: unknown;
   bodyChanged: unknown;
-}) {
-  const rows: Array<{ part: string; status: string }> = [];
+  paintPartTypes: unknown;
+  seriousTypes: unknown;
+}): { external: BodyRow[]; internal: BodyRow[] } {
+  const rows: BodyRow[] = [];
   if (Array.isArray(outers)) {
     for (const item of outers) {
       if (!item || typeof item !== "object") continue;
       const o = item as Record<string, unknown>;
       const part = translateKoToRuText(asStr(o.partName) ?? asStr(o.part) ?? asStr(o.name) ?? "");
-      const status = translateKoToRuText(
+      const status = normalizeBodyStatus(
         asStr(getPath(o, ["statusType", "title"])) ?? asStr(o.status) ?? asStr(o.result) ?? "Оригинал",
       );
       if (part && status) rows.push({ part, status });
@@ -104,22 +148,106 @@ function BodyStateChips({
   if (bodyChanged && typeof bodyChanged === "object" && !Array.isArray(bodyChanged)) {
     for (const [k, v] of Object.entries(bodyChanged as Record<string, unknown>)) {
       const part = translateKoToRuText(k);
-      const status = translateKoToRuText(asStr(v) ?? "Замена");
+      const status = normalizeBodyStatus(asStr(v) ?? "Замена");
       if (part && status) rows.push({ part, status });
     }
   }
-  if (!rows.length) {
+  if (Array.isArray(paintPartTypes)) {
+    for (const x of paintPartTypes) {
+      const part = translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x));
+      if (part) rows.push({ part, status: "Окрас" });
+    }
+  }
+  if (Array.isArray(seriousTypes)) {
+    for (const x of seriousTypes) {
+      const part = translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x));
+      if (part) rows.push({ part, status: "Повреждение" });
+    }
+  }
+  const uniq = new Map<string, BodyRow>();
+  for (const r of rows) {
+    const k = r.part.trim().toLowerCase();
+    const prev = uniq.get(k);
+    if (!prev || bodyStatusWeight(r.status) > bodyStatusWeight(prev.status)) {
+      uniq.set(k, { part: r.part, status: normalizeBodyStatus(r.status) });
+    }
+  }
+  const out = Array.from(uniq.values());
+  return {
+    internal: out.filter((r) => isInternalBodyPart(r.part)),
+    external: out.filter((r) => !isInternalBodyPart(r.part)),
+  };
+}
+
+function BodyConditionSection({
+  outers,
+  bodyChanged,
+  paintPartTypes,
+  seriousTypes,
+}: {
+  outers: unknown;
+  bodyChanged: unknown;
+  paintPartTypes: unknown;
+  seriousTypes: unknown;
+}) {
+  const reduceMotion = useReducedMotion();
+  const groups = useMemo(
+    () => collectBodyRows({ outers, bodyChanged, paintPartTypes, seriousTypes }),
+    [outers, bodyChanged, paintPartTypes, seriousTypes],
+  );
+  const tabs = [
+    { key: "external" as const, title: "Внешние элементы", rows: groups.external },
+    { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
+  ].filter((t) => t.rows.length > 0);
+  const [activeTab, setActiveTab] = useState<"external" | "internal">("external");
+  useEffect(() => {
+    if (!tabs.length) return;
+    if (!tabs.some((x) => x.key === activeTab)) setActiveTab(tabs[0].key);
+  }, [tabs, activeTab]);
+  const activeRows = tabs.find((x) => x.key === activeTab)?.rows ?? [];
+
+  if (!tabs.length) {
     return <p className="text-sm text-muted-foreground">Повреждений не зафиксировано, элементы кузова в исходном состоянии.</p>;
   }
   return (
-    <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-      {rows.map((r, i) => (
-        <li key={`${r.part}-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-border/50 px-3 py-2">
-          <span className="text-sm">{r.part}</span>
-          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${bodyStatusColor(r.status)}`}>{r.status}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-3">
+      {tabs.length > 1 ? (
+        <div className={SWITCH_BAR_CLASS}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`${SWITCH_BUTTON_CLASS} ${
+                activeTab === tab.key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.title}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={activeTab}
+          layout
+          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+          className="overflow-hidden"
+        >
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {activeRows.map((r, i) => (
+              <li key={`${activeTab}-${r.part}-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-border/50 px-3 py-2">
+                <span className="text-sm">{r.part}</span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${bodyStatusColor(r.status)}`}>{r.status}</span>
+              </li>
+            ))}
+          </ul>
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -392,13 +520,13 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       ) : (
         <div className="space-y-3">
           {groupMeta.length > 1 ? (
-            <div className="inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1">
+            <div className={SWITCH_BAR_CLASS}>
               {groupMeta.map((g) => (
                 <button
                   key={g.key}
                   type="button"
                   onClick={() => setActiveGroup(g.key)}
-                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  className={`${SWITCH_BUTTON_CLASS} ${
                     activeGroup === g.key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -577,53 +705,18 @@ export function CarDetailAccordions({
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
           <div className="space-y-4">
-            {paintPartTypes != null ? (
-              <div>
-                <h4 className="mb-1 text-xs font-semibold text-muted-foreground">Окрашенные детали</h4>
-                {Array.isArray(paintPartTypes) && paintPartTypes.length > 0 ? (
-                  <ul className="list-inside list-disc text-sm">
-                    {paintPartTypes.map((x, i) => (
-                      <li key={i} className="[overflow-wrap:anywhere]">
-                        {translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x))}
-                      </li>
-                    ))}
-                  </ul>
-                ) : typeof paintPartTypes === "object" ? (
-                  <SpecGrid rows={flatScalarRows(paintPartTypes).map(([k, v]) => ({ label: k, value: v }))} />
-                ) : (
-                  <p className="text-sm">{translateKoToRuText(asStr(paintPartTypes) ?? "Не выявлены")}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Нет данных по окрашенным деталям.</p>
-            )}
-            {seriousTypes != null ? (
-              <div>
-                <h4 className="mb-1 text-xs font-semibold text-muted-foreground">Серьёзные повреждения</h4>
-                {Array.isArray(seriousTypes) && seriousTypes.length > 0 ? (
-                  <ul className="list-inside list-disc text-sm">
-                    {seriousTypes.map((x, i) => (
-                      <li key={i} className="[overflow-wrap:anywhere]">
-                        {translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x))}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm [overflow-wrap:anywhere]">Не выявлены</p>
-                )}
-              </div>
-            ) : null}
+            <BodyConditionSection
+              outers={outers}
+              bodyChanged={bodyChanged}
+              paintPartTypes={paintPartTypes}
+              seriousTypes={seriousTypes}
+            />
             {boardTitle ? (
               <p className="text-sm">
                 <span className="text-muted-foreground">Состояние кузова: </span>
                 {translateKoToRuText(boardTitle)}
               </p>
             ) : null}
-
-            <div>
-              <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Внешние элементы кузова</h4>
-              <BodyStateChips outers={outers} bodyChanged={bodyChanged} />
-            </div>
 
             <div className="flex flex-wrap gap-2">
               {accident != null ? (
@@ -650,13 +743,13 @@ export function CarDetailAccordions({
           <div className="space-y-5">
             {diagSections.length > 0 ? (
               <div className="space-y-3">
-                <div className="inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1">
+                <div className={SWITCH_BAR_CLASS}>
                   {diagSections.map((section) => (
                     <button
                       key={section.key}
                       type="button"
                       onClick={() => setActiveDiagTab(section.key)}
-                      className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      className={`${SWITCH_BUTTON_CLASS} ${
                         activeDiag?.key === section.key
                           ? "bg-background shadow-sm text-foreground"
                           : "text-muted-foreground hover:text-foreground"
