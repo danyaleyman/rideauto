@@ -281,8 +281,6 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
 }
 
 function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
-  const source = (asStr(d.source) || "").toLowerCase();
-  const isDongchedi = source === "dongchedi" || source === "china";
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
   const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
@@ -308,10 +306,6 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     () => collectSelectedEncarOptions(uniquePhotos, choicePhotos, extra, d),
     [uniquePhotos, choicePhotos, extra, d],
   );
-  const selectedCodes = useMemo(
-    () => new Set(selectedOptions.map((x) => (x.code || "").trim()).filter(Boolean)),
-    [selectedOptions],
-  );
   const selectedLabels = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -329,58 +323,103 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     }
     return out;
   }, [selectedOptions, codes, uniquePhotos, choicePhotos, extra, d]);
-  const staticCodesFiltered = codes.filter((c) => {
-    const s = cleanScalarText(c);
-    if (!s) return false;
-    if (!selectedCodes.size) return true;
-    return selectedCodes.has(s);
-  });
-  const hasAnyRenderedOptions = dongchediRecommended.length > 0 || selectedLabels.length > 0;
+  const staticCodesAll = useMemo(
+    () =>
+      codes
+        .map((c) => cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)))
+        .filter((x): x is string => Boolean(x)),
+    [codes, uniquePhotos, choicePhotos, extra, d],
+  );
+  const allLabels = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const push = (v: string) => {
+      const t = cleanScalarText(v);
+      if (!t || /^Опция\s+\d+$/i.test(t) || seen.has(t)) return;
+      seen.add(t);
+      out.push(t);
+    };
+    for (const v of dongchediRecommended) push(v);
+    for (const v of selectedLabels) push(v);
+    for (const v of staticCodesAll) push(v);
+    return out;
+  }, [dongchediRecommended, selectedLabels, staticCodesAll]);
+  const hasAnyRenderedOptions = allLabels.length > 0;
+
+  type OptGroupKey = "assist" | "interior" | "safety" | "comfort" | "media" | "other";
+  const grouped = useMemo(() => {
+    const buckets: Record<OptGroupKey, string[]> = {
+      assist: [],
+      interior: [],
+      safety: [],
+      comfort: [],
+      media: [],
+      other: [],
+    };
+    const hasAny = (s: string, kws: string[]) => kws.some((k) => s.includes(k));
+    for (const raw of allLabels) {
+      const s = raw.toLowerCase();
+      if (hasAny(s, ["круиз", "ассист", "удерж", "полос", "автопарков", "парковк", "слеп", "lane", "blind"])) {
+        buckets.assist.push(raw);
+      } else if (hasAny(s, ["интерьер", "экстерь", "салон", "сиден", "руль", "люк", "панорам", "зеркал", "диск"])) {
+        buckets.interior.push(raw);
+      } else if (hasAny(s, ["airbag", "подуш", "abs", "esp", "esc", "тормоз", "безопас", "столкнов"])) {
+        buckets.safety.push(raw);
+      } else if (hasAny(s, ["подогрев", "вентиляц", "климат", "кондиц", "электропривод", "багажник", "память"])) {
+        buckets.comfort.push(raw);
+      } else if (hasAny(s, ["мультимед", "навигац", "carplay", "android auto", "bluetooth", "аудио", "дисплей", "hud"])) {
+        buckets.media.push(raw);
+      } else {
+        buckets.other.push(raw);
+      }
+    }
+    return buckets;
+  }, [allLabels]);
+  const groupMeta: Array<{ key: OptGroupKey; title: string }> = [
+    { key: "assist", title: "Ассистенты" },
+    { key: "interior", title: "Интерьер и экстерьер" },
+    { key: "safety", title: "Безопасность" },
+    { key: "comfort", title: "Комфорт" },
+    { key: "media", title: "Мультимедиа" },
+    { key: "other", title: "Прочее" },
+  ].filter((g) => grouped[g.key].length > 0);
+  const [activeGroup, setActiveGroup] = useState<OptGroupKey>("assist");
+  useEffect(() => {
+    if (!groupMeta.length) return;
+    if (!groupMeta.some((g) => g.key === activeGroup)) setActiveGroup(groupMeta[0].key);
+  }, [groupMeta, activeGroup]);
+  const activeItems = grouped[activeGroup] ?? [];
 
   return (
     <div className="space-y-5">
-      {isDongchedi && dongchediRecommended.length > 0 ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции конкретного авто ({selectedLabels.length})</h4>
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {dongchediRecommended.map((label, i) => (
-              <li
-                key={i}
-                className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug"
-              >
-                {label}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {selectedLabels.length > 0 ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции конкретного авто</h4>
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {selectedLabels.map((label, i) => (
-              <li
-                key={i}
-                className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug"
-              >
-                {label}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : !hasAnyRenderedOptions ? (
+      {!hasAnyRenderedOptions ? (
         <p className="text-sm text-muted-foreground">По этой карточке опции не распознаны.</p>
-      ) : null}
-
-      {staticCodesFiltered.length > 0 && !hasAnyRenderedOptions ? (
-        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {staticCodesFiltered.map((c, i) => (
-            <li key={i} className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug">
-              {displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)}
-            </li>
-          ))}
-        </ul>
+      ) : (
+        <div className="space-y-3">
+          {groupMeta.length > 1 ? (
+            <div className="inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1">
+              {groupMeta.map((g) => (
+                <button
+                  key={g.key}
+                  type="button"
+                  onClick={() => setActiveGroup(g.key)}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                    activeGroup === g.key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {g.title}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {activeItems.map((label, i) => (
+              <li key={`${activeGroup}-${i}`} className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug">
+                {label}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </div>
   );
