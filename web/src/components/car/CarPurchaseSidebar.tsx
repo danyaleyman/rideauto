@@ -8,7 +8,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
-import { formatHumanDate, formatKrw } from "@/lib/car-detail-data";
+import { formatHumanDate } from "@/lib/car-detail-data";
 import { Button } from "@/components/ui/button";
 import { CatalogQuickBuyDialog } from "@/components/catalog/CatalogQuickBuyDialog";
 import {

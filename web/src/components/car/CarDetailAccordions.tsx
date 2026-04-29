@@ -149,14 +149,6 @@ function collectDongchediRecommendedFallback(d: Record<string, unknown>): string
   return out;
 }
 
-function formatInsuranceType(v: unknown): string | null {
-  const s = cleanScalarText(v);
-  if (!s) return null;
-  if (s === "1") return "Случай по моему авто";
-  if (s === "2") return "Случай по чужому авто";
-  return s;
-}
-
 function AccidentCases({ items }: { items: unknown[] }) {
   const list = items
     .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
@@ -375,14 +367,17 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     }
     return buckets;
   }, [allLabels]);
-  const groupMeta: Array<{ key: OptGroupKey; title: string }> = [
+  const groupMetaBase = [
     { key: "assist", title: "Ассистенты" },
     { key: "interior", title: "Интерьер и экстерьер" },
     { key: "safety", title: "Безопасность" },
     { key: "comfort", title: "Комфорт" },
     { key: "media", title: "Мультимедиа" },
     { key: "other", title: "Прочее" },
-  ].filter((g) => grouped[g.key].length > 0);
+  ] as const satisfies ReadonlyArray<{ key: OptGroupKey; title: string }>;
+  const groupMeta: Array<{ key: OptGroupKey; title: string }> = groupMetaBase.filter(
+    (g): g is { key: OptGroupKey; title: string } => grouped[g.key].length > 0,
+  );
   const [activeGroup, setActiveGroup] = useState<OptGroupKey>("assist");
   useEffect(() => {
     if (!groupMeta.length) return;
@@ -427,11 +422,12 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
 
 export function CarDetailAccordions({
   data,
-  diagnosisPhotosCount: _diagnosisPhotosCount,
+  diagnosisPhotosCount,
 }: {
   data: Record<string, unknown>;
   diagnosisPhotosCount: number;
 }) {
+  void diagnosisPhotosCount;
   const extra =
     data.extra && typeof data.extra === "object" && !Array.isArray(data.extra)
       ? (data.extra as Record<string, unknown>)
