@@ -329,6 +329,7 @@ function AccidentCases({ items, title }: { items: unknown[]; title: string }) {
 }
 
 function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
+  const reduceMotion = useReducedMotion();
   const [krwRate, setKrwRate] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
