@@ -96,7 +96,7 @@ function bodyStatusColor(text: string): string {
   const t = normalizeBodyStatus(text).toLowerCase();
   if (t.includes("ориг")) return "bg-emerald-100 text-emerald-900 border-emerald-300";
   if (t.includes("окрас") || t.includes("ремонт") || t.includes("царап")) return "bg-amber-100 text-amber-900 border-amber-300";
-  if (t.includes("свар") || t.includes("замен")) return "bg-red-100 text-red-900 border-red-300";
+  if (t.includes("свар") || t.includes("замен") || t.includes("дтп")) return "bg-red-100 text-red-900 border-red-300";
   if (t.includes("вмят") || t.includes("повреж") || t.includes("корроз")) return "bg-orange-100 text-orange-900 border-orange-300";
   return "bg-slate-100 text-slate-800 border-slate-300";
 }
@@ -189,21 +189,33 @@ function BodyConditionSection({
   bodyChanged,
   paintPartTypes,
   seriousTypes,
+  accident,
+  simpleRepair,
 }: {
   outers: unknown;
   bodyChanged: unknown;
   paintPartTypes: unknown;
   seriousTypes: unknown;
+  accident: unknown;
+  simpleRepair: unknown;
 }) {
   const reduceMotion = useReducedMotion();
   const groups = useMemo(
     () => collectBodyRows({ outers, bodyChanged, paintPartTypes, seriousTypes }),
     [outers, bodyChanged, paintPartTypes, seriousTypes],
   );
-  const tabs = [
+  let tabs = [
     { key: "external" as const, title: "Внешние элементы", rows: groups.external },
     { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
   ].filter((t) => t.rows.length > 0);
+  if (!tabs.length) {
+    const inferred: BodyRow[] = [];
+    if (!isNegativeFlag(simpleRepair)) inferred.push({ part: "Кузовные элементы", status: "Косметический ремонт" });
+    if (!isNegativeFlag(accident)) inferred.push({ part: "Силовые элементы кузова", status: "Следы ДТП" });
+    if (inferred.length > 0) {
+      tabs = [{ key: "external", title: "Внешние элементы", rows: inferred }];
+    }
+  }
   const [activeTab, setActiveTab] = useState<"external" | "internal">("external");
   useEffect(() => {
     if (!tabs.length) return;
@@ -809,6 +821,8 @@ export function CarDetailAccordions({
               bodyChanged={bodyChanged}
               paintPartTypes={paintPartTypes}
               seriousTypes={seriousTypes}
+              accident={accident}
+              simpleRepair={simpleRepair}
             />
             <div className="flex flex-wrap gap-2">
               {accident != null && !isNegativeFlag(accident) ? (
@@ -875,7 +889,7 @@ export function CarDetailAccordions({
                 </AnimatePresence>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Структурированные блоки диагностики отсутствуют.</p>
+              <p className="text-sm text-muted-foreground">Подробная карта диагностики в источнике недоступна. Показываем подтвержденные данные из отчета.</p>
             )}
           </div>
         </AccordionContent>
@@ -889,7 +903,7 @@ export function CarDetailAccordions({
           {recordOpen && Object.keys(recordOpen).length > 0 ? (
             <RecordOpenSection ro={recordOpen} />
           ) : (
-            <p className="text-sm text-muted-foreground">Нет открытых страховых данных (record_open).</p>
+            <p className="text-sm text-muted-foreground">Страховая история в источнике не опубликована. По запросу менеджер уточнит данные у продавца.</p>
           )}
         </AccordionContent>
       </AccordionItem>
