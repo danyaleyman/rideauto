@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Accordion,
   AccordionContent,
@@ -273,6 +274,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
 }
 
 function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
+  const reduceMotion = useReducedMotion();
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
   const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
@@ -405,13 +407,25 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
               ))}
             </div>
           ) : null}
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {activeItems.map((label, i) => (
-              <li key={`${activeGroup}-${i}`} className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug">
-                {label}
-              </li>
-            ))}
-          </ul>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeGroup}
+              layout
+              initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {activeItems.map((label, i) => (
+                  <li key={`${activeGroup}-${i}`} className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug">
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </AnimatePresence>
         </div>
       )}
     </div>
@@ -425,6 +439,7 @@ export function CarDetailAccordions({
   data: Record<string, unknown>;
   diagnosisPhotosCount: number;
 }) {
+  const reduceMotion = useReducedMotion();
   void diagnosisPhotosCount;
   const extra =
     data.extra && typeof data.extra === "object" && !Array.isArray(data.extra)
@@ -651,27 +666,39 @@ export function CarDetailAccordions({
                     </button>
                   ))}
                 </div>
-                {activeDiag ? (
-                  <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    {activeDiag.rows.map((row) => (
-                      <li key={`${activeDiag.key}-${row.label}`} className="rounded-xl border border-border/50 bg-background px-3 py-2">
-                        <p className="text-xs text-muted-foreground">{row.label}</p>
-                        <div className="mt-1 flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium">{row.value}</p>
-                          <Badge variant="outline" className={toneClass(diagnosisStatusTone(row.value))}>
-                            {diagnosisStatusTone(row.value) === "ok"
-                              ? "Исправно"
-                              : diagnosisStatusTone(row.value) === "warn"
-                                ? "Требует внимания"
-                                : diagnosisStatusTone(row.value) === "bad"
-                                  ? "Проблема"
-                                  : "Проверить"}
-                          </Badge>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <AnimatePresence mode="wait" initial={false}>
+                  {activeDiag ? (
+                    <motion.div
+                      key={activeDiag.key}
+                      layout
+                      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                        {activeDiag.rows.map((row) => (
+                          <li key={`${activeDiag.key}-${row.label}`} className="rounded-xl border border-border/50 bg-background px-3 py-2">
+                            <p className="text-xs text-muted-foreground">{row.label}</p>
+                            <div className="mt-1 flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium">{row.value}</p>
+                              <Badge variant="outline" className={toneClass(diagnosisStatusTone(row.value))}>
+                                {diagnosisStatusTone(row.value) === "ok"
+                                  ? "Исправно"
+                                  : diagnosisStatusTone(row.value) === "warn"
+                                    ? "Требует внимания"
+                                    : diagnosisStatusTone(row.value) === "bad"
+                                      ? "Проблема"
+                                      : "Проверить"}
+                              </Badge>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Структурированные блоки диагностики отсутствуют.</p>
