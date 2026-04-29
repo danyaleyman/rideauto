@@ -375,9 +375,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     { key: "media", title: "Мультимедиа" },
     { key: "other", title: "Прочее" },
   ] as const satisfies ReadonlyArray<{ key: OptGroupKey; title: string }>;
-  const groupMeta: Array<{ key: OptGroupKey; title: string }> = groupMetaBase.filter(
-    (g): g is { key: OptGroupKey; title: string } => grouped[g.key].length > 0,
-  );
+  const groupMeta = groupMetaBase.filter((g) => grouped[g.key].length > 0);
   const [activeGroup, setActiveGroup] = useState<OptGroupKey>("assist");
   useEffect(() => {
     if (!groupMeta.length) return;
