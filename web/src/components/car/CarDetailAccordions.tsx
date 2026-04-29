@@ -204,18 +204,13 @@ function BodyConditionSection({
     () => collectBodyRows({ outers, bodyChanged, paintPartTypes, seriousTypes }),
     [outers, bodyChanged, paintPartTypes, seriousTypes],
   );
-  let tabs = [
-    { key: "external" as const, title: "Внешние элементы", rows: groups.external },
+  const inferred: BodyRow[] = [];
+  if (!isNegativeFlag(simpleRepair)) inferred.push({ part: "Кузовные элементы", status: "Косметический ремонт" });
+  if (!isNegativeFlag(accident)) inferred.push({ part: "Силовые элементы кузова", status: "Следы ДТП" });
+  const tabs = [
+    { key: "external" as const, title: "Внешние элементы", rows: groups.external.length ? groups.external : inferred },
     { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
-  ].filter((t) => t.rows.length > 0);
-  if (!tabs.length) {
-    const inferred: BodyRow[] = [];
-    if (!isNegativeFlag(simpleRepair)) inferred.push({ part: "Кузовные элементы", status: "Косметический ремонт" });
-    if (!isNegativeFlag(accident)) inferred.push({ part: "Силовые элементы кузова", status: "Следы ДТП" });
-    if (inferred.length > 0) {
-      tabs = [{ key: "external", title: "Внешние элементы", rows: inferred }];
-    }
-  }
+  ];
   const [activeTab, setActiveTab] = useState<"external" | "internal">("external");
   useEffect(() => {
     if (!tabs.length) return;
@@ -223,27 +218,25 @@ function BodyConditionSection({
   }, [tabs, activeTab]);
   const activeRows = tabs.find((x) => x.key === activeTab)?.rows ?? [];
 
-  if (!tabs.length) {
+  if (!tabs.some((t) => t.rows.length > 0)) {
     return <p className="text-sm text-muted-foreground">Повреждений не зафиксировано, элементы кузова в исходном состоянии.</p>;
   }
   return (
     <div className="space-y-3">
-      {tabs.length > 1 ? (
-        <div className={SWITCH_BAR_CLASS}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`${SWITCH_BUTTON_CLASS} ${
-                activeTab === tab.key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.title}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div className={SWITCH_BAR_CLASS}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`${SWITCH_BUTTON_CLASS} ${
+              activeTab === tab.key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.title}
+          </button>
+        ))}
+      </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={activeTab}
@@ -254,14 +247,20 @@ function BodyConditionSection({
           transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
           className="overflow-hidden"
         >
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {activeRows.map((r, i) => (
-              <li key={`${activeTab}-${r.part}-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-border/50 px-3 py-2">
-                <span className="text-sm">{r.part}</span>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${bodyStatusColor(r.status)}`}>{r.status}</span>
-              </li>
-            ))}
-          </ul>
+          {activeRows.length ? (
+            <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {activeRows.map((r, i) => (
+                <li key={`${activeTab}-${r.part}-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-border/50 px-3 py-2">
+                  <span className="text-sm">{r.part}</span>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${bodyStatusColor(r.status)}`}>{r.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rounded-xl border border-border/45 bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
+              По разделу «{activeTab === "internal" ? "Внутренние элементы" : "Внешние элементы"}» изменений не зафиксировано.
+            </p>
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -824,19 +823,6 @@ export function CarDetailAccordions({
               accident={accident}
               simpleRepair={simpleRepair}
             />
-            <div className="flex flex-wrap gap-2">
-              {accident != null && !isNegativeFlag(accident) ? (
-                <Badge variant="outline" className="rounded-lg">
-                  ДТП (данные осмотра): {asStr(accident) ?? JSON.stringify(accident)}
-                </Badge>
-              ) : null}
-              {simpleRepair != null && !isNegativeFlag(simpleRepair) ? (
-                <Badge variant="outline" className="rounded-lg">
-                  Косметический ремонт: {asStr(simpleRepair) ?? JSON.stringify(simpleRepair)}
-                </Badge>
-              ) : null}
-            </div>
-
           </div>
         </AccordionContent>
       </AccordionItem>
