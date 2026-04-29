@@ -106,7 +106,7 @@ function isNegativeFlag(v: unknown): boolean {
   return ["нет", "없음", "no", "normal", "0", "false", "n"].includes(s);
 }
 
-type BodyRow = { part: string; status: string };
+type BodyRow = { part: string; status: string; section?: "external" | "internal" };
 
 function bodyStatusWeight(status: string): number {
   const s = normalizeBodyStatus(status).toLowerCase();
@@ -147,7 +147,9 @@ function collectBodyRows({
       const p = panel as Record<string, unknown>;
       const part = translateKoToRuText(asStr(p.part) ?? asStr(p.name) ?? "");
       const status = normalizeBodyStatus(asStr(p.status) ?? "Оригинал");
-      if (part && status) rows.push({ part, status });
+      const sectionRaw = asStr(p.section)?.toLowerCase();
+      const section = sectionRaw === "internal" || sectionRaw === "external" ? sectionRaw : undefined;
+      if (part && status) rows.push({ part, status, section });
     }
   }
   if (Array.isArray(outers)) {
@@ -190,8 +192,8 @@ function collectBodyRows({
   }
   const out = Array.from(uniq.values());
   return {
-    internal: out.filter((r) => isInternalBodyPart(r.part)),
-    external: out.filter((r) => !isInternalBodyPart(r.part)),
+    internal: out.filter((r) => r.section === "internal" || (r.section == null && isInternalBodyPart(r.part))),
+    external: out.filter((r) => r.section === "external" || (r.section == null && !isInternalBodyPart(r.part))),
   };
 }
 

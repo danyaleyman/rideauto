@@ -622,6 +622,7 @@ class EncarFullParser:
 
             # Маппинг английских названий панелей на русские (как на Encar)
             panel_mapping = {
+                # Внешние элементы (детальные)
                 'FRONT_DOOR_LEFT': 'Левая передняя дверь',
                 'FRONT_DOOR_RIGHT': 'Правая передняя дверь',
                 'BACK_DOOR_LEFT': 'Левая задняя дверь',
@@ -634,13 +635,33 @@ class EncarFullParser:
                 'REAR_FENDER_RIGHT': 'Правое заднее крыло',
                 'BACK_FENDER_LEFT': 'Левое заднее крыло',
                 'BACK_FENDER_RIGHT': 'Правое заднее крыло',
+                # Внешние элементы (групповые, как в diagnosis report)
+                'FRONT_FENDER': 'Передние крылья',
+                'FRONT_DOOR': 'Передние двери',
+                'BACK_DOOR': 'Задние двери',
+                # Внутренние/силовые элементы (frame diagnostic items)
+                'FRONT_PANEL_INSIDE_PANEL': 'Передняя панель / внутренняя панель',
+                'FRONT_WHEEL_HOUSING_REAR_WHEEL_HOUSING': 'Арки колес (перед/зад)',
+                'PILLAR_PANEL_DASH_PANEL_FLOOR_PANEL': 'Стойки / щиток / пол',
+                'SIDE_SILL_PANEL_QUARTER_PANEL': 'Пороги / четверти кузова',
+                'REAR_PANEL_TRUNK_FLOOR': 'Задняя панель / пол багажника',
+                'SIDE_MEMBER_LOOP_PANEL_PACKAGE_TRAY': 'Лонжероны / полка багажника',
             }
             status_mapping = {
                 'NORMAL': 'оригинал',
                 'REPLACEMENT': 'замена',
+                'PAINT': 'покрашено',
+                'REPAIR': 'ремонт',
             }
             # Текст результата с корейского
-            result_text_ru = {'정상': 'оригинал', '교체': 'замена', '원장': 'оригинал'}
+            result_text_ru = {
+                '정상': 'оригинал',
+                '교체': 'замена',
+                '원장': 'оригинал',
+                '도장': 'покрашено',
+                '판금': 'ремонт',
+                '수리': 'ремонт',
+            }
 
             body_panels = []
             checker_comment = ''
@@ -659,7 +680,15 @@ class EncarFullParser:
                         status = 'оригинал'
                     body_panels.append({
                         'part': panel_mapping[name],
-                        'status': status
+                        'status': status,
+                        'section': 'internal' if name in {
+                            'FRONT_PANEL_INSIDE_PANEL',
+                            'FRONT_WHEEL_HOUSING_REAR_WHEEL_HOUSING',
+                            'PILLAR_PANEL_DASH_PANEL_FLOOR_PANEL',
+                            'SIDE_SILL_PANEL_QUARTER_PANEL',
+                            'REAR_PANEL_TRUNK_FLOOR',
+                            'SIDE_MEMBER_LOOP_PANEL_PACKAGE_TRAY',
+                        } else 'external',
                     })
                 elif name == 'CHECKER_COMMENT':
                     checker_comment = item.get('result', '')
@@ -670,9 +699,10 @@ class EncarFullParser:
 
             # Если в диагностике есть замены — дополняем bodyChanged (чтобы блок «Заменённые детали» не был пустым)
             for p in body_panels:
-                if p.get('status') == 'замена' and p.get('part'):
+                st = str(p.get('status') or '').strip().lower()
+                if st in ('замена', 'покрашено', 'ремонт') and p.get('part'):
                     if p['part'] not in result['bodyChanged']:
-                        result['bodyChanged'][p['part']] = 'замена'
+                        result['bodyChanged'][p['part']] = st
 
             # Сбор всех комментариев
             comments_parts = []

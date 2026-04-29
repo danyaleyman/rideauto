@@ -381,20 +381,12 @@ async def detail_worker(
             seller_id = (sep_item.get("Separation") or [None])[0]
         if not seller_id and item_from_list.get("Separation"):
             seller_id = (item_from_list.get("Separation") or [None])[0]
-        has_diag = False
-        if detail:
-            adv = detail.get("advertisement") or {}
-            if adv.get("hasUnderBodyPhoto"):
-                has_diag = True
-            for p in detail.get("photos") or []:
-                if p.get("type") == "DIAG2":
-                    has_diag = True
-                    break
         tasks = []
         if plate:
             tasks.append(("record", client.fetch_record(car_id, plate)))
-        if has_diag:
-            tasks.append(("diagnosis", client.fetch_diagnosis(car_id)))
+        # Диагностику кузова запрашиваем всегда: часть карточек Encar имеет report/diagnosis
+        # без DIAG2-фото, и иначе теряются панели/статусы для UI "Состояние кузова".
+        tasks.append(("diagnosis", client.fetch_diagnosis(car_id)))
         tasks.append(("inspection", client.fetch_inspection(car_id)))
         tasks.append(("sellingpoint", client.fetch_sellingpoint(car_id)))
         if seller_id:
