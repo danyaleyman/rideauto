@@ -275,7 +275,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
         <Badge variant="outline" className={`rounded-full text-xs ${ownerChipClass}`}>
           Собственников авто в Корее: {ownersCount}
         </Badge>
-      )}
+      ) : null}
     </div>
   );
 }
