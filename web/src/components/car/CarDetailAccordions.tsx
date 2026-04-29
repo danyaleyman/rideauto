@@ -133,12 +133,14 @@ function collectBodyRows({
   bodyChanged,
   paintPartTypes,
   seriousTypes,
+  diagnosisItems,
 }: {
   outers: unknown;
   bodyPanels: unknown;
   bodyChanged: unknown;
   paintPartTypes: unknown;
   seriousTypes: unknown;
+  diagnosisItems: unknown;
 }): { external: BodyRow[]; internal: BodyRow[] } {
   const rows: BodyRow[] = [];
   if (Array.isArray(bodyPanels)) {
@@ -182,6 +184,48 @@ function collectBodyRows({
       if (part) rows.push({ part, status: "Повреждение" });
     }
   }
+  if (Array.isArray(diagnosisItems)) {
+    const nameMap: Record<string, { part: string; section: "external" | "internal" }> = {
+      FRONT_DOOR_LEFT: { part: "Левая передняя дверь", section: "external" },
+      FRONT_DOOR_RIGHT: { part: "Правая передняя дверь", section: "external" },
+      BACK_DOOR_LEFT: { part: "Левая задняя дверь", section: "external" },
+      BACK_DOOR_RIGHT: { part: "Правая задняя дверь", section: "external" },
+      HOOD: { part: "Капот", section: "external" },
+      TRUNK_LID: { part: "Крышка багажника", section: "external" },
+      FRONT_FENDER_LEFT: { part: "Левое переднее крыло", section: "external" },
+      FRONT_FENDER_RIGHT: { part: "Правое переднее крыло", section: "external" },
+      REAR_FENDER_LEFT: { part: "Левое заднее крыло", section: "external" },
+      REAR_FENDER_RIGHT: { part: "Правое заднее крыло", section: "external" },
+      BACK_FENDER_LEFT: { part: "Левое заднее крыло", section: "external" },
+      BACK_FENDER_RIGHT: { part: "Правое заднее крыло", section: "external" },
+      FRONT_FENDER: { part: "Передние крылья", section: "external" },
+      FRONT_DOOR: { part: "Передние двери", section: "external" },
+      BACK_DOOR: { part: "Задние двери", section: "external" },
+      FRONT_PANEL_INSIDE_PANEL: { part: "Передняя панель / внутренняя панель", section: "internal" },
+      FRONT_WHEEL_HOUSING_REAR_WHEEL_HOUSING: { part: "Арки колес (перед/зад)", section: "internal" },
+      PILLAR_PANEL_DASH_PANEL_FLOOR_PANEL: { part: "Стойки / щиток / пол", section: "internal" },
+      SIDE_SILL_PANEL_QUARTER_PANEL: { part: "Пороги / четверти кузова", section: "internal" },
+      REAR_PANEL_TRUNK_FLOOR: { part: "Задняя панель / пол багажника", section: "internal" },
+      SIDE_MEMBER_LOOP_PANEL_PACKAGE_TRAY: { part: "Лонжероны / полка багажника", section: "internal" },
+    };
+    const codeMap: Record<string, string> = {
+      NORMAL: "Оригинал",
+      REPLACEMENT: "Замена",
+      PAINT: "Окрас",
+      REPAIR: "Ремонт",
+    };
+    for (const item of diagnosisItems) {
+      if (!item || typeof item !== "object") continue;
+      const it = item as Record<string, unknown>;
+      const name = asStr(it.name) ?? "";
+      const mapped = nameMap[name];
+      if (!mapped) continue;
+      const code = asStr(it.resultCode) ?? asStr(it.resultCodeType);
+      const rawResult = asStr(it.result);
+      const status = normalizeBodyStatus((code ? codeMap[code] : null) ?? rawResult ?? "Оригинал");
+      rows.push({ part: mapped.part, status, section: mapped.section });
+    }
+  }
   const uniq = new Map<string, BodyRow>();
   for (const r of rows) {
     const k = r.part.trim().toLowerCase();
@@ -203,6 +247,7 @@ function BodyConditionSection({
   bodyChanged,
   paintPartTypes,
   seriousTypes,
+  diagnosisItems,
   accident,
   simpleRepair,
 }: {
@@ -211,13 +256,14 @@ function BodyConditionSection({
   bodyChanged: unknown;
   paintPartTypes: unknown;
   seriousTypes: unknown;
+  diagnosisItems: unknown;
   accident: unknown;
   simpleRepair: unknown;
 }) {
   const reduceMotion = useReducedMotion();
   const groups = useMemo(
-    () => collectBodyRows({ outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes }),
-    [outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes],
+    () => collectBodyRows({ outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems }),
+    [outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems],
   );
   const inferred: BodyRow[] = [];
   if (!isNegativeFlag(simpleRepair)) inferred.push({ part: "Детали кузова (по отчету Encar)", status: "Косметический ремонт" });
@@ -697,8 +743,16 @@ export function CarDetailAccordions({
       ? (data.extra as Record<string, unknown>)
       : undefined;
 
-  const inspection = getPath(extra, ["inspection"]) as Record<string, unknown> | undefined;
-  const master = inspection?.master as Record<string, unknown> | undefined;
+  const inspectionRaw = parseJson(getPath(extra, ["inspection"]));
+  const inspection =
+    inspectionRaw && typeof inspectionRaw === "object" && !Array.isArray(inspectionRaw)
+      ? (inspectionRaw as Record<string, unknown>)
+      : undefined;
+  const masterRaw = parseJson(inspection?.master);
+  const master =
+    masterRaw && typeof masterRaw === "object" && !Array.isArray(masterRaw)
+      ? (masterRaw as Record<string, unknown>)
+      : undefined;
   const detail = getPath(master, ["detail"]) as Record<string, unknown> | undefined;
 
   const mileage =
@@ -749,12 +803,20 @@ export function CarDetailAccordions({
   const simpleRepair = master?.simpleRepair;
   const bodyChanged =
     getPath(extra, ["inspection_structured", "bodyChanged"]) ?? getPath(master, ["bodyChanged"]);
-  const bodyPanels = getPath(extra, ["inspection_structured", "bodyPanels"]);
-
-  const structured =
-    extra?.inspection_structured && typeof extra.inspection_structured === "object"
-      ? (extra.inspection_structured as Record<string, unknown>)
+  const inspectionStructuredRaw = parseJson(getPath(extra, ["inspection_structured"]));
+  const inspectionStructured =
+    inspectionStructuredRaw && typeof inspectionStructuredRaw === "object" && !Array.isArray(inspectionStructuredRaw)
+      ? (inspectionStructuredRaw as Record<string, unknown>)
       : undefined;
+  const bodyPanels = getPath(inspectionStructured, ["bodyPanels"]);
+  const diagnosisRaw = parseJson(getPath(extra, ["diagnosis"]));
+  const diagnosis =
+    diagnosisRaw && typeof diagnosisRaw === "object" && !Array.isArray(diagnosisRaw)
+      ? (diagnosisRaw as Record<string, unknown>)
+      : undefined;
+  const diagnosisItems = getPath(diagnosis, ["items"]);
+
+  const structured = inspectionStructured;
 
   const engineTransmission = structured?.engineTransmission as Record<string, unknown> | undefined;
   const chassis = structured?.chassis as Record<string, unknown> | undefined;
@@ -837,6 +899,7 @@ export function CarDetailAccordions({
               bodyChanged={bodyChanged}
               paintPartTypes={paintPartTypes}
               seriousTypes={seriousTypes}
+              diagnosisItems={diagnosisItems}
               accident={accident}
               simpleRepair={simpleRepair}
             />
