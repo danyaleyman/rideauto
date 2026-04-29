@@ -278,16 +278,15 @@ function collectDongchediRecommendedFallback(d: Record<string, unknown>): string
   return out;
 }
 
-function AccidentCases({ items }: { items: unknown[] }) {
+function AccidentCases({ items, title }: { items: unknown[]; title: string }) {
   const list = items
     .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
-    .filter((x): x is Record<string, unknown> => Boolean(x))
-    .filter((x) => String(x.type ?? "").trim() !== "2");
+    .filter((x): x is Record<string, unknown> => Boolean(x));
   if (!list.length) return null;
   return (
     <div>
       <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Страховые случаи по этому авто
+        {title}
       </h4>
       <ul className="space-y-2.5">
         {list.map((a, i) => {
@@ -297,10 +296,15 @@ function AccidentCases({ items }: { items: unknown[] }) {
           const paintCost = Number(a.paintingCost ?? 0);
           const hasBodyWork = Number.isFinite(partCost + laborCost + paintCost) && partCost + laborCost + paintCost > 0;
           const kind = hasBodyWork ? "Кузовной/ремонтный случай" : "Технический/гарантийный случай";
-          const part = formatRubFromUnknown(a.partCost) ?? formatKrw(Number(a.partCost ?? 0));
-          const labor = formatRubFromUnknown(a.laborCost) ?? formatKrw(Number(a.laborCost ?? 0));
-          const paint = formatRubFromUnknown(a.paintingCost) ?? formatKrw(Number(a.paintingCost ?? 0));
-          const payout = formatRubFromUnknown(a.insuranceBenefit) ?? formatKrw(Number(a.insuranceBenefit ?? 0));
+          const rubOrNone = (v: unknown): string => {
+            const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/\s/g, ""));
+            if (!Number.isFinite(n) || n <= 0) return "Нет";
+            return formatRubFromUnknown(v) ?? formatKrw(n);
+          };
+          const part = rubOrNone(a.partCost);
+          const labor = rubOrNone(a.laborCost);
+          const paint = rubOrNone(a.paintingCost);
+          const payout = rubOrNone(a.insuranceBenefit);
           return (
             <li key={i} className="rounded-xl border border-border/50 bg-muted/15 p-3">
               <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -364,38 +368,109 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
     const s = fmt ? fmt(v) : asStr(v);
     if (s) rows.push({ label, value: s });
   };
+  const asCount = (v: unknown): number => {
+    const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/\s/g, ""));
+    return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
+  };
+  const myAccCnt = asCount(ro.myAccidentCnt);
+  const totalLossCnt = asCount(ro.totalLossCnt);
+  const floodTotalCnt = asCount(ro.floodTotalLossCnt);
+  const floodPartCnt = asCount(ro.floodPartLossCnt);
+  const theftCnt = asCount(ro.robberCnt);
 
-  add("ДТП по авто", ro.myAccidentCnt);
-  add("Ущерб (мои)", ro.myAccidentCost, rubFromKrw);
-  add("Полная гибель (кол-во)", ro.totalLossCnt);
-  add("Дата полной гибели", ro.totalLossDate, (v) => formatHumanDate(v) ?? asStr(v));
-  add("Затопление: тотал", ro.floodTotalLossCnt);
-  add("Затопление: частичное", ro.floodPartLossCnt);
-  add("Дата затопления", ro.floodDate, (v) => formatHumanDate(v) ?? asStr(v));
-  add("Угон (кол-во)", ro.robberCnt);
-  add("Дата угона", ro.robberDate, (v) => formatHumanDate(v) ?? asStr(v));
-  add("Период без страховки 1", ro.notJoinDate1, (v) => formatHumanDate(v) ?? asStr(v));
-  add("Период без страховки 2", ro.notJoinDate2, (v) => formatHumanDate(v) ?? asStr(v));
-  add("Период без страховки 3", ro.notJoinDate3, (v) => formatHumanDate(v) ?? asStr(v));
-  add("Отзывные кампании", ro.recall);
-  add("Отзывные (детализация)", ro.recallFullFillTypes);
+  add("ДТП по текущему авто", myAccCnt > 0 ? `Зафиксировано случаев: ${myAccCnt}` : "Нет");
+  add("Сумма страховых выплат по текущему авто", ro.myAccidentCost, (v) => {
+    const n = asCount(v);
+    if (n <= 0) return "Нет";
+    return rubFromKrw(v);
+  });
+  add("Полная гибель", totalLossCnt > 0 ? `Да, случаев: ${totalLossCnt}` : "Нет");
+  add("Дата полной гибели", ro.totalLossDate, (v) => formatHumanDate(v) ?? null);
+  add(
+    "Затопления",
+    floodTotalCnt > 0 || floodPartCnt > 0
+      ? `Тотал: ${floodTotalCnt}, частичное: ${floodPartCnt}`
+      : "Нет",
+  );
+  add("Дата затопления", ro.floodDate, (v) => formatHumanDate(v) ?? null);
+  add("Угон", theftCnt > 0 ? `Да, случаев: ${theftCnt}` : "Нет");
+  add("Дата угона", ro.robberDate, (v) => formatHumanDate(v) ?? null);
+  add("Отзывные кампании", ro.recall, (v) => {
+    const t = translateKoToRuText(String(v ?? "")).trim();
+    if (!t || t === "0" || t.toLowerCase() === "none") return "Нет";
+    return t;
+  });
+  add("Статус выполнения отзывных кампаний", ro.recallFullFillTypes, (v) => {
+    const t = translateKoToRuText(String(v ?? "")).trim();
+    if (!t || t === "0" || t.toLowerCase() === "none") return "Нет данных";
+    return t;
+  });
 
   const accidents = ro.accidents;
   const ownerChanges = ro.ownerChanges;
   const ownersCount = Array.isArray(ownerChanges) ? ownerChanges.length : Number(ro.ownerChangeCnt ?? 0);
-  const ownerChipClass =
-    ownersCount > 5
-      ? "text-red-700 border-red-300 bg-red-50"
-      : "text-emerald-700 border-emerald-300 bg-emerald-50";
+  const mineCases = Array.isArray(accidents)
+    ? accidents.filter((x) => x && typeof x === "object" && String((x as Record<string, unknown>).type ?? "").trim() !== "2")
+    : [];
+  const otherCases = Array.isArray(accidents)
+    ? accidents.filter((x) => x && typeof x === "object" && String((x as Record<string, unknown>).type ?? "").trim() === "2")
+    : [];
+  const hasOtherCases = otherCases.length > 0;
+  const [insuranceTab, setInsuranceTab] = useState<"mine" | "other">("mine");
+  useEffect(() => {
+    if (!hasOtherCases && insuranceTab === "other") setInsuranceTab("mine");
+  }, [hasOtherCases, insuranceTab]);
 
   return (
     <div className="space-y-4">
       <SpecGrid rows={rows} />
-      {Array.isArray(accidents) && accidents.length > 0 ? <AccidentCases items={accidents} /> : null}
       {ownersCount > 0 ? (
-        <Badge variant="outline" className={`rounded-full text-xs ${ownerChipClass}`}>
-          Собственников авто в Корее: {ownersCount}
-        </Badge>
+        <div className="rounded-xl border border-border/50 bg-muted/10 px-3 py-2">
+          <p className="text-xs text-muted-foreground">Собственники</p>
+          <p className="text-sm font-medium">Собственников авто в Корее: {ownersCount}</p>
+        </div>
+      ) : null}
+      {Array.isArray(accidents) && accidents.length > 0 ? (
+        <div className="space-y-3">
+          {hasOtherCases ? (
+            <div className={SWITCH_BAR_CLASS}>
+              <button
+                type="button"
+                onClick={() => setInsuranceTab("mine")}
+                className={`${SWITCH_BUTTON_CLASS} ${
+                  insuranceTab === "mine" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                По текущему авто
+              </button>
+              <button
+                type="button"
+                onClick={() => setInsuranceTab("other")}
+                className={`${SWITCH_BUTTON_CLASS} ${
+                  insuranceTab === "other" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                По второму участнику ДТП
+              </button>
+            </div>
+          ) : null}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={insuranceTab}
+              layout
+              initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <AccidentCases
+                items={insuranceTab === "other" ? otherCases : mineCases}
+                title={insuranceTab === "other" ? "Страховые случаи по второму участнику ДТП" : "Страховые случаи по текущему авто"}
+              />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       ) : null}
     </div>
   );
@@ -619,7 +694,6 @@ export function CarDetailAccordions({
 
   const paintPartTypes = detail?.paintPartTypes ?? getPath(detail, ["paintPartTypes"]);
   const seriousTypes = detail?.seriousTypes ?? getPath(detail, ["seriousTypes"]);
-  const boardTitle = asStr(getPath(detail, ["boardStateType", "title"]));
 
   const outers = inspection?.outers;
 
@@ -711,20 +785,13 @@ export function CarDetailAccordions({
               paintPartTypes={paintPartTypes}
               seriousTypes={seriousTypes}
             />
-            {boardTitle ? (
-              <p className="text-sm">
-                <span className="text-muted-foreground">Состояние кузова: </span>
-                {translateKoToRuText(boardTitle)}
-              </p>
-            ) : null}
-
             <div className="flex flex-wrap gap-2">
-              {accident != null ? (
+              {accident != null && !/^(нет|없음|no|normal)$/i.test(String(translateKoToRuText(String(accident))).trim()) ? (
                 <Badge variant="outline" className="rounded-lg">
                   ДТП (данные осмотра): {asStr(accident) ?? JSON.stringify(accident)}
                 </Badge>
               ) : null}
-              {simpleRepair != null ? (
+              {simpleRepair != null && !/^(нет|없음|no|normal)$/i.test(String(translateKoToRuText(String(simpleRepair))).trim()) ? (
                 <Badge variant="outline" className="rounded-lg">
                   Косметический ремонт: {asStr(simpleRepair) ?? JSON.stringify(simpleRepair)}
                 </Badge>
