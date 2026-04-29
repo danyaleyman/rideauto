@@ -19,6 +19,10 @@ def test_encar_no_list_price():
     assert encar_has_list_price({}) is False
 
 
+def test_encar_monthly_finance_price_is_not_list_price():
+    assert encar_has_list_price({"price_won": 6200, "encar_monthly_finance_price": True}) is False
+
+
 def test_china_market_car():
     assert china_market_car("dongchedi-1", {"source": "encar"}) is True
     assert china_market_car("x", {"source": "dongchedi"}) is True

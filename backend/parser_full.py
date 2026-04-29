@@ -227,6 +227,49 @@ class EncarFullParser:
                 return 'FWD'
         return ''
 
+    @staticmethod
+    def _as_positive_float(value: Any) -> float:
+        try:
+            if value is None or value == '':
+                return 0.0
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _is_monthly_finance_listing(self, item: Dict[str, Any]) -> bool:
+        """
+        Для части объявлений Encar в Price приходит ежемесячный платеж (월XX만원),
+        а не полная цена продажи. Такие записи не должны участвовать в ценовом расчете.
+        """
+        if not isinstance(item, dict):
+            return False
+
+        monthly_keys = ('MonthLeasePrice', 'MonthLeaseRentPrice', 'MonthLeaseRest')
+        if any(self._as_positive_float(item.get(k)) > 0 for k in monthly_keys):
+            return True
+
+        type_hints = (
+            item.get('AttributeType'),
+            item.get('LeaseType'),
+            item.get('PriceType'),
+            item.get('PriceTypeName'),
+            item.get('FinanceType'),
+        )
+        for raw in type_hints:
+            s = str(raw or '').strip().lower()
+            if not s:
+                continue
+            if (
+                'lease' in s
+                or 'rent' in s
+                or '리스' in s
+                or '렌트' in s
+                or '할부' in s
+                or '월' in s
+            ):
+                return True
+        return False
+
     def _extract_power_from_string(self, s: str) -> Optional[str]:
         """Извлекает мощность (л.с.) только из явных форм: 150마력, (180)hp. Не (992) — поколение."""
         if not s or not isinstance(s, str):
@@ -663,6 +706,10 @@ class EncarFullParser:
         month = str(item.get('Month', '')).zfill(2) if item.get('Month') else ''
         price_won = int(item.get('Price', 0))
         price = str(price_won // 10000) if price_won else ''
+        monthly_finance_price = self._is_monthly_finance_listing(item)
+        if monthly_finance_price:
+            price_won = 0
+            price = ''
         km_age = str(item.get('Mileage', ''))
         # Объём двигателя (см³): из списка (displacement/Displacement) или из detail.spec
         displacement_raw = item.get('displacement') or item.get('Displacement')
@@ -868,6 +915,12 @@ class EncarFullParser:
             'color': color,
             'price': price,
             'price_won': price_won,
+            'encar_monthly_finance_price': monthly_finance_price,
+            'encar_month_lease_price': item.get('MonthLeasePrice'),
+            'encar_month_lease_rent_price': item.get('MonthLeaseRentPrice'),
+            'encar_month_lease_rest': item.get('MonthLeaseRest'),
+            'encar_lease_type': item.get('LeaseType'),
+            'encar_attribute_type': item.get('AttributeType'),
             'km_age': km_age,
             'engine_type': engine_type,
             'transmission_type': transmission_type,

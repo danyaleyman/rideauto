@@ -39,6 +39,8 @@ def china_market_car(car_id: str, data: Optional[Dict[str, Any]]) -> bool:
 def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
+    if data.get("encar_monthly_finance_price") is True:
+        return False
     pw = data.get("price_won")
     try:
         if pw is not None and float(pw) > 0:
