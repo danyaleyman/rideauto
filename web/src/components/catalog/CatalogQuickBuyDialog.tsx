@@ -10,12 +10,21 @@ import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 type Props = {
   carId: string;
   carTitle: string;
+  triggerLabel?: string;
+  triggerClassName?: string;
+  triggerSize?: "sm" | "default" | "lg";
 };
 
 const NAME_RE = /^[А-Яа-яЁё\s-]{1,10}$/;
 const PHONE_RE = /^[78]\d{10}$/;
 
-export function CatalogQuickBuyDialog({ carId, carTitle }: Props) {
+export function CatalogQuickBuyDialog({
+  carId,
+  carTitle,
+  triggerLabel = "Купить",
+  triggerClassName,
+  triggerSize = "sm",
+}: Props) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">("idle");
@@ -71,8 +80,8 @@ export function CatalogQuickBuyDialog({ carId, carTitle }: Props) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button type="button" size="sm" className="rounded-lg ms-auto">
-          Купить
+        <Button type="button" size={triggerSize} className={triggerClassName ?? "rounded-lg ms-auto"}>
+          {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md" showCloseButton>

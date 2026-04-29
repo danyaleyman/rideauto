@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import {
   Accordion,
@@ -9,14 +8,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   asStr,
   cleanScalarText,
   diagnosisStatusTone,
   flatScalarRows,
   buildNormalizedCarTitle,
-  formatCarHistoryObjectRow,
   formatHumanDate,
   formatInspectionListItem,
   formatKm,
@@ -32,10 +29,9 @@ import {
 import {
   collectSelectedEncarOptions,
   displayEncarStandardOption,
-  localizeEncarOptionText,
 } from "@/lib/encar-options-display";
 import { localizeDongchediOptionText } from "@/lib/dongchedi-option-ru-table";
-import { translateTextClient } from "@/lib/client-api";
+import { formatPriceLabel } from "@/lib/format-price";
 
 function localizeLabel(label: string): string {
   return translateKoToRuText(prettifyDataKey(label));
@@ -49,11 +45,6 @@ function localizeValue(value: string): string {
   if (t === "{}") return "Нет данных";
   return t;
 }
-
-const INSPECTION_SCHEMES = [
-  { src: "/image/inspection-schema-top.png", alt: "Схема осмотра кузова: вид сверху" },
-  { src: "/image/inspection-schema-bottom.png", alt: "Схема осмотра кузова: вид снизу" },
-];
 
 function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
   const filtered = rows
@@ -81,90 +72,52 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
   );
 }
 
-function StatusBadge({ title }: { title: string }) {
-  const tone = diagnosisStatusTone(title);
-  return (
-    <Badge variant="outline" className={`mt-0.5 rounded-lg text-xs font-medium ${toneClass(tone)}`}>
-      {translateKoToRuText(title)}
-    </Badge>
-  );
+function bodyStatusColor(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes("ориг") || t.includes("정상") || t.includes("양호")) return "bg-emerald-100 text-emerald-900 border-emerald-300";
+  if (t.includes("окрас") || t.includes("판금") || t.includes("도장")) return "bg-amber-100 text-amber-900 border-amber-300";
+  if (t.includes("замен") || t.includes("교환")) return "bg-red-100 text-red-900 border-red-300";
+  if (t.includes("ремонт") || t.includes("수리")) return "bg-orange-100 text-orange-900 border-orange-300";
+  return "bg-slate-100 text-slate-800 border-slate-300";
 }
 
-function InnerInspectionTree({ nodes, depth }: { nodes: unknown[]; depth: number }) {
-  if (!nodes.length) return null;
-  return (
-    <ul className={depth === 0 ? "space-y-2" : "ms-3 mt-2 space-y-2 border-s border-border/50 ps-3"}>
-      {nodes.map((node, idx) => {
-        if (!node || typeof node !== "object") return null;
-        const o = node as Record<string, unknown>;
-        const typeT = asStr(getPath(o, ["type", "title"])) ?? asStr(o.title);
-        const statusT = asStr(getPath(o, ["statusType", "title"]));
-        const desc = asStr(o.description);
-        const diagnosisBlock = o.diagnosis;
-        const children = o.children;
-
-        return (
-          <li key={idx} className="rounded-lg bg-background/60 py-1">
-            <div className="flex flex-wrap items-start gap-2">
-              {typeT ? <span className="text-sm font-medium">{translateKoToRuText(typeT)}</span> : null}
-              {statusT ? <StatusBadge title={statusT} /> : null}
-            </div>
-            {desc ? (
-              <p className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">{translateKoToRuText(desc)}</p>
-            ) : null}
-            {diagnosisBlock && typeof diagnosisBlock === "object" ? (
-              <div className="mt-2 rounded-lg border border-border/40 bg-muted/15 p-2 text-xs">
-                <SpecGrid
-                  rows={flatScalarRows(diagnosisBlock).map(([k, v]) => ({
-                    label: prettifyDataKey(k),
-                    value: translateKoToRuText(v),
-                  }))}
-                />
-              </div>
-            ) : null}
-            {Array.isArray(children) && children.length > 0 ? (
-              <InnerInspectionTree nodes={children as unknown[]} depth={depth + 1} />
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function JsonLight({ label, data }: { label: string; data: unknown }) {
-  if (data == null) return null;
-  let text: string;
-  try {
-    text = JSON.stringify(data, null, 2);
-  } catch {
-    text = String(data);
+function BodyStateChips({
+  outers,
+  bodyChanged,
+}: {
+  outers: unknown;
+  bodyChanged: unknown;
+}) {
+  const rows: Array<{ part: string; status: string }> = [];
+  if (Array.isArray(outers)) {
+    for (const item of outers) {
+      if (!item || typeof item !== "object") continue;
+      const o = item as Record<string, unknown>;
+      const part = translateKoToRuText(asStr(o.partName) ?? asStr(o.part) ?? asStr(o.name) ?? "");
+      const status = translateKoToRuText(
+        asStr(getPath(o, ["statusType", "title"])) ?? asStr(o.status) ?? asStr(o.result) ?? "Оригинал",
+      );
+      if (part && status) rows.push({ part, status });
+    }
   }
-  if (!text || text === "{}") return null;
-  return (
-    <details className="text-xs">
-      <summary className="cursor-pointer font-medium text-muted-foreground">{label}</summary>
-      <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-background/90 p-2">{text}</pre>
-    </details>
-  );
-}
-
-function OutersBlock({ outers }: { outers: unknown }) {
-  if (!outers || !Array.isArray(outers) || outers.length === 0) {
-    return <p className="text-sm text-muted-foreground">Нет данных по внешним панелям.</p>;
+  if (bodyChanged && typeof bodyChanged === "object" && !Array.isArray(bodyChanged)) {
+    for (const [k, v] of Object.entries(bodyChanged as Record<string, unknown>)) {
+      const part = translateKoToRuText(k);
+      const status = translateKoToRuText(asStr(v) ?? "Замена");
+      if (part && status) rows.push({ part, status });
+    }
+  }
+  if (!rows.length) {
+    return <p className="text-sm text-muted-foreground">Повреждений не зафиксировано, элементы кузова в исходном состоянии.</p>;
   }
   return (
-    <ul className="space-y-2">
-      {outers.map((item, i) => {
-        if (!item || typeof item !== "object") return null;
-        const o = item as Record<string, unknown>;
-        const rows = flatScalarRows(o).map(([k, v]) => ({ label: k, value: v }));
-        return (
-          <li key={i} className="rounded-xl border border-border/50 bg-muted/15 p-3">
-            <SpecGrid rows={rows} />
-          </li>
-        );
-      })}
+    <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+      {rows.map((r, i) => (
+        <li key={`${r.part}-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-border/50 px-3 py-2">
+          <span className="text-sm">{r.part}</span>
+          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${bodyStatusColor(r.status)}`}>{r.status}</span>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -194,18 +147,6 @@ function collectDongchediRecommendedFallback(d: Record<string, unknown>): string
     out.push(ru);
   }
   return out;
-}
-
-function StructuredRowsSection({
-  rows,
-}: {
-  rows: Array<{ label: string; value: string }>;
-}) {
-  const filtered = rows.filter((r) => cleanScalarText(r.value));
-  if (!filtered.length) {
-    return <p className="text-sm text-muted-foreground">Нет подтвержденных данных по этому блоку.</p>;
-  }
-  return <SpecGrid rows={filtered} />;
 }
 
 function formatInsuranceType(v: unknown): string | null {
@@ -258,14 +199,41 @@ function AccidentCases({ items }: { items: unknown[] }) {
   );
 }
 
-function krwOrStr(v: unknown): string | null {
-  if (v == null || v === "") return null;
-  const n = typeof v === "number" ? v : Number(String(v).replace(/\s/g, ""));
-  if (Number.isFinite(n)) return formatKrw(n);
-  return asStr(v);
-}
-
 function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
+  const [krwRate, setKrwRate] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const r = await fetch(`/api/cbr-rates?ts=${Date.now()}`, { cache: "no-store" });
+        if (!r.ok) return;
+        const d = (await r.json()) as { valute?: Record<string, { Value: number; Nominal: number }> };
+        const val = d?.valute?.KRW;
+        if (!val || !Number.isFinite(val.Value) || !Number.isFinite(val.Nominal) || val.Nominal <= 0) return;
+        const rate = val.Value / val.Nominal;
+        if (!cancelled) setKrwRate(rate);
+      } catch {
+        // ignore
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const num = (v: unknown): number | null => {
+    if (v == null || v === "") return null;
+    const n = typeof v === "number" ? v : Number(String(v).replace(/\s/g, ""));
+    return Number.isFinite(n) ? n : null;
+  };
+  const rubFromKrw = (v: unknown): string | null => {
+    const n = num(v);
+    if (n == null) return null;
+    if (krwRate == null) return `${Math.round(n).toLocaleString("ru-RU")} ₩`;
+    return formatPriceLabel(n * krwRate);
+  };
+
   const rows: { label: string; value: string }[] = [];
   const add = (label: string, v: unknown, fmt?: (x: unknown) => string | null) => {
     const s = fmt ? fmt(v) : asStr(v);
@@ -275,8 +243,8 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   add("ДТП (всего)", ro.accidentCnt);
   add("Мои ДТП", ro.myAccidentCnt);
   add("Чужие ДТП", ro.otherAccidentCnt);
-  add("Ущерб (мои)", ro.myAccidentCost, krwOrStr);
-  add("Ущерб (прочие)", ro.otherAccidentCost, krwOrStr);
+  add("Ущерб (мои)", ro.myAccidentCost, rubFromKrw);
+  add("Ущерб (прочие)", ro.otherAccidentCost, rubFromKrw);
   add("Полная гибель (кол-во)", ro.totalLossCnt);
   add("Дата полной гибели", ro.totalLossDate, (v) => formatHumanDate(v) ?? asStr(v));
   add("Затопление: тотал", ro.floodTotalLossCnt);
@@ -292,7 +260,6 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
 
   const accidents = ro.accidents;
   const ownerChanges = ro.ownerChanges;
-  const carInfoChanges = ro.carInfoChanges;
   const usageChangeTypes = ro.usageChangeTypes;
 
   return (
@@ -313,26 +280,15 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
           </ul>
         </div>
       ) : null}
-      {Array.isArray(carInfoChanges) && carInfoChanges.length > 0 ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Смена госномеров / данные авто
-          </h4>
-          <ul className="space-y-2 text-sm">
-            {carInfoChanges.map((c, i) => (
-              <li
-                key={i}
-                className="rounded-lg border border-border/40 bg-muted/10 px-3 py-2 [overflow-wrap:anywhere]"
-              >
-                {formatCarHistoryObjectRow(c)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
       {usageChangeTypes != null && String(usageChangeTypes).length > 0 ? (
-        <JsonLight label="Изменения использования (usageChangeTypes)" data={usageChangeTypes} />
-      ) : null}
+        <Badge variant="outline" className="rounded-full text-xs">
+          Изменения использования: {translateKoToRuText(String(usageChangeTypes))}
+        </Badge>
+      ) : (
+        <Badge variant="outline" className="rounded-full text-xs text-emerald-700 border-emerald-300 bg-emerald-50">
+          Изменения использования: нет
+        </Badge>
+      )}
     </div>
   );
 }
@@ -361,8 +317,6 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
   const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);
   const choicePhotos = getPath(sp, ["choiceOptionPhotos"]);
-  const sellingPoint = getPath(sp, ["sellingPoint"]) as Record<string, unknown> | undefined;
-  const advMasters = getPath(sp, ["advertisementMasters"]);
   const selectedOptions = useMemo(
     () => collectSelectedEncarOptions(uniquePhotos, choicePhotos, extra, d),
     [uniquePhotos, choicePhotos, extra, d],
@@ -397,7 +351,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
             {dongchediRecommended.map((label, i) => (
               <li
                 key={i}
-                className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs leading-snug transition-colors hover:bg-emerald-500/10"
+                className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug"
               >
                 {label}
               </li>
@@ -413,7 +367,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
             {selectedLabels.map((label, i) => (
               <li
                 key={i}
-                className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs leading-snug transition-colors hover:bg-emerald-500/10"
+                className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug"
               >
                 {label}
               </li>
@@ -424,93 +378,14 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
         <p className="text-sm text-muted-foreground">По этой карточке опции не распознаны.</p>
       ) : null}
 
-      {staticCodesFiltered.length > 0 ? (
-        <details className="rounded-xl border border-border/45 bg-muted/10 p-3">
-          <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
-            Служебный список кодов комплектации ({staticCodesFiltered.length})
-          </summary>
-          <ul className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-            {staticCodesFiltered.map((c, i) => (
-              <li key={i} className="rounded-lg border border-border/35 bg-background/70 px-2 py-1.5 text-[11px]">
-                {displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)}
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
-
-      {Array.isArray(uniquePhotos) && uniquePhotos.length > 0 ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Уникальные опции</h4>
-          <ul className="space-y-2">
-            {uniquePhotos.map((item, i) => {
-              if (!item || typeof item !== "object") return null;
-              const o = item as Record<string, unknown>;
-              const rawName = asStr(o.partName) ?? asStr(o.name) ?? "";
-              const name = localizeEncarOptionText(rawName);
-              if (!name) return null;
-              return (
-                <li key={i} className="rounded-lg border border-border/50 px-2 py-1.5 text-sm">
-                  {name}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-
-      {Array.isArray(choicePhotos) && choicePhotos.length > 0 ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Выбранные опции с фото</h4>
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {choicePhotos.map((item, i) => {
-              if (!item || typeof item !== "object") return null;
-              const o = item as Record<string, unknown>;
-              const name =
-                localizeEncarOptionText(asStr(o.partName) ?? asStr(o.name) ?? "") ?? "Опция";
-              const url =
-                asStr(o.photoUrl) ?? asStr(o.imageUrl) ?? asStr(o.url) ?? asStr(o.imgUrl);
-              return (
-                <li key={i} className="overflow-hidden rounded-xl border border-border/60 bg-card">
-                  {url ? (
-                    <div className="relative aspect-[4/3] bg-muted">
-                      <Image src={url} alt="" fill className="object-cover" sizes="200px" unoptimized />
-                    </div>
-                  ) : null}
-                  <p className="p-2 text-xs font-medium">{name}</p>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-
-      {sellingPoint && (asStr(sellingPoint.sentence) || asStr(sellingPoint.photoUrl as unknown)) ? (
-        <div className="rounded-xl border border-border/50 bg-muted/15 p-3">
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Акцент продажи</h4>
-          {asStr(sellingPoint.sentence) ? (
-            <p className="text-sm [overflow-wrap:anywhere]">{translateKoToRuText(asStr(sellingPoint.sentence)!)}</p>
-          ) : null}
-          {asStr(sellingPoint.photoUrl) ? (
-            <div className="relative mt-2 aspect-video max-w-md overflow-hidden rounded-lg bg-muted">
-              <Image
-                src={asStr(sellingPoint.photoUrl)!}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="400px"
-                unoptimized
-              />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {advMasters != null && (Array.isArray(advMasters) ? advMasters.length > 0 : true) ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Рекламные блоки (advertisementMasters)</h4>
-          <JsonLight label="advertisementMasters" data={advMasters} />
-        </div>
+      {staticCodesFiltered.length > 0 && !hasAnyRenderedOptions ? (
+        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          {staticCodesFiltered.map((c, i) => (
+            <li key={i} className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug">
+              {displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)}
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );
@@ -518,7 +393,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
 
 export function CarDetailAccordions({
   data,
-  diagnosisPhotosCount,
+  diagnosisPhotosCount: _diagnosisPhotosCount,
 }: {
   data: Record<string, unknown>;
   diagnosisPhotosCount: number;
@@ -592,83 +467,14 @@ export function CarDetailAccordions({
   const electrical = structured?.electrical as Record<string, unknown> | undefined;
   const additional = structured?.additional as Record<string, unknown> | undefined;
 
-  const carStateTitle = asStr(getPath(detail, ["carStateType", "title"]));
-  const inspComments = asStr(detail?.comments);
-  const fallbackTranslatedInspComment = inspComments ? translateKoToRuText(inspComments) : null;
-  const canToggleInspComment =
-    Boolean(inspComments) &&
-    Boolean(fallbackTranslatedInspComment) &&
-    fallbackTranslatedInspComment !== inspComments;
-  const [showTranslatedComment, setShowTranslatedComment] = useState(true);
-  const [remoteTranslatedComment, setRemoteTranslatedComment] = useState<string | null>(null);
-  const [translatePending, setTranslatePending] = useState(false);
-  const [translateError, setTranslateError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setRemoteTranslatedComment(null);
-    setTranslateError(null);
-    setTranslatePending(false);
-    setShowTranslatedComment(true);
-  }, [inspComments]);
-
-  useEffect(() => {
-    if (!canToggleInspComment || !showTranslatedComment) return;
-    void ensureRemoteTranslation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canToggleInspComment, showTranslatedComment, inspComments]);
-
-  const ensureRemoteTranslation = async () => {
-    if (!inspComments || remoteTranslatedComment || translatePending) return;
-    setTranslatePending(true);
-    setTranslateError(null);
-    try {
-      const res = await translateTextClient(inspComments);
-      const t = cleanScalarText(res.translated_text);
-      if (t) setRemoteTranslatedComment(t);
-    } catch (e) {
-      setTranslateError(e instanceof Error ? e.message : "Не удалось получить перевод");
-    } finally {
-      setTranslatePending(false);
-    }
-  };
-
   const inners = inspection?.inners;
-  const innerList = Array.isArray(inners) ? inners : [];
 
   const recordOpen =
     extra?.record_open && typeof extra.record_open === "object"
       ? (extra.record_open as Record<string, unknown>)
       : undefined;
 
-  const inspName = asStr(detail?.inspName);
-  const recordNo = asStr(detail?.recordNo);
-  const validityStart = asStr(detail?.validityStartDate);
-  const validityEnd = asStr(detail?.validityEndDate);
-  const guarantyTitle = asStr(getPath(detail, ["guarantyType", "title"]));
-  const firstReg = asStr(detail?.firstRegistrationDate);
-  const carNo = asStr(detail?.carNo);
-  const fuel = asStr(detail?.fuel);
-  const carShape = asStr(detail?.carShape);
-
   const defaultOpen = ["general"];
-
-  const dongchediHighlightsRaw = parseJson(data.dongchedi_specs_highlights);
-  const dongchediHighlightRows: { label: string; value: string }[] = [];
-  if (Array.isArray(dongchediHighlightsRaw)) {
-    for (const item of dongchediHighlightsRaw) {
-      if (!item || typeof item !== "object") continue;
-      const o = item as { label?: unknown; value?: unknown };
-      const lb = typeof o.label === "string" ? o.label : "";
-      const vl = typeof o.value === "string" ? o.value : o.value != null ? String(o.value) : "";
-      if (lb && vl) dongchediHighlightRows.push({ label: lb, value: vl });
-    }
-  }
-
-  const hasStructuredSub =
-    !!(engineTransmission && Object.keys(engineTransmission).length > 0) ||
-    !!(chassis && Object.keys(chassis).length > 0) ||
-    !!(electrical && Object.keys(electrical).length > 0) ||
-    !!(additional && Object.keys(additional).length > 0);
 
   const toStructuredRows = (obj: Record<string, unknown> | undefined): Array<{ label: string; value: string }> => {
     if (!obj) return [];
@@ -684,6 +490,15 @@ export function CarDetailAccordions({
       })
       .filter((x): x is { label: string; value: string } => Boolean(x));
   };
+
+  const diagSections = [
+    { key: "engine", label: "Двигатель", rows: toStructuredRows(engineTransmission) },
+    { key: "chassis", label: "Ходовая и тормоза", rows: toStructuredRows(chassis) },
+    { key: "electrical", label: "Электрика", rows: toStructuredRows(electrical) },
+    { key: "additional", label: "Дополнительно", rows: toStructuredRows(additional) },
+  ].filter((x) => x.rows.length > 0);
+  const [activeDiagTab, setActiveDiagTab] = useState<string>(diagSections[0]?.key ?? "engine");
+  const activeDiag = diagSections.find((x) => x.key === activeDiagTab) ?? diagSections[0];
 
   return (
     <Accordion
@@ -759,24 +574,8 @@ export function CarDetailAccordions({
             ) : null}
 
             <div>
-              <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Схема осмотра кузова</h4>
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {INSPECTION_SCHEMES.map((img) => (
-                  <div key={img.src} className="overflow-hidden rounded-xl border border-border/50 bg-muted/10">
-                    <div className="relative aspect-[4/3] bg-muted/20">
-                      <Image src={img.src} alt={img.alt} fill className="object-contain p-2" unoptimized />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Внешние панели и силовые элементы ниже синхронизированы с данными листа проверки Encar.
-              </p>
-            </div>
-
-            <div>
               <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Внешние элементы кузова</h4>
-              <OutersBlock outers={outers} />
+              <BodyStateChips outers={outers} bodyChanged={bodyChanged} />
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -792,21 +591,6 @@ export function CarDetailAccordions({
               ) : null}
             </div>
 
-            {bodyChanged != null && (typeof bodyChanged !== "object" || Object.keys(bodyChanged as object).length > 0) ? (
-              <div>
-                <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Замены кузовных деталей</h4>
-                {typeof bodyChanged === "object" && !Array.isArray(bodyChanged) ? (
-                  <SpecGrid
-                    rows={Object.entries(bodyChanged as Record<string, unknown>).map(([k, v]) => ({
-                      label: k,
-                      value: asStr(v) ?? JSON.stringify(v),
-                    }))}
-                  />
-                ) : (
-                  <p className="text-sm [overflow-wrap:anywhere]">{JSON.stringify(bodyChanged)}</p>
-                )}
-              </div>
-            ) : null}
           </div>
         </AccordionContent>
       </AccordionItem>
@@ -817,115 +601,42 @@ export function CarDetailAccordions({
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
           <div className="space-y-5">
-            {diagnosisPhotosCount > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                В галерее выше: {diagnosisPhotosCount} фото диагностики / днища.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">Фото диагностики отсутствуют.</p>
-            )}
-
-            {carStateTitle ? (
-              <div>
-                <span className="text-xs font-semibold text-muted-foreground">Общий вердикт</span>
-                <p className="mt-1 text-sm font-medium">{translateKoToRuText(carStateTitle)}</p>
-              </div>
-            ) : null}
-            {inspComments ? (
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-muted-foreground">Комментарии инспекции</span>
-                  {canToggleInspComment ? (
-                    <Button
+            {diagSections.length > 0 ? (
+              <div className="space-y-3">
+                <div className="inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1">
+                  {diagSections.map((section) => (
+                    <button
+                      key={section.key}
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 rounded-full px-2.5 text-[11px]"
-                      onClick={() => {
-                        setShowTranslatedComment((v) => {
-                          const next = !v;
-                          if (next) {
-                            void ensureRemoteTranslation();
-                          }
-                          return next;
-                        });
-                      }}
+                      onClick={() => setActiveDiagTab(section.key)}
+                      className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        activeDiag?.key === section.key
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      {translatePending && showTranslatedComment
-                        ? "Переводим..."
-                        : showTranslatedComment
-                          ? "Показать оригинал"
-                          : "Показать перевод"}
-                    </Button>
-                  ) : null}
+                      {section.label}
+                    </button>
+                  ))}
                 </div>
-                <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border/45 bg-muted/10 p-3 text-sm [overflow-wrap:anywhere]">
-                  {showTranslatedComment
-                    ? remoteTranslatedComment ?? fallbackTranslatedInspComment ?? inspComments
-                    : inspComments}
-                </p>
-                {showTranslatedComment && translateError ? (
-                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-300">
-                    Не удалось получить перевод от API, показан локальный перевод.
-                  </p>
+                {activeDiag ? (
+                  <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {activeDiag.rows.map((row) => (
+                      <li key={`${activeDiag.key}-${row.label}`} className="rounded-xl border border-border/50 bg-background px-3 py-2">
+                        <p className="text-xs text-muted-foreground">{row.label}</p>
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">{row.value}</p>
+                          <Badge variant="outline" className={toneClass(diagnosisStatusTone(row.value))}>
+                            {row.value}
+                          </Badge>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
               </div>
-            ) : null}
-
-            {hasStructuredSub ? (
-              <Accordion
-                type="multiple"
-                className="rounded-2xl border border-border/55 bg-muted/10"
-                defaultValue={[]}
-              >
-                {engineTransmission && Object.keys(engineTransmission).length > 0 ? (
-                  <AccordionItem value="de-et">
-                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">
-                      Двигатель и трансмиссия
-                    </AccordionTrigger>
-                    <AccordionContent className="overflow-hidden">
-                      <StructuredRowsSection rows={toStructuredRows(engineTransmission)} />
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : null}
-                {chassis && Object.keys(chassis).length > 0 ? (
-                  <AccordionItem value="de-ch">
-                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">Ходовая и тормоза</AccordionTrigger>
-                    <AccordionContent className="overflow-hidden">
-                      <StructuredRowsSection rows={toStructuredRows(chassis)} />
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : null}
-                {electrical && Object.keys(electrical).length > 0 ? (
-                  <AccordionItem value="de-el">
-                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">Электрика</AccordionTrigger>
-                    <AccordionContent className="overflow-hidden">
-                      <StructuredRowsSection rows={toStructuredRows(electrical)} />
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : null}
-                {additional && Object.keys(additional).length > 0 ? (
-                  <AccordionItem value="de-ad">
-                    <AccordionTrigger className="px-4 text-sm [overflow-wrap:anywhere]">
-                      Дополнительные проверки
-                    </AccordionTrigger>
-                    <AccordionContent className="overflow-hidden">
-                      <StructuredRowsSection rows={toStructuredRows(additional)} />
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : null}
-              </Accordion>
             ) : (
               <p className="text-sm text-muted-foreground">Структурированные блоки диагностики отсутствуют.</p>
-            )}
-
-            {innerList.length > 0 ? (
-              <div>
-                <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Детальная диагностика (inners)</h4>
-                <InnerInspectionTree nodes={innerList} depth={0} />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Вложенная диагностика inners отсутствует.</p>
             )}
           </div>
         </AccordionContent>
@@ -944,40 +655,6 @@ export function CarDetailAccordions({
         </AccordionContent>
       </AccordionItem>
 
-      <AccordionItem value="extra" className="last:rounded-b-3xl">
-        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          Дополнительные сведения
-        </AccordionTrigger>
-        <AccordionContent className="px-4 sm:px-5">
-          <div className="space-y-4">
-            {dongchediHighlightRows.length > 0 ? (
-              <div>
-                <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
-                  Параметры модели (Dongchedi)
-                </h4>
-                <SpecGrid rows={dongchediHighlightRows} />
-              </div>
-            ) : null}
-            <SpecGrid
-              rows={[
-                { label: "Станция инспекции", value: translateKoToRuText(inspName ?? "") },
-                { label: "Номер записи", value: recordNo ?? "" },
-                {
-                  label: "Срок гарантии",
-                  value: [formatHumanDate(validityStart) ?? validityStart, formatHumanDate(validityEnd) ?? validityEnd]
-                    .filter(Boolean)
-                    .join(" — "),
-                },
-                { label: "Тип гарантии", value: translateKoToRuText(guarantyTitle ?? "") },
-                { label: "Первая регистрация", value: formatHumanDate(firstReg) ?? firstReg ?? "" },
-                { label: "Номер кузова", value: carNo ?? "" },
-                { label: "Топливо", value: translateKoToRuText(fuel ?? "") },
-                { label: "Форма кузова", value: translateKoToRuText(carShape ?? "") },
-              ]}
-            />
-          </div>
-        </AccordionContent>
-      </AccordionItem>
     </Accordion>
   );
 }

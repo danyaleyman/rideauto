@@ -226,6 +226,7 @@ export default async function CarPage({ params }: PageProps) {
                 sourceLabel={sourceLabelStr}
                 catalogCreatedAt={catalogCreatedAt}
                 sourceUpdatedAt={sourceUpdatedAt ?? null}
+                calcDetails={d as Record<string, unknown>}
               />
             </MotionFadeUp>
           </div>

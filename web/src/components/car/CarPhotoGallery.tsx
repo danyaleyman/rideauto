@@ -202,8 +202,8 @@ export default function CarPhotoGallery({
           </div>
 
           {sideCap > 0 ? (
-            <div className="flex min-h-0 min-w-0 flex-col border-t border-border/50 bg-transparent lg:h-full lg:border-t-0 lg:border-s">
-              <div className="flex max-w-full flex-nowrap gap-1 overflow-x-auto overscroll-x-contain px-1 py-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-1 lg:overflow-hidden lg:px-1 lg:py-1">
+            <div className="flex min-h-0 min-w-0 flex-col bg-transparent lg:h-full">
+              <div className="flex max-w-full flex-nowrap gap-1 overflow-x-auto overscroll-x-contain px-1 py-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-0 lg:overflow-hidden lg:px-0 lg:py-0">
                 {sideSlots.map((idx, slotI) => {
                   const src = images[idx];
                   const isLastSlot = slotI === sideSlots.length - 1;
@@ -221,9 +221,9 @@ export default function CarPhotoGallery({
                         openLightbox(idx);
                       }}
                       className={cn(
-                        "relative h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent bg-transparent transition-all hover:border-primary/50 sm:h-[4.5rem] sm:w-[5.25rem] lg:h-0 lg:min-h-0 lg:w-full lg:flex-1 lg:basis-0 lg:snap-none",
+                        "relative h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent bg-transparent transition-all hover:border-primary/50 sm:h-[4.5rem] sm:w-[5.25rem] lg:h-auto lg:min-h-0 lg:w-full lg:basis-1/4 lg:rounded-none lg:border-0 lg:ring-0 lg:snap-none",
                         idx === safeActive &&
-                          "ring-2 ring-primary ring-offset-1 ring-offset-muted lg:ring-offset-2",
+                          "ring-2 ring-primary ring-offset-1 ring-offset-muted lg:ring-2 lg:ring-inset lg:ring-primary/70 lg:ring-offset-0",
                       )}
                       aria-label={
                         showMore
