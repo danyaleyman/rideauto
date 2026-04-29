@@ -129,16 +129,27 @@ function isInternalBodyPart(part: string): boolean {
 
 function collectBodyRows({
   outers,
+  bodyPanels,
   bodyChanged,
   paintPartTypes,
   seriousTypes,
 }: {
   outers: unknown;
+  bodyPanels: unknown;
   bodyChanged: unknown;
   paintPartTypes: unknown;
   seriousTypes: unknown;
 }): { external: BodyRow[]; internal: BodyRow[] } {
   const rows: BodyRow[] = [];
+  if (Array.isArray(bodyPanels)) {
+    for (const panel of bodyPanels) {
+      if (!panel || typeof panel !== "object") continue;
+      const p = panel as Record<string, unknown>;
+      const part = translateKoToRuText(asStr(p.part) ?? asStr(p.name) ?? "");
+      const status = normalizeBodyStatus(asStr(p.status) ?? "Оригинал");
+      if (part && status) rows.push({ part, status });
+    }
+  }
   if (Array.isArray(outers)) {
     for (const item of outers) {
       if (!item || typeof item !== "object") continue;
@@ -186,6 +197,7 @@ function collectBodyRows({
 
 function BodyConditionSection({
   outers,
+  bodyPanels,
   bodyChanged,
   paintPartTypes,
   seriousTypes,
@@ -193,6 +205,7 @@ function BodyConditionSection({
   simpleRepair,
 }: {
   outers: unknown;
+  bodyPanels: unknown;
   bodyChanged: unknown;
   paintPartTypes: unknown;
   seriousTypes: unknown;
@@ -201,12 +214,12 @@ function BodyConditionSection({
 }) {
   const reduceMotion = useReducedMotion();
   const groups = useMemo(
-    () => collectBodyRows({ outers, bodyChanged, paintPartTypes, seriousTypes }),
-    [outers, bodyChanged, paintPartTypes, seriousTypes],
+    () => collectBodyRows({ outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes }),
+    [outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes],
   );
   const inferred: BodyRow[] = [];
-  if (!isNegativeFlag(simpleRepair)) inferred.push({ part: "Кузовные элементы", status: "Косметический ремонт" });
-  if (!isNegativeFlag(accident)) inferred.push({ part: "Силовые элементы кузова", status: "Следы ДТП" });
+  if (!isNegativeFlag(simpleRepair)) inferred.push({ part: "Детали кузова (по отчету Encar)", status: "Косметический ремонт" });
+  if (!isNegativeFlag(accident)) inferred.push({ part: "Силовые элементы (по отчету Encar)", status: "Следы ДТП" });
   const tabs = [
     { key: "external" as const, title: "Внешние элементы", rows: groups.external.length ? groups.external : inferred },
     { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
@@ -734,6 +747,7 @@ export function CarDetailAccordions({
   const simpleRepair = master?.simpleRepair;
   const bodyChanged =
     getPath(extra, ["inspection_structured", "bodyChanged"]) ?? getPath(master, ["bodyChanged"]);
+  const bodyPanels = getPath(extra, ["inspection_structured", "bodyPanels"]);
 
   const structured =
     extra?.inspection_structured && typeof extra.inspection_structured === "object"
@@ -817,6 +831,7 @@ export function CarDetailAccordions({
           <div className="space-y-4">
             <BodyConditionSection
               outers={outers}
+              bodyPanels={bodyPanels}
               bodyChanged={bodyChanged}
               paintPartTypes={paintPartTypes}
               seriousTypes={seriousTypes}
