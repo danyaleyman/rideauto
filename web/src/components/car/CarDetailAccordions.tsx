@@ -160,17 +160,22 @@ function formatInsuranceType(v: unknown): string | null {
 function AccidentCases({ items }: { items: unknown[] }) {
   const list = items
     .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
-    .filter((x): x is Record<string, unknown> => Boolean(x));
+    .filter((x): x is Record<string, unknown> => Boolean(x))
+    .filter((x) => String(x.type ?? "").trim() !== "2");
   if (!list.length) return null;
   return (
     <div>
       <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Страховые случаи
+        Страховые случаи по этому авто
       </h4>
       <ul className="space-y-2.5">
         {list.map((a, i) => {
           const date = formatHumanDate(a.date) ?? cleanScalarText(a.date);
-          const type = formatInsuranceType(a.type);
+          const partCost = Number(a.partCost ?? 0);
+          const laborCost = Number(a.laborCost ?? 0);
+          const paintCost = Number(a.paintingCost ?? 0);
+          const hasBodyWork = Number.isFinite(partCost + laborCost + paintCost) && partCost + laborCost + paintCost > 0;
+          const kind = hasBodyWork ? "Кузовной/ремонтный случай" : "Технический/гарантийный случай";
           const part = formatRubFromUnknown(a.partCost) ?? formatKrw(Number(a.partCost ?? 0));
           const labor = formatRubFromUnknown(a.laborCost) ?? formatKrw(Number(a.laborCost ?? 0));
           const paint = formatRubFromUnknown(a.paintingCost) ?? formatKrw(Number(a.paintingCost ?? 0));
@@ -179,7 +184,7 @@ function AccidentCases({ items }: { items: unknown[] }) {
             <li key={i} className="rounded-xl border border-border/50 bg-muted/15 p-3">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 {date ? <Badge variant="secondary">{date}</Badge> : null}
-                {type ? <Badge variant="outline">{type}</Badge> : null}
+                <Badge variant="outline">{kind}</Badge>
               </div>
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
                 <p><span className="text-muted-foreground">Запчасти:</span> {part}</p>
@@ -192,8 +197,7 @@ function AccidentCases({ items }: { items: unknown[] }) {
         })}
       </ul>
       <p className="mt-2 text-xs text-muted-foreground">
-        Выплаты страховой не всегда означают повреждение силового каркаса кузова: часть случаев относится к
-        навесным элементам и косметическому ремонту.
+        Показываются только случаи, относящиеся к текущему автомобилю. Данные по второму участнику скрыты.
       </p>
     </div>
   );
@@ -240,11 +244,8 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
     if (s) rows.push({ label, value: s });
   };
 
-  add("ДТП (всего)", ro.accidentCnt);
-  add("Мои ДТП", ro.myAccidentCnt);
-  add("Чужие ДТП", ro.otherAccidentCnt);
+  add("ДТП по авто", ro.myAccidentCnt);
   add("Ущерб (мои)", ro.myAccidentCost, rubFromKrw);
-  add("Ущерб (прочие)", ro.otherAccidentCost, rubFromKrw);
   add("Полная гибель (кол-во)", ro.totalLossCnt);
   add("Дата полной гибели", ro.totalLossDate, (v) => formatHumanDate(v) ?? asStr(v));
   add("Затопление: тотал", ro.floodTotalLossCnt);
@@ -260,35 +261,21 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
 
   const accidents = ro.accidents;
   const ownerChanges = ro.ownerChanges;
-  const usageChangeTypes = ro.usageChangeTypes;
+  const ownersCount = Array.isArray(ownerChanges) ? ownerChanges.length : Number(ro.ownerChangeCnt ?? 0);
+  const ownerChipClass =
+    ownersCount > 5
+      ? "text-red-700 border-red-300 bg-red-50"
+      : "text-emerald-700 border-emerald-300 bg-emerald-50";
 
   return (
     <div className="space-y-4">
       <SpecGrid rows={rows} />
       {Array.isArray(accidents) && accidents.length > 0 ? <AccidentCases items={accidents} /> : null}
-      {Array.isArray(ownerChanges) && ownerChanges.length > 0 ? (
-        <div>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Смена собственников
-          </h4>
-          <ul className="space-y-2 text-sm">
-            {ownerChanges.map((oc, i) => (
-              <li key={i} className="rounded-lg border border-border/40 bg-muted/10 px-3 py-2 [overflow-wrap:anywhere]">
-                {formatHumanDate(oc) ?? cleanScalarText(oc) ?? "—"}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {ownersCount > 0 ? (
+        <Badge variant="outline" className={`rounded-full text-xs ${ownerChipClass}`}>
+          Собственников авто в Корее: {ownersCount}
+        </Badge>
       ) : null}
-      {usageChangeTypes != null && String(usageChangeTypes).length > 0 ? (
-        <Badge variant="outline" className="rounded-full text-xs">
-          Изменения использования: {translateKoToRuText(String(usageChangeTypes))}
-        </Badge>
-      ) : (
-        <Badge variant="outline" className="rounded-full text-xs text-emerald-700 border-emerald-300 bg-emerald-50">
-          Изменения использования: нет
-        </Badge>
-      )}
     </div>
   );
 }
@@ -326,13 +313,21 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     [selectedOptions],
   );
   const selectedLabels = useMemo(() => {
-    const fromRows = selectedOptions.map((x) => x.label).filter(Boolean);
-    if (fromRows.length) return fromRows;
-    // fallback: на карточках без enriched rows показываем только ограниченный набор кодов.
-    return codes
-      .slice(0, 24)
-      .map((c) => displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d))
-      .filter((x) => x && !/^Опция\s+\d+$/i.test(x));
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const row of selectedOptions) {
+      const lb = cleanScalarText(row.label);
+      if (!lb || /^Опция\s+\d+$/i.test(lb) || seen.has(lb)) continue;
+      seen.add(lb);
+      out.push(lb);
+    }
+    for (const c of codes) {
+      const label = cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d));
+      if (!label || /^Опция\s+\d+$/i.test(label) || seen.has(label)) continue;
+      seen.add(label);
+      out.push(label);
+    }
+    return out;
   }, [selectedOptions, codes, uniquePhotos, choicePhotos, extra, d]);
   const staticCodesFiltered = codes.filter((c) => {
     const s = cleanScalarText(c);
@@ -346,7 +341,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     <div className="space-y-5">
       {isDongchedi && dongchediRecommended.length > 0 ? (
         <div>
-          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции конкретного авто</h4>
+          <h4 className="mb-2 text-xs font-semibold text-muted-foreground">Опции конкретного авто ({selectedLabels.length})</h4>
           <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {dongchediRecommended.map((label, i) => (
               <li
@@ -467,8 +462,6 @@ export function CarDetailAccordions({
   const electrical = structured?.electrical as Record<string, unknown> | undefined;
   const additional = structured?.additional as Record<string, unknown> | undefined;
 
-  const inners = inspection?.inners;
-
   const recordOpen =
     extra?.record_open && typeof extra.record_open === "object"
       ? (extra.record_open as Record<string, unknown>)
@@ -486,7 +479,7 @@ export function CarDetailAccordions({
             ? translateKoToRuText(JSON.stringify(v))
             : "";
         const cleaned = cleanScalarText(base);
-        return cleaned ? { label: prettifyDataKey(k), value: cleaned } : null;
+        return cleaned ? { label: translateKoToRuText(prettifyDataKey(k)), value: translateKoToRuText(cleaned) } : null;
       })
       .filter((x): x is { label: string; value: string } => Boolean(x));
   };
@@ -499,6 +492,12 @@ export function CarDetailAccordions({
   ].filter((x) => x.rows.length > 0);
   const [activeDiagTab, setActiveDiagTab] = useState<string>(diagSections[0]?.key ?? "engine");
   const activeDiag = diagSections.find((x) => x.key === activeDiagTab) ?? diagSections[0];
+  useEffect(() => {
+    if (!diagSections.length) return;
+    if (!diagSections.some((x) => x.key === activeDiagTab)) {
+      setActiveDiagTab(diagSections[0].key);
+    }
+  }, [diagSections, activeDiagTab]);
 
   return (
     <Accordion
@@ -627,7 +626,13 @@ export function CarDetailAccordions({
                         <div className="mt-1 flex items-center justify-between gap-2">
                           <p className="text-sm font-medium">{row.value}</p>
                           <Badge variant="outline" className={toneClass(diagnosisStatusTone(row.value))}>
-                            {row.value}
+                            {diagnosisStatusTone(row.value) === "ok"
+                              ? "Исправно"
+                              : diagnosisStatusTone(row.value) === "warn"
+                                ? "Требует внимания"
+                                : diagnosisStatusTone(row.value) === "bad"
+                                  ? "Проблема"
+                                  : "Проверить"}
                           </Badge>
                         </div>
                       </li>

@@ -118,7 +118,7 @@ export default function CarPhotoGallery({
       <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-muted shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:rounded-3xl">
         <div
           className={cn(
-            "grid min-h-0 min-w-0 gap-0",
+            "grid min-h-0 min-w-0 gap-2 lg:gap-3",
             sideCap > 0
               ? "lg:grid-cols-[minmax(0,1fr)_clamp(152px,17vw,216px)] lg:items-stretch lg:min-h-[min(58vh,640px)]"
               : "lg:grid-cols-1",
@@ -203,7 +203,7 @@ export default function CarPhotoGallery({
 
           {sideCap > 0 ? (
             <div className="flex min-h-0 min-w-0 flex-col bg-transparent lg:h-full">
-              <div className="flex max-w-full flex-nowrap gap-1 overflow-x-auto overscroll-x-contain px-1 py-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-0 lg:overflow-hidden lg:px-0 lg:py-0">
+              <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-1 py-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-2 lg:overflow-hidden lg:px-0 lg:py-0">
                 {sideSlots.map((idx, slotI) => {
                   const src = images[idx];
                   const isLastSlot = slotI === sideSlots.length - 1;
@@ -221,7 +221,7 @@ export default function CarPhotoGallery({
                         openLightbox(idx);
                       }}
                       className={cn(
-                        "relative h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent bg-transparent transition-all hover:border-primary/50 sm:h-[4.5rem] sm:w-[5.25rem] lg:h-auto lg:min-h-0 lg:w-full lg:basis-1/4 lg:rounded-none lg:border-0 lg:ring-0 lg:snap-none",
+                        "relative h-[4.25rem] w-[4.75rem] shrink-0 snap-start overflow-hidden rounded-lg border-2 border-transparent bg-transparent transition-all hover:border-primary/50 sm:h-[4.5rem] sm:w-[5.25rem] lg:h-auto lg:min-h-0 lg:w-full lg:flex-1 lg:basis-0 lg:rounded-xl lg:border lg:border-border/40 lg:ring-0 lg:snap-none",
                         idx === safeActive &&
                           "ring-2 ring-primary ring-offset-1 ring-offset-muted lg:ring-2 lg:ring-inset lg:ring-primary/70 lg:ring-offset-0",
                       )}

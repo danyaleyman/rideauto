@@ -215,11 +215,12 @@ export function CarPurchaseSidebar({
           carTitle={title}
           triggerLabel="Купить автомобиль"
           triggerSize="default"
-          triggerClassName="h-11 w-full rounded-xl bg-red-600 text-[15px] font-semibold text-white shadow-sm hover:bg-red-700"
+          triggerClassName="h-11 w-full rounded-xl border border-border/80 bg-background text-[15px] font-semibold text-foreground shadow-sm hover:bg-muted"
         />
         <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
           <Button
-            className="h-11 w-full rounded-xl bg-blue-600 text-[15px] font-semibold text-white shadow-sm hover:bg-blue-700"
+            variant="outline"
+            className="h-11 w-full rounded-xl border-border/80 bg-background text-[15px] font-semibold text-foreground shadow-sm hover:bg-muted"
             asChild
           >
             <Link href="/contacts">Связаться с менеджером</Link>
