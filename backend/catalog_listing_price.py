@@ -73,11 +73,11 @@ def encar_reserved_placeholder_price(data: Optional[Dict[str, Any]]) -> bool:
             pw_digits = "".join(ch for ch in str(int(float(pw))) if ch.isdigit())
             if len(pw_digits) == 4 and len(set(pw_digits)) == 1:
                 return True
-            # Часто в данных уже хранится полный won (например 99_990_000),
-            # где первые 4 цифры — заглушка 9999만원/4444만원.
+            # Часто в данных уже хранится полный won (например 99_990_000, 111_110_000),
+            # где первые 4 цифры — заглушка 9999만원/5555만원/1111만원 и т.п.
             if len(pw_digits) >= 8 and pw_digits.endswith("0000"):
-                lead4 = pw_digits[:-4]
-                if len(lead4) == 4 and len(set(lead4)) == 1:
+                lead = pw_digits[:-4]
+                if len(lead) >= 4 and len(set(lead[:4])) == 1:
                     return True
     except (TypeError, ValueError):
         pass

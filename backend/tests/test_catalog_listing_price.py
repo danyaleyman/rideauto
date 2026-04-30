@@ -32,6 +32,9 @@ def test_encar_reserved_placeholder_price_is_not_list_price():
 def test_encar_reserved_placeholder_detector():
     assert encar_reserved_placeholder_price({"price_won": 1111}) is True
     assert encar_reserved_placeholder_price({"price_won": 99990000}) is True
+    assert encar_reserved_placeholder_price({"price_won": 55550000}) is True
+    assert encar_reserved_placeholder_price({"price_won": 77770000}) is True
+    assert encar_reserved_placeholder_price({"price_won": 111110000}) is True
     assert encar_reserved_placeholder_price({"price": "2,190"}) is False
 
 
