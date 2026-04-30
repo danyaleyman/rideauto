@@ -3,6 +3,7 @@ from catalog_listing_price import (
     dongchedi_has_buyer_price,
     dongchedi_has_source_price,
     encar_has_list_price,
+    encar_reserved_placeholder_price,
 )
 
 
@@ -26,6 +27,11 @@ def test_encar_monthly_finance_price_is_not_list_price():
 def test_encar_reserved_placeholder_price_is_not_list_price():
     assert encar_has_list_price({"price_won": 9999}) is False
     assert encar_has_list_price({"price": "4,444"}) is False
+
+
+def test_encar_reserved_placeholder_detector():
+    assert encar_reserved_placeholder_price({"price_won": 1111}) is True
+    assert encar_reserved_placeholder_price({"price": "2,190"}) is False
 
 
 def test_china_market_car():

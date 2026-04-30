@@ -23,6 +23,7 @@ from catalog_listing_price import (
     dongchedi_has_buyer_price,
     dongchedi_has_source_price,
     encar_has_list_price,
+    encar_reserved_placeholder_price,
 )
 from catalog_pg_core import (
     UPSERT_CAR_SQL,
@@ -318,6 +319,8 @@ def run_sync(
                     if not encar_has_list_price(data):
                         price_skipped_no_list += 1
                         data["price_on_request"] = True
+                        if encar_reserved_placeholder_price(data):
+                            data["encar_listing_sold"] = True
                         clear_estimated_price_fields(data)
                         if car.get("data") is not data:
                             car["data"] = data
@@ -418,6 +421,17 @@ def run_sync(
                 if not row:
                     continue
                 car_pk = int(row[0])
+                d = car.get("data") if isinstance(car.get("data"), dict) else {}
+                if isinstance(d, dict) and d.get("encar_listing_sold") is True:
+                    cur.execute(
+                        """
+                        UPDATE cars
+                        SET encar_listing_sold = true,
+                            encar_listing_checked_at = now()
+                        WHERE id = %s
+                        """,
+                        (car_pk,),
+                    )
                 urls = extract_image_urls(car)
                 cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
                 for i, url in enumerate(urls):

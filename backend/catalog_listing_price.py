@@ -41,7 +41,7 @@ def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
         return False
     if data.get("encar_monthly_finance_price") is True:
         return False
-    if _encar_placeholder_reserved_price(data):
+    if encar_reserved_placeholder_price(data):
         return False
     pw = data.get("price_won")
     try:
@@ -59,12 +59,14 @@ def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
         return False
 
 
-def _encar_placeholder_reserved_price(data: Dict[str, Any]) -> bool:
+def encar_reserved_placeholder_price(data: Optional[Dict[str, Any]]) -> bool:
     """
     На Encar забронированные/выкупленные авто нередко помечаются «заглушкой» вида
     9,999만원 / 4,444만원 (четыре одинаковые цифры в цене объявления).
     Такие значения нельзя использовать для расчета итоговой стоимости.
     """
+    if not isinstance(data, dict):
+        return False
     pw = data.get("price_won")
     try:
         if pw is not None:
