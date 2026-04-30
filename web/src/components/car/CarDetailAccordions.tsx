@@ -158,7 +158,7 @@ function collectBodyRows({
     for (const item of outers) {
       if (!item || typeof item !== "object") continue;
       const o = item as Record<string, unknown>;
-      const part = translateKoToRuText(asStr(o.partName) ?? asStr(o.part) ?? asStr(o.name) ?? "");
+      const part = translateKoToRuText(asStr(o.partName) ?? asStr(o.part) ?? asStr(o.name) ?? asStr(o.title) ?? "");
       const status = normalizeBodyStatus(
         asStr(getPath(o, ["statusType", "title"])) ?? asStr(o.status) ?? asStr(o.result) ?? "Оригинал",
       );
