@@ -1573,9 +1573,9 @@ export function CatalogClient({
                         <Link
                           href={`/car/${encodeURIComponent(car.id)}`}
                           prefetch
-                          className="flex min-w-0 flex-1 items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex min-w-0 flex-1 items-center self-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          <p className="font-heading line-clamp-2 min-h-[2.9rem] text-[15px] font-semibold leading-snug sm:text-base">
+                          <p className="font-heading line-clamp-2 min-h-[2.9rem] text-[15px] font-semibold leading-snug sm:min-h-[2.25rem] sm:text-base">
                             {car.title || car.id}
                           </p>
                         </Link>
@@ -1624,7 +1624,7 @@ export function CatalogClient({
                           ) : null}
                         </div>
                       </div>
-                      <div className="flex items-start px-3 pb-2 pt-1 sm:px-4 md:px-5">
+                      <div className="flex items-start px-3 pb-2 pt-1 sm:px-4 sm:pb-2 sm:pt-0.5 md:px-5">
                         {attrChips.length ? (
                           <ul
                             className="flex min-w-0 flex-wrap justify-start gap-2"
@@ -1648,18 +1648,19 @@ export function CatalogClient({
                         ) : null}
                       </div>
                       <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant="secondary"
-                            className="inline-flex h-7 w-fit max-w-full items-center rounded-lg border border-border/60 bg-muted/90 px-2.5 text-xs font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
-                          >
-                            {formatCatalogCardPrice(car.price, car.price_on_request)}
-                          </Badge>
-                          {passability === "passable" ? (
+                        <div className="flex w-full items-center gap-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
                             <Badge
-                              variant="outline"
-                              className="inline-flex h-7 items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200"
+                              variant="secondary"
+                              className="inline-flex h-7 w-fit max-w-full items-center rounded-lg border border-border/60 bg-muted/90 px-2.5 text-xs font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
                             >
+                              {formatCatalogCardPrice(car.price, car.price_on_request)}
+                            </Badge>
+                            {passability === "passable" ? (
+                              <Badge
+                                variant="outline"
+                                className="inline-flex h-7 items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200"
+                              >
                               Проходной
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1676,12 +1677,12 @@ export function CatalogClient({
                                   тарифы.
                                 </TooltipContent>
                               </Tooltip>
-                            </Badge>
-                          ) : passability === "young" ? (
-                            <Badge
-                              variant="outline"
-                              className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
-                            >
+                              </Badge>
+                            ) : passability === "young" ? (
+                              <Badge
+                                variant="outline"
+                                className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
+                              >
                               Высокая ставка
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1698,12 +1699,12 @@ export function CatalogClient({
                                   тарифы.
                                 </TooltipContent>
                               </Tooltip>
-                            </Badge>
-                          ) : passability === "old" ? (
-                            <Badge
-                              variant="outline"
-                              className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
-                            >
+                              </Badge>
+                            ) : passability === "old" ? (
+                              <Badge
+                                variant="outline"
+                                className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
+                              >
                               Высокая ставка
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1720,13 +1721,14 @@ export function CatalogClient({
                                   тарифы.
                                 </TooltipContent>
                               </Tooltip>
-                            </Badge>
-                          ) : null}
+                              </Badge>
+                            ) : null}
+                          </div>
                           <CatalogQuickBuyDialog
                             carId={car.id}
                             carTitle={car.title || car.id}
                             triggerSize="sm"
-                            triggerClassName="h-7 rounded-lg px-2.5 text-xs font-semibold"
+                            triggerClassName="ms-auto h-7 min-h-7 rounded-lg px-2.5 text-xs font-semibold"
                           />
                         </div>
                       </div>
