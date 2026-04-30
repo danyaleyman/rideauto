@@ -22,6 +22,25 @@ def _flat_query(request: Request) -> Dict[str, str]:
     return {str(k): str(v) for k, v in request.query_params.multi_items()}
 
 
+def _truthy(v: Any) -> bool:
+    if v is True:
+        return True
+    if isinstance(v, (int, float)):
+        return v == 1
+    if isinstance(v, str):
+        return v.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return False
+
+
+def _is_sold_car(car: Dict[str, Any]) -> bool:
+    if _truthy(car.get("encar_listing_sold")) or _truthy(car.get("dongchedi_listing_sold")):
+        return True
+    d = car.get("data")
+    if isinstance(d, dict):
+        return _truthy(d.get("encar_listing_sold")) or _truthy(d.get("dongchedi_listing_sold"))
+    return False
+
+
 async def _search_catalog(request: Request) -> SearchResponse:
     settings: Settings = get_settings()
     flat = _flat_query(request)
@@ -72,9 +91,7 @@ async def _search_catalog(request: Request) -> SearchResponse:
         car = by_id.get(cid)
         if not car:
             continue
-        if not include_sold and (
-            car.get("encar_listing_sold") is True or car.get("dongchedi_listing_sold") is True
-        ):
+        if not include_sold and _is_sold_car(car):
             continue
         if slim:
             result.append(slim_catalog_car(car, cid))
@@ -182,7 +199,7 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
         car = by_id.get(cid)
         if not car:
             continue
-        if car.get("encar_listing_sold") is True or car.get("dongchedi_listing_sold") is True:
+        if _is_sold_car(car):
             continue
         result.append(slim_catalog_car(car, cid))
 
