@@ -1650,78 +1650,82 @@ export function CatalogClient({
                       <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
                         <div className="flex w-full items-center gap-2">
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <Badge
-                              variant="secondary"
-                              className="inline-flex h-7 w-fit max-w-full items-center rounded-lg border border-border/60 bg-muted/90 px-2.5 text-xs font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
-                            >
-                              {formatCatalogCardPrice(car.price, car.price_on_request)}
-                            </Badge>
-                            {passability === "passable" ? (
-                              <Badge
-                                variant="outline"
-                                className="inline-flex h-7 items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200"
-                              >
-                              Проходной
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className="inline-flex shrink-0"
-                                    aria-label="Пояснение для проходного автомобиля"
+                            {!listingSold ? (
+                              <>
+                                <Badge
+                                  variant="secondary"
+                                  className="inline-flex h-7 w-fit max-w-full items-center rounded-lg border border-border/60 bg-muted/90 px-2.5 text-xs font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
+                                >
+                                  {formatCatalogCardPrice(car.price, car.price_on_request)}
+                                </Badge>
+                                {passability === "passable" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="inline-flex h-7 items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200"
                                   >
-                                    <CircleHelp className="size-3.5" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  «Проходной автомобиль»: на него действуют льготные таможенные
-                                  тарифы.
-                                </TooltipContent>
-                              </Tooltip>
-                              </Badge>
-                            ) : passability === "young" ? (
-                              <Badge
-                                variant="outline"
-                                className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
-                              >
-                              Высокая ставка
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className="inline-flex shrink-0"
-                                    aria-label="Пояснение для автомобиля менее 3 лет"
+                                    Проходной
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className="inline-flex shrink-0"
+                                          aria-label="Пояснение для проходного автомобиля"
+                                        >
+                                          <CircleHelp className="size-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">
+                                        «Проходной автомобиль»: на него действуют льготные таможенные
+                                        тарифы.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </Badge>
+                                ) : passability === "young" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
                                   >
-                                    <CircleHelp className="size-3.5" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  Автомобиль менее 3 лет: на него действуют повышенные таможенные
-                                  тарифы.
-                                </TooltipContent>
-                              </Tooltip>
-                              </Badge>
-                            ) : passability === "old" ? (
-                              <Badge
-                                variant="outline"
-                                className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
-                              >
-                              Высокая ставка
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className="inline-flex shrink-0"
-                                    aria-label="Пояснение для автомобиля старше 5 лет"
+                                    Высокая ставка
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className="inline-flex shrink-0"
+                                          aria-label="Пояснение для автомобиля менее 3 лет"
+                                        >
+                                          <CircleHelp className="size-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">
+                                        Автомобиль менее 3 лет: на него действуют повышенные таможенные
+                                        тарифы.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </Badge>
+                                ) : passability === "old" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
                                   >
-                                    <CircleHelp className="size-3.5" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  Автомобиль старше 5 лет: на него действуют повышенные таможенные
-                                  тарифы.
-                                </TooltipContent>
-                              </Tooltip>
-                              </Badge>
+                                    Высокая ставка
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className="inline-flex shrink-0"
+                                          aria-label="Пояснение для автомобиля старше 5 лет"
+                                        >
+                                          <CircleHelp className="size-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">
+                                        Автомобиль старше 5 лет: на него действуют повышенные таможенные
+                                        тарифы.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </Badge>
+                                ) : null}
+                              </>
                             ) : null}
                           </div>
                           <CatalogQuickBuyDialog

@@ -117,7 +117,7 @@ export default async function CarPage({ params }: PageProps) {
   const sourceUpdatedAt =
     sourceUpdatedAtCandidates.find((v) => typeof v === "string" && v.trim()) as string | undefined;
 
-  const priceLine = priceOnRequest ? PRICE_ON_REQUEST_RU : formatPriceLabel(rubPrice);
+  const priceLine = listingSold ? "Автомобиль продан" : priceOnRequest ? PRICE_ON_REQUEST_RU : formatPriceLabel(rubPrice);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-32 pt-2 sm:pt-4 lg:pb-14">
@@ -220,6 +220,7 @@ export default async function CarPage({ params }: PageProps) {
                 title={title}
                 priceRub={rubFinite ? rubPrice : null}
                 priceOnRequest={priceOnRequest}
+                listingSold={listingSold}
                 sourceUrl={sourceUrl}
                 priceWon={priceWon != null && !Number.isNaN(priceWon) ? priceWon : null}
                 priceCny={priceCny != null && !Number.isNaN(priceCny) ? priceCny : null}

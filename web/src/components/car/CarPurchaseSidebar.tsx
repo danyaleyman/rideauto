@@ -28,6 +28,7 @@ type Props = {
   title: string;
   priceRub: number | null;
   priceOnRequest?: boolean;
+  listingSold?: boolean;
   sourceUrl: string | null;
   /** Сырые поля для модалки расчёта */
   priceWon: number | null;
@@ -56,6 +57,7 @@ export function CarPurchaseSidebar({
   title,
   priceRub,
   priceOnRequest = false,
+  listingSold = false,
   sourceUrl,
   priceWon,
   priceCny,
@@ -77,7 +79,7 @@ export function CarPurchaseSidebar({
     if (!Number.isFinite(n)) return null;
     return n;
   };
-  if (!priceOnRequest && priceRub != null && !Number.isNaN(priceRub)) {
+  if (!listingSold && !priceOnRequest && priceRub != null && !Number.isNaN(priceRub)) {
     breakdownRows.push({
       label: "Стоимость в России под ключ",
       value: formatPriceLabel(priceRub),
@@ -149,9 +151,17 @@ export function CarPurchaseSidebar({
       transition={reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: MOTION_TOKENS.easeSoft }}
     >
       <h2 className="sr-only">Цена и заказ</h2>
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Стоимость в России под ключ</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {listingSold ? "Статус объявления" : "Стоимость в России под ключ"}
+      </p>
       <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums sm:text-3xl md:text-[2rem]">
-        {priceOnRequest ? PRICE_ON_REQUEST_RU : priceRub != null && !Number.isNaN(priceRub) ? formatPriceLabel(priceRub) : PRICE_ON_REQUEST_RU}
+        {listingSold
+          ? "Автомобиль продан"
+          : priceOnRequest
+            ? PRICE_ON_REQUEST_RU
+            : priceRub != null && !Number.isNaN(priceRub)
+              ? formatPriceLabel(priceRub)
+              : PRICE_ON_REQUEST_RU}
       </p>
       <p className="mt-3 line-clamp-3 text-sm font-semibold leading-snug text-foreground sm:line-clamp-2">
         {title}
