@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Roboto } from "next/font/google";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { AuthProvider } from "@/components/AuthProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSiteUrl } from "@/lib/env";
@@ -60,6 +61,7 @@ export default function RootLayout({
           <TooltipProvider>
             <WebVitalsReporter />
             {children}
+            <CookieConsentBanner />
           </TooltipProvider>
         </AuthProvider>
       </body>

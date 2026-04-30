@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { COOKIE_CONSENT_OPEN_EVENT } from "@/lib/cookie-consent";
 
 export function SiteFooter() {
   return (
@@ -22,6 +23,15 @@ export function SiteFooter() {
             <Link className="transition-colors hover:text-foreground" href="/agreement">
               Соглашение
             </Link>
+          </motion.div>
+          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
+            <button
+              type="button"
+              className="transition-colors hover:text-foreground"
+              onClick={() => window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_OPEN_EVENT))}
+            >
+              Управление cookie
+            </button>
           </motion.div>
         </nav>
         <motion.p

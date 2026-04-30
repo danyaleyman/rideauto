@@ -19,11 +19,19 @@ class OrderLeadPayload(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=200)
     contact_method: str = Field(..., min_length=1, max_length=80)
     message: str = Field(..., min_length=10, max_length=8000)
+    pd_agree: bool = Field(..., description="Подтверждение согласия на обработку ПДн")
 
     @field_validator("full_name", "contact_method", "message")
     @classmethod
     def strip_text(cls, v: str) -> str:
         return (v or "").strip()
+
+    @field_validator("pd_agree")
+    @classmethod
+    def pd_agree_required(cls, v: bool) -> bool:
+        if v is not True:
+            raise ValueError("Требуется согласие на обработку персональных данных")
+        return v
 
 
 def _send_lead_email_sync(
@@ -82,6 +90,7 @@ async def submit_order_lead(request: Request, payload: OrderLeadPayload) -> dict
     body = (
         f"ФИО: {payload.full_name}\n"
         f"Предпочтительная связь: {payload.contact_method}\n\n"
+        f"Согласие на обработку ПДн: Да\n\n"
         f"Сообщение:\n{payload.message}\n\n"
         f"---\nIP: {rip}\nX-Forwarded-For: {xf or '-'}\n"
     )

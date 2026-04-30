@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useReportWebVitals } from "next/web-vitals";
+import { COOKIE_CONSENT_EVENT, readCookieConsent } from "@/lib/cookie-consent";
 import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
 
 type VitalMetric = {
@@ -16,6 +17,8 @@ type VitalMetric = {
 function sendMetric(metric: VitalMetric) {
   if (typeof window === "undefined") return;
   if (process.env.NODE_ENV !== "production") return;
+  const consent = readCookieConsent();
+  if (!consent?.analytics) return;
 
   const payload = JSON.stringify({
     id: metric.id,
@@ -87,5 +90,13 @@ export default function WebVitalsReporter() {
   useReportWebVitals((metric) => {
     sendMetric(metric as VitalMetric);
   });
+
+  useEffect(() => {
+    const onConsent = () => {
+      // no-op: keep listener to ensure component reacts to consent lifecycle if needed
+    };
+    window.addEventListener(COOKIE_CONSENT_EVENT, onConsent);
+    return () => window.removeEventListener(COOKIE_CONSENT_EVENT, onConsent);
+  }, []);
   return null;
 }

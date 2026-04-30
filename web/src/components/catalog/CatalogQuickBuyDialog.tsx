@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
+import Link from "next/link";
 
 type Props = {
   carId: string;
@@ -29,6 +31,7 @@ export function CatalogQuickBuyDialog({
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">("idle");
   const [errText, setErrText] = useState("");
+  const [pdAgree, setPdAgree] = useState(false);
 
   async function submit() {
     const fullName = name.trim();
@@ -53,6 +56,7 @@ export function CatalogQuickBuyDialog({
           full_name: fullName,
           contact_method: "Звонок по телефону",
           message,
+          pd_agree: pdAgree,
         }),
       });
       if (!res.ok) {
@@ -124,10 +128,25 @@ export function CatalogQuickBuyDialog({
           <Button
             type="button"
             onClick={submit}
-            disabled={status === "sending" || !isValidName || !isValidPhone}
+            disabled={status === "sending" || !isValidName || !isValidPhone || !pdAgree}
           >
             {status === "sending" ? "Отправка..." : "Отправить"}
           </Button>
+          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={pdAgree}
+              onCheckedChange={(v) => setPdAgree(v === true)}
+              className="mt-0.5"
+              aria-label="Согласие на обработку персональных данных"
+            />
+            <span>
+              Согласен на обработку персональных данных по{" "}
+              <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+                Политике конфиденциальности
+              </Link>
+              .
+            </span>
+          </label>
           {status === "ok" ? (
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
               Ваша заявка отправлена, в ближайшее время с вами свяжется менеджер.

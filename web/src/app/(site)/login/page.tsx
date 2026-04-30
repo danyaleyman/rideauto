@@ -8,12 +8,14 @@ import { MotionFadeUp } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function LoginPage() {
   const { requestMagicLink } = useAuth();
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
+  const [pdAgree, setPdAgree] = useState(false);
 
   const submit = async () => {
     const normalized = email.trim();
@@ -57,7 +59,22 @@ export default function LoginPage() {
               autoComplete="email"
               disabled={sending}
             />
-            <Button className="w-full rounded-full" onClick={submit} disabled={sending || !email.trim()}>
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <Checkbox
+                checked={pdAgree}
+                onCheckedChange={(v) => setPdAgree(v === true)}
+                className="mt-0.5"
+                aria-label="Согласие на обработку персональных данных"
+              />
+              <span>
+                Даю согласие на обработку персональных данных по{" "}
+                <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+                  Политике конфиденциальности
+                </Link>
+                .
+              </span>
+            </label>
+            <Button className="w-full rounded-full" onClick={submit} disabled={sending || !email.trim() || !pdAgree}>
               {sending ? "Отправляем..." : "Отправить ссылку"}
             </Button>
             {status === "ok" ? (

@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 const CONTACT_OPTIONS = [
   { value: "telegram", label: "Telegram" },
@@ -19,6 +21,7 @@ export function OrderLeadForm() {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">("idle");
   const [errText, setErrText] = useState("");
+  const [pdAgree, setPdAgree] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,6 +36,7 @@ export function OrderLeadForm() {
           full_name: fullName.trim(),
           contact_method: label,
           message: message.trim(),
+          pd_agree: pdAgree,
         }),
       });
       if (!res.ok) {
@@ -123,8 +127,24 @@ export function OrderLeadForm() {
           />
         </div>
 
+        <label className="flex items-start gap-2 text-sm text-muted-foreground">
+          <Checkbox
+            checked={pdAgree}
+            onCheckedChange={(v) => setPdAgree(v === true)}
+            className="mt-0.5"
+            aria-label="Согласие на обработку персональных данных"
+          />
+          <span>
+            Даю согласие на обработку персональных данных в соответствии с{" "}
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+              Политикой конфиденциальности
+            </Link>
+            .
+          </span>
+        </label>
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button type="submit" size="lg" className="rounded-2xl" disabled={status === "sending"}>
+          <Button type="submit" size="lg" className="rounded-2xl" disabled={status === "sending" || !pdAgree}>
             {status === "sending" ? "Отправка…" : "Отправить заявку"}
           </Button>
           {status === "ok" ? (
