@@ -39,7 +39,7 @@ def china_market_car(car_id: str, data: Optional[Dict[str, Any]]) -> bool:
 def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
-    if data.get("encar_monthly_finance_price") is True:
+    if _encar_monthly_finance_payload(data):
         return False
     if encar_reserved_placeholder_price(data):
         return False
@@ -73,6 +73,12 @@ def encar_reserved_placeholder_price(data: Optional[Dict[str, Any]]) -> bool:
             pw_digits = "".join(ch for ch in str(int(float(pw))) if ch.isdigit())
             if len(pw_digits) == 4 and len(set(pw_digits)) == 1:
                 return True
+            # Часто в данных уже хранится полный won (например 99_990_000),
+            # где первые 4 цифры — заглушка 9999만원/4444만원.
+            if len(pw_digits) >= 8 and pw_digits.endswith("0000"):
+                lead4 = pw_digits[:-4]
+                if len(lead4) == 4 and len(set(lead4)) == 1:
+                    return True
     except (TypeError, ValueError):
         pass
 
@@ -81,6 +87,38 @@ def encar_reserved_placeholder_price(data: Optional[Dict[str, Any]]) -> bool:
         return False
     digits = "".join(ch for ch in str(p) if ch.isdigit())
     return len(digits) == 4 and len(set(digits)) == 1
+
+
+def _as_positive_float(value: Any) -> float:
+    try:
+        if value is None or value == "":
+            return 0.0
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
+    if data.get("encar_monthly_finance_price") is True:
+        return True
+    monthly_keys = ("encar_month_lease_price", "encar_month_lease_rent_price", "encar_month_lease_rest")
+    if any(_as_positive_float(data.get(k)) > 0 for k in monthly_keys):
+        return True
+    hint_keys = (
+        "encar_lease_type",
+        "encar_attribute_type",
+        "price_type",
+        "price_type_name",
+        "finance_type",
+        "price_text",
+    )
+    for k in hint_keys:
+        s = str(data.get(k) or "").strip().lower()
+        if not s:
+            continue
+        if "lease" in s or "rent" in s or "리스" in s or "렌트" in s or "할부" in s or "월" in s:
+            return True
+    return False
 
 
 def dongchedi_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:
