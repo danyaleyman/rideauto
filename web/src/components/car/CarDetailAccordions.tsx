@@ -127,6 +127,23 @@ function isInternalBodyPart(part: string): boolean {
   return keys.some((k) => p.includes(k));
 }
 
+function normalizeBodyPartName(partRaw: string): string {
+  const p = partRaw.trim();
+  const map: Record<string, string> = {
+    "프론트 도어(좌)": "Левая передняя дверь",
+    "프론트 도어(우)": "Правая передняя дверь",
+    "리어 도어(좌)": "Левая задняя дверь",
+    "리어 도어(우)": "Правая задняя дверь",
+    "프론트 펜더(좌)": "Левое переднее крыло",
+    "프론트 펜더(우)": "Правое переднее крыло",
+    "리어 펜더(좌)": "Левое заднее крыло",
+    "리어 펜더(우)": "Правое заднее крыло",
+    "트렁크 리드": "Крышка багажника",
+    후드: "Капот",
+  };
+  return map[p] ?? translateKoToRuText(p);
+}
+
 function collectBodyRows({
   outers,
   bodyPanels,
@@ -158,9 +175,25 @@ function collectBodyRows({
     for (const item of outers) {
       if (!item || typeof item !== "object") continue;
       const o = item as Record<string, unknown>;
-      const part = translateKoToRuText(asStr(o.partName) ?? asStr(o.part) ?? asStr(o.name) ?? asStr(o.title) ?? "");
+      const partRaw =
+        asStr(o.partName) ??
+        asStr(o.part) ??
+        asStr(o.name) ??
+        asStr(o.title) ??
+        asStr(getPath(o, ["type", "title"])) ??
+        "";
+      const statusTypes = getPath(o, ["statusTypes"]);
+      const firstStatus =
+        Array.isArray(statusTypes) && statusTypes[0] && typeof statusTypes[0] === "object"
+          ? asStr(getPath(statusTypes[0], ["title"]))
+          : null;
+      const part = normalizeBodyPartName(partRaw);
       const status = normalizeBodyStatus(
-        asStr(getPath(o, ["statusType", "title"])) ?? asStr(o.status) ?? asStr(o.result) ?? "Оригинал",
+        asStr(getPath(o, ["statusType", "title"])) ??
+          firstStatus ??
+          asStr(o.status) ??
+          asStr(o.result) ??
+          "Оригинал",
       );
       if (part && status) rows.push({ part, status });
     }
