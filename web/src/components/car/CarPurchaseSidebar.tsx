@@ -220,13 +220,15 @@ export function CarPurchaseSidebar({
       </div>
 
       <div className="mt-6 flex flex-col gap-2.5">
-        <CatalogQuickBuyDialog
-          carId={carId}
-          carTitle={title}
-          triggerLabel="Купить автомобиль"
-          triggerSize="default"
-          triggerClassName="h-11 w-full rounded-xl border border-border/80 bg-background text-[15px] font-semibold text-foreground shadow-sm hover:bg-muted"
-        />
+        {!listingSold ? (
+          <CatalogQuickBuyDialog
+            carId={carId}
+            carTitle={title}
+            triggerLabel="Купить автомобиль"
+            triggerSize="default"
+            triggerClassName="h-11 w-full rounded-xl border border-border/80 bg-background text-[15px] font-semibold text-foreground shadow-sm hover:bg-muted"
+          />
+        ) : null}
         <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
           <Button
             variant="outline"

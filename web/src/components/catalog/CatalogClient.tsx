@@ -1728,12 +1728,14 @@ export function CatalogClient({
                               </>
                             ) : null}
                           </div>
-                          <CatalogQuickBuyDialog
-                            carId={car.id}
-                            carTitle={car.title || car.id}
-                            triggerSize="sm"
-                            triggerClassName="ms-auto h-7 min-h-7 rounded-lg px-2.5 text-xs font-semibold"
-                          />
+                          {!listingSold ? (
+                            <CatalogQuickBuyDialog
+                              carId={car.id}
+                              carTitle={car.title || car.id}
+                              triggerSize="sm"
+                              triggerClassName="ms-auto h-7 min-h-7 rounded-lg px-2.5 text-xs font-semibold"
+                            />
+                          ) : null}
                         </div>
                       </div>
                     </div>
