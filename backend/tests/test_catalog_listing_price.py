@@ -43,6 +43,10 @@ def test_encar_monthly_finance_fallback_fields_are_not_list_price():
     assert encar_has_list_price({"price_won": 2190, "encar_lease_type": "월렌트"}) is False
 
 
+def test_encar_monthly_finance_legacy_small_price_won_not_list_price():
+    assert encar_has_list_price({"source": "encar", "price_won": 33, "price": 0}) is False
+
+
 def test_china_market_car():
     assert china_market_car("dongchedi-1", {"source": "encar"}) is True
     assert china_market_car("x", {"source": "dongchedi"}) is True

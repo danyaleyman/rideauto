@@ -118,6 +118,13 @@ def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
             continue
         if "lease" in s or "rent" in s or "리스" in s or "렌트" in s or "할부" in s or "월" in s:
             return True
+    # Legacy fallback: some older rows store monthly payment in `price_won` directly
+    # (e.g. 24, 33) without explicit lease flags. Real sale prices on Encar are not that low.
+    if str(data.get("source") or "encar").strip().lower() == "encar":
+        pw = _as_positive_float(data.get("price_won"))
+        p = _as_positive_float(data.get("price"))
+        if 0 < pw < 100 and p < 10000:
+            return True
     return False
 
 

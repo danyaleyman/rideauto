@@ -21,6 +21,7 @@ def parse_one_car_sync(
     user_info: Optional[dict],
 ) -> Optional[dict]:
     try:
+        raw_item = dict(item) if isinstance(item, dict) else {}
         inspection_structured = parser.parse_inspection(inspection, diagnosis) if (inspection or diagnosis) else {}
         photos = None
         if detail:
@@ -39,6 +40,9 @@ def parse_one_car_sync(
         )
         normalized["id"] = car_id
         normalized["data"]["id"] = str(car_id)
+        # Saver writes `cars.raw` from this payload when store_raw_responses=true.
+        # Keep list item as compact source payload (contains lease/monthly price hints).
+        normalized["_raw"] = raw_item
         return normalized
     except Exception:
         return None
