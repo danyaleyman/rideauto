@@ -122,7 +122,7 @@ function isInternalBodyPart(part: string): boolean {
   const p = part.toLowerCase();
   const keys = [
     "pillar", "frame", "floor", "wheel housing", "member", "package tray", "대시", "필러", "플로어",
-    "휠하우스", "사이드실", "주요골격", "트렁크 플로어", "루프", "쿼터", "лонжерон", "стойк", "порог",
+    "휠하우스", "사이드실", "주요골격", "트렁크 플로어", "루프", "лонжерон", "стойк", "порог",
   ];
   return keys.some((k) => p.includes(k));
 }
@@ -138,10 +138,50 @@ function normalizeBodyPartName(partRaw: string): string {
     "프론트 펜더(우)": "Правое переднее крыло",
     "리어 펜더(좌)": "Левое заднее крыло",
     "리어 펜더(우)": "Правое заднее крыло",
+    "쿼터 패널(좌)": "Левое заднее крыло",
+    "쿼터 패널(우)": "Правое заднее крыло",
     "트렁크 리드": "Крышка багажника",
-    후드: "Капот",
+    "후드": "Капот",
+    "프론트 패널 / 인사이드 패널": "Передняя панель / внутренняя панель",
+    "앞휠하우스 / 뒷휠하우스": "Арки колес (перед/зад)",
+    "필러패널(A/B) / 대쉬패널 / 플로어패널": "Стойки / щиток / пол",
+    "사이드실 패널 / 쿼터패널": "Пороги / четверти кузова",
+    "리어패널 / 트렁크 플로어": "Задняя панель / пол багажника",
+    "사이드멤버 / 루프패널 / 패키지트레이": "Лонжероны / крыша / полка багажника",
   };
   return map[p] ?? translateKoToRuText(p);
+}
+
+function withOriginalDefaults(rows: BodyRow[], section: "external" | "internal"): BodyRow[] {
+  if (!rows.length) return rows;
+  const defaults =
+    section === "external"
+      ? [
+          "Левое переднее крыло",
+          "Правое переднее крыло",
+          "Левая передняя дверь",
+          "Правая передняя дверь",
+          "Левая задняя дверь",
+          "Правая задняя дверь",
+          "Левое заднее крыло",
+          "Правое заднее крыло",
+          "Капот",
+          "Крышка багажника",
+        ]
+      : [
+          "Передняя панель / внутренняя панель",
+          "Арки колес (перед/зад)",
+          "Стойки / щиток / пол",
+          "Пороги / четверти кузова",
+          "Задняя панель / пол багажника",
+          "Лонжероны / полка багажника",
+        ];
+  const seen = new Set(rows.map((r) => r.part.trim().toLowerCase()));
+  const out = [...rows];
+  for (const part of defaults) {
+    if (!seen.has(part.trim().toLowerCase())) out.push({ part, status: "Оригинал", section });
+  }
+  return out;
 }
 
 function collectBodyRows({
@@ -264,13 +304,15 @@ function collectBodyRows({
     const k = r.part.trim().toLowerCase();
     const prev = uniq.get(k);
     if (!prev || bodyStatusWeight(r.status) > bodyStatusWeight(prev.status)) {
-      uniq.set(k, { part: r.part, status: normalizeBodyStatus(r.status) });
+      uniq.set(k, { part: r.part, status: normalizeBodyStatus(r.status), section: r.section });
     }
   }
   const out = Array.from(uniq.values());
+  const external = out.filter((r) => r.section === "external" || (r.section == null && !isInternalBodyPart(r.part)));
+  const internal = out.filter((r) => r.section === "internal" || (r.section == null && isInternalBodyPart(r.part)));
   return {
-    internal: out.filter((r) => r.section === "internal" || (r.section == null && isInternalBodyPart(r.part))),
-    external: out.filter((r) => r.section === "external" || (r.section == null && !isInternalBodyPart(r.part))),
+    internal: withOriginalDefaults(internal, "internal"),
+    external: withOriginalDefaults(external, "external"),
   };
 }
 
