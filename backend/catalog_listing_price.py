@@ -41,6 +41,8 @@ def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
         return False
     if data.get("encar_monthly_finance_price") is True:
         return False
+    if _encar_placeholder_reserved_price(data):
+        return False
     pw = data.get("price_won")
     try:
         if pw is not None and float(pw) > 0:
@@ -55,6 +57,28 @@ def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
         return v > 0
     except (TypeError, ValueError):
         return False
+
+
+def _encar_placeholder_reserved_price(data: Dict[str, Any]) -> bool:
+    """
+    На Encar забронированные/выкупленные авто нередко помечаются «заглушкой» вида
+    9,999만원 / 4,444만원 (четыре одинаковые цифры в цене объявления).
+    Такие значения нельзя использовать для расчета итоговой стоимости.
+    """
+    pw = data.get("price_won")
+    try:
+        if pw is not None:
+            pw_digits = "".join(ch for ch in str(int(float(pw))) if ch.isdigit())
+            if len(pw_digits) == 4 and len(set(pw_digits)) == 1:
+                return True
+    except (TypeError, ValueError):
+        pass
+
+    p = data.get("price")
+    if p is None:
+        return False
+    digits = "".join(ch for ch in str(p) if ch.isdigit())
+    return len(digits) == 4 and len(set(digits)) == 1
 
 
 def dongchedi_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:

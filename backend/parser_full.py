@@ -268,6 +268,28 @@ class EncarFullParser:
                 or '월' in s
             ):
                 return True
+
+        monthly_pat = re.compile(r"월\s*\d[\d,.\s]*\s*만?원")
+        explicit_sale_pat = re.compile(r"\d[\d,.\s]*\s*만?원")
+        text_hint_keys = (
+            "PriceView",
+            "PriceTypeName",
+            "PriceType",
+            "PriceText",
+            "LeaseType",
+            "FinanceType",
+            "AttributeType",
+        )
+        for k in text_hint_keys:
+            raw = item.get(k)
+            s = str(raw or "").strip()
+            if not s:
+                continue
+            if monthly_pat.search(s):
+                return True
+            # Если явно указано "월" в том же текстовом поле цены/типа — трактуем как ежемесячный платеж.
+            if "월" in s and not explicit_sale_pat.fullmatch(s):
+                return True
         return False
 
     def _extract_power_from_string(self, s: str) -> Optional[str]:

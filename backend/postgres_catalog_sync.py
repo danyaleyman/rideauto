@@ -277,14 +277,15 @@ def run_sync(
 
         if not no_prices and cars_out:
             try:
-                from price import PriceCalculator
+                from price import PriceCalculator, classify_fuel, parse_power_hp
 
                 cfg_path = next(
                     (p for p in (_BACKEND_DIR / "config.json", _REPO_ROOT / "config.json") if p.is_file()),
                     _BACKEND_DIR / "config.json",
                 )
                 calc = PriceCalculator(config_path=str(cfg_path))
-                price_ok = price_failed = price_ok_china = price_skipped_china = price_skipped_no_list = price_skipped_missing_engine = 0
+                price_ok = price_failed = price_ok_china = price_skipped_china = 0
+                price_skipped_no_list = price_skipped_missing_engine = price_skipped_non_ice = 0
                 for i, car in enumerate(cars_out):
                     data = car.get("data")
                     if data is None:
@@ -322,12 +323,18 @@ def run_sync(
                             car["data"] = data
                         continue
 
-                    hp_val = _parse_positive_int(
-                        data.get("power")
-                        or data.get("power_hp")
-                        or data.get("hp")
-                        or data.get("outputHorsepower")
-                    )
+                    fuel_kind = classify_fuel(data)
+                    if fuel_kind != "ice":
+                        # До обновления методики расчета электро/гибридов показываем только цену по запросу.
+                        price_skipped_non_ice += 1
+                        data["price_on_request"] = True
+                        clear_estimated_price_fields(data)
+                        if car.get("data") is not data:
+                            car["data"] = data
+                        continue
+
+                    hp_raw = parse_power_hp(data)
+                    hp_val = int(hp_raw) if isinstance(hp_raw, (int, float)) and hp_raw > 0 else None
                     cc_val = _parse_positive_int(
                         data.get("displacement")
                         or data.get("displacement_cc")
@@ -362,6 +369,7 @@ def run_sync(
                     f"Price calc summary: ok={price_ok} failed={price_failed} "
                     f"ok_china={price_ok_china} skipped_china_no_price={price_skipped_china} "
                     f"skipped_no_list_price={price_skipped_no_list} "
+                    f"skipped_non_ice={price_skipped_non_ice} "
                     f"skipped_missing_hp_or_cc={price_skipped_missing_engine} "
                     f"total={len(cars_out)}",
                     file=sys.stderr,
