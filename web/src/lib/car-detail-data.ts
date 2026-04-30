@@ -131,6 +131,49 @@ export function translateKoToRuText(v: string): string {
   return out.replace(/\s{2,}/g, " ").trim();
 }
 
+export function normalizeFuelLabel(v: unknown): string | null {
+  const raw = asStr(v);
+  if (!raw) return null;
+  const ru = translateKoToRuText(raw).trim();
+  const key = ru.toLowerCase().replace(/\s+/g, " ");
+  const map: Record<string, string> = {
+    "lpg + электричество": "Электро (+ГБО)",
+    "электричество + lpg": "Электро (+ГБО)",
+    "бензин": "Бензин",
+    "бензин + lpg": "Бензин (+ГБО)",
+    "бензин + кпг": "Бензин (+Метан)",
+    "бензин + cng": "Бензин (+Метан)",
+    "бензин + электричество": "Гибрид (Бензин)",
+    "водород": "Водород",
+    "дизель + электричество": "Гибрид (Дизель)",
+    "другое": "Другое",
+    "компрометированный природный газ": "Метан",
+    "компримированный природный газ": "Метан",
+    "сжиженый природный газ": "Газ",
+    "сжиженный природный газ": "Газ",
+    "электричество": "Электро",
+    "electric": "Электро",
+    "ev": "Электро",
+    "diesel": "Дизель",
+    "gasoline": "Бензин",
+    "petrol": "Бензин",
+    "lpg": "Газ",
+    "cng": "Метан",
+    "lng": "Газ",
+  };
+  return map[key] ?? ru;
+}
+
+export function fuelSortRank(v: unknown): number {
+  const label = normalizeFuelLabel(v)?.toLowerCase() ?? "";
+  if (label === "бензин") return 1;
+  if (label === "дизель") return 2;
+  if (label.startsWith("гибрид (бензин)") || label.startsWith("бензин (")) return 3;
+  if (label.startsWith("гибрид (дизель)") || label.startsWith("дизель (")) return 4;
+  if (label === "электро" || label.startsWith("электро")) return 5;
+  return 10;
+}
+
 export function cleanScalarText(v: unknown): string | null {
   const s = asStr(v);
   if (!s) return null;

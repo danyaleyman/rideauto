@@ -21,7 +21,7 @@ import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
-import { asStr, formatKm, formatRegYearMonth } from "@/lib/car-detail-data";
+import { asStr, formatKm, formatRegYearMonth, fuelSortRank, normalizeFuelLabel } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth } from "@/components/AuthProvider";
@@ -148,10 +148,13 @@ function facetRowLabel(row: FacetRow): string {
   return label || row.value;
 }
 
-function groupFacetRows(rows: FacetRow[]): Array<{ label: string; values: string[]; count: number }> {
+function groupFacetRows(
+  rows: FacetRow[],
+  opts?: { labelFormatter?: (row: FacetRow) => string; comparator?: (a: string, b: string) => number },
+): Array<{ label: string; values: string[]; count: number }> {
   const grouped = new Map<string, { label: string; values: Set<string>; count: number }>();
   for (const row of rows) {
-    const label = facetRowLabel(row).trim();
+    const label = (opts?.labelFormatter ? opts.labelFormatter(row) : facetRowLabel(row)).trim();
     if (!label) continue;
     const key = label.toLowerCase().replace(/\s+/g, " ");
     const rawValues = Array.isArray(row.values) && row.values.length ? row.values : [row.value];
@@ -168,7 +171,7 @@ function groupFacetRows(rows: FacetRow[]): Array<{ label: string; values: string
     values: Array.from(b.values),
     count: b.count,
   }));
-  out.sort((a, b) => a.label.localeCompare(b.label));
+  out.sort((a, b) => (opts?.comparator ? opts.comparator(a.label, b.label) : a.label.localeCompare(b.label)));
   return out;
 }
 
@@ -233,7 +236,8 @@ function catalogCardAttributeChips(
   const km = formatKm(data.km_age);
   if (km) chips.push({ key: "km", label: km, Icon: Gauge });
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
-  if (fuel) chips.push({ key: "fuel", label: fuel, Icon: Fuel });
+  const fuelLabel = normalizeFuelLabel(fuel);
+  if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
   const fuelLower = (fuel || "").toLowerCase();
   const isElectricFuel =
     fuelLower.includes("electric") ||
@@ -276,16 +280,20 @@ function FacetMultiDropdown({
   selected,
   onToggle,
   disabled,
+  labelFormatter,
+  comparator,
 }: {
   label: string;
   rows: FacetRow[];
   selected: Set<string>;
   onToggle: (values: string[]) => void;
   disabled?: boolean;
+  labelFormatter?: (row: FacetRow) => string;
+  comparator?: (a: string, b: string) => number;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const groupedRows = useMemo(() => groupFacetRows(rows), [rows]);
+  const groupedRows = useMemo(() => groupFacetRows(rows, { labelFormatter, comparator }), [rows, labelFormatter, comparator]);
   const filtered = useMemo(
     () =>
       !q.trim()
@@ -1068,18 +1076,20 @@ export function CatalogClient({
       ...f.colors,
     ];
     for (const row of allRows) {
-      map.set(row.value, facetRowLabel(row));
+      const label = row.value && f.fuels.some((x) => x.value === row.value) ? normalizeFuelLabel(facetRowLabel(row)) ?? facetRowLabel(row) : facetRowLabel(row);
+      map.set(row.value, label);
     }
     return map;
   }, [facets]);
 
   const activeChips = useMemo(() => {
-    const withLabel = (v: string) => facetLabelByValue.get(v) ?? v;
+    const withLabel = (v: string, key?: keyof CatalogUrlState) =>
+      key === "fuel" ? normalizeFuelLabel(facetLabelByValue.get(v) ?? v) ?? (facetLabelByValue.get(v) ?? v) : facetLabelByValue.get(v) ?? v;
     const chips: Array<{ key: keyof CatalogUrlState; label: string; value?: string }> = [];
     const pushDedupByLabel = (key: keyof CatalogUrlState, prefix: string, values: string[]) => {
       const seen = new Set<string>();
       for (const raw of values) {
-        const shown = withLabel(raw);
+        const shown = withLabel(raw, key);
         const marker = shown.toLowerCase();
         if (seen.has(marker)) continue;
         seen.add(marker);
@@ -1091,7 +1101,7 @@ export function CatalogClient({
     pushDedupByLabel("generations", "Поколение", state.generations);
     pushDedupByLabel("trims", "Комплектация", state.trims);
     state.body.forEach((v) => chips.push({ key: "body", label: `Кузов: ${withLabel(v)}`, value: v }));
-    state.fuel.forEach((v) => chips.push({ key: "fuel", label: `Топливо: ${withLabel(v)}`, value: v }));
+    state.fuel.forEach((v) => chips.push({ key: "fuel", label: `Топливо: ${withLabel(v, "fuel")}`, value: v }));
     state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${withLabel(v)}`, value: v }));
     state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${withLabel(v)}`, value: v }));
     if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
@@ -1120,10 +1130,19 @@ export function CatalogClient({
       chip.key === "color"
     ) {
       if (!chip.value) return;
-      const targetLabel = facetLabelByValue.get(chip.value) ?? chip.value;
+      const targetLabel =
+        chip.key === "fuel"
+          ? normalizeFuelLabel(facetLabelByValue.get(chip.value) ?? chip.value) ?? (facetLabelByValue.get(chip.value) ?? chip.value)
+          : facetLabelByValue.get(chip.value) ?? chip.value;
       const cur = state[chip.key];
       if (!Array.isArray(cur)) return;
-      const toRemove = cur.filter((v) => (facetLabelByValue.get(v) ?? v) === targetLabel);
+      const toRemove = cur.filter((v) => {
+        const shown =
+          chip.key === "fuel"
+            ? normalizeFuelLabel(facetLabelByValue.get(v) ?? v) ?? (facetLabelByValue.get(v) ?? v)
+            : facetLabelByValue.get(v) ?? v;
+        return shown === targetLabel;
+      });
       toggle(chip.key, toRemove.length ? toRemove : chip.value);
       return;
     }
@@ -1306,6 +1325,13 @@ export function CatalogClient({
                         rows={facets.fuels}
                         selected={new Set(state.fuel)}
                         onToggle={(v) => toggle("fuel", v)}
+                        labelFormatter={(row) => normalizeFuelLabel(facetRowLabel(row)) ?? facetRowLabel(row)}
+                        comparator={(a, b) => {
+                          const ra = fuelSortRank(a);
+                          const rb = fuelSortRank(b);
+                          if (ra !== rb) return ra - rb;
+                          return a.localeCompare(b);
+                        }}
                       />
                       <FacetMultiDropdown
                         label="КПП"

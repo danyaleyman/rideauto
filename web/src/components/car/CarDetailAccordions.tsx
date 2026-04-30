@@ -18,6 +18,7 @@ import {
   formatInspectionListItem,
   formatKm,
   formatKrw,
+  normalizeFuelLabel,
   formatRubFromUnknown,
   formatRegYearMonth,
   getPath,
@@ -863,7 +864,7 @@ export function CarDetailAccordions({
   push("VIN", vin);
   push(
     "Двигатель / объём",
-    [asStr(data.engine_type), asStr(data.displacement)].filter(Boolean).join(", ") || null,
+    [normalizeFuelLabel(data.engine_type), asStr(data.displacement)].filter(Boolean).join(", ") || null,
   );
   push("КПП / привод", [asStr(data.transmission_type), asStr(data.drive_type)].filter(Boolean).join(", ") || null);
   push("Мощность", power);
