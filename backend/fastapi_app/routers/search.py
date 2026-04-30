@@ -142,7 +142,11 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
         meta = SimilarMeta(car_id=car_id, limit=limit, total_candidates=0)
         return SimilarResponse(result=[], meta=meta)
 
-    filt_parts = [f'brand = "{_meili_escape(mark)}"']
+    filt_parts = [
+        f'brand = "{_meili_escape(mark)}"',
+        "((encar_listing_sold IS NULL OR encar_listing_sold = false) "
+        "AND (dongchedi_listing_sold IS NULL OR dongchedi_listing_sold = false))",
+    ]
     if model:
         filt_parts.append(f'model = "{_meili_escape(model)}"')
     filt = " AND ".join(filt_parts)
