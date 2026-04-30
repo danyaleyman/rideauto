@@ -238,12 +238,8 @@ function catalogCardAttributeChips(
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
   const fuelLabel = normalizeFuelLabel(fuel);
   if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
-  const fuelLower = (fuel || "").toLowerCase();
-  const isElectricFuel =
-    fuelLower.includes("electric") ||
-    fuelLower.includes("ev") ||
-    fuelLower.includes("электро") ||
-    fuelLower.includes("전기");
+  const normalizedFuelLower = (fuelLabel || "").toLowerCase();
+  const isElectricFuel = normalizedFuelLower.startsWith("электро");
   const ccRaw = data.displacement ?? data.displacement_cc ?? data.engine_volume;
   const ccNum =
     typeof ccRaw === "number"
@@ -1573,13 +1569,13 @@ export function CatalogClient({
                       </div>
                     </Link>
                     <div className="flex min-w-0 flex-1 flex-col justify-between gap-0 sm:rounded-e-2xl">
-                      <div className="flex items-start justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
+                      <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
                         <Link
                           href={`/car/${encodeURIComponent(car.id)}`}
                           prefetch
-                          className="min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex min-w-0 flex-1 items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          <p className="font-heading line-clamp-2 text-[15px] font-semibold leading-snug sm:text-base">
+                          <p className="font-heading line-clamp-2 min-h-[2.5rem] text-[15px] font-semibold leading-snug sm:text-base">
                             {car.title || car.id}
                           </p>
                         </Link>
@@ -1628,7 +1624,7 @@ export function CatalogClient({
                           ) : null}
                         </div>
                       </div>
-                      <div className="flex items-start px-3 py-3 sm:px-4 md:px-5">
+                      <div className="flex items-start px-3 pb-2 pt-1.5 sm:px-4 md:px-5">
                         {attrChips.length ? (
                           <ul
                             className="flex min-w-0 flex-wrap justify-start gap-2"
@@ -1655,14 +1651,14 @@ export function CatalogClient({
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge
                             variant="secondary"
-                            className="inline-flex w-fit max-w-full rounded-lg border border-border/60 bg-muted/90 px-2.5 py-1 text-[15px] font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
+                            className="inline-flex h-9 w-fit max-w-full items-center rounded-xl border border-border/60 bg-muted/90 px-3 text-sm font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
                           >
                             {formatCatalogCardPrice(car.price, car.price_on_request)}
                           </Badge>
                           {passability === "passable" ? (
                             <Badge
                               variant="outline"
-                              className="inline-flex items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2 py-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-200"
+                              className="inline-flex h-9 items-center gap-1 rounded-xl border-emerald-600/40 bg-emerald-600/10 px-3 text-sm font-semibold text-emerald-800 dark:text-emerald-200"
                             >
                               Проходной
                               <Tooltip>
@@ -1684,7 +1680,7 @@ export function CatalogClient({
                           ) : passability === "young" ? (
                             <Badge
                               variant="outline"
-                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-[11px] font-medium text-red-800 dark:text-red-200"
+                              className="inline-flex h-9 items-center gap-1 rounded-xl border-red-600/40 bg-red-600/10 px-3 text-sm font-semibold text-red-800 dark:text-red-200"
                             >
                               Высокая ставка
                               <Tooltip>
@@ -1706,7 +1702,7 @@ export function CatalogClient({
                           ) : passability === "old" ? (
                             <Badge
                               variant="outline"
-                              className="inline-flex items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2 py-1 text-[11px] font-medium text-red-800 dark:text-red-200"
+                              className="inline-flex h-9 items-center gap-1 rounded-xl border-red-600/40 bg-red-600/10 px-3 text-sm font-semibold text-red-800 dark:text-red-200"
                             >
                               Высокая ставка
                               <Tooltip>
@@ -1726,7 +1722,12 @@ export function CatalogClient({
                               </Tooltip>
                             </Badge>
                           ) : null}
-                          <CatalogQuickBuyDialog carId={car.id} carTitle={car.title || car.id} />
+                          <CatalogQuickBuyDialog
+                            carId={car.id}
+                            carTitle={car.title || car.id}
+                            triggerSize="sm"
+                            triggerClassName="h-9 rounded-xl px-3 text-sm font-semibold"
+                          />
                         </div>
                       </div>
                     </div>
