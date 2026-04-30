@@ -162,8 +162,35 @@ export function normalizeFuelLabel(v: unknown): string | null {
     "lpg": "Газ",
     "cng": "Метан",
     "lng": "Газ",
+    "가솔린": "Бензин",
+    "휘발유": "Бензин",
+    "디젤": "Дизель",
+    "경유": "Дизель",
+    "전기": "Электро",
+    "전기차": "Электро",
+    "하이브리드": "Гибрид (Бензин)",
+    "가솔린 하이브리드": "Гибрид (Бензин)",
+    "디젤 하이브리드": "Гибрид (Дизель)",
+    "lpg(일반인 구입)": "Газ",
+    "lpg (일반인 구입)": "Газ",
+    "lpg+전기": "Электро (+ГБО)",
+    "lpg + 전기": "Электро (+ГБО)",
+    "가솔린+전기": "Гибрид (Бензин)",
+    "가솔린 + 전기": "Гибрид (Бензин)",
+    "디젤+전기": "Гибрид (Дизель)",
+    "디젤 + 전기": "Гибрид (Дизель)",
   };
   return map[key] ?? ru;
+}
+
+export function normalizeCatalogDisplayLabel(v: unknown): string | null {
+  const raw = asStr(v);
+  if (!raw) return null;
+  const translated = translateKoToRuText(raw);
+  if (!translated) return null;
+  // Last-resort cleanup for leaked Hangul values in facets/titles.
+  const cleaned = translated.replace(/[\uac00-\ud7af]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  return cleaned || translated;
 }
 
 export function fuelSortRank(v: unknown): number {

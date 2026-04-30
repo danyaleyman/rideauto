@@ -21,7 +21,15 @@ import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
-import { asStr, formatKm, formatRegYearMonth, fuelSortRank, normalizeFuelLabel } from "@/lib/car-detail-data";
+import {
+  asStr,
+  buildNormalizedCarTitle,
+  formatKm,
+  formatRegYearMonth,
+  fuelSortRank,
+  normalizeCatalogDisplayLabel,
+  normalizeFuelLabel,
+} from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth } from "@/components/AuthProvider";
@@ -145,7 +153,8 @@ type PassabilityStatus = "passable" | "young" | "old";
 
 function facetRowLabel(row: FacetRow): string {
   const label = String(row.label ?? "").trim();
-  return label || row.value;
+  const normalized = normalizeCatalogDisplayLabel(label || row.value);
+  return normalized || row.value;
 }
 
 function groupFacetRows(
@@ -1503,6 +1512,15 @@ export function CatalogClient({
             {search.result.map((car, idx) => {
               const preview = previewImageUrls(car);
               const cardData = (car.data ?? {}) as Record<string, unknown>;
+              const normalizedTitle =
+                buildNormalizedCarTitle(
+                  cardData.mark,
+                  cardData.model,
+                  cardData.generation ?? cardData.configuration,
+                  cardData.source,
+                ) ||
+                normalizeCatalogDisplayLabel(car.title) ||
+                car.id;
               const attrChips = catalogCardAttributeChips(
                 cardData,
                 car.year_num,
@@ -1526,7 +1544,7 @@ export function CatalogClient({
                       <div className="relative size-full">
                         <CatalogCardImage
                           images={preview}
-                          alt={car.title || car.id}
+                          alt={normalizedTitle}
                           eager={idx < 4}
                           sold={listingSold}
                         />
@@ -1576,7 +1594,7 @@ export function CatalogClient({
                           className="flex min-w-0 flex-1 items-center self-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <p className="font-heading line-clamp-2 min-h-[2.9rem] text-[15px] font-semibold leading-snug sm:min-h-[2.25rem] sm:text-base">
-                            {car.title || car.id}
+                            {normalizedTitle}
                           </p>
                         </Link>
                         <div className="flex shrink-0 items-center gap-1.5">
@@ -1731,7 +1749,7 @@ export function CatalogClient({
                           {!listingSold ? (
                             <CatalogQuickBuyDialog
                               carId={car.id}
-                              carTitle={car.title || car.id}
+                              carTitle={normalizedTitle}
                               triggerSize="sm"
                               triggerClassName="ms-auto h-7 min-h-7 rounded-lg px-2.5 text-xs font-semibold"
                             />
