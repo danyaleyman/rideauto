@@ -138,14 +138,6 @@ def build_meilisearch_filter(
 
     clauses: List[str] = []
 
-    # По умолчанию скрываем проданные/снятые объявления из каталожной выдачи и фасетов.
-    # Для служебной отладки можно передать include_sold=1.
-    if q.get("include_sold") != "1":
-        clauses.append(
-            "((encar_listing_sold IS NULL OR encar_listing_sold = false) "
-            "AND (dongchedi_listing_sold IS NULL OR dongchedi_listing_sold = false))"
-        )
-
     src = (q.get("source") or "").strip().lower()
     reg = (q.get("region") or "").strip().lower()
     if src == "encar":
