@@ -1,3 +1,23 @@
+from catalog_listing_price import encar_reserved_placeholder_price
+
+
+def test_reserved_placeholder_detects_repeated_digits():
+    assert encar_reserved_placeholder_price({"price": "4444"})
+    assert encar_reserved_placeholder_price({"price": "9999"})
+    assert encar_reserved_placeholder_price({"price_won": 11110000})
+
+
+def test_reserved_placeholder_detects_repeated_digits_with_trailing_zero():
+    assert encar_reserved_placeholder_price({"price": "4440"})
+    assert encar_reserved_placeholder_price({"price": "5550"})
+    assert encar_reserved_placeholder_price({"price_won": 44400000})
+    assert encar_reserved_placeholder_price({"price_won": 77700000})
+
+
+def test_reserved_placeholder_ignores_regular_prices():
+    assert not encar_reserved_placeholder_price({"price": "4380"})
+    assert not encar_reserved_placeholder_price({"price_won": 43800000})
+    assert not encar_reserved_placeholder_price({"price": "2150"})
 from catalog_listing_price import (
     china_market_car,
     dongchedi_has_buyer_price,

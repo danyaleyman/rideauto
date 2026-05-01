@@ -1554,6 +1554,8 @@ export function CatalogClient({
               const passability = carPassabilityStatus(cardData);
               const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
               const listingSold = Boolean(car.encar_listing_sold || car.dongchedi_listing_sold);
+              const listingReserved = !listingSold && Boolean(car.encar_listing_reserved);
+              const listingUnavailable = listingSold || listingReserved;
               const fav = authenticated && isFavorite(car.id);
               const showCopied = copiedId === car.id;
               const openingThisCard = openingCarId === car.id;
@@ -1584,7 +1586,7 @@ export function CatalogClient({
                           images={preview}
                           alt={normalizedTitle}
                           eager={idx < 4}
-                          sold={listingSold}
+                          sold={listingUnavailable}
                         />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-2 pb-2 pt-14">
                           <div className="flex flex-wrap items-center gap-1">
@@ -1610,6 +1612,10 @@ export function CatalogClient({
                             {listingSold ? (
                               <Badge className="rounded-md border border-red-900/30 bg-red-600 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm sm:text-xs">
                                 Продан
+                              </Badge>
+                            ) : listingReserved ? (
+                              <Badge className="rounded-md border border-amber-900/30 bg-amber-500 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm sm:text-xs">
+                                Зарезервирован
                               </Badge>
                             ) : null}
                           </div>
@@ -1709,7 +1715,7 @@ export function CatalogClient({
                       <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
                         <div className="flex w-full items-center gap-2">
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            {!listingSold ? (
+                            {!listingUnavailable ? (
                               <>
                                 <Badge
                                   variant="secondary"
@@ -1787,7 +1793,7 @@ export function CatalogClient({
                               </>
                             ) : null}
                           </div>
-                          {!listingSold ? (
+                          {!listingUnavailable ? (
                             <CatalogQuickBuyDialog
                               carId={car.id}
                               carTitle={normalizedTitle}

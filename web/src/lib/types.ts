@@ -22,6 +22,8 @@ export type SlimCar = {
   catalog_created_at?: string | null;
   /** Дневной чекер Encar: объявление снято с продажи до ночной выгрузки. */
   encar_listing_sold?: boolean;
+  /** Encar placeholder-price marker (e.g. 4444/5550 만원): reserved/pending state, not a final sale price. */
+  encar_listing_reserved?: boolean;
   /** Дневной чекер Dongchedi: объявление снято с продажи до ночной выгрузки. */
   dongchedi_listing_sold?: boolean;
   year_num?: number;

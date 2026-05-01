@@ -320,7 +320,9 @@ def run_sync(
                         price_skipped_no_list += 1
                         data["price_on_request"] = True
                         if encar_reserved_placeholder_price(data):
-                            data["encar_listing_sold"] = True
+                            data["encar_listing_reserved"] = True
+                        else:
+                            data.pop("encar_listing_reserved", None)
                         clear_estimated_price_fields(data)
                         if car.get("data") is not data:
                             car["data"] = data

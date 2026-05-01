@@ -225,6 +225,8 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     out["year_num"] = int(str(slim_data.get("year") or 0)[:4] or 0)
     if car.get("encar_listing_sold") is True:
         out["encar_listing_sold"] = True
+    if raw.get("encar_listing_reserved") is True or car.get("encar_listing_reserved") is True:
+        out["encar_listing_reserved"] = True
     if car.get("dongchedi_listing_sold") is True:
         out["dongchedi_listing_sold"] = True
     return out

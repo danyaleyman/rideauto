@@ -67,26 +67,41 @@ def encar_reserved_placeholder_price(data: Optional[Dict[str, Any]]) -> bool:
     """
     if not isinstance(data, dict):
         return False
+    def _is_repeated_placeholder_4d(mw4: str) -> bool:
+        # 1111/2222/.../9999 and softened variant 1110/2220/.../9990 in 만원 units.
+        d = "".join(ch for ch in str(mw4) if ch.isdigit())
+        if len(d) != 4 or d[0] == "0":
+            return False
+        if len(set(d)) == 1:
+            return True
+        return d[0] == d[1] == d[2] and d[3] == "0"
+
+    def _looks_like_placeholder_won_digits(digits: str) -> bool:
+        d = "".join(ch for ch in str(digits) if ch.isdigit())
+        if not d:
+            return False
+        if _is_repeated_placeholder_4d(d):
+            return True
+        # Full-won form (e.g. 44_440_000 / 99_990_000) => strip trailing 만원 zeros.
+        if len(d) >= 8 and d.endswith("0000"):
+            lead = d[:-4]
+            if len(lead) >= 4 and _is_repeated_placeholder_4d(lead[:4]):
+                return True
+        return False
+
     pw = data.get("price_won")
     try:
         if pw is not None:
             pw_digits = "".join(ch for ch in str(int(float(pw))) if ch.isdigit())
-            if len(pw_digits) == 4 and len(set(pw_digits)) == 1:
+            if _looks_like_placeholder_won_digits(pw_digits):
                 return True
-            # Часто в данных уже хранится полный won (например 99_990_000, 111_110_000),
-            # где первые 4 цифры — заглушка 9999만원/5555만원/1111만원 и т.п.
-            if len(pw_digits) >= 8 and pw_digits.endswith("0000"):
-                lead = pw_digits[:-4]
-                if len(lead) >= 4 and len(set(lead[:4])) == 1:
-                    return True
     except (TypeError, ValueError):
         pass
 
     p = data.get("price")
     if p is None:
         return False
-    digits = "".join(ch for ch in str(p) if ch.isdigit())
-    return len(digits) == 4 and len(set(digits)) == 1
+    return _looks_like_placeholder_won_digits(str(p))
 
 
 def _as_positive_float(value: Any) -> float:
