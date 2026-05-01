@@ -1,7 +1,7 @@
 from fastapi_app.catalog_slim import slim_catalog_car
 
 
-def test_slim_forces_price_on_request_for_finance_text_card():
+def test_slim_does_not_force_price_on_request_by_finance_text_only():
     car = {
         "data": {
             "source": "encar",
@@ -15,8 +15,8 @@ def test_slim_forces_price_on_request_for_finance_text_card():
         }
     }
     out = slim_catalog_car(car, "encar-1")
-    assert out.get("price") is None
-    assert out.get("price_on_request") is True
+    assert out.get("price") == 1022243
+    assert out.get("price_on_request") in (False, None)
 
 
 def test_slim_keeps_normal_price_for_regular_card():

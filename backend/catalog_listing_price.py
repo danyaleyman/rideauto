@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Optional
 
+from encar_price_intent import classify_encar_price_intent
+
 _FIELDS_FROM_KOREAN_PRICE_CALC = (
     "my_price",
     "price_rub_estimate",
@@ -40,9 +42,8 @@ def china_market_car(car_id: str, data: Optional[Dict[str, Any]]) -> bool:
 def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
-    if _encar_monthly_finance_payload(data):
-        return False
-    if encar_reserved_placeholder_price(data):
+    intent, _ = classify_encar_price_intent(data)
+    if intent in ("monthly_finance", "reserved_placeholder"):
         return False
     pw = data.get("price_won")
     try:
@@ -68,41 +69,8 @@ def encar_reserved_placeholder_price(data: Optional[Dict[str, Any]]) -> bool:
     """
     if not isinstance(data, dict):
         return False
-    def _is_repeated_placeholder_4d(mw4: str) -> bool:
-        # 1111/2222/.../9999 and softened variant 1110/2220/.../9990 in 만원 units.
-        d = "".join(ch for ch in str(mw4) if ch.isdigit())
-        if len(d) != 4 or d[0] == "0":
-            return False
-        if len(set(d)) == 1:
-            return True
-        return d[0] == d[1] == d[2] and d[3] == "0"
-
-    def _looks_like_placeholder_won_digits(digits: str) -> bool:
-        d = "".join(ch for ch in str(digits) if ch.isdigit())
-        if not d:
-            return False
-        if _is_repeated_placeholder_4d(d):
-            return True
-        # Full-won form (e.g. 44_440_000 / 99_990_000) => strip trailing 만원 zeros.
-        if len(d) >= 8 and d.endswith("0000"):
-            lead = d[:-4]
-            if len(lead) >= 4 and _is_repeated_placeholder_4d(lead[:4]):
-                return True
-        return False
-
-    pw = data.get("price_won")
-    try:
-        if pw is not None:
-            pw_digits = "".join(ch for ch in str(int(float(pw))) if ch.isdigit())
-            if _looks_like_placeholder_won_digits(pw_digits):
-                return True
-    except (TypeError, ValueError):
-        pass
-
-    p = data.get("price")
-    if p is None:
-        return False
-    return _looks_like_placeholder_won_digits(str(p))
+    intent, _ = classify_encar_price_intent(data)
+    return intent == "reserved_placeholder"
 
 
 def _as_positive_float(value: Any) -> float:
@@ -150,72 +118,8 @@ def _encar_suspicious_low_sale_price(data: Dict[str, Any]) -> bool:
 
 
 def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
-    def _iter_texts(value: Any):
-        if isinstance(value, str):
-            s = value.strip()
-            if s:
-                yield s
-            return
-        if isinstance(value, dict):
-            for vv in value.values():
-                yield from _iter_texts(vv)
-            return
-        if isinstance(value, list):
-            for vv in value:
-                yield from _iter_texts(vv)
-            return
-
-    monthly_pat = re.compile(r"월\s*\d[\d,.\s]*\s*만?원")
-    monthly_keyword_pat = re.compile(r"(월\s*렌트|월렌트|월\s*리스|월리스|할부|렌트|리스|대출)")
-    term_pat = re.compile(r"\d+\s*개월")
-    takeover_pat = re.compile(r"인수금\s*\d[\d,.\s]*\s*만?원")
-
-    if data.get("encar_monthly_finance_price") is True:
-        return True
-    monthly_keys = ("encar_month_lease_price", "encar_month_lease_rent_price", "encar_month_lease_rest")
-    if any(_as_positive_float(data.get(k)) > 0 for k in monthly_keys):
-        return True
-    hint_keys = (
-        "encar_lease_type",
-        "encar_attribute_type",
-        "price_type",
-        "price_type_name",
-        "finance_type",
-        "price_text",
-    )
-    for k in hint_keys:
-        s = str(data.get(k) or "").strip().lower()
-        if not s:
-            continue
-        if monthly_pat.search(s) or takeover_pat.search(s):
-            return True
-        # Keywords by themselves are too broad (regular listings can contain finance promo blocks).
-        # Require at least monthly/term context when keyword is present.
-        if monthly_keyword_pat.search(s) and ("월" in s or term_pat.search(s)):
-            return True
-        if term_pat.search(s) and ("렌트" in s or "리스" in s or "할부" in s):
-            return True
-        # Типичный блок Encar finance card: 월xx만원 + 월렌트(12개월) + 인수금/차량가격.
-        if "차량가격" in s and ("월" in s or monthly_keyword_pat.search(s) or term_pat.search(s)):
-            return True
-
-    for s in _iter_texts(data):
-        if monthly_pat.search(s) or takeover_pat.search(s):
-            return True
-        if monthly_keyword_pat.search(s) and ("월" in s or term_pat.search(s)):
-            return True
-        if "차량가격" in s and ("월" in s or monthly_keyword_pat.search(s)):
-            return True
-    # Legacy fallback: some older rows store monthly payment in `price_won` directly
-    # (e.g. 24, 33) without explicit lease flags. Real sale prices on Encar are not that low.
-    if str(data.get("source") or "encar").strip().lower() == "encar":
-        pw = _as_positive_float(data.get("price_won"))
-        p = _as_positive_float(data.get("price"))
-        if 0 < pw < 100 and p < 10000:
-            return True
-    if _encar_suspicious_low_sale_price(data):
-        return True
-    return False
+    intent, _ = classify_encar_price_intent(data)
+    return intent == "monthly_finance"
 
 
 def dongchedi_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:

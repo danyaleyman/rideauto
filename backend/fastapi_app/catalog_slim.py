@@ -292,14 +292,9 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     out["title"] = _car_title(slim_data)
     out["price"] = _extract_num(slim_data, "my_price")
     explicit_por = slim_data.get("price_on_request")
-    forced_por = _encar_finance_like_card(slim_data)
-    if forced_por:
-        out["price"] = None
     p = out["price"]
     implicit_por = p is None or (isinstance(p, (int, float)) and not isinstance(p, bool) and float(p) <= 0)
-    if forced_por:
-        out["price_on_request"] = True
-    elif explicit_por is True:
+    if explicit_por is True:
         out["price_on_request"] = True
     elif explicit_por is False:
         out["price_on_request"] = False
