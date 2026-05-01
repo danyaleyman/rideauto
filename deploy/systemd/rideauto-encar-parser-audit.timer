@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly Encar parser audit
+
+[Timer]
+OnCalendar=*-*-* 05:10:00 Asia/Yekaterinburg
+Persistent=true
+Unit=rideauto-encar-parser-audit.service
+
+[Install]
+WantedBy=timers.target

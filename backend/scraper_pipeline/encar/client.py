@@ -201,7 +201,7 @@ class AsyncEncarClient:
         if not plate_number:
             return None, 0, "no plate"
         url = f"{self.base_api}/record/vehicle/{car_id}/open"
-        params = {"vehicleNo": urllib.parse.quote(plate_number)}
+        params = {"vehicleNo": plate_number}
         return await self._request("GET", url, params=params, origin="https://fem.encar.com")
 
     async def fetch_diagnosis(self, car_id: str) -> Tuple[Optional[dict], int, Optional[str]]:

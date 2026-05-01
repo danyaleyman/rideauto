@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import random
+import time
 from typing import Any, List, Optional, Tuple
 
 from parser_full import EncarFullParser
@@ -297,6 +298,17 @@ async def detail_worker(
     stats_lock: Optional[asyncio.Lock] = None,
 ) -> None:
     sem = asyncio.Semaphore(1)
+    stats.setdefault("extras_timeout", 0)
+    stats.setdefault("endpoint_record_ok", 0)
+    stats.setdefault("endpoint_record_fail", 0)
+    stats.setdefault("endpoint_diagnosis_ok", 0)
+    stats.setdefault("endpoint_diagnosis_fail", 0)
+    stats.setdefault("endpoint_inspection_ok", 0)
+    stats.setdefault("endpoint_inspection_fail", 0)
+    stats.setdefault("endpoint_sellingpoint_ok", 0)
+    stats.setdefault("endpoint_sellingpoint_fail", 0)
+    stats.setdefault("endpoint_user_ok", 0)
+    stats.setdefault("endpoint_user_fail", 0)
     while True:
         try:
             item = await asyncio.wait_for(queue.get(), timeout=30.0)
@@ -340,11 +352,13 @@ async def detail_worker(
         detail_wall = float(_config.get("http", {}).get("detail_wall_timeout_sec", 90))
         log.debug("Worker %s detail begin car_id=%s", worker_id, car_id)
         try:
+            detail_started = time.perf_counter()
             async with sem:
                 detail, d_status, _ = await asyncio.wait_for(
                     client.fetch_vehicle_detail(car_id),
                     timeout=detail_wall,
                 )
+            detail_latency_ms = int((time.perf_counter() - detail_started) * 1000)
         except asyncio.TimeoutError:
             log.error(
                 "Worker %s car_id=%s: vehicle detail >%.0fs (сеть/прокси) — отпускаем слот очереди",
@@ -372,6 +386,14 @@ async def detail_worker(
                 await _requeue_after_detail_transient_fail(checkpoint, car_id, car_type, item_from_list)
             queue.task_done()
             continue
+        source_meta: dict[str, dict[str, Any]] = {
+            "detail": {
+                "status": int(d_status or 0),
+                "ok": bool(d_status == 200 and detail),
+                "latency_ms": detail_latency_ms if "detail_latency_ms" in locals() else None,
+                "error": None if d_status == 200 else "non_200_or_empty",
+            }
+        }
         plate = detail.get("vehicleNo") if detail else None
         seller_id = None
         sep_item = detail.get("item")
@@ -395,10 +417,12 @@ async def detail_worker(
         if tasks:
             extras_wall = float(_config.get("http", {}).get("detail_extras_wall_timeout_sec", 120))
             try:
+                extras_started = time.perf_counter()
                 done = await asyncio.wait_for(
                     asyncio.gather(*[c for _, c in tasks], return_exceptions=True),
                     timeout=extras_wall,
                 )
+                extras_elapsed_ms = int((time.perf_counter() - extras_started) * 1000)
             except asyncio.TimeoutError:
                 log.error(
                     "Worker %s car_id=%s: record/inspection/… >%.0fs — продолжаем с тем что есть",
@@ -406,7 +430,9 @@ async def detail_worker(
                     car_id,
                     extras_wall,
                 )
+                stats["extras_timeout"] += 1
                 done = [asyncio.TimeoutError() for _ in tasks]
+                extras_elapsed_ms = None
             for i, (name, _) in enumerate(tasks):
                 if i >= len(done):
                     continue
@@ -414,9 +440,26 @@ async def detail_worker(
                 if isinstance(d, Exception):
                     log.debug("Worker %s car_id=%s %s: %s", worker_id, car_id, name, d)
                     results[name] = None
+                    stats[f"endpoint_{name}_fail"] = stats.get(f"endpoint_{name}_fail", 0) + 1
+                    source_meta[name] = {
+                        "status": 0,
+                        "ok": False,
+                        "latency_ms": extras_elapsed_ms,
+                        "error": str(d)[:200],
+                    }
                 else:
                     data, status, _ = d
                     results[name] = data if status == 200 else None
+                    if status == 200 and data is not None:
+                        stats[f"endpoint_{name}_ok"] = stats.get(f"endpoint_{name}_ok", 0) + 1
+                    else:
+                        stats[f"endpoint_{name}_fail"] = stats.get(f"endpoint_{name}_fail", 0) + 1
+                    source_meta[name] = {
+                        "status": int(status or 0),
+                        "ok": bool(status == 200 and data is not None),
+                        "latency_ms": extras_elapsed_ms,
+                        "error": None if status == 200 else "non_200_or_empty",
+                    }
         record = results.get("record")
         diagnosis = results.get("diagnosis")
         inspection = results.get("inspection")
@@ -437,6 +480,7 @@ async def detail_worker(
                     inspection,
                     sellingpoint,
                     user_info,
+                    source_meta,
                 ),
                 timeout=parse_wall,
             )

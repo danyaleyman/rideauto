@@ -7,6 +7,7 @@ import asyncpg
 from fastapi import APIRouter, HTTPException, Request
 from meilisearch import Client
 
+from clean_mode import clean_read_enabled_for_key
 from fastapi_app.cached_route import serve_cached_json
 from fastapi_app.catalog_slim import slim_catalog_car
 from fastapi_app.config import Settings, get_settings
@@ -119,6 +120,7 @@ async def _search_catalog(request: Request) -> SearchResponse:
         processing_time_ms=proc_ms,
         list_mode="slim" if slim else "full",
         sort=sort,
+        api_version=str(settings.api_contract_version or "v1"),
     )
     return SearchResponse(result=result, meta=meta)
 
@@ -155,10 +157,17 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
 
     inner = current.get("data")
     d = inner if isinstance(inner, dict) else current
-    mark = str(d.get("mark") or "").strip()
-    model = str(d.get("model") or "").strip()
+    use_clean = clean_read_enabled_for_key(str(car_id), default_enabled=bool(settings.clean_read_mode))
+    identity = d.get("identity_clean") if use_clean and isinstance(d.get("identity_clean"), dict) else {}
+    mark = str(identity.get("mark") or d.get("mark") or "").strip()
+    model = str(identity.get("model") or d.get("model") or "").strip()
     if not mark:
-        meta = SimilarMeta(car_id=car_id, limit=limit, total_candidates=0)
+        meta = SimilarMeta(
+            car_id=car_id,
+            limit=limit,
+            total_candidates=0,
+            api_version=str(settings.api_contract_version or "v1"),
+        )
         return SimilarResponse(result=[], meta=meta)
 
     filt_parts = [f'brand = "{_meili_escape(mark)}"']
@@ -202,7 +211,12 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
 
     total_raw = int(ms.get("estimatedTotalHits") or ms.get("totalHits") or 0)
     total_candidates = max(0, total_raw - 1)
-    meta = SimilarMeta(car_id=car_id, limit=limit, total_candidates=total_candidates)
+    meta = SimilarMeta(
+        car_id=car_id,
+        limit=limit,
+        total_candidates=total_candidates,
+        api_version=str(settings.api_contract_version or "v1"),
+    )
     return SimilarResponse(result=result, meta=meta)
 
 

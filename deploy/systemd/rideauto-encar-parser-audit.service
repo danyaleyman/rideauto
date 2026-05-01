@@ -1,0 +1,15 @@
+[Unit]
+Description=RideAuto - Encar parser nightly audit
+After=network.target
+
+[Service]
+Type=oneshot
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/rideauto
+ExecStart=/bin/bash /opt/rideauto/deploy/scripts/run_encar_parser_audit_nightly.sh
+TimeoutStartSec=30m
+NoNewPrivileges=true
+PrivateTmp=true

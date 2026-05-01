@@ -4,8 +4,11 @@ import json
 import re
 from typing import Any, Dict
 
+from clean_mode import clean_read_enabled_for_key
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
+from fastapi_app.config import get_settings
 from localization.term_localizer import facet_canonical_english
+from read_models import build_catalog_read_model
 
 _CHINA_SUFFIX_MARKERS = (
     " kuan ",
@@ -290,8 +293,17 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     if _tid is not None and _tid != "":
         out["inner_id"] = _tid
     out["title"] = _car_title(slim_data)
-    out["price"] = _extract_num(slim_data, "my_price")
-    explicit_por = slim_data.get("price_on_request")
+    settings = get_settings()
+    use_clean = clean_read_enabled_for_key(str(car_id), default_enabled=bool(settings.clean_read_mode))
+    read_model = build_catalog_read_model(raw, use_clean=use_clean)
+    out["price"] = (
+        _extract_num(read_model, "price_rub")
+        if read_model.get("price_rub") is not None
+        else _extract_num(slim_data, "my_price")
+    )
+    explicit_por = read_model.get("price_on_request")
+    if explicit_por is False and "price_on_request" in slim_data:
+        explicit_por = slim_data.get("price_on_request")
     p = out["price"]
     implicit_por = p is None or (isinstance(p, (int, float)) and not isinstance(p, bool) and float(p) <= 0)
     if explicit_por is True:
@@ -305,8 +317,10 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     out["year_num"] = int(str(slim_data.get("year") or 0)[:4] or 0)
     if car.get("encar_listing_sold") is True:
         out["encar_listing_sold"] = True
-    if raw.get("encar_listing_reserved") is True or car.get("encar_listing_reserved") is True:
+    reserved_clean = bool(read_model.get("reserved_placeholder") is True)
+    if raw.get("encar_listing_reserved") is True or car.get("encar_listing_reserved") is True or reserved_clean is True:
         out["encar_listing_reserved"] = True
+    out["api_contract_version"] = str(settings.api_contract_version or "v1")
     if car.get("dongchedi_listing_sold") is True:
         out["dongchedi_listing_sold"] = True
     return out

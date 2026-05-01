@@ -54,3 +54,51 @@ def test_slim_keeps_normal_price_for_regular_card_with_finance_promo_text():
     out = slim_catalog_car(car, "encar-3")
     assert out.get("price") == 49600445
     assert out.get("price_on_request") in (False, None)
+
+
+def test_slim_prefers_pricing_clean_when_present(monkeypatch):
+    monkeypatch.setenv("WRA_CLEAN_READ_MODE", "1")
+    from fastapi_app.config import get_settings
+
+    get_settings.cache_clear()
+    car = {
+        "data": {
+            "source": "encar",
+            "mark": "Kia",
+            "model": "K8",
+            "my_price": 1000,
+            "pricing_clean": {
+                "final_price_rub": 2000,
+                "price_on_request": True,
+                "reserved_placeholder": True,
+            },
+        }
+    }
+    out = slim_catalog_car(car, "encar-4")
+    assert out.get("price") == 2000
+    assert out.get("price_on_request") is True
+    assert out.get("encar_listing_reserved") is True
+    get_settings.cache_clear()
+
+
+def test_slim_uses_legacy_when_clean_mode_off(monkeypatch):
+    monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
+    from fastapi_app.config import get_settings
+
+    get_settings.cache_clear()
+    car = {
+        "data": {
+            "source": "encar",
+            "mark": "Kia",
+            "model": "K8",
+            "my_price": 1000,
+            "pricing_clean": {
+                "final_price_rub": 2000,
+                "price_on_request": True,
+            },
+        }
+    }
+    out = slim_catalog_car(car, "encar-5")
+    assert out.get("price") == 1000
+    assert out.get("price_on_request") in (False, None)
+    get_settings.cache_clear()

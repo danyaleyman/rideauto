@@ -5,10 +5,17 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from clean_mode import clean_read_enabled_for_key, clean_read_mode_enabled
+
 
 def _d(payload: Dict[str, Any]) -> Dict[str, Any]:
     raw = payload.get("data")
     return raw if isinstance(raw, dict) else payload
+
+
+def _clean(d: Dict[str, Any], block: str) -> Dict[str, Any]:
+    v = d.get(block)
+    return v if isinstance(v, dict) else {}
 
 
 def _optional_str(v: Any) -> Optional[str]:
@@ -201,20 +208,33 @@ def row_to_car_fields(
     source_internal_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     d = _d(payload)
+    use_clean = clean_read_enabled_for_key(str(car_id), default_enabled=clean_read_mode_enabled(default=False))
+    identity = _clean(d, "identity_clean") if use_clean else {}
+    spec = _clean(d, "spec_clean") if use_clean else {}
+    pricing = _clean(d, "pricing_clean") if use_clean else {}
+    condition = _clean(d, "condition_clean") if use_clean else {}
     src = normalized_source(d) or _optional_str((payload or {}).get("source"))
     if not src and str(car_id).lower().startswith("dongchedi-"):
         src = "dongchedi"
     if not src:
         src = "encar"
-    mark = (d.get("mark") or "").strip() or None
-    model = (d.get("model") or "").strip() or None
-    generation = _optional_str(d.get("generation") or d.get("configuration"))
+    mark = _optional_str(identity.get("mark")) or (d.get("mark") or "").strip() or None
+    model = _optional_str(identity.get("model")) or (d.get("model") or "").strip() or None
+    generation = _optional_str(identity.get("generation")) or _optional_str(d.get("generation") or d.get("configuration"))
     trim_name = _optional_str(d.get("gradeName") or d.get("configuration") or d.get("generation"))
-    displacement_cc, displacement_label = _displacement_cc_with_label(d.get("displacement") or d.get("dongchedi_displacement_label"))
+    displacement_cc, displacement_label = _displacement_cc_with_label(
+        spec.get("displacement_cc") or d.get("displacement") or d.get("dongchedi_displacement_label")
+    )
     ins_n, ins_krw = insurance_cases_and_payout_krw(payload)
+    if ins_n is None:
+        ins_n = _safe_int(condition.get("insurance_cases"))
+    if ins_krw is None:
+        ins_krw = _safe_int(condition.get("insurance_payout_krw"))
     ins_n_safe = 0 if ins_n is None else ins_n
     ins_krw_safe = 0 if ins_krw is None else ins_krw
     dmg_safe = damaged_parts_count(payload)
+    if dmg_safe is None:
+        dmg_safe = _safe_int(condition.get("damaged_parts_count"))
     if dmg_safe is None:
         dmg_safe = 0
     return {
@@ -223,21 +243,21 @@ def row_to_car_fields(
         "model": model,
         "generation": generation,
         "trim_name": trim_name,
-        "body_type": _optional_str(d.get("body_type")),
-        "fuel_type": _optional_str(d.get("engine_type")),
-        "transmission_type": _optional_str(d.get("transmission_type")),
-        "drive_type": _optional_str(d.get("drive_type") or d.get("prep_drive_type")),
-        "color": _optional_str(d.get("color")),
+        "body_type": _optional_str(spec.get("body_type")) or _optional_str(d.get("body_type")),
+        "fuel_type": _optional_str(spec.get("engine_type")) or _optional_str(d.get("engine_type")),
+        "transmission_type": _optional_str(spec.get("transmission_type")) or _optional_str(d.get("transmission_type")),
+        "drive_type": _optional_str(spec.get("drive_type")) or _optional_str(d.get("drive_type") or d.get("prep_drive_type")),
+        "color": _optional_str(spec.get("color")) or _optional_str(d.get("color")),
         "source": src,
         "listing_partition_key": listing_partition_key(car_id, d),
-        "power_hp": power_hp(payload),
+        "power_hp": _safe_int(spec.get("power_hp")) or power_hp(payload),
         "power_kw": _safe_int(d.get("power_kw")),
         "torque_nm": _safe_int(d.get("torque_nm")),
         "displacement_cc": displacement_cc,
         "displacement_label": displacement_label,
-        "price_rub": _safe_float(d.get("my_price")),
-        "mileage_km": _safe_int(d.get("km_age")),
-        "year": year_from_data(d),
+        "price_rub": _safe_float(pricing.get("final_price_rub")) or _safe_float(d.get("my_price")),
+        "mileage_km": _safe_int(spec.get("mileage_km")) or _safe_int(d.get("km_age")),
+        "year": _safe_int(identity.get("year")) or year_from_data(d),
         "year_month": year_month_ordinal(d),
         "insurance_cases": ins_n_safe,
         "insurance_payout_krw": ins_krw_safe,

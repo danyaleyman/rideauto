@@ -18,6 +18,7 @@ class SearchMeta(BaseModel):
     processing_time_ms: Optional[int] = None
     list_mode: str = "slim"
     sort: Optional[str] = None
+    api_version: str = "v1"
 
 
 class SearchResponse(BaseModel):
@@ -31,6 +32,7 @@ class CarDetailResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     result: Dict[str, Any]
+    api_version: str = "v1"
 
 
 class SimilarMeta(BaseModel):
@@ -39,6 +41,7 @@ class SimilarMeta(BaseModel):
     car_id: str
     limit: int
     total_candidates: int = 0
+    api_version: str = "v1"
 
 
 class SimilarResponse(BaseModel):
@@ -59,6 +62,7 @@ class FacetsResponse(BaseModel):
     fuels: List[Dict[str, Any]] = Field(default_factory=list)
     transmissions: List[Dict[str, Any]] = Field(default_factory=list)
     colors: List[Dict[str, Any]] = Field(default_factory=list)
+    api_version: str = "v1"
 
 
 class CatalogDailyAdditionsResponse(BaseModel):

@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from typing import Any
+
+import psycopg2
+
+
+def _dsn() -> str:
+    dsn = (os.environ.get("DATABASE_URL") or "").strip()
+    if not dsn:
+        raise RuntimeError("DATABASE_URL is required")
+    return dsn
+
+
+def _pct(part: int, total: int) -> float:
+    if total <= 0:
+        return 0.0
+    return round((part / total) * 100.0, 2)
+
+
+def run(min_price_coverage_pct: float, min_brand_coverage_pct: float, min_model_coverage_pct: float) -> int:
+    with psycopg2.connect(_dsn()) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                  COUNT(*) AS total,
+                  COUNT(*) FILTER (WHERE COALESCE(price_rub, 0) > 0) AS with_price,
+                  COUNT(*) FILTER (WHERE COALESCE(mark, '') <> '') AS with_brand,
+                  COUNT(*) FILTER (WHERE COALESCE(model, '') <> '') AS with_model
+                FROM cars
+                WHERE source='encar'
+                """
+            )
+            total, with_price, with_brand, with_model = [int(x or 0) for x in cur.fetchone()]
+    summary: dict[str, Any] = {
+        "total": total,
+        "pct_price_coverage": _pct(with_price, total),
+        "pct_brand_coverage": _pct(with_brand, total),
+        "pct_model_coverage": _pct(with_model, total),
+    }
+    print(json.dumps(summary, ensure_ascii=False))
+    failures = []
+    if summary["pct_price_coverage"] < min_price_coverage_pct:
+        failures.append("price_coverage_below_threshold")
+    if summary["pct_brand_coverage"] < min_brand_coverage_pct:
+        failures.append("brand_coverage_below_threshold")
+    if summary["pct_model_coverage"] < min_model_coverage_pct:
+        failures.append("model_coverage_below_threshold")
+    if failures:
+        print(json.dumps({"failures": failures}, ensure_ascii=False))
+        return 2
+    return 0
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Preflight data-quality gates before Meili sync")
+    ap.add_argument("--min-price-coverage-pct", type=float, default=97.0)
+    ap.add_argument("--min-brand-coverage-pct", type=float, default=99.0)
+    ap.add_argument("--min-model-coverage-pct", type=float, default=99.0)
+    args = ap.parse_args()
+    raise SystemExit(
+        run(
+            min_price_coverage_pct=float(args.min_price_coverage_pct),
+            min_brand_coverage_pct=float(args.min_brand_coverage_pct),
+            min_model_coverage_pct=float(args.min_model_coverage_pct),
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
+

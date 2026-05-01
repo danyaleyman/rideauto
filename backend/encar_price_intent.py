@@ -22,7 +22,7 @@ def _as_positive_float(value: Any) -> float:
 
 
 def _digits(value: Any) -> str:
-    return "".join(ch for ch in str(value or "") if ch.isdigit())
+    return "".join(ch for ch in str(value or "") if ch in "0123456789")
 
 
 def _is_repeated_or_soft_4d(d4: str) -> bool:

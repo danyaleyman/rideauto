@@ -1,18 +1,22 @@
 import logging
 import os
 import re
+import hashlib
+import threading
 import requests
 import json
 import time
-import urllib.parse
 from urllib.parse import urlencode
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from pathlib import Path
 
 from encar_price_intent import classify_encar_price_intent, price_signals_json
+from clean_layers import build_clean_layers
+from raw_json_contract import validate_raw_json_min_contract
 
 logger = logging.getLogger(__name__)
+PARSER_SCHEMA_VERSION = "encar.v2"
 
 
 def _normalize_proxy_url(url: str) -> str:
@@ -108,6 +112,7 @@ class EncarFullParser:
         # Добавляем эндпоинт для полной инспекции
         self.inspection_url = f'{self.base_api}/inspection/vehicle/{{}}'
         self._power_lookup: Optional[Dict[str, Any]] = None
+        self._lookup_lock = threading.Lock()
         self.lookup_path = Path(__file__).resolve().parent.parent / "data" / "car_power_lookup.json"
         self._power_stats = {"with_power": 0, "without_power": 0}
 
@@ -126,29 +131,35 @@ class EncarFullParser:
 
     def _get_power_lookup(self) -> Dict[str, Any]:
         """Загружает lookup-файл с данными о мощности (ключи: производитель|модель|бейдж и др.)."""
-        if self._power_lookup is not None:
+        with self._lookup_lock:
+            if self._power_lookup is not None:
+                return self._power_lookup
+            if not self.lookup_path.exists():
+                self._power_lookup = {}
+                return self._power_lookup
+            try:
+                with open(self.lookup_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self._power_lookup = data if isinstance(data, dict) else {}
+            except Exception as e:
+                logger.warning("Ошибка чтения lookup-файла %s: %s", self.lookup_path, e)
+                self._power_lookup = {}
             return self._power_lookup
-        if not self.lookup_path.exists():
-            self._power_lookup = {}
-            return self._power_lookup
-        try:
-            with open(self.lookup_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            self._power_lookup = data if isinstance(data, dict) else {}
-        except Exception as e:
-            logger.warning("Ошибка чтения lookup-файла %s: %s", self.lookup_path, e)
-            self._power_lookup = {}
-        return self._power_lookup
 
     def _save_lookup(self, lookup_data: Dict[str, Any]) -> None:
         """Сохраняет lookup-файл с данными о мощности."""
-        try:
-            self.lookup_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.lookup_path, "w", encoding="utf-8") as f:
-                json.dump(lookup_data, f, ensure_ascii=False, indent=2)
-            self._power_lookup = lookup_data
-        except Exception as e:
-            logger.warning("Ошибка сохранения lookup-файла %s: %s", self.lookup_path, e)
+        with self._lookup_lock:
+            try:
+                self.lookup_path.parent.mkdir(parents=True, exist_ok=True)
+                tmp_path = self.lookup_path.with_suffix(self.lookup_path.suffix + ".tmp")
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(lookup_data, f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, self.lookup_path)
+                self._power_lookup = lookup_data
+            except Exception as e:
+                logger.warning("Ошибка сохранения lookup-файла %s: %s", self.lookup_path, e)
 
     # ---------- Построение URL фото ----------
     def build_carphoto_url(self, photo: dict, now: str) -> str:
@@ -237,6 +248,130 @@ class EncarFullParser:
             return float(value)
         except (TypeError, ValueError):
             return 0.0
+
+    @staticmethod
+    def _as_int(value: Any) -> Optional[int]:
+        try:
+            if value is None or value == "":
+                return None
+            if isinstance(value, bool):
+                return int(value)
+            if isinstance(value, (int, float)):
+                return int(value)
+            raw = str(value).strip()
+            if not raw:
+                return None
+            clean = re.sub(r"[^\d\-]", "", raw)
+            if clean in {"", "-"}:
+                return None
+            return int(clean)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _as_text(value: Any) -> str:
+        if value is None:
+            return ""
+        try:
+            return str(value).strip()
+        except Exception:
+            return ""
+
+    def _iter_path_values(self, obj: Any, prefix: str = ""):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                key = f"{prefix}.{k}" if prefix else str(k)
+                yield key, v
+                yield from self._iter_path_values(v, key)
+        elif isinstance(obj, list):
+            for idx, v in enumerate(obj):
+                key = f"{prefix}[{idx}]"
+                yield key, v
+                yield from self._iter_path_values(v, key)
+
+    def _extract_numeric_by_key_hints(self, source: Any, key_hints: List[str]) -> Optional[int]:
+        hints = [h.lower() for h in key_hints]
+        values: List[int] = []
+        for path, value in self._iter_path_values(source):
+            p = path.lower()
+            if any(h in p for h in hints):
+                iv = self._as_int(value)
+                if iv is not None:
+                    values.append(iv)
+        if not values:
+            return None
+        return max(values)
+
+    def _extract_damage_summary(
+        self,
+        record: Optional[Dict[str, Any]],
+        diagnosis: Optional[Dict[str, Any]],
+        inspection_structured: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        insurance_cases = self._extract_numeric_by_key_hints(
+            record,
+            ["insurance_case", "insurancecase", "accident_count", "accidentcase"],
+        )
+        insurance_payout_krw = self._extract_numeric_by_key_hints(
+            record,
+            ["insurance_payout", "payout", "paid", "compensation", "claimamount"],
+        )
+
+        damaged_parts_count: Optional[int] = None
+        if isinstance(inspection_structured, dict):
+            body_changed = inspection_structured.get("bodyChanged")
+            if isinstance(body_changed, dict):
+                damaged_parts_count = len([k for k, v in body_changed.items() if k and v])
+        if damaged_parts_count is None:
+            panels = (diagnosis or {}).get("items") if isinstance(diagnosis, dict) else None
+            if isinstance(panels, list):
+                cnt = 0
+                for item in panels:
+                    if not isinstance(item, dict):
+                        continue
+                    result_code = str(item.get("resultCode") or item.get("resultCodeType") or "").upper()
+                    result_raw = str(item.get("result") or "").strip().lower()
+                    if result_code in {"REPLACEMENT", "PAINT", "REPAIR"} or result_raw in {"교체", "도장", "판금", "수리"}:
+                        cnt += 1
+                if cnt > 0:
+                    damaged_parts_count = cnt
+
+        return {
+            "insurance_cases": insurance_cases if insurance_cases is not None else 0,
+            "insurance_payout_krw": insurance_payout_krw if insurance_payout_krw is not None else 0,
+            "damaged_parts_count": damaged_parts_count if damaged_parts_count is not None else 0,
+        }
+
+    @staticmethod
+    def _shape_top_keys(payload: Any) -> List[str]:
+        if not isinstance(payload, dict):
+            return []
+        return sorted(str(k) for k in payload.keys())
+
+    def _source_shapes(
+        self,
+        item: Optional[Dict[str, Any]],
+        detail: Optional[Dict[str, Any]],
+        diagnosis: Optional[Dict[str, Any]],
+        inspection: Optional[Dict[str, Any]],
+        sellingpoint: Optional[Dict[str, Any]],
+        record: Optional[Dict[str, Any]],
+        user_info: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        shapes = {
+            "list_item": self._shape_top_keys(item),
+            "detail": self._shape_top_keys(detail),
+            "diagnosis": self._shape_top_keys(diagnosis),
+            "inspection": self._shape_top_keys(inspection),
+            "sellingpoint": self._shape_top_keys(sellingpoint),
+            "record": self._shape_top_keys(record),
+            "user": self._shape_top_keys(user_info),
+        }
+        hashes: Dict[str, str] = {}
+        for name, keys in shapes.items():
+            digest = hashlib.sha1("|".join(keys).encode("utf-8")).hexdigest()[:12] if keys else ""
+            hashes[name] = digest
+        return {"keys": shapes, "hashes": hashes}
 
     def _is_monthly_finance_listing(self, item: Dict[str, Any]) -> bool:
         """
@@ -331,10 +466,16 @@ class EncarFullParser:
             if resp.status_code == 200:
                 return resp.json()
             else:
-                print(f"Ошибка списка {resp.status_code}: {resp.text[:200]}")
+                logger.warning(
+                    "event=encar_list_fetch_failed status=%s car_type=%s offset=%s limit=%s body=%s",
+                    resp.status_code, car_type, offset, limit, (resp.text or "")[:200]
+                )
                 return None
         except Exception as e:
-            print(f"Исключение при загрузке списка: {e}")
+            logger.exception(
+                "event=encar_list_fetch_exception car_type=%s offset=%s limit=%s err=%s",
+                car_type, offset, limit, e
+            )
             return None
 
     def fetch_vehicle_detail(self, car_id: str) -> Optional[Dict]:
@@ -349,10 +490,10 @@ class EncarFullParser:
             if resp.status_code == 200:
                 return resp.json()
             else:
-                print(f"  Детальные данные {resp.status_code} для {car_id}")
+                logger.warning("event=encar_detail_fetch_failed car_id=%s status=%s", car_id, resp.status_code)
                 return None
         except Exception as e:
-            print(f"  Ошибка детальных данных {car_id}: {e}")
+            logger.exception("event=encar_detail_fetch_exception car_id=%s err=%s", car_id, e)
             return None
 
     def fetch_record(self, car_id: str, plate_number: str) -> Optional[Dict]:
@@ -362,17 +503,16 @@ class EncarFullParser:
             'Origin': 'https://fem.encar.com',
             'Referer': 'https://fem.encar.com/',
         }
-        encoded_plate = urllib.parse.quote(plate_number)
-        url = self.record_url.format(car_id) + f"?vehicleNo={encoded_plate}"
+        url = self.record_url.format(car_id)
         try:
-            resp = self._session_get(url, headers=headers, timeout=10)
+            resp = self._session_get(url, params={"vehicleNo": plate_number}, headers=headers, timeout=10)
             if resp.status_code == 200:
                 return resp.json()
             else:
-                print(f"    📑 История {resp.status_code} для {car_id}")
+                logger.info("event=encar_record_fetch_non200 car_id=%s status=%s", car_id, resp.status_code)
                 return None
         except Exception as e:
-            print(f"  Ошибка истории {car_id}: {e}")
+            logger.exception("event=encar_record_fetch_exception car_id=%s err=%s", car_id, e)
             return None
 
     def fetch_diagnosis(self, car_id: str) -> Optional[Dict]:
@@ -384,13 +524,13 @@ class EncarFullParser:
         try:
             resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
-                print(f"    ✅ Диагностика получена для {car_id}")
+                logger.debug("event=encar_diagnosis_fetch_ok car_id=%s", car_id)
                 return resp.json()
             else:
-                print(f"    📑 Диагностика {resp.status_code} для {car_id}")
+                logger.info("event=encar_diagnosis_fetch_non200 car_id=%s status=%s", car_id, resp.status_code)
                 return None
         except Exception as e:
-            print(f"    📝 Ошибка диагностики {car_id}: {e}")
+            logger.exception("event=encar_diagnosis_fetch_exception car_id=%s err=%s", car_id, e)
             return None
 
     # ---------- Новый метод для получения полной инспекции ----------
@@ -404,13 +544,13 @@ class EncarFullParser:
         try:
             resp = self._session_get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
-                print(f"    ✅ Полная инспекция получена для {car_id}")
+                logger.debug("event=encar_inspection_fetch_ok car_id=%s", car_id)
                 return resp.json()
             else:
-                print(f"    📑 Полная инспекция {resp.status_code} для {car_id}")
+                logger.info("event=encar_inspection_fetch_non200 car_id=%s status=%s", car_id, resp.status_code)
                 return None
         except Exception as e:
-            print(f"    📝 Ошибка полной инспекции {car_id}: {e}")
+            logger.exception("event=encar_inspection_fetch_exception car_id=%s err=%s", car_id, e)
             return None
 
     def fetch_sellingpoint(self, car_id: str) -> Optional[Dict]:
@@ -466,7 +606,11 @@ class EncarFullParser:
         # ------------------ Инспекция (техническое состояние) ------------------
         if inspection and isinstance(inspection, dict):
             master = inspection.get('master', {})
+            if not isinstance(master, dict):
+                master = {}
             detail = master.get('detail', {})
+            if not isinstance(detail, dict):
+                detail = {}
 
             # Базовая информация
             result['basicInfo'] = {
@@ -490,10 +634,19 @@ class EncarFullParser:
 
             def walk(items, parent=None):
                 for item in items:
+                    if not isinstance(item, dict):
+                        continue
                     t = item.get('type') or {}
+                    if not isinstance(t, dict):
+                        t = {}
                     name = t.get('title')
-                    status = (item.get('statusType') or {}).get('title')
+                    status_type = item.get('statusType') or {}
+                    if not isinstance(status_type, dict):
+                        status_type = {}
+                    status = status_type.get('title')
                     children = item.get('children', [])
+                    if not isinstance(children, list):
+                        children = []
 
                     # Определяем группу
                     group = parent if parent is not None else name
@@ -512,7 +665,10 @@ class EncarFullParser:
                     if children:
                         walk(children, group)
 
-            walk(inspection.get('inners', []))
+            inners = inspection.get('inners', [])
+            if not isinstance(inners, list):
+                inners = []
+            walk(inners)
             result['engineTransmission'] = engine_transmission
             result['chassis'] = chassis
             result['electrical'] = electrical
@@ -562,10 +718,17 @@ class EncarFullParser:
                 '정상': 'оригинал',
             }
 
-            for part in inspection.get('outers', []):
-                part_name = (part.get('title') or part.get('partName') or part.get('name') or part.get('part') or '').strip()
+            outers = inspection.get('outers', [])
+            if not isinstance(outers, list):
+                outers = []
+            for part in outers:
+                if not isinstance(part, dict):
+                    continue
+                part_name = str(part.get('title') or part.get('partName') or part.get('name') or part.get('part') or '').strip()
                 status_type = part.get('statusType') or {}
-                status = (status_type.get('title') or status_type.get('name') or part.get('status') or part.get('result') or '').strip()
+                if not isinstance(status_type, dict):
+                    status_type = {}
+                status = str(status_type.get('title') or status_type.get('name') or part.get('status') or part.get('result') or '').strip()
                 if not part_name:
                     continue
 
@@ -610,6 +773,8 @@ class EncarFullParser:
         # ------------------ Диагностика кузова ------------------
         if diagnosis and isinstance(diagnosis, dict):
             items = diagnosis.get('items', [])
+            if not isinstance(items, list):
+                items = []
 
             # Маппинг английских названий панелей на русские (как на Encar)
             panel_mapping = {
@@ -659,6 +824,8 @@ class EncarFullParser:
             outer_panel_comment = ''
 
             for item in items:
+                if not isinstance(item, dict):
+                    continue
                 name = item.get('name')
                 if name in panel_mapping:
                     result_code = item.get('resultCode') or item.get('resultCodeType')
@@ -720,12 +887,12 @@ class EncarFullParser:
         now = datetime.now().isoformat() + "+03:00"
 
         # --- Из item (поисковая выдача) ---
-        manufacturer = item.get('Manufacturer', '')
-        model = item.get('Model', '')
-        badge = item.get('Badge', '')
-        year = str(item.get('Year', ''))
+        manufacturer = self._as_text(item.get('Manufacturer', ''))
+        model = self._as_text(item.get('Model', ''))
+        badge = self._as_text(item.get('Badge', ''))
+        year = self._as_text(item.get('Year', ''))
         month = str(item.get('Month', '')).zfill(2) if item.get('Month') else ''
-        price_won = int(item.get('Price', 0))
+        price_won = self._as_int(item.get('Price')) or 0
         price = str(price_won // 10000) if price_won else ''
         monthly_finance_price = self._is_monthly_finance_listing(item)
         if monthly_finance_price:
@@ -740,25 +907,37 @@ class EncarFullParser:
             displacement = ''
         if not displacement and detail:
             spec = detail.get('spec', {}) or {}
+            if not isinstance(spec, dict):
+                spec = {}
             displacement = str(spec.get('engineDisplacement') or spec.get('displacement') or spec.get('Displacement') or '')
-        description = item.get('Description', '')
+        description = self._as_text(item.get('Description', ''))
 
         # --- Из detail (детальная информация) ---
-        vin = detail.get('vin', '') if detail else ''
-        vehicleNo = detail.get('vehicleNo', '') if detail else ''
+        vin = self._as_text(detail.get('vin', '') if detail else '')
+        vehicleNo = self._as_text(detail.get('vehicleNo', '') if detail else '')
         spec = detail.get('spec', {}) if detail else {}
         category = detail.get('category', {}) if detail else {}
-        grade_name = category.get('gradeName', '') if category else ''
+        grade_name = self._as_text(category.get('gradeName', '') if category else '')
         contact = detail.get('contact', {}) if detail else {}
         manage = detail.get('manage', {}) if detail else {}
         advertisement = detail.get('advertisement', {}) if detail else {}
+        if not isinstance(spec, dict):
+            spec = {}
+        if not isinstance(category, dict):
+            category = {}
+        if not isinstance(contact, dict):
+            contact = {}
+        if not isinstance(manage, dict):
+            manage = {}
+        if not isinstance(advertisement, dict):
+            advertisement = {}
 
         # Характеристики из spec
-        color = spec.get('colorName', '')
-        engine_type = spec.get('fuelName', '')
-        transmission_type = spec.get('transmissionName', '')
-        body_type = spec.get('bodyName', '')
-        seat_count = spec.get('seatCount', '')
+        color = self._as_text(spec.get('colorName', ''))
+        engine_type = self._as_text(spec.get('fuelName', ''))
+        transmission_type = self._as_text(spec.get('transmissionName', ''))
+        body_type = self._as_text(spec.get('bodyName', ''))
+        seat_count = self._as_text(spec.get('seatCount', ''))
 
         # Мощность (л.с.): 1) encar (item.hp), 2) lookup car_power_lookup.json, 3) парсим из badge/gradeName, 4) engine_map.json
         power = ''
@@ -809,18 +988,20 @@ class EncarFullParser:
                 from engine_hp_resolver import resolve_engine_hp
 
                 cat = (detail.get("category") or {}) if detail else {}
+                if not isinstance(cat, dict):
+                    cat = {}
                 hint = {
-                    "mark": cat.get("manufacturerName") or manufacturer,
-                    "manufacturerName": cat.get("manufacturerName") or manufacturer,
-                    "model": cat.get("modelName") or model,
-                    "modelName": cat.get("modelName") or model,
-                    "modelGroupName": cat.get("modelGroupName") or "",
-                    "generation": badge,
-                    "configuration": badge,
-                    "gradeName": grade_name,
-                    "displacement": displacement,
-                    "engine_type": engine_type,
-                    "year": year,
+                    "mark": self._as_text(cat.get("manufacturerName") or manufacturer),
+                    "manufacturerName": self._as_text(cat.get("manufacturerName") or manufacturer),
+                    "model": self._as_text(cat.get("modelName") or model),
+                    "modelName": self._as_text(cat.get("modelName") or model),
+                    "modelGroupName": self._as_text(cat.get("modelGroupName") or ""),
+                    "generation": self._as_text(badge),
+                    "configuration": self._as_text(badge),
+                    "gradeName": self._as_text(grade_name),
+                    "displacement": self._as_text(displacement),
+                    "engine_type": self._as_text(engine_type),
+                    "year": self._as_text(year),
                 }
                 hp_int = resolve_engine_hp(hint, record_source=False)
                 if hp_int is not None:
@@ -836,12 +1017,16 @@ class EncarFullParser:
             self._power_stats["without_power"] += 1
 
         # Адрес продавца
-        address = contact.get('address', '')
+        address = self._as_text(contact.get('address', ''))
 
         # Данные о продавце
-        seller_id = item.get('Separation', [None])[0] if item.get('Separation') else None
+        separation = item.get('Separation')
+        if isinstance(separation, list):
+            seller_id = separation[0] if separation else None
+        else:
+            seller_id = None
         seller = user_info.get('userId') if user_info else seller_id
-        salon_id = contact.get('no', '')
+        salon_id = self._as_text(contact.get('no', ''))
         seller_type = 'DEALER' if contact.get('userType') == 'DEALER' else 'CLIENT'
         is_dealer = seller_type == 'DEALER'
 
@@ -853,14 +1038,16 @@ class EncarFullParser:
         sales_status = advertisement.get('salesStatus', '')
 
         # Корейские названия
-        manufacturer_name = category.get('manufacturerName', '')
-        model_name = category.get('modelName', '')
-        grade_name = grade_name or category.get('gradeName', '')
-        model_group_name = category.get('modelGroupName', '')
+        manufacturer_name = self._as_text(category.get('manufacturerName', ''))
+        model_name = self._as_text(category.get('modelName', ''))
+        grade_name = grade_name or self._as_text(category.get('gradeName', ''))
+        model_group_name = self._as_text(category.get('modelGroupName', ''))
 
         # Опции – просто список кодов
         options = detail.get('options', {}) if detail else {}
         standard_options = options.get('standard', [])
+        if not isinstance(standard_options, list):
+            standard_options = []
 
         # Тип привода: 1) прямое поле из списка API (DriveType/driveType), 2) spec.driveType из деталей, 3) разбор badge
         drive_from_item = item.get('DriveType') or item.get('driveType')
@@ -873,7 +1060,7 @@ class EncarFullParser:
         if not drive_type and (drive_from_item or drive_from_spec):
             logger.debug(
                 "drive_type не определён: car_id=%s item.DriveType=%s spec.driveType=%s badge=%s",
-                car_id, drive_from_item, drive_from_spec, (badge or '')[:80]
+                car_id, drive_from_item, drive_from_spec, str(badge or '')[:80]
             )
         is_awd = (drive_type == 'AWD')
         prep_drive_type = drive_type  # обратная совместимость с фильтром и карточками
@@ -884,18 +1071,33 @@ class EncarFullParser:
         h_images = []
 
         advertisement = detail.get("advertisement", {}) if detail else {}
+        if not isinstance(advertisement, dict):
+            advertisement = {}
 
         # underBodyPhotos
         if advertisement.get("hasUnderBodyPhoto"):
-            for p in advertisement.get("underBodyPhotos", []):
+            under_body_photos = advertisement.get("underBodyPhotos", [])
+            if not isinstance(under_body_photos, list):
+                under_body_photos = []
+            for p in under_body_photos:
+                if not isinstance(p, dict):
+                    continue
                 url = p.get("photoUrl")
                 if url:
                     diag_photos.append(url)
 
         # используем ПЕРЕДАННЫЕ photos или фото из detail
-        photo_source = photos if photos else (detail.get("photos", []) if detail else [])
+        photo_source = []
+        if isinstance(photos, list) and photos:
+            photo_source = photos
+        else:
+            maybe_detail_photos = detail.get("photos", []) if detail else []
+            if isinstance(maybe_detail_photos, list):
+                photo_source = maybe_detail_photos
 
         for p in photo_source:
+            if not isinstance(p, dict):
+                continue
             photo_type = p.get("type")
             path = p.get("path")
 
@@ -921,6 +1123,16 @@ class EncarFullParser:
         # --- Осмотр ---
         inspection_data = detail.get("condition", {}).get("inspection", {}) if detail else {}
         inspection_formats = inspection_data.get("formats") or []
+        damage_summary = self._extract_damage_summary(record, diagnosis, inspection_structured)
+        source_shapes = self._source_shapes(item, detail, diagnosis, inspection, sellingpoint, record, user_info)
+        required_contract = {
+            "inner_id": car_id,
+            "url": f"http://www.encar.com/dc/dc_cardetailview.do?carid={car_id}",
+            "mark": manufacturer,
+            "model": model,
+            "year": year,
+        }
+        missing_required_fields = [k for k, v in required_contract.items() if v in ("", None)]
 
         # --- Сборка data ---
         data = {
@@ -988,7 +1200,21 @@ class EncarFullParser:
             'is_awd': is_awd,
             'vin': vin,
             'seatColor': '',
-            'seatCount': str(seat_count) if seat_count else ''
+            'seatCount': str(seat_count) if seat_count else '',
+            'parser_schema_version': PARSER_SCHEMA_VERSION,
+            'parser_normalized_at': now,
+            'data_quality': {
+                'detail_present': bool(detail),
+                'diagnosis_present': bool(diagnosis),
+                'inspection_present': bool(inspection),
+                'record_present': bool(record),
+                'sellingpoint_present': bool(sellingpoint),
+                'user_present': bool(user_info),
+                'missing_required_fields': missing_required_fields,
+            },
+            'parser_source_shapes': source_shapes["keys"],
+            'parser_source_shapes_hash': source_shapes["hashes"],
+            **damage_summary,
         }
 
         if power_from_engine_map:
@@ -1004,6 +1230,29 @@ class EncarFullParser:
             data["price_on_request"] = True
             data["encar_listing_reserved"] = True if intent == "reserved_placeholder" else data.get("encar_listing_reserved", False)
             data.pop("my_price", None)
+
+        clean = build_clean_layers(data)
+        data.update(clean)
+
+        quality_reasons = []
+        if missing_required_fields:
+            quality_reasons.append("missing_required_fields")
+        for endpoint in ("detail", "diagnosis", "inspection", "record", "sellingpoint", "user"):
+            if not data["data_quality"].get(f"{endpoint}_present"):
+                quality_reasons.append(f"{endpoint}_missing")
+        if intent == "monthly_finance":
+            quality_reasons.append("price_intent_monthly_finance")
+        elif intent == "reserved_placeholder":
+            quality_reasons.append("price_intent_reserved_placeholder")
+        data["data_quality"]["reasons"] = quality_reasons
+        contract_violations = validate_raw_json_min_contract(data)
+        data["data_quality"]["contract_violations"] = contract_violations
+        if contract_violations:
+            quality_reasons.append("raw_json_min_contract_violation")
+
+        if not data.get("inner_id") or not data.get("url") or not data.get("source", "encar"):
+            logger.warning("parser contract warning: missing core id/url fields for car_id=%s", car_id)
+        data.setdefault("source", "encar")
 
         return {
             'id': 0,
@@ -1026,31 +1275,31 @@ class EncarFullParser:
         limit = 50
         car_counter = 0
 
-        print("=" * 60)
-        print("Начинаем сбор данных с encar.com...")
-        print("=" * 60)
+        logger.info("event=encar_collect_start car_types=%s max_cars_per_type=%s delay=%s", car_types, max_cars_per_type, delay)
 
         for car_type in car_types:
             collected_for_type = 0
             offset = 0
             type_label = "импортные" if car_type == "for" else "отечественные"
 
-            print(f"\n--- Начинаем сбор для типа: {type_label} ({car_type}) ---")
+            logger.info("event=encar_collect_type_start car_type=%s type_label=%s", car_type, type_label)
 
             while collected_for_type < max_cars_per_type:
-                print(f"\n📋 [{type_label}] Загрузка списка offset={offset} "
-                      f"(собрано для типа: {collected_for_type}/{max_cars_per_type}, всего: {len(all_cars)})...")
+                logger.info(
+                    "event=encar_collect_list_page car_type=%s offset=%s collected_for_type=%s max_cars_per_type=%s total_collected=%s",
+                    car_type, offset, collected_for_type, max_cars_per_type, len(all_cars)
+                )
                 list_data = self.fetch_list_page(offset, limit, car_type=car_type)
                 if not list_data:
-                    print("❌ Не удалось загрузить список")
+                    logger.warning("event=encar_collect_list_missing car_type=%s offset=%s", car_type, offset)
                     break
 
                 items = list_data.get('SearchResults', [])
                 if not items:
-                    print("❌ Нет автомобилей в списке")
+                    logger.info("event=encar_collect_list_empty car_type=%s offset=%s", car_type, offset)
                     break
 
-                print(f"📦 Получено {len(items)} автомобилей в текущей странице")
+                logger.info("event=encar_collect_list_items car_type=%s offset=%s items=%s", car_type, offset, len(items))
 
                 for idx, item in enumerate(items, 1):
                     if collected_for_type >= max_cars_per_type:
@@ -1059,32 +1308,35 @@ class EncarFullParser:
                     car_id = item['Id']
                     seller_id = item.get('Separation', [None])[0] if item.get('Separation') else None
 
-                    print(f"\n  🔍 [{collected_for_type + 1}/{max_cars_per_type} для {type_label}] Обработка {car_id}...")
-                    print(f"  📌 {item.get('Manufacturer')} {item.get('Model')} - {item.get('Badge')}")
+                    logger.info(
+                        "event=encar_collect_car_start car_id=%s type_label=%s index=%s max_per_type=%s manufacturer=%s model=%s badge=%s",
+                        car_id, type_label, collected_for_type + 1, max_cars_per_type,
+                        item.get("Manufacturer"), item.get("Model"), item.get("Badge")
+                    )
 
                     # 1. Детальные данные
-                    print(f"    ⏳ Запрос детальных данных...")
+                    logger.debug("event=encar_collect_phase car_id=%s phase=detail", car_id)
                     detail = self.fetch_vehicle_detail(car_id)
                     plate_number = detail.get('vehicleNo') if detail else None
 
                     # 2. Диагностика (всегда запрашиваем — для блока «Диагностика кузова» и заменённых панелей)
                     diagnosis = None
-                    print(f"    ⏳ Запрос диагностики...")
+                    logger.debug("event=encar_collect_phase car_id=%s phase=diagnosis", car_id)
                     diagnosis = self.fetch_diagnosis(car_id)
 
                     # 3. История
                     record = None
                     if plate_number:
-                        print(f"    ⏳ Запрос истории...")
+                        logger.debug("event=encar_collect_phase car_id=%s phase=record", car_id)
                         record = self.fetch_record(car_id, plate_number)
 
                     # 4. Особенности и продавец
-                    print(f"    ⏳ Запрос информации о продавце...")
+                    logger.debug("event=encar_collect_phase car_id=%s phase=seller", car_id)
                     sellingpoint = self.fetch_sellingpoint(car_id)
                     user_info = self.fetch_user(seller_id) if seller_id else None
 
                     # 5. Полная инспекция (через отдельный API)
-                    print(f"    ⏳ Запрос полной инспекции...")
+                    logger.debug("event=encar_collect_phase car_id=%s phase=inspection", car_id)
                     full_inspection = self.fetch_inspection(car_id)
                     # Если не получилось, пробуем взять из detail (на случай, если API вернёт ошибку)
                     if not full_inspection and detail:
@@ -1105,15 +1357,13 @@ class EncarFullParser:
 
                     all_cars.append(normalized)
                     collected_for_type += 1
-                    print(f"  ✅ Автомобиль {car_id} ({type_label}) успешно добавлен")
+                    logger.info("event=encar_collect_car_added car_id=%s type_label=%s total=%s", car_id, type_label, len(all_cars))
 
                     time.sleep(delay)
 
                 offset += limit
 
-        print("\n" + "=" * 60)
-        print(f"🎉 Сбор завершён! Получено {len(all_cars)} автомобилей.")
-        print("=" * 60)
+        logger.info("event=encar_collect_done total=%s", len(all_cars))
         return all_cars
 
     def save_to_file(self, cars: List[Dict], filename: str = 'cars.json'):
@@ -1133,13 +1383,10 @@ class EncarFullParser:
         cars_with_diagnosis = sum(1 for car in cars if car['data']['extra'].get('diagnosis_photos'))
         cars_with_inspection = sum(1 for car in cars if car['data']['extra'].get('inspection_formats'))
 
-        print(f"\n📊 Статистика сохранения:")
-        print(f"   - Файл: {filename}")
-        print(f"   - Автомобилей: {len(cars)}")
-        print(f"   - Всего фотографий: {total_photos}")
-        print(f"   - С диагностикой: {cars_with_diagnosis}")
-        print(f"   - С осмотром: {cars_with_inspection}")
-        print(f"✅ Данные сохранены!")
+        logger.info(
+            "event=encar_save_file_done filename=%s cars=%s total_photos=%s with_diagnosis=%s with_inspection=%s",
+            filename, len(cars), total_photos, cars_with_diagnosis, cars_with_inspection
+        )
 
 if __name__ == '__main__':
     parser = EncarFullParser()

@@ -1,0 +1,17 @@
+[
+  {
+    "car_id": "41701817",
+    "expected_intent": "monthly_finance",
+    "note": "лизинг/кредит (monthly)"
+  },
+  {
+    "car_id": "41741522",
+    "expected_intent": "monthly_finance",
+    "note": "лизинг/кредит (monthly)"
+  },
+  {
+    "car_id": "REPLACE_WITH_RESERVED_CAR_ID",
+    "expected_intent": "reserved_placeholder",
+    "note": "бронь/placeholder 4,444/9,999/1,111"
+  }
+]

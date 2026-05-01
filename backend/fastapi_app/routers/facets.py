@@ -65,6 +65,7 @@ async def _facets_body(request: Request) -> Dict[str, Any]:
             parts.append(r)
     keys = [spec[0] for spec in FACET_SPECS_MEILI]
     payload = dict(zip(keys, parts))
+    payload["api_version"] = str(settings.api_contract_version or "v1")
     return FacetsResponse(**payload).model_dump()
 
 

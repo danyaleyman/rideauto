@@ -42,7 +42,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -150,33 +152,52 @@ def _model_group(model: str) -> str:
     return prev or s
 
 
-def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
+def _clean_block(row: Dict[str, Any], key: str) -> Dict[str, Any]:
+    raw = row.get("data")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = None
+    if not isinstance(raw, dict):
+        return {}
+    b = raw.get(key)
+    return b if isinstance(b, dict) else {}
+
+
+def row_to_document(row: Dict[str, Any], *, clean_read_mode: bool = False) -> Dict[str, Any]:
     car_id = row.get("car_id")
     if not car_id:
         raise ValueError("row missing car_id")
 
+    identity = _clean_block(row, "identity_clean") if clean_read_mode else {}
+    spec = _clean_block(row, "spec_clean") if clean_read_mode else {}
+    pricing = _clean_block(row, "pricing_clean") if clean_read_mode else {}
     doc: Dict[str, Any] = {
         "id": str(car_id),
         "pg_id": int(row["pg_id"]),
         "car_id": str(car_id),
-        "brand": (row.get("mark") or "").strip(),
-        "model": (row.get("model") or "").strip(),
-        "model_group": _model_group((row.get("model") or "").strip()),
-        "fuel": (row.get("fuel_type") or "").strip(),
-        "color": (row.get("color") or "").strip(),
-        "body_type": (row.get("body_type") or "").strip(),
-        "generation": (row.get("generation") or "").strip(),
-        "trim": (row.get("trim_name") or "").strip(),
-        "transmission": (row.get("transmission_type") or "").strip(),
-        "drive_type": (row.get("drive_type") or "").strip(),
+        "brand": str(identity.get("mark") or row.get("mark") or "").strip(),
+        "model": str(identity.get("model") or row.get("model") or "").strip(),
+        "model_group": _model_group(str(identity.get("model") or row.get("model") or "").strip()),
+        "fuel": str(spec.get("engine_type") or row.get("fuel_type") or "").strip(),
+        "color": str(spec.get("color") or row.get("color") or "").strip(),
+        "body_type": str(spec.get("body_type") or row.get("body_type") or "").strip(),
+        "generation": str(identity.get("generation") or row.get("generation") or "").strip(),
+        "trim": str(identity.get("trim_name") or row.get("trim_name") or "").strip(),
+        "transmission": str(spec.get("transmission_type") or row.get("transmission_type") or "").strip(),
+        "drive_type": str(spec.get("drive_type") or row.get("drive_type") or "").strip(),
     }
 
     src = row.get("source")
     if src is not None and str(src).strip():
         doc["source"] = str(src).strip()
 
-    if row.get("price_rub") is not None:
-        doc["price"] = float(row["price_rub"])
+    price_v = pricing.get("final_price_rub") if clean_read_mode else None
+    if price_v is None:
+        price_v = row.get("price_rub")
+    if price_v is not None:
+        doc["price"] = float(price_v)
     if row.get("insurance_cases") is not None:
         doc["insurance_cases"] = int(row["insurance_cases"])
     if row.get("insurance_payout_krw") is not None:
@@ -305,6 +326,7 @@ def push_batches(
     since: Optional[datetime],
     batch_size: int,
     wait_each_batch: bool,
+    clean_read_mode: bool,
 ) -> int:
     index = client.index(uid)
     total = 0
@@ -312,7 +334,7 @@ def push_batches(
 
     for row in iter_car_rows(dsn, since=since, batch_size=batch_size):
         try:
-            batch.append(row_to_document(row))
+            batch.append(row_to_document(row, clean_read_mode=clean_read_mode))
         except ValueError:
             continue
         if len(batch) >= batch_size:
@@ -353,6 +375,21 @@ def main() -> None:
         action="store_true",
         help="Do not wait for Meilisearch between batches (faster; poll tasks in /tasks)",
     )
+    parser.add_argument(
+        "--clean-read-mode",
+        action="store_true",
+        default=str(os.environ.get("WRA_CLEAN_READ_MODE", "")).strip().lower() in {"1", "true", "yes", "on"},
+        help="Prefer *_clean fields from cars.data while building documents",
+    )
+    parser.add_argument(
+        "--preflight-gate",
+        action="store_true",
+        default=str(os.environ.get("WRA_MEILI_PREFLIGHT_GATE", "")).strip().lower() in {"1", "true", "yes", "on"},
+        help="Run DB quality gates before syncing documents",
+    )
+    parser.add_argument("--preflight-min-price-coverage-pct", type=float, default=97.0)
+    parser.add_argument("--preflight-min-brand-coverage-pct", type=float, default=99.0)
+    parser.add_argument("--preflight-min-model-coverage-pct", type=float, default=99.0)
     args = parser.parse_args()
 
     settings_path = args.settings
@@ -366,6 +403,23 @@ def main() -> None:
 
     if not args.pg_dsn and not args.settings_only:
         parser.error("--pg-dsn is required unless --settings-only")
+    if args.preflight_gate and not args.settings_only:
+        env = dict(os.environ)
+        env.setdefault("DATABASE_URL", str(args.pg_dsn or ""))
+        script_path = Path(__file__).resolve().parents[2] / "backend" / "scripts" / "meili_sync_preflight.py"
+        cmd = [
+            sys.executable,
+            str(script_path),
+            "--min-price-coverage-pct",
+            str(args.preflight_min_price_coverage_pct),
+            "--min-brand-coverage-pct",
+            str(args.preflight_min_brand_coverage_pct),
+            "--min-model-coverage-pct",
+            str(args.preflight_min_model_coverage_pct),
+        ]
+        proc = subprocess.run(cmd, env=env, check=False)
+        if proc.returncode != 0:
+            raise SystemExit(proc.returncode)
 
     settings = load_settings(settings_path)
     client = Client(args.meili_url, args.meili_key or None)
@@ -385,6 +439,7 @@ def main() -> None:
         since=since_dt,
         batch_size=max(1, min(args.batch_size, 50_000)),
         wait_each_batch=not args.no_wait_batches,
+        clean_read_mode=bool(args.clean_read_mode),
     )
     print(f"synced document batches (upsert count): {n}", flush=True)
 

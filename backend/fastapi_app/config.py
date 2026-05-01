@@ -23,6 +23,24 @@ class Settings(BaseSettings):
     meilisearch_url: str = Field(default="http://127.0.0.1:7700")
     meilisearch_key: str = Field(default="")
     meilisearch_index: str = Field(default="cars")
+    clean_read_mode: bool = Field(
+        default=False,
+        description="WRA_CLEAN_READ_MODE — prefer *_clean blocks in runtime reads",
+    )
+    clean_read_percent: int = Field(
+        default=100,
+        ge=0,
+        le=100,
+        description="WRA_CLEAN_READ_PERCENT — rollout share for clean reads",
+    )
+    legacy_fallbacks_enabled: bool = Field(
+        default=True,
+        description="WRA_LEGACY_FALLBACKS_ENABLED — allow fallback to legacy fields",
+    )
+    api_contract_version: str = Field(
+        default="v1",
+        description="WRA_API_CONTRACT_VERSION — API contract version label",
+    )
 
     redis_url: Optional[str] = Field(default=None, description="WRA_REDIS_URL — redis://…")
     redis_cache_prefix: str = Field(
