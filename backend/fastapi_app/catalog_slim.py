@@ -76,25 +76,26 @@ def _encar_finance_like_card(data: Dict[str, Any]) -> bool:
     monthly_keys = ("encar_month_lease_price", "encar_month_lease_rent_price", "encar_month_lease_rest")
     if any(_as_positive_float(data.get(k)) > 0 for k in monthly_keys):
         return True
-    for s in _iter_texts(data):
+    # API выдача: только строгие признаки monthly/lease. Широкие эвристики на уровне ответа
+    # дают ложные срабатывания и скрывают нормальные цены.
+    text_hints = (
+        str(data.get("price_text") or ""),
+        str(data.get("encar_lease_type") or ""),
+        str(data.get("encar_attribute_type") or ""),
+        str(data.get("encar_price_type_name") or ""),
+        str(data.get("encar_price_type") or ""),
+    )
+    for s in text_hints:
+        if not s:
+            continue
         if _MONTHLY_PAT.search(s):
             return True
-        # Generic finance words can appear on normal cards; require monthly/term context.
         if _MONTHLY_HINT_PAT.search(s) and ("월" in s or _TERM_MONTHS_PAT.search(s)):
             return True
         if _TERM_MONTHS_PAT.search(s) and ("렌트" in s or "리스" in s or "할부" in s):
             return True
         if "차량가격" in s and ("월" in s or _MONTHLY_HINT_PAT.search(s)):
             return True
-
-    # Last-resort guard: implausibly low Encar sale price for modern/low-mileage cars.
-    pw = _as_positive_float(data.get("price_won"))
-    p_mw = _as_positive_float(data.get("price"))
-    eff_mw = p_mw if p_mw > 0 else (pw / 10000.0 if pw > 0 else 0.0)
-    year_val = _digits_to_int(str(data.get("year") or data.get("yearMonth") or "")[:4])
-    km_val = _digits_to_int(data.get("km_age"))
-    if 0 < eff_mw < 1000 and ((year_val is not None and year_val >= 2015) or (km_val is not None and km_val <= 150000)):
-        return True
     return False
 
 
