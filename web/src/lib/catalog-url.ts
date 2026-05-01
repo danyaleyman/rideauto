@@ -26,6 +26,8 @@ export type CatalogUrlState = {
   passable_only: boolean;
   power_hp_le_160: boolean;
   drive_awd: boolean;
+  no_accidents_only: boolean;
+  new_only: boolean;
   sort: string;
   page: number;
 };
@@ -85,6 +87,8 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
     passable_only: sp.get("passable_only") === "1",
     power_hp_le_160: sp.get("power_hp_le_160") === "1",
     drive_awd: sp.get("drive_awd") === "1",
+    no_accidents_only: sp.get("no_accidents_only") === "1",
+    new_only: sp.get("new_only") === "1",
     sort: (sp.get("sort") || "date_new").trim() || "date_new",
     page,
   };
@@ -143,6 +147,8 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   if (state.passable_only) u.set("passable_only", "1");
   if (state.power_hp_le_160) u.set("power_hp_le_160", "1");
   if (state.drive_awd) u.set("drive_awd", "1");
+  if (state.no_accidents_only) u.set("no_accidents_only", "1");
+  if (state.new_only) u.set("new_only", "1");
   if (state.sort && state.sort !== "date_new") u.set("sort", state.sort);
   if (state.page > 1) u.set("page", String(state.page));
   const entries = [...u.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -181,6 +187,8 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   if (state.passable_only) p.set("passable_only", "1");
   if (state.power_hp_le_160) p.set("power_hp_le_160", "1");
   if (state.drive_awd) p.set("drive_awd", "1");
+  if (state.no_accidents_only) p.set("no_accidents_only", "1");
+  if (state.new_only) p.set("new_only", "1");
   if (state.sort && state.sort !== "date_new") p.set("sort", state.sort);
   if (state.page > 1) {
     p.set("cursor", encodeOffsetCursor((state.page - 1) * PER_PAGE, PER_PAGE));

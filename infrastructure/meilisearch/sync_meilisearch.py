@@ -177,6 +177,12 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
 
     if row.get("price_rub") is not None:
         doc["price"] = float(row["price_rub"])
+    if row.get("insurance_cases") is not None:
+        doc["insurance_cases"] = int(row["insurance_cases"])
+    if row.get("insurance_payout_krw") is not None:
+        doc["insurance_payout_krw"] = int(row["insurance_payout_krw"])
+    if row.get("damaged_parts_count") is not None:
+        doc["damaged_parts_count"] = int(row["damaged_parts_count"])
     if row.get("encar_listing_sold") is not None:
         doc["encar_listing_sold"] = bool(row.get("encar_listing_sold"))
     if row.get("dongchedi_listing_sold") is not None:
@@ -260,6 +266,9 @@ def iter_car_rows(
                 c.drive_type,
                 c.color,
                 c.price_rub,
+                c.insurance_cases,
+                c.insurance_payout_krw,
+                c.damaged_parts_count,
                 c.year,
                 c.year_month,
                 c.mileage_km,

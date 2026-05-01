@@ -1034,6 +1034,8 @@ export function CatalogClient({
       passable_only: false,
       power_hp_le_160: false,
       drive_awd: false,
+      no_accidents_only: false,
+      new_only: false,
       sort: "date_new",
       page: 1,
     });
@@ -1063,6 +1065,8 @@ export function CatalogClient({
       passable_only: false,
       power_hp_le_160: false,
       drive_awd: false,
+      no_accidents_only: false,
+      new_only: false,
       page: 1,
     });
   };
@@ -1130,6 +1134,8 @@ export function CatalogClient({
     if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
     if (state.power_hp_le_160) chips.push({ key: "power_hp_le_160", label: "До 160 л.с." });
     if (state.passable_only) chips.push({ key: "passable_only", label: "Только проходные авто" });
+    if (state.no_accidents_only) chips.push({ key: "no_accidents_only", label: "Только без ДТП" });
+    if (state.new_only) chips.push({ key: "new_only", label: "Только новые авто (< 500 км)" });
     if (state.price_from) chips.push({ key: "price_from", label: `Цена от: ${state.price_from}` });
     if (state.price_to) chips.push({ key: "price_to", label: `Цена до: ${state.price_to}` });
     if (state.mileage_from) chips.push({ key: "mileage_from", label: `Пробег от: ${state.mileage_from}` });
@@ -1179,6 +1185,14 @@ export function CatalogClient({
     }
     if (chip.key === "passable_only") {
       navigate({ ...state, passable_only: false, page: 1 });
+      return;
+    }
+    if (chip.key === "no_accidents_only") {
+      navigate({ ...state, no_accidents_only: false, page: 1 });
+      return;
+    }
+    if (chip.key === "new_only") {
+      navigate({ ...state, new_only: false, page: 1 });
       return;
     }
     navigate({ ...state, [chip.key]: "", page: 1 });
@@ -1334,6 +1348,26 @@ export function CatalogClient({
                       className="shrink-0"
                     />
                     Только авто до 160 л.с.
+                  </label>
+                  <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm [overflow-wrap:anywhere]">
+                    <Checkbox
+                      checked={state.no_accidents_only}
+                      onCheckedChange={(v) =>
+                        navigate({ ...state, no_accidents_only: Boolean(v), page: 1 })
+                      }
+                      className="shrink-0"
+                    />
+                    Только без ДТП
+                  </label>
+                  <label className="flex min-w-0 cursor-pointer items-start gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm [overflow-wrap:anywhere]">
+                    <Checkbox
+                      checked={state.new_only}
+                      onCheckedChange={(v) =>
+                        navigate({ ...state, new_only: Boolean(v), page: 1 })
+                      }
+                      className="shrink-0"
+                    />
+                    Только новые авто (до 500 км)
                   </label>
                   {facets ? (
                     <div className="space-y-2">

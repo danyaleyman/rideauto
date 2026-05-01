@@ -214,6 +214,18 @@ def build_meilisearch_filter(
             ')'
         )
 
+    if q.get("no_accidents_only") == "1":
+        clauses.append(
+            "("
+            "(insurance_cases IS NULL OR insurance_cases = 0) AND "
+            "(insurance_payout_krw IS NULL OR insurance_payout_krw = 0) AND "
+            "(damaged_parts_count IS NULL OR damaged_parts_count = 0)"
+            ")"
+        )
+
+    if q.get("new_only") == "1":
+        clauses.append("(mileage IS NOT NULL AND mileage <= 500)")
+
     if q.get("passable_only") == "1":
         now = datetime.now(timezone.utc)
         ym_5y = (now.year - 5) * 100 + now.month

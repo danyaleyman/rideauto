@@ -16,3 +16,19 @@ def test_search_filter_can_include_sold_on_flag():
     assert filt is not None
     assert "encar_listing_sold" not in filt
     assert "dongchedi_listing_sold" not in filt
+
+
+def test_search_filter_no_accidents_flag():
+    q = {"region": "korea", "source": "encar", "no_accidents_only": "1"}
+    filt = build_meilisearch_filter(q)
+    assert filt is not None
+    assert "insurance_cases" in filt
+    assert "insurance_payout_krw" in filt
+    assert "damaged_parts_count" in filt
+
+
+def test_search_filter_new_only_flag():
+    q = {"region": "korea", "source": "encar", "new_only": "1"}
+    filt = build_meilisearch_filter(q)
+    assert filt is not None
+    assert "mileage <= 500" in filt
