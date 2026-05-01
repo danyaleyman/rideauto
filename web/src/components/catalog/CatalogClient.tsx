@@ -1556,12 +1556,21 @@ export function CatalogClient({
               const listingSold = Boolean(car.encar_listing_sold || car.dongchedi_listing_sold);
               const fav = authenticated && isFavorite(car.id);
               const showCopied = copiedId === car.id;
+              const openingThisCard = openingCarId === car.id;
               return (
                 <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout>
                   <Card
                     size="sm"
-                    className="flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[13rem] sm:flex-row"
+                    className="relative flex flex-col items-stretch gap-0 overflow-hidden !py-0 data-[size=sm]:!py-0 shadow-sm ring-1 ring-border/70 transition-shadow hover:shadow-md sm:min-h-[13rem] sm:flex-row"
                   >
+                    {openingThisCard ? (
+                      <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/65 backdrop-blur-[1px]">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+                          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                          Загрузка карточки…
+                        </span>
+                      </div>
+                    ) : null}
                     <Link
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
