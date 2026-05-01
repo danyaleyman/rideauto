@@ -27,6 +27,78 @@ _CHINA_SUBSTRING_LABEL_OVERRIDES: Dict[str, str] = {
     "奕炫gs": "Yixuan GS",
 }
 
+_MONTHLY_PAT = re.compile(r"월\s*\d[\d,.\s]*\s*만?원")
+_MONTHLY_HINT_PAT = re.compile(r"(월\s*렌트|월렌트|월\s*리스|월리스|할부|렌트|리스|대출)")
+_TERM_MONTHS_PAT = re.compile(r"\d+\s*개월")
+
+
+def _as_positive_float(value: Any) -> float:
+    try:
+        if value is None or value == "":
+            return 0.0
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _digits_to_int(value: Any) -> int | None:
+    s = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if not s:
+        return None
+    try:
+        return int(s)
+    except (TypeError, ValueError):
+        return None
+
+
+def _iter_texts(value: Any):
+    if isinstance(value, str):
+        s = value.strip()
+        if s:
+            yield s
+        return
+    if isinstance(value, dict):
+        for vv in value.values():
+            yield from _iter_texts(vv)
+        return
+    if isinstance(value, list):
+        for vv in value:
+            yield from _iter_texts(vv)
+        return
+
+
+def _encar_finance_like_card(data: Dict[str, Any]) -> bool:
+    src = str(data.get("source") or "encar").strip().lower()
+    if src != "encar":
+        return False
+    if data.get("encar_monthly_finance_price") is True:
+        return True
+    monthly_keys = ("encar_month_lease_price", "encar_month_lease_rent_price", "encar_month_lease_rest")
+    if any(_as_positive_float(data.get(k)) > 0 for k in monthly_keys):
+        return True
+    for s in _iter_texts(data):
+        low = s.lower()
+        if "lease" in low or "rent" in low:
+            return True
+        if _MONTHLY_PAT.search(s):
+            return True
+        if _MONTHLY_HINT_PAT.search(s):
+            return True
+        if _TERM_MONTHS_PAT.search(s) and ("렌트" in s or "리스" in s or "할부" in s):
+            return True
+        if "차량가격" in s and ("월" in s or _MONTHLY_HINT_PAT.search(s)):
+            return True
+
+    # Last-resort guard: implausibly low Encar sale price for modern/low-mileage cars.
+    pw = _as_positive_float(data.get("price_won"))
+    p_mw = _as_positive_float(data.get("price"))
+    eff_mw = p_mw if p_mw > 0 else (pw / 10000.0 if pw > 0 else 0.0)
+    year_val = _digits_to_int(str(data.get("year") or data.get("yearMonth") or "")[:4])
+    km_val = _digits_to_int(data.get("km_age"))
+    if 0 < eff_mw < 1000 and ((year_val is not None and year_val >= 2015) or (km_val is not None and km_val <= 150000)):
+        return True
+    return False
+
 
 def _coerce_catalog_images_to_urls(parsed: list[Any]) -> list[str]:
     """Slim-каталог: в `images` могут быть строки (Encar/DC) или dict с url/pic_url — как в сыром API."""
@@ -100,6 +172,15 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "usdt_rub",
         "source",
         "price_on_request",
+        "price_text",
+        "encar_price_type",
+        "encar_price_type_name",
+        "encar_lease_type",
+        "encar_attribute_type",
+        "encar_monthly_finance_price",
+        "encar_month_lease_price",
+        "encar_month_lease_rent_price",
+        "encar_month_lease_rest",
     }
 )
 
@@ -212,9 +293,14 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     out["title"] = _car_title(slim_data)
     out["price"] = _extract_num(slim_data, "my_price")
     explicit_por = slim_data.get("price_on_request")
+    forced_por = _encar_finance_like_card(slim_data)
+    if forced_por:
+        out["price"] = None
     p = out["price"]
     implicit_por = p is None or (isinstance(p, (int, float)) and not isinstance(p, bool) and float(p) <= 0)
-    if explicit_por is True:
+    if forced_por:
+        out["price_on_request"] = True
+    elif explicit_por is True:
         out["price_on_request"] = True
     elif explicit_por is False:
         out["price_on_request"] = False

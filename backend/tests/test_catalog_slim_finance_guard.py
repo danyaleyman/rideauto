@@ -1,0 +1,37 @@
+from fastapi_app.catalog_slim import slim_catalog_car
+
+
+def test_slim_forces_price_on_request_for_finance_text_card():
+    car = {
+        "data": {
+            "source": "encar",
+            "mark": "Hyundai",
+            "model": "Kona",
+            "year": "2026",
+            "km_age": "1",
+            "my_price": 1022243,
+            "price_won": 4320000,
+            "price_text": "월36만원 월렌트(12개월) 인수금 0만원 차량가격 432만원",
+        }
+    }
+    out = slim_catalog_car(car, "encar-1")
+    assert out.get("price") is None
+    assert out.get("price_on_request") is True
+
+
+def test_slim_keeps_normal_price_for_regular_card():
+    car = {
+        "data": {
+            "source": "encar",
+            "mark": "Hyundai",
+            "model": "Avante",
+            "year": "2018",
+            "km_age": "98000",
+            "my_price": 1190000,
+            "price_won": 95000000,
+            "price": "9500",
+        }
+    }
+    out = slim_catalog_car(car, "encar-2")
+    assert out.get("price") is not None
+    assert out.get("price_on_request") in (False, None)
