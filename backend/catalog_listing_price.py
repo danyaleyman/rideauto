@@ -187,9 +187,11 @@ def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
         s = str(data.get(k) or "").strip().lower()
         if not s:
             continue
-        if "lease" in s or "rent" in s or "리스" in s or "렌트" in s or "할부" in s or "월" in s:
+        if monthly_pat.search(s) or takeover_pat.search(s):
             return True
-        if monthly_pat.search(s) or monthly_keyword_pat.search(s) or takeover_pat.search(s):
+        # Keywords by themselves are too broad (regular listings can contain finance promo blocks).
+        # Require at least monthly/term context when keyword is present.
+        if monthly_keyword_pat.search(s) and ("월" in s or term_pat.search(s)):
             return True
         if term_pat.search(s) and ("렌트" in s or "리스" in s or "할부" in s):
             return True
@@ -198,9 +200,6 @@ def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
             return True
 
     for s in _iter_texts(data):
-        low = s.lower()
-        if "lease" in low or "rent" in low:
-            return True
         if monthly_pat.search(s) or takeover_pat.search(s):
             return True
         if monthly_keyword_pat.search(s) and ("월" in s or term_pat.search(s)):

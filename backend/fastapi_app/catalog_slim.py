@@ -77,12 +77,10 @@ def _encar_finance_like_card(data: Dict[str, Any]) -> bool:
     if any(_as_positive_float(data.get(k)) > 0 for k in monthly_keys):
         return True
     for s in _iter_texts(data):
-        low = s.lower()
-        if "lease" in low or "rent" in low:
-            return True
         if _MONTHLY_PAT.search(s):
             return True
-        if _MONTHLY_HINT_PAT.search(s):
+        # Generic finance words can appear on normal cards; require monthly/term context.
+        if _MONTHLY_HINT_PAT.search(s) and ("월" in s or _TERM_MONTHS_PAT.search(s)):
             return True
         if _TERM_MONTHS_PAT.search(s) and ("렌트" in s or "리스" in s or "할부" in s):
             return True

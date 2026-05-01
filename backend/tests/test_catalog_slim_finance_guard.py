@@ -35,3 +35,22 @@ def test_slim_keeps_normal_price_for_regular_card():
     out = slim_catalog_car(car, "encar-2")
     assert out.get("price") is not None
     assert out.get("price_on_request") in (False, None)
+
+
+def test_slim_keeps_normal_price_for_regular_card_with_finance_promo_text():
+    car = {
+        "data": {
+            "source": "encar",
+            "mark": "Lamborghini",
+            "model": "Urus",
+            "year": "2025",
+            "km_age": "1384",
+            "my_price": 49600445,
+            "price_won": 450900000,
+            "price": "45090",
+            "price_text": "엔카금융 1분만에 한도/금리 비교",
+        }
+    }
+    out = slim_catalog_car(car, "encar-3")
+    assert out.get("price") == 49600445
+    assert out.get("price_on_request") in (False, None)

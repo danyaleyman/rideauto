@@ -92,6 +92,22 @@ def test_encar_suspicious_low_sale_price_not_list_price_for_modern_car():
     )
 
 
+def test_encar_regular_listing_with_generic_finance_promo_stays_list_price():
+    assert (
+        encar_has_list_price(
+            {
+                "source": "encar",
+                "price_won": 450900000,
+                "price": "45090",
+                "year": "2025",
+                "km_age": "1384",
+                "price_text": "엔카금융 1분만에 한도/금리 비교",
+            }
+        )
+        is True
+    )
+
+
 def test_china_market_car():
     assert china_market_car("dongchedi-1", {"source": "encar"}) is True
     assert china_market_car("x", {"source": "dongchedi"}) is True
