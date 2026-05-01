@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import {
   catalogStateKey,
   parseCatalogUrl,
@@ -97,6 +97,7 @@ import {
   Gauge,
   Heart,
   LayoutGrid,
+  Loader2,
   Settings2,
   Sparkles,
   Zap,
@@ -120,6 +121,18 @@ function visiblePageItems(page: number, total: number): Array<number | "ellipsis
     out.push(sorted[i]);
   }
   return out;
+}
+
+function shouldShowPendingNavigation(e: ReactMouseEvent<HTMLAnchorElement>): boolean {
+  // Keep indicator only for in-tab navigation; new tab/window clicks should not mark loading state.
+  return !(
+    e.defaultPrevented ||
+    e.button !== 0 ||
+    e.metaKey ||
+    e.ctrlKey ||
+    e.shiftKey ||
+    e.altKey
+  );
 }
 
 function previewImageUrls(car: SlimCar): string[] {
@@ -441,7 +454,7 @@ function ColorFacetDialog({
       </DialogTrigger>
       <DialogContent
         showCloseButton
-        className="flex max-h-[min(90vh,44rem)] w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className="flex max-h-[92vh] w-[min(96vw,84rem)] max-w-[min(96vw,84rem)] flex-col gap-0 overflow-hidden p-0"
       >
         <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 pt-6 pb-4 pe-14">
           <DialogTitle>{label}</DialogTitle>
@@ -459,16 +472,16 @@ function ColorFacetDialog({
           {filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Нет совпадений</p>
           ) : (
-            <div className="columns-2 gap-x-3 [column-fill:_balance] sm:columns-3 md:columns-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((r) => {
                 const active = r.values.some((v) => selected.has(v));
                 return (
-                  <div key={r.label} className="mb-2 break-inside-avoid">
+                  <div key={r.label} className="min-w-0">
                     <Button
                       type="button"
                       variant={active ? "default" : "secondary"}
                       size="sm"
-                      className="h-auto min-h-9 w-full justify-start gap-2 rounded-xl px-2.5 py-1.5 text-start font-normal"
+                      className="h-auto min-h-10 w-full min-w-0 items-start justify-start gap-2 rounded-xl px-2.5 py-2 text-start font-normal whitespace-normal"
                       onClick={() => onToggle(r.values)}
                     >
                       <span
@@ -478,7 +491,7 @@ function ColorFacetDialog({
                         )}
                         aria-hidden
                       />
-                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{r.label}</span>
+                      <span className="min-w-0 flex-1 break-words leading-snug">{r.label}</span>
                       <span className="shrink-0 tabular-nums text-xs opacity-80">
                         {r.count.toLocaleString("ru-RU")}
                       </span>
@@ -808,6 +821,7 @@ export function CatalogClient({
   const [err, setErr] = useState<string | null>(null);
   const [qDraft, setQDraft] = useState(state.q);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [openingCarId, setOpeningCarId] = useState<string | null>(null);
   const [dailyNewCount, setDailyNewCount] = useState<number | null>(null);
   const [dailyNewLoading, setDailyNewLoading] = useState(true);
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
@@ -817,6 +831,11 @@ export function CatalogClient({
   useEffect(() => {
     setQDraft(state.q);
   }, [state.q]);
+
+  useEffect(() => {
+    // Query changed in-place without unmount: clear stale "opening..." marker.
+    setOpeningCarId(null);
+  }, [key]);
 
   useEffect(() => {
     if (!spStr.trim()) {
@@ -1051,12 +1070,9 @@ export function CatalogClient({
   const title =
     state.market === "china" ? "Автомобили из Китая" : "Автомобили из Кореи";
 
-  const pages =
-    search.meta.pages > 0
-      ? search.meta.pages
-      : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
-
-  const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
+  // Cursor pagination has no reliable "last page"; show only discovered range.
+  const knownLastPage = Math.max(state.page, search.meta.next_cursor ? state.page + 1 : state.page);
+  const pageItems = useMemo(() => visiblePageItems(state.page, knownLastPage), [state.page, knownLastPage]);
 
   const facetLabelByValue = useMemo(() => {
     const f = facets ?? {
@@ -1384,16 +1400,20 @@ export function CatalogClient({
                           Популярные цвета
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {facets.colors.slice(0, 8).map((row) => {
-                            const active = state.color.includes(row.value);
+                          {facets.colors.slice(0, 8).map((row, idx) => {
+                            const vals =
+                              Array.isArray(row.values) && row.values.length
+                                ? row.values
+                                : [row.value];
+                            const active = vals.some((v) => state.color.includes(v));
                             return (
                               <Button
-                                key={row.value}
+                                key={`${idx}:${row.value}`}
                                 type="button"
                                 variant={active ? "default" : "secondary"}
                                 size="xs"
                                 className="h-8 max-w-full rounded-full px-2.5"
-                                onClick={() => toggle("color", row.value)}
+                                onClick={() => toggle("color", vals)}
                               >
                                 <span
                                   className={cn(
@@ -1444,6 +1464,12 @@ export function CatalogClient({
                 </span>
                 {loading ? " · обновление…" : ""}
               </p>
+              {openingCarId ? (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  Открываем карточку автомобиля…
+                </span>
+              ) : null}
               {dailyNewLoading ? (
                 <Skeleton className="h-7 w-full max-w-md rounded-full sm:w-[min(100%,20rem)]" />
               ) : dailyNewCount !== null ? (
@@ -1540,6 +1566,9 @@ export function CatalogClient({
                       href={`/car/${encodeURIComponent(car.id)}`}
                       prefetch
                       className="relative h-52 w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:h-auto sm:w-60 sm:self-stretch sm:rounded-s-2xl sm:rounded-tr-none md:w-72"
+                      onClick={(e) => {
+                        if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
+                      }}
                     >
                       <div className="relative size-full">
                         <CatalogCardImage
@@ -1592,6 +1621,9 @@ export function CatalogClient({
                           href={`/car/${encodeURIComponent(car.id)}`}
                           prefetch
                           className="flex min-w-0 flex-1 items-center self-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={(e) => {
+                            if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
+                          }}
                         >
                           <p className="font-heading line-clamp-2 min-h-[2.9rem] text-[15px] font-semibold leading-snug sm:min-h-[2.25rem] sm:text-base">
                             {normalizedTitle}
