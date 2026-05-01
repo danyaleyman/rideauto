@@ -61,6 +61,16 @@ def test_encar_reserved_placeholder_detector():
 def test_encar_monthly_finance_fallback_fields_are_not_list_price():
     assert encar_has_list_price({"price_won": 2190, "encar_month_lease_price": 24}) is False
     assert encar_has_list_price({"price_won": 2190, "encar_lease_type": "월렌트"}) is False
+    assert encar_has_list_price({"price_won": 4320, "price_text": "월36만원 월렌트(12개월)"}) is False
+    assert (
+        encar_has_list_price(
+            {
+                "price_won": 4320000,
+                "price_text": "월36만원 월렌트(12개월) 인수금 0만원 차량가격 432만원",
+            }
+        )
+        is False
+    )
 
 
 def test_encar_monthly_finance_legacy_small_price_won_not_list_price():

@@ -244,6 +244,21 @@ class EncarFullParser:
         if not isinstance(item, dict):
             return False
 
+        def _iter_texts(value: Any):
+            if isinstance(value, str):
+                s = value.strip()
+                if s:
+                    yield s
+                return
+            if isinstance(value, dict):
+                for vv in value.values():
+                    yield from _iter_texts(vv)
+                return
+            if isinstance(value, list):
+                for vv in value:
+                    yield from _iter_texts(vv)
+                return
+
         monthly_keys = ('MonthLeasePrice', 'MonthLeaseRentPrice', 'MonthLeaseRest')
         if any(self._as_positive_float(item.get(k)) > 0 for k in monthly_keys):
             return True
@@ -271,6 +286,8 @@ class EncarFullParser:
 
         monthly_pat = re.compile(r"월\s*\d[\d,.\s]*\s*만?원")
         explicit_sale_pat = re.compile(r"\d[\d,.\s]*\s*만?원")
+        monthly_keyword_pat = re.compile(r"(월\s*렌트|월렌트|월\s*리스|월리스|할부|렌트|리스)")
+        term_pat = re.compile(r"\d+\s*개월")
         text_hint_keys = (
             "PriceView",
             "PriceTypeName",
@@ -289,6 +306,17 @@ class EncarFullParser:
                 return True
             # Если явно указано "월" в том же текстовом поле цены/типа — трактуем как ежемесячный платеж.
             if "월" in s and not explicit_sale_pat.fullmatch(s):
+                return True
+            if monthly_keyword_pat.search(s):
+                return True
+            if term_pat.search(s) and ("렌트" in s or "리스" in s or "할부" in s):
+                return True
+
+        # Fallback: Encar иногда кладет нужный маркер в неожиданный ключ (например 월렌트(12개월)).
+        for s in _iter_texts(item):
+            if monthly_pat.search(s):
+                return True
+            if monthly_keyword_pat.search(s) and ("월" in s or term_pat.search(s)):
                 return True
         return False
 
@@ -973,6 +1001,9 @@ class EncarFullParser:
             'encar_month_lease_rest': item.get('MonthLeaseRest'),
             'encar_lease_type': item.get('LeaseType'),
             'encar_attribute_type': item.get('AttributeType'),
+            'encar_price_type': item.get('PriceType'),
+            'encar_price_type_name': item.get('PriceTypeName'),
+            'price_text': item.get('PriceView') or item.get('PriceText'),
             'km_age': km_age,
             'engine_type': engine_type,
             'transmission_type': transmission_type,

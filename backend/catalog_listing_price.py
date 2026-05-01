@@ -1,6 +1,7 @@
 """Правила «есть ли цена в объявлении» и очистка полей расчёта для режима «цена по запросу»."""
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, Optional
 
 _FIELDS_FROM_KOREAN_PRICE_CALC = (
@@ -114,6 +115,26 @@ def _as_positive_float(value: Any) -> float:
 
 
 def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
+    def _iter_texts(value: Any):
+        if isinstance(value, str):
+            s = value.strip()
+            if s:
+                yield s
+            return
+        if isinstance(value, dict):
+            for vv in value.values():
+                yield from _iter_texts(vv)
+            return
+        if isinstance(value, list):
+            for vv in value:
+                yield from _iter_texts(vv)
+            return
+
+    monthly_pat = re.compile(r"월\s*\d[\d,.\s]*\s*만?원")
+    monthly_keyword_pat = re.compile(r"(월\s*렌트|월렌트|월\s*리스|월리스|할부|렌트|리스|대출)")
+    term_pat = re.compile(r"\d+\s*개월")
+    takeover_pat = re.compile(r"인수금\s*\d[\d,.\s]*\s*만?원")
+
     if data.get("encar_monthly_finance_price") is True:
         return True
     monthly_keys = ("encar_month_lease_price", "encar_month_lease_rent_price", "encar_month_lease_rest")
@@ -132,6 +153,24 @@ def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
         if not s:
             continue
         if "lease" in s or "rent" in s or "리스" in s or "렌트" in s or "할부" in s or "월" in s:
+            return True
+        if monthly_pat.search(s) or monthly_keyword_pat.search(s) or takeover_pat.search(s):
+            return True
+        if term_pat.search(s) and ("렌트" in s or "리스" in s or "할부" in s):
+            return True
+        # Типичный блок Encar finance card: 월xx만원 + 월렌트(12개월) + 인수금/차량가격.
+        if "차량가격" in s and ("월" in s or monthly_keyword_pat.search(s) or term_pat.search(s)):
+            return True
+
+    for s in _iter_texts(data):
+        low = s.lower()
+        if "lease" in low or "rent" in low:
+            return True
+        if monthly_pat.search(s) or takeover_pat.search(s):
+            return True
+        if monthly_keyword_pat.search(s) and ("월" in s or term_pat.search(s)):
+            return True
+        if "차량가격" in s and ("월" in s or monthly_keyword_pat.search(s)):
             return True
     # Legacy fallback: some older rows store monthly payment in `price_won` directly
     # (e.g. 24, 33) without explicit lease flags. Real sale prices on Encar are not that low.
