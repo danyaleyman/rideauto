@@ -137,6 +137,7 @@ def build_meilisearch_filter(
     q = {k: str(v) for k, v in raw_q.items() if k not in omit and v is not None and str(v) != ""}
 
     clauses: List[str] = []
+    include_sold = (raw_q.get("include_sold") or "").strip() == "1"
 
     src = (q.get("source") or "").strip().lower()
     reg = (q.get("region") or "").strip().lower()
@@ -150,6 +151,14 @@ def build_meilisearch_filter(
         clauses.append('source = "dongchedi"')
     elif reg == "korea":
         clauses.append('source = "encar"')
+
+    if not include_sold:
+        clauses.append(
+            "("
+            "(encar_listing_sold IS NULL OR encar_listing_sold = false) AND "
+            "(dongchedi_listing_sold IS NULL OR dongchedi_listing_sold = false)"
+            ")"
+        )
 
     inc = _in_clause("brand", expand_filter_values("brand", _csv(q, "marks"), query_flat=q))
     if inc:

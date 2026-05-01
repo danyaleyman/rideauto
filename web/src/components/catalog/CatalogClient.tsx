@@ -1070,9 +1070,11 @@ export function CatalogClient({
   const title =
     state.market === "china" ? "Автомобили из Китая" : "Автомобили из Кореи";
 
-  // Cursor pagination has no reliable "last page"; show only discovered range.
-  const knownLastPage = Math.max(state.page, search.meta.next_cursor ? state.page + 1 : state.page);
-  const pageItems = useMemo(() => visiblePageItems(state.page, knownLastPage), [state.page, knownLastPage]);
+  const pages =
+    search.meta.pages > 0
+      ? search.meta.pages
+      : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
+  const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
 
   const facetLabelByValue = useMemo(() => {
     const f = facets ?? {

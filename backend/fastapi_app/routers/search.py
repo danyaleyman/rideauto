@@ -52,7 +52,6 @@ async def _search_catalog(request: Request) -> SearchResponse:
     sort = (flat.get("sort") or "date_new").strip()
     qtext = (flat.get("q") or flat.get("query") or "").strip()
     slim = (flat.get("full") or "").strip() != "1"
-    include_sold = (flat.get("include_sold") or "").strip() == "1"
     offset = 0
     cur_raw = (flat.get("cursor") or "").strip()
     if cur_raw:
@@ -90,8 +89,6 @@ async def _search_catalog(request: Request) -> SearchResponse:
     for cid in car_ids:
         car = by_id.get(cid)
         if not car:
-            continue
-        if not include_sold and _is_sold_car(car):
             continue
         if slim:
             result.append(slim_catalog_car(car, cid))

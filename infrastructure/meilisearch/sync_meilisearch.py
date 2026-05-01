@@ -177,6 +177,10 @@ def row_to_document(row: Dict[str, Any]) -> Dict[str, Any]:
 
     if row.get("price_rub") is not None:
         doc["price"] = float(row["price_rub"])
+    if row.get("encar_listing_sold") is not None:
+        doc["encar_listing_sold"] = bool(row.get("encar_listing_sold"))
+    if row.get("dongchedi_listing_sold") is not None:
+        doc["dongchedi_listing_sold"] = bool(row.get("dongchedi_listing_sold"))
     yr = _year_for_document(row)
     if yr is not None:
         doc["year"] = int(yr)
@@ -266,6 +270,8 @@ def iter_car_rows(
                 c.displacement_label,
                 c.data,
                 c.source,
+                c.encar_listing_sold,
+                c.dongchedi_listing_sold,
                 c.updated_at,
                 c.created_at
             FROM cars AS c

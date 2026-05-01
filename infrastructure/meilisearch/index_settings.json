@@ -33,6 +33,8 @@
     "transmission",
     "drive_type",
     "source",
+    "encar_listing_sold",
+    "dongchedi_listing_sold",
     "power_hp",
     "power_kw",
     "torque_nm",
