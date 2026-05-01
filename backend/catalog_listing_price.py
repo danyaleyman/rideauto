@@ -114,6 +114,41 @@ def _as_positive_float(value: Any) -> float:
         return 0.0
 
 
+def _digits_to_int(value: Any) -> Optional[int]:
+    s = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if not s:
+        return None
+    try:
+        return int(s)
+    except (TypeError, ValueError):
+        return None
+
+
+def _encar_suspicious_low_sale_price(data: Dict[str, Any]) -> bool:
+    """
+    Aggressive fallback for Encar finance cards:
+    even with missing text markers, prices like 432만원 for near-new cars are usually lease/credit blocks.
+    """
+    if str(data.get("source") or "encar").strip().lower() != "encar":
+        return False
+    pw = _as_positive_float(data.get("price_won"))
+    p_mw = _as_positive_float(data.get("price"))  # 만원 unit in parser payload
+    eff_mw = p_mw if p_mw > 0 else (pw / 10000.0 if pw > 0 else 0.0)
+    if not (0 < eff_mw < 1000):
+        return False
+
+    year_raw = str(data.get("year") or data.get("yearMonth") or "").strip()
+    year_val = _digits_to_int(year_raw[:4]) if year_raw else None
+    km_val = _digits_to_int(data.get("km_age"))
+
+    # For modern/low-mileage cars such low advertised sale price is almost always finance bait.
+    if year_val is not None and year_val >= 2015:
+        return True
+    if km_val is not None and km_val <= 150000:
+        return True
+    return False
+
+
 def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
     def _iter_texts(value: Any):
         if isinstance(value, str):
@@ -179,6 +214,8 @@ def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
         p = _as_positive_float(data.get("price"))
         if 0 < pw < 100 and p < 10000:
             return True
+    if _encar_suspicious_low_sale_price(data):
+        return True
     return False
 
 

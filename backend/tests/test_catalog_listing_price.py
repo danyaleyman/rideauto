@@ -77,6 +77,21 @@ def test_encar_monthly_finance_legacy_small_price_won_not_list_price():
     assert encar_has_list_price({"source": "encar", "price_won": 33, "price": 0}) is False
 
 
+def test_encar_suspicious_low_sale_price_not_list_price_for_modern_car():
+    assert (
+        encar_has_list_price(
+            {
+                "source": "encar",
+                "price_won": 4_320_000,
+                "price": "432",
+                "year": "2026",
+                "km_age": "1",
+            }
+        )
+        is False
+    )
+
+
 def test_china_market_car():
     assert china_market_car("dongchedi-1", {"source": "encar"}) is True
     assert china_market_car("x", {"source": "dongchedi"}) is True
