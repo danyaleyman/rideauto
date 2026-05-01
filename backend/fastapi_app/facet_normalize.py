@@ -555,11 +555,9 @@ def merge_facet_distribution_rows(
             key = raw
         if not key:
             continue
-        if korea and _KO_OR_ZH_RE.search(key):
-            if meili_attr in {"fuel", "body_type", "color", "transmission"}:
-                key = raw
-            else:
-                continue
+        if korea and _KO_OR_ZH_RE.search(str(key)):
+            # В korea-UI не показываем KO/ZH ярлыки: либо есть нормализация в EN/RU, либо скрываем.
+            continue
         norm_key = re.sub(r"\s+", " ", str(key).strip().lower())
         if not norm_key:
             continue
