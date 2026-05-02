@@ -31,6 +31,8 @@ REWRITE_PY="${ROOT}/deploy/scripts/pg_dsn_host_local_rewrite.py"
 PG_DSN="$(printf '%s' "${PG_DSN}" | "${PY}" "${REWRITE_PY}")"
 
 export DATABASE_URL="$PG_DSN"
+# Чекпоинт Encar брать может из YAML (storage.postgres.dsn=@postgres…) — см. pg_dsn_resolve.py
+export RIDEAUTO_PG_CHECKPOINT_DSN="$PG_DSN"
 
 CFG="${WRA_SCRAPER_CONFIG:-${ROOT}/scraper_config.yaml}"
 MAX="${1:-1000}"

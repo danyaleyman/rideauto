@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict
 from catalog_pg_core import UPSERT_CAR_SQL, extract_image_urls, get_or_create_brand, get_or_create_model, row_to_car_fields
+from scraper_pipeline.pg_dsn_resolve import resolve_scraper_postgres_dsn
 
 if TYPE_CHECKING:
     import psycopg2  # noqa: F401
@@ -192,10 +193,7 @@ def build_car_saver(config: dict) -> tuple[CarSaver, str]:
             "Задайте DATABASE_URL или storage.postgres.dsn."
         )
     store_raw = storage_cfg.get("store_raw_responses", False)
-    dsn = (storage_cfg.get("postgres") or {}).get("dsn") or ""
-    dsn = str(dsn).strip()
+    dsn = str(resolve_scraper_postgres_dsn(config) or "").strip()
     if not dsn:
-        dsn = (os.environ.get("DATABASE_URL") or "").strip()
-    if not dsn:
-        raise ValueError("storage.backend=postgres requires storage.postgres.dsn or DATABASE_URL")
+        raise ValueError("storage.backend=postgres requires storage.postgres.dsn or DATABASE_URL or RIDEAUTO_PG_CHECKPOINT_DSN")
     return PostgresCarSaver(dsn, store_raw=store_raw), "postgres"

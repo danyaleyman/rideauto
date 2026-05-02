@@ -24,20 +24,11 @@ from scraper_pipeline.checkpoint_pg import CheckpointAsync
 from scraper_pipeline.encar.client import AsyncEncarClient
 from scraper_pipeline.encar.savers import build_car_saver
 from scraper_pipeline.encar.workers import detail_worker, list_producer
+from scraper_pipeline.pg_dsn_resolve import resolve_scraper_postgres_dsn
 
 
 def _postgres_dsn_for_checkpoint(config: dict) -> str:
-    cp = config.get("checkpoint", {}) or {}
-    pg_cp = cp.get("postgres")
-    if isinstance(pg_cp, dict):
-        d = str(pg_cp.get("dsn") or "").strip()
-        if d:
-            return d
-    storage_cfg = config.get("storage", {}) or {}
-    d = str((storage_cfg.get("postgres") or {}).get("dsn") or "").strip()
-    if d:
-        return d
-    return (os.environ.get("DATABASE_URL") or "").strip()
+    return resolve_scraper_postgres_dsn(config)
 
 
 def _deep_merge_config(dst: dict[str, Any], src: dict[str, Any]) -> None:
