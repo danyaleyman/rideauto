@@ -13,15 +13,23 @@ SELECT
   ROUND(100.0 * COUNT(*) FILTER (WHERE COALESCE(model, '') <> '') / NULLIF(COUNT(*), 0), 1) AS pct_model,
   COUNT(*) FILTER (WHERE year IS NOT NULL AND year > 0) AS has_year_col,
   COUNT(*) FILTER (WHERE data ? 'price_won') AS json_key_price_won,
+  COUNT(*) FILTER (WHERE data ? 'price') AS json_key_price_manwon,
   COUNT(*) FILTER (
     WHERE NULLIF(trim(COALESCE(data ->> 'price_won', '')), '') IS NOT NULL
          AND trim(data ->> 'price_won') NOT IN ('0')
   ) AS json_price_won_nonempty,
+  COUNT(*) FILTER (
+    WHERE NULLIF(trim(COALESCE(data ->> 'price', '')), '') IS NOT NULL
+         AND trim(COALESCE(data ->> 'price', '')) NOT IN ('0', 'none', 'null')
+  ) AS json_price_field_nonempty,
   COUNT(*) FILTER (WHERE raw IS NOT NULL) AS rows_with_raw,
   COUNT(*) FILTER (WHERE COALESCE(price_rub, 0) > 0) AS col_price_rub_gt_0,
   COUNT(*) FILTER (
     WHERE jsonb_typeof(data -> 'pricing_clean') = 'object'
   ) AS json_pricing_clean_object,
+  COUNT(*) FILTER (WHERE data ? 'pricing_tier') AS json_has_pricing_tier,
+  COUNT(*) FILTER (WHERE jsonb_typeof(data -> 'my_price') IN ('number', 'string'))
+    AS json_has_my_price_scalar,
   COUNT(*) FILTER (WHERE (data -> 'price_on_request') = 'true'::jsonb) AS price_on_request
 FROM cars
 WHERE source = 'encar';
@@ -32,7 +40,9 @@ SELECT
   substring(COALESCE(mark, ''), 1, 26) AS mark,
   substring(COALESCE(model, ''), 1, 26) AS model,
   year,
-  data ->> 'price_won' AS price_won_10k,
+  data ->> 'price_won' AS price_won_raw,
+  data ->> 'price' AS price_manwon_parser,
+  data ->> 'pricing_tier' AS pricing_tier,
   COALESCE(price_rub, 0) > 0 AS col_price_positive,
   (jsonb_typeof(data -> 'pricing_clean') = 'object') AS has_pricing_clean_object
 FROM cars
