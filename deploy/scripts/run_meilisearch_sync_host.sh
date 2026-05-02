@@ -2,6 +2,11 @@
 # Синхронизация PostgreSQL → Meilisearch с хоста (полный репозиторий в /opt/rideauto).
 # Переменные: см. /etc/default/rideauto — нужен DSN Postgres, доступный с этого хоста.
 # Важно: не используйте хостнейм образа compose «postgres» в DSN при запуске с хоста — только 127.0.0.1/локальный проброс порта.
+#
+# Полная перезаливка индекса (удаляет UID index и создаёт заново по текущей БД):
+#   bash deploy/scripts/run_meilisearch_sync_host.sh --recreate-index
+# Опционально отключить префлайт, если включён через .env:
+#   unset WRA_MEILI_PREFLIGHT_GATE
 set -euo pipefail
 
 ROOT="${ROOT:-/opt/rideauto}"
@@ -39,4 +44,5 @@ exec /usr/bin/python3 "$SYNC_PY" \
   ${MEILI_KEY:+--meili-key "$MEILI_KEY"} \
   --index-name "$INDEX" \
   --settings "$SETTINGS" \
-  --batch-size "${MEILISEARCH_SYNC_BATCH:-500}"
+  --batch-size "${MEILISEARCH_SYNC_BATCH:-500}" \
+  "$@"
