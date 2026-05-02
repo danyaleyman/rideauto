@@ -43,7 +43,7 @@ _BACKEND_DIR = Path(__file__).resolve().parent
 
 
 def _resolve_repo_root() -> Path:
-    """Monorepo: …/backend/postgres_catalog_sync.py → repo root. Docker: …/app only → /app if infra смонтирован."""
+    """Monorepo: …/backend/ → repo root. Docker WORKDIR=/app: …/app если смонтирован ./infrastructure/meilisearch."""
     backend = _BACKEND_DIR
     env = (os.environ.get("RIDEAUTO_REPO_ROOT") or "").strip()
     if env:
@@ -51,11 +51,15 @@ def _resolve_repo_root() -> Path:
         if p.is_dir():
             return p
     up = backend.parent
-    if (up / "infrastructure" / "meilisearch" / "sync_meilisearch.py").is_file():
-        return up
-    if (backend / "infrastructure" / "meilisearch" / "sync_meilisearch.py").is_file():
+    flat = backend / "infrastructure" / "meilisearch" / "sync_meilisearch.py"
+    mono = up / "infrastructure" / "meilisearch" / "sync_meilisearch.py"
+    # Сначала flat (compose volume ./infrastructure/meilisearch → /app/infrastructure/meilisearch).
+    if flat.is_file():
         return backend
-    return up
+    if mono.is_file():
+        return up
+    # Не возвращаем parent(/app)==«/» — иначе ищется /infrastructure (старый баг в Docker).
+    return backend
 
 
 _REPO_ROOT = _resolve_repo_root()
@@ -156,7 +160,13 @@ def _maybe_run_meili(dsn: str) -> None:
     sync_py = _REPO_ROOT / "infrastructure" / "meilisearch" / "sync_meilisearch.py"
     settings_json = _REPO_ROOT / "infrastructure" / "meilisearch" / "index_settings.json"
     if not sync_py.is_file():
-        print(f"Warning: meilisearch sync script not found: {sync_py}", file=sys.stderr)
+        print(
+            f"Warning: meilisearch sync script not found: {sync_py}\n"
+            "  Ожидается volume в compose: ./infrastructure/meilisearch:/app/infrastructure/meilisearch\n"
+            "  и свежий код в образе: docker compose build api && docker compose up -d api\n"
+            "  (git pull на хосте сам по себе не обновляет Python внутри контейнера.)",
+            file=sys.stderr,
+        )
         return
     if not settings_json.is_file():
         print(f"Warning: meilisearch settings not found: {settings_json}", file=sys.stderr)
