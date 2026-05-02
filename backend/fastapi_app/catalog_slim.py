@@ -160,6 +160,7 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "created_at",
         "url",
         "inner_id",
+        "vin",
         "my_price",
         "price_won",
         "price_calc_failed",

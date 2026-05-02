@@ -36,6 +36,8 @@ export type SlimCar = {
     year?: string | number;
     mark?: string;
     model?: string;
+    /** VIN для склейки дублей одного авто под разными id объявления. */
+    vin?: string;
     [key: string]: unknown;
   };
 };

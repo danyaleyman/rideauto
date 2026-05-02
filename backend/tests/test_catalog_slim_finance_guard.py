@@ -101,3 +101,16 @@ def test_slim_uses_legacy_when_clean_mode_off(monkeypatch):
     assert out.get("price") == 1000
     assert out.get("price_on_request") in (False, None)
     get_settings.cache_clear()
+
+
+def test_slim_includes_vin_in_data_for_catalog_dedupe():
+    car = {
+        "data": {
+            "source": "encar",
+            "mark": "Kia",
+            "model": "K7",
+            "vin": "KNALC41BBMA240855",
+        }
+    }
+    out = slim_catalog_car(car, "encar-vin")
+    assert out["data"].get("vin") == "KNALC41BBMA240855"

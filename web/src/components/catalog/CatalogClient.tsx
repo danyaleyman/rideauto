@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
+import { dedupeSlimCarsByVin } from "@/lib/catalog-vin-dedupe";
 import {
   asStr,
   buildNormalizedCarTitle,
@@ -1171,6 +1172,9 @@ export function CatalogClient({
       : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
   const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
 
+  /** Один физический авто на Encar часто имеет несколько id объявлений — склеиваем по VIN на текущей странице выдачи. */
+  const catalogCarsDisplay = useMemo(() => dedupeSlimCarsByVin(search.result), [search.result]);
+
   const facetLabelByValue = useMemo(() => {
     const f = facets ?? {
       marks: [],
@@ -1706,7 +1710,7 @@ export function CatalogClient({
             animate={reduceMotion ? undefined : "show"}
             key={key}
           >
-            {search.result.map((car, idx) => {
+            {catalogCarsDisplay.map((car, idx) => {
               const preview = previewImageUrls(car);
               const cardData = (car.data ?? {}) as Record<string, unknown>;
               const normalizedTitle =
@@ -2006,6 +2010,12 @@ export function CatalogClient({
               ? Array.from({ length: PER_PAGE }).map((_, i) => <ListRowSkeleton key={`sk-${i}`} />)
               : null}
           </motion.ul>
+          {catalogCarsDisplay.length < search.result.length ? (
+            <p className="mt-2 text-center text-xs text-muted-foreground [overflow-wrap:anywhere]">
+              На этой странице не показаны{" "}
+              {search.result.length - catalogCarsDisplay.length} дубл. по VIN (разные id объявления Encar).
+            </p>
+          ) : null}
 
           {search.result.length === 0 && !loading ? (
             <p className="mt-16 text-center text-muted-foreground">Ничего не найдено по текущим фильтрам.</p>

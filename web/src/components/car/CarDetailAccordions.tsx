@@ -103,7 +103,9 @@ function bodyStatusColor(text: string): string {
 }
 
 function isNegativeFlag(v: unknown): boolean {
-  const s = translateKoToRuText(String(v ?? "")).trim().toLowerCase();
+  const raw = String(v ?? "").trim();
+  if (!raw) return true;
+  const s = translateKoToRuText(raw).trim().toLowerCase();
   return ["нет", "없음", "no", "normal", "0", "false", "n"].includes(s);
 }
 
@@ -154,7 +156,6 @@ function normalizeBodyPartName(partRaw: string): string {
 }
 
 function withOriginalDefaults(rows: BodyRow[], section: "external" | "internal"): BodyRow[] {
-  if (!rows.length) return rows;
   const defaults =
     section === "external"
       ? [
@@ -177,12 +178,34 @@ function withOriginalDefaults(rows: BodyRow[], section: "external" | "internal")
           "Задняя панель / пол багажника",
           "Лонжероны / полка багажника",
         ];
+  if (!rows.length) {
+    return defaults.map((part) => ({ part, status: "Оригинал", section }));
+  }
   const seen = new Set(rows.map((r) => r.part.trim().toLowerCase()));
   const out = [...rows];
   for (const part of defaults) {
     if (!seen.has(part.trim().toLowerCase())) out.push({ part, status: "Оригинал", section });
   }
   return out;
+}
+
+function hasStructuredBodyPayload(
+  bodyPanels: unknown,
+  outers: unknown,
+  bodyChanged: unknown,
+  paintPartTypes: unknown,
+  seriousTypes: unknown,
+  diagnosisItems: unknown,
+): boolean {
+  if (Array.isArray(bodyPanels) && bodyPanels.length > 0) return true;
+  if (Array.isArray(outers) && outers.length > 0) return true;
+  if (bodyChanged && typeof bodyChanged === "object" && !Array.isArray(bodyChanged)) {
+    if (Object.keys(bodyChanged as Record<string, unknown>).length > 0) return true;
+  }
+  if (Array.isArray(paintPartTypes) && paintPartTypes.length > 0) return true;
+  if (Array.isArray(seriousTypes) && seriousTypes.length > 0) return true;
+  if (Array.isArray(diagnosisItems) && diagnosisItems.length > 0) return true;
+  return false;
 }
 
 function collectBodyRows({
@@ -337,15 +360,29 @@ function BodyConditionSection({
   simpleRepair: unknown;
 }) {
   const reduceMotion = useReducedMotion();
+  const hasStructured = useMemo(
+    () =>
+      hasStructuredBodyPayload(
+        bodyPanels,
+        outers,
+        bodyChanged,
+        paintPartTypes,
+        seriousTypes,
+        diagnosisItems,
+      ),
+    [bodyPanels, outers, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems],
+  );
+  const encarCosmetic = !isNegativeFlag(simpleRepair);
+  const encarAccident = !isNegativeFlag(accident);
+  const hasEncarSummary = encarCosmetic || encarAccident;
+
   const groups = useMemo(
     () => collectBodyRows({ outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems }),
     [outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems],
   );
-  const inferred: BodyRow[] = [];
-  if (!isNegativeFlag(simpleRepair)) inferred.push({ part: "Детали кузова (по отчету Encar)", status: "Косметический ремонт" });
-  if (!isNegativeFlag(accident)) inferred.push({ part: "Силовые элементы (по отчету Encar)", status: "Следы ДТП" });
+
   const tabs = [
-    { key: "external" as const, title: "Внешние элементы", rows: groups.external.length ? groups.external : inferred },
+    { key: "external" as const, title: "Внешние элементы", rows: groups.external },
     { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
   ];
   const [activeTab, setActiveTab] = useState<"external" | "internal">("external");
@@ -355,11 +392,37 @@ function BodyConditionSection({
   }, [tabs, activeTab]);
   const activeRows = tabs.find((x) => x.key === activeTab)?.rows ?? [];
 
+  if (!hasStructured && !hasEncarSummary) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Нет данных инспекции кузова по этому объявлению.
+      </p>
+    );
+  }
+
   if (!tabs.some((t) => t.rows.length > 0)) {
     return <p className="text-sm text-muted-foreground">Повреждений не зафиксировано, элементы кузова в исходном состоянии.</p>;
   }
   return (
     <div className="space-y-3">
+      {hasEncarSummary ? (
+        <div className="rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 text-xs leading-snug text-amber-950 dark:border-amber-900/55 dark:bg-amber-950/35 dark:text-amber-50">
+          <ul className="list-disc space-y-1 ps-4 [overflow-wrap:anywhere]">
+            {encarCosmetic ? (
+              <li>
+                По сводке Encar отмечен косметический ремонт. Ниже — типовая сетка панелей; без детализации в
+                данных статусы показаны как «Оригинал», если нет точечных отметок.
+              </li>
+            ) : null}
+            {encarAccident ? (
+              <li>
+                По сводке Encar отмечены следы ДТП / силовые элементы. Проверьте также блок страховой истории и
+                диагностику.
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
       <div className={SWITCH_BAR_CLASS}>
         {tabs.map((tab) => (
           <button

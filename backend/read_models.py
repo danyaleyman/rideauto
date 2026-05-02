@@ -7,6 +7,49 @@ from clean_mode import legacy_fallbacks_enabled
 _VALID_TIERS = frozenset({"full_customs", "korea_land_only", "price_on_request"})
 
 
+def _parse_positive_int_cc(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        if isinstance(value, str):
+            digits = "".join(ch for ch in value if ch.isdigit())
+            if not digits:
+                return None
+            iv = int(digits)
+        else:
+            iv = int(float(value))
+        return iv if iv > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _reconcile_encar_pricing_tier_from_live_data(data: Dict[str, Any], resolved_tier: str) -> str:
+    """Если в БД остался price_on_request, а в живых полях карточки уже хватает данных для tier — показываем цену."""
+    if resolved_tier != "price_on_request":
+        return resolved_tier
+    if not isinstance(data, dict):
+        return resolved_tier
+    if str(data.get("source") or "").strip().lower() == "dongchedi":
+        return resolved_tier
+    try:
+        from catalog_listing_price import encar_has_list_price
+        from catalog_encar_pricing import encar_catalog_pricing_tier
+        from market_pricing_shared import classify_fuel, parse_power_hp
+    except ImportError:
+        return resolved_tier
+    if not encar_has_list_price(data):
+        return resolved_tier
+    fuel_kind = classify_fuel(data)
+    hp_raw = parse_power_hp(data)
+    hp_ok = isinstance(hp_raw, (int, float)) and float(hp_raw) > 0
+    cc_val = _parse_positive_int_cc(
+        data.get("displacement") or data.get("displacement_cc") or data.get("engine_volume")
+    )
+    cc_ok = cc_val is not None
+    live = encar_catalog_pricing_tier(fuel_kind=str(fuel_kind), hp_ok=hp_ok, cc_ok=cc_ok)
+    return live if live != "price_on_request" else resolved_tier
+
+
 def _pricing_tier_resolve(data: Dict[str, Any], pricing: Dict[str, Any]) -> str:
     tv = pricing.get("pricing_tier") if isinstance(pricing, dict) else None
     if isinstance(tv, str) and tv in _VALID_TIERS:
@@ -22,6 +65,9 @@ def _pricing_tier_resolve(data: Dict[str, Any], pricing: Dict[str, Any]) -> str:
 
 def _customs_included_for_tier(tier: str, pricing: Dict[str, Any]) -> bool:
     if isinstance(pricing, dict) and isinstance(pricing.get("customs_included"), bool):
+        stored_tier = pricing.get("pricing_tier")
+        if isinstance(stored_tier, str) and stored_tier != tier:
+            return tier == "full_customs"
         return bool(pricing.get("customs_included"))
     return tier == "full_customs"
 
@@ -66,6 +112,7 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
     condition = data.get("condition_clean") if use_clean and isinstance(data.get("condition_clean"), dict) else {}
 
     tier = _pricing_tier_resolve(data, pricing)
+    tier = _reconcile_encar_pricing_tier_from_live_data(data, tier)
     customs_included = _customs_included_for_tier(tier, pricing)
     numeric_price_rub = _safe_num(_pick(pricing, "final_price_rub", data, "my_price"))
 
