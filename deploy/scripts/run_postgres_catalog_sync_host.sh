@@ -28,6 +28,10 @@ fi
 cd "$ROOT"
 # shellcheck disable=SC1091
 source "${ROOT}/.venv/bin/activate"
+REWRITE_PY="${ROOT}/deploy/scripts/pg_dsn_host_local_rewrite.py"
+if [[ -f "$REWRITE_PY" ]]; then
+  export DATABASE_URL="$(printf '%s' "${DATABASE_URL}" | python "${REWRITE_PY}")"
+fi
 export PYTHONPATH="${ROOT}/backend"
 export PYTHONUNBUFFERED=1
 CFG="${WRA_SCRAPER_CONFIG:-${ROOT}/scraper_config.yaml}"

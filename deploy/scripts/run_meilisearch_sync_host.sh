@@ -17,6 +17,11 @@ if [[ -z "${PG_DSN// /}" ]]; then
   exit 1
 fi
 
+REWRITE_PY="${ROOT}/deploy/scripts/pg_dsn_host_local_rewrite.py"
+if [[ -f "$REWRITE_PY" ]]; then
+  PG_DSN="$(printf '%s' "${PG_DSN}" | /usr/bin/python3 "${REWRITE_PY}")"
+fi
+
 MEILI_URL="${WRA_MEILISEARCH_URL:-http://127.0.0.1:7700}"
 MEILI_KEY="${MEILI_MASTER_KEY:-${WRA_MEILISEARCH_KEY:-}}"
 INDEX="${WRA_MEILISEARCH_INDEX:-cars}"
