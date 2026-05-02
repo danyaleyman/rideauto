@@ -26,3 +26,19 @@ def test_classify_regular_sale():
     assert intent == "sale"
     assert signals == []
 
+
+def test_strong_list_price_overrides_weak_finance_boilerplate():
+    """Типичный Encar: большая цена + общий текст про 할부/개월 без явного 월N만원."""
+    intent, signals = classify_encar_price_intent(
+        {
+            "source": "encar",
+            "price_won": 13_900_000,
+            "price": "1390",
+            "year": "2018",
+            "km_age": "141452",
+            "price_text": "무이자 할부 36개월 프로모션 문의",
+        }
+    )
+    assert intent == "sale"
+    assert "sale_price_overrides_weak_finance_text" in signals
+

@@ -13,7 +13,7 @@ from typing import Any, Dict, Literal
 EncarPricingTier = Literal["full_customs", "korea_land_only", "price_on_request"]
 
 # Увеличивайте при изменении правил tier/калькулятора, чтобы repair и метрики отличали «старое».
-PRICING_RULES_VERSION = "2026.05.02"
+PRICING_RULES_VERSION = "2026.05.03"
 
 
 def parse_positive_int_cc(value: Any) -> int | None:

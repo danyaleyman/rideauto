@@ -108,6 +108,19 @@ def test_encar_regular_listing_with_generic_finance_promo_stays_list_price():
     )
 
 
+def test_encar_list_price_with_finance_boilerplate_and_realistic_mid_market_price():
+    assert encar_has_list_price(
+        {
+            "source": "encar",
+            "price_won": 13_900_000,
+            "price": "1390",
+            "year": "2018",
+            "km_age": "141452",
+            "price_text": "무이자 할부 36개월",
+        }
+    )
+
+
 def test_china_market_car():
     assert china_market_car("dongchedi-1", {"source": "encar"}) is True
     assert china_market_car("x", {"source": "dongchedi"}) is True
