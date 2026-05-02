@@ -10,6 +10,7 @@ const WEB_ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(WEB_ROOT, "..");
 const DATA = path.join(REPO_ROOT, "data");
 const pubData = path.join(WEB_ROOT, "public", "data");
+const libFuel = path.join(WEB_ROOT, "src", "lib", "fuel_label_aliases.json");
 
 function main() {
   if (!fs.existsSync(DATA)) {
@@ -25,11 +26,17 @@ function main() {
     fs.copyFileSync(src, path.join(pubData, name));
     n += 1;
   }
+  const fuelSrc = path.join(DATA, "fuel_label_aliases.json");
+  if (fs.existsSync(fuelSrc)) {
+    fs.mkdirSync(path.dirname(libFuel), { recursive: true });
+    fs.copyFileSync(fuelSrc, libFuel);
+    n += 1;
+  }
   if (n === 0) {
-    console.warn("[sync-static-data] no engine_map.json / encar_mapping.json in data/");
+    console.warn("[sync-static-data] no engine_map / encar_mapping / fuel_label_aliases in data/");
     return;
   }
-  console.log(`[sync-static-data] ok (${n} file(s) -> web/public/data/)`);
+  console.log(`[sync-static-data] ok (${n} file(s) -> web/public/data/ + src/lib as needed)`);
 }
 
 main();

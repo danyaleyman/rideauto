@@ -8,7 +8,7 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import DefaultDict, Dict, Set
+from typing import Any, DefaultDict, Dict, Optional, Sequence, Set, Tuple
 
 import psycopg2
 
@@ -19,8 +19,8 @@ if str(_BACKEND) not in sys.path:
 
 from localization.term_localizer import PgTermLocalizer  # noqa: E402
 
-
-DOMAIN_SPECS = (
+# (PostgreSQL cars.* column → term_translation_cache domain = column name).
+PG_COLUMN_SPECS: Sequence[Tuple[str, str]] = (
     ("mark", "en"),
     ("model", "en"),
     ("generation", "en"),
@@ -30,6 +30,11 @@ DOMAIN_SPECS = (
     ("fuel_type", "ru"),
     ("transmission_type", "ru"),
     ("color", "ru"),
+)
+
+# Объём JSON / отдельной колонки: (bucket ключ в terms → domain для PgTermLocalizer.translate, target_lang).
+LINEAGE_SPECS: Sequence[Tuple[str, str, str]] = (
+    ("model_group", "modelGroupName", "en"),
 )
 
 
@@ -53,8 +58,8 @@ def _collect_from_csv(csv_path: Path, source_name: str) -> DefaultDict[str, Set[
             src = _clean(row.get("source")).lower()
             if source_name and src and src != source_name:
                 continue
-            for domain, _target in DOMAIN_SPECS:
-                _push_term(out, domain, row.get(domain))
+            for col, _tl in PG_COLUMN_SPECS:
+                _push_term(out, col, row.get(col))
 
             raw = _clean(row.get("data"))
             if not raw:
@@ -69,7 +74,26 @@ def _collect_from_csv(csv_path: Path, source_name: str) -> DefaultDict[str, Set[
             _push_term(out, "trim_name", data.get("gradeName") or data.get("configuration"))
             _push_term(out, "fuel_type", data.get("engine_type"))
             _push_term(out, "drive_type", data.get("prep_drive_type"))
+            _push_term(out, "model_group", data.get("modelGroupName"))
     return out
+
+
+def _collect_encar_model_group_pg(cur: Any, source_name: str, out: DefaultDict[str, Set[str]]) -> None:
+    try:
+        cur.execute(
+            """
+            SELECT DISTINCT encar_model_group
+            FROM cars
+            WHERE source = %s
+              AND encar_model_group IS NOT NULL
+              AND btrim(encar_model_group) <> ''
+            """,
+            (source_name,),
+        )
+        for (val,) in cur.fetchall():
+            _push_term(out, "model_group", val)
+    except Exception:
+        pass
 
 
 def _collect_from_db(dsn: str, source_name: str) -> DefaultDict[str, Set[str]]:
@@ -77,19 +101,20 @@ def _collect_from_db(dsn: str, source_name: str) -> DefaultDict[str, Set[str]]:
     conn = psycopg2.connect(dsn)
     try:
         with conn.cursor() as cur:
-            for domain, _target in DOMAIN_SPECS:
+            for col, _tl in PG_COLUMN_SPECS:
                 cur.execute(
                     f"""
-                    SELECT DISTINCT {domain}
+                    SELECT DISTINCT {col}
                     FROM cars
                     WHERE source = %s
-                      AND {domain} IS NOT NULL
-                      AND btrim({domain}) <> ''
+                      AND {col} IS NOT NULL
+                      AND btrim({col}) <> ''
                     """,
                     (source_name,),
                 )
                 for (val,) in cur.fetchall():
-                    _push_term(out, domain, val)
+                    _push_term(out, col, val)
+            _collect_encar_model_group_pg(cur, source_name, out)
     finally:
         conn.close()
     return out
@@ -98,13 +123,22 @@ def _collect_from_db(dsn: str, source_name: str) -> DefaultDict[str, Set[str]]:
 def _translate_terms(terms: Dict[str, Set[str]], localizer: PgTermLocalizer) -> tuple[int, int]:
     total = 0
     translated = 0
-    for domain, target in DOMAIN_SPECS:
-        values = sorted(terms.get(domain, set()), key=lambda s: (len(s), s))
+    for col, target in PG_COLUMN_SPECS:
+        values = sorted(terms.get(col, set()), key=lambda s: (len(s), s))
         if not values:
             continue
         for v in values:
             total += 1
-            out = localizer.translate(v, target_lang=target, domain=domain)
+            out = localizer.translate(v, target_lang=target, domain=col)
+            if _clean(out) and _clean(out) != v:
+                translated += 1
+    for bucket, loc_domain, target in LINEAGE_SPECS:
+        values = sorted(terms.get(bucket, set()), key=lambda s: (len(s), s))
+        if not values:
+            continue
+        for v in values:
+            total += 1
+            out = localizer.translate(v, target_lang=target, domain=loc_domain)
             if _clean(out) and _clean(out) != v:
                 translated += 1
     return total, translated
@@ -131,14 +165,20 @@ def main() -> int:
 
     if csv_path:
         terms = _collect_from_csv(csv_path, source_name=args.source.strip().lower())
+        loc_dsn: Optional[str] = dsn if dsn else ""
     else:
         terms = _collect_from_db(dsn, source_name=args.source.strip().lower())
+        loc_dsn = dsn
 
     if not any(terms.values()):
         print("No terms found for mapping.", file=sys.stderr)
         return 0
 
-    localizer = PgTermLocalizer(dsn)
+    if not (loc_dsn or "").strip():
+        print("--dsn (or DATABASE_URL) required when using --csv so PgTermLocalizer can open Postgres.", file=sys.stderr)
+        return 2
+
+    localizer = PgTermLocalizer(loc_dsn)
     localizer.open()
     try:
         total, translated = _translate_terms(terms, localizer)

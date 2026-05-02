@@ -9,6 +9,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY web/ .
+COPY data/fuel_label_aliases.json src/lib/fuel_label_aliases.json
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG WRA_API_INTERNAL=http://api:8080
 ENV WRA_API_INTERNAL=$WRA_API_INTERNAL

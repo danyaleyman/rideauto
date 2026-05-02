@@ -215,6 +215,29 @@ class Settings(BaseSettings):
         description="HTTP timeout for translation API calls",
     )
 
+    catalog_enrich_enabled: bool = Field(
+        default=True,
+        description="WRA_CATALOG_ENRICH_ENABLED — включить POST /api/catalog/enrich-terms (статическое KO→RU/EN)",
+    )
+    catalog_enrich_secret: Optional[str] = Field(
+        default=None,
+        description="WRA_CATALOG_ENRICH_SECRET — если задан: заголовок X-WRA-Catalog-Enrich-Key должен совпадать",
+    )
+    catalog_enrich_llm_fallback: bool = Field(
+        default=False,
+        description="WRA_CATALOG_ENRICH_LLM_FALLBACK — разрешить дозаполнение пустого RU через OpenAI (без БД)",
+    )
+    catalog_enrich_llm_max_items: int = Field(
+        default=12,
+        ge=1,
+        le=24,
+        description="WRA_CATALOG_ENRICH_LLM_MAX_ITEMS — макс. позиций за один batched LLM-запрос",
+    )
+    catalog_enrich_openai_model: str = Field(
+        default="gpt-4o-mini",
+        description="WRA_CATALOG_ENRICH_OPENAI_MODEL — модель для enrich-fallback (пусто в env = default)",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

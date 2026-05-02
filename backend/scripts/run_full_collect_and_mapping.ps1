@@ -1,13 +1,17 @@
-# Полный сбор дерева Encar + генерация encar_mapping.json
-# Использование: .\scripts\run_full_collect_and_mapping.ps1
+# Полный сбор дерева Encar + генерация encar_mapping.json (CSV в data/, JSON в data/).
+# Запуск из любой директории:  powershell -File backend/scripts/run_full_collect_and_mapping.ps1
 $ErrorActionPreference = "Stop"
-$root = (Get-Item $PSScriptRoot).Parent.FullName
-Set-Location $root
+$here = $PSScriptRoot
+$repoRoot = (Get-Item $here).Parent.Parent.FullName
+Set-Location $repoRoot
+
+$pyEncar = Join-Path $repoRoot "backend/scripts/encar_fetch_tree.py"
+$pyMap = Join-Path $repoRoot "backend/scripts/build_encar_mapping.py"
 
 Write-Host "=== 1/2 encar_fetch_tree.py (full) ===" -ForegroundColor Cyan
-& python scripts/encar_fetch_tree.py
+& python $pyEncar
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "`n=== 2/2 build_encar_mapping.py ===" -ForegroundColor Cyan
-& python scripts/build_encar_mapping.py
+& python $pyMap
 exit $LASTEXITCODE

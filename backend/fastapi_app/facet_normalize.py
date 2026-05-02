@@ -5,6 +5,8 @@ from collections import defaultdict
 from functools import lru_cache
 from typing import Dict, List, Optional, Sequence
 
+from fuel_label_aliases import fuel_alias_resolve, fuel_to_canonical_ru_flat
+
 from localization.term_localizer import (
     _CHINA_MARK_EXACT_OVERRIDES,
     _KOREA_MARK_ALIAS_OVERRIDES,
@@ -32,61 +34,6 @@ _TRANS_EXTRA: Dict[str, str] = {
     "MT": "Механика",
     "cvt": "Вариатор",
 }
-
-# Доп. синонимы топлива (уже русские / EN в базе) → канон из korea_static_terms.ru.engine_type
-_FUEL_CANON_ALIASES: Dict[str, str] = {
-    # EN / common
-    "Gasoline": "Бензин",
-    "gasoline": "Бензин",
-    "PETROL": "Бензин",
-    "petrol": "Бензин",
-    "Diesel": "Дизель",
-    "diesel": "Дизель",
-    "Electric": "Электро",
-    "electric": "Электро",
-    "EV": "Электро",
-    "Hybrid": "Гибрид (Бензин)",
-    "LPG + электричество": "Электро (+ГБО)",
-    "LPG+электричество": "Электро (+ГБО)",
-    # Legacy RU from static maps → same display as frontend `normalizeFuelLabel`
-    "Электричество": "Электро",
-    "Бензин + электричество": "Гибрид (Бензин)",
-    "Дизель + электричество": "Гибрид (Дизель)",
-    "Бензин + LPG": "Бензин (+ГБО)",
-    "Бензин + CNG": "Бензин (+Метан)",
-    "Бензин + КПГ": "Бензин (+Метан)",
-    "Сжиженный природный газ": "Газ",
-    "Сжиженный нефтяной газ": "Газ",
-    "Сжиженный нефтяной газ (для частных лиц)": "Газ",
-    # KO aliases (Encar raw values in facets/documents) — mirrors web `normalizeFuelLabel`
-    "가솔린": "Бензин",
-    "휘발유": "Бензин",
-    "디젤": "Дизель",
-    "경유": "Дизель",
-    "전기": "Электро",
-    "전기차": "Электро",
-    "하이브리드": "Гибрид (Бензин)",
-    "가솔린 하이브리드": "Гибрид (Бензин)",
-    "디젤 하이브리드": "Гибрид (Дизель)",
-    "가솔린+전기": "Гибрид (Бензин)",
-    "가솔린 + 전기": "Гибрид (Бензин)",
-    "디젤+전기": "Гибрид (Дизель)",
-    "디젤 + 전기": "Гибрид (Дизель)",
-    "LPG+전기": "Электро (+ГБО)",
-    "LPG + 전기": "Электро (+ГБО)",
-    "LPG(일반인 구입)": "Газ",
-    "LPG (일반인 구입)": "Газ",
-    "가솔린+LPG": "Бензин (+ГБО)",
-    "가솔린 + LPG": "Бензин (+ГБО)",
-    "가솔린+CNG": "Бензин (+Метан)",
-    "가솔린 + CNG": "Бензин (+Метан)",
-    "CNG": "Метан",
-    "LPG": "Газ",
-    "Lng": "Газ",
-    "lng": "Газ",
-    "기타": "Другое",
-}
-
 
 def is_korea_catalog_flat(q: Optional[Dict[str, str]]) -> bool:
     if not q:
@@ -145,7 +92,7 @@ def _invert_map_forward(forward: Dict[str, str]) -> Dict[str, frozenset[str]]:
 @lru_cache(maxsize=1)
 def _fuel_synonyms_by_canon() -> Dict[str, frozenset[str]]:
     forward = dict(_ru_engine_type_map())
-    for alias, canon in _FUEL_CANON_ALIASES.items():
+    for alias, canon in fuel_to_canonical_ru_flat().items():
         forward[alias] = canon
     inv = _invert_map_forward(forward)
     return inv
@@ -339,32 +286,29 @@ def _canon_ru_fuel(raw: str) -> str:
     if not s:
         return ""
     norm_key = _fuel_plus_normalize(s)
-    hit_direct = (
-        _FUEL_CANON_ALIASES.get(s)
-        or _FUEL_CANON_ALIASES.get(norm_key)
-    )
+    hit_direct = fuel_alias_resolve(s) or fuel_alias_resolve(norm_key)
     if hit_direct:
-        return _display_ru_fuel_label(hit_direct)
+        return hit_direct
 
     m = _ru_engine_type_map()
 
     if _KO_OR_ZH_RE.search(s):
-        ko_direct = _FUEL_CANON_ALIASES.get(s) or _FUEL_CANON_ALIASES.get(norm_key)
+        ko_direct = fuel_alias_resolve(s) or fuel_alias_resolve(norm_key)
         if ko_direct:
-            return _display_ru_fuel_label(ko_direct)
+            return ko_direct
 
     stepped2 = s
     if stepped2 in m:
         stepped = _as_text(m[stepped2])
         if stepped:
             stepped2 = stepped
-            hit_map = _FUEL_CANON_ALIASES.get(stepped2) or _FUEL_CANON_ALIASES.get(_fuel_plus_normalize(stepped2))
+            hit_map = fuel_alias_resolve(stepped2) or fuel_alias_resolve(_fuel_plus_normalize(stepped2))
             if hit_map:
-                return _display_ru_fuel_label(hit_map)
+                return hit_map
 
-    ko_hit = _FUEL_CANON_ALIASES.get(stepped2) or _FUEL_CANON_ALIASES.get(_fuel_plus_normalize(stepped2))
+    ko_hit = fuel_alias_resolve(stepped2) or fuel_alias_resolve(_fuel_plus_normalize(stepped2))
     if ko_hit:
-        return _display_ru_fuel_label(ko_hit)
+        return ko_hit
 
     if _KO_OR_ZH_RE.search(stepped2):
         return _display_ru_fuel_label(stepped2)
@@ -372,54 +316,19 @@ def _canon_ru_fuel(raw: str) -> str:
     mapped = m.get(stepped2)
     if mapped and mapped != stepped2:
         mk = _fuel_plus_normalize(mapped)
-        hit3 = (
-            _FUEL_CANON_ALIASES.get(_as_text(mapped))
-            or _FUEL_CANON_ALIASES.get(mk)
-        )
+        hit3 = fuel_alias_resolve(_as_text(mapped)) or fuel_alias_resolve(mk)
         if hit3:
-            return _display_ru_fuel_label(hit3)
+            return hit3
 
     return _display_ru_fuel_label(stepped2)
 
 
 def _display_ru_fuel_label(ru: str) -> str:
-    """Единые подписи как на фронте (`web/src/lib/car-detail-data.ts` → normalizeFuelLabel)."""
+    """Финальная подпись: JSON-алиасы затем сырое значение (как на фронте после normalizeFuelLabel)."""
     s = _as_text(ru)
     if not s:
         return ""
-    key = " ".join(s.lower().strip().replace("\u00a0", " ").split())
-    out_map: Dict[str, str] = {
-        # EN
-        "diesel": "Дизель",
-        "gasoline": "Бензин",
-        "petrol": "Бензин",
-        "electric": "Электро",
-        "ev": "Электро",
-        "hybrid": "Гибрид (Бензин)",
-        "lpg": "Газ",
-        "cng": "Метан",
-        "lng": "Газ",
-        # Комбинации / старые RU строки после static map
-        "lpg + электричество": "Электро (+ГБО)",
-        "электричество + lpg": "Электро (+ГБО)",
-        "бензин": "Бензин",
-        "бензин + lpg": "Бензин (+ГБО)",
-        "бензин + кпг": "Бензин (+Метан)",
-        "бензин + cng": "Бензин (+Метан)",
-        "бензин + электричество": "Гибрид (Бензин)",
-        "дизель + электричество": "Гибрид (Дизель)",
-        "компрометированный природный газ": "Метан",
-        "компримированный природный газ": "Метан",
-        "компресированный природный газ": "Метан",
-        "сжиженый природный газ": "Газ",
-        "сжиженный природный газ": "Газ",
-        "сжиженный нефтяной газ": "Газ",
-        "сжиженный нефтяной газ (для частных лиц)": "Газ",
-        "водород": "Водород",
-        "другое": "Другое",
-        "электричество": "Электро",
-    }
-    return out_map.get(key, s)
+    return fuel_alias_resolve(s) or s
 
 
 def _canon_ru_body(raw: str) -> str:
@@ -642,3 +551,8 @@ def expand_filter_values(meili_attr: str, values: Sequence[str], *, query_flat: 
         seen.add(t)
         dedup.append(t)
     return dedup
+
+
+def canon_catalog_fuel_ru(raw: str) -> str:
+    """Публичная обёртка для KO/RU/EN топливной строки (API enrich, скрипты)."""
+    return _canon_ru_fuel(raw or "")

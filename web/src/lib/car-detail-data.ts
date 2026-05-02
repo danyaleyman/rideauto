@@ -3,6 +3,7 @@
  */
 
 import { formatPriceLabel } from "@/lib/format-price";
+import fuelAliasData from "./fuel_label_aliases.json";
 
 export function getPath(obj: unknown, segments: string[]): unknown {
   let cur: unknown = obj;
@@ -131,56 +132,31 @@ export function translateKoToRuText(v: string): string {
   return out.replace(/\s{2,}/g, " ").trim();
 }
 
+function normFuelAliasKey(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+const FUEL_TO_CANON_RU: Record<string, string> = (() => {
+  const raw = (fuelAliasData as { to_canonical_ru?: Record<string, string> }).to_canonical_ru ?? {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v !== "string") continue;
+    const canon = v.trim();
+    const key = normFuelAliasKey(k);
+    if (!key || !canon) continue;
+    out[key] = canon;
+  }
+  return out;
+})();
+
 export function normalizeFuelLabel(v: unknown): string | null {
   const raw = asStr(v);
   if (!raw) return null;
   const ru = translateKoToRuText(raw).trim();
-  const key = ru.toLowerCase().replace(/\s+/g, " ");
-  const map: Record<string, string> = {
-    "lpg + электричество": "Электро (+ГБО)",
-    "электричество + lpg": "Электро (+ГБО)",
-    "бензин": "Бензин",
-    "бензин + lpg": "Бензин (+ГБО)",
-    "бензин + кпг": "Бензин (+Метан)",
-    "бензин + cng": "Бензин (+Метан)",
-    "бензин + электричество": "Гибрид (Бензин)",
-    "водород": "Водород",
-    "дизель + электричество": "Гибрид (Дизель)",
-    "другое": "Другое",
-    "компрометированный природный газ": "Метан",
-    "компримированный природный газ": "Метан",
-    "сжиженый природный газ": "Газ",
-    "сжиженный природный газ": "Газ",
-    "сжиженный нефтяной газ (для частных лиц)": "Газ",
-    "сжиженный нефтяной газ": "Газ",
-    "электричество": "Электро",
-    "electric": "Электро",
-    "ev": "Электро",
-    "diesel": "Дизель",
-    "gasoline": "Бензин",
-    "petrol": "Бензин",
-    "lpg": "Газ",
-    "cng": "Метан",
-    "lng": "Газ",
-    "가솔린": "Бензин",
-    "휘발유": "Бензин",
-    "디젤": "Дизель",
-    "경유": "Дизель",
-    "전기": "Электро",
-    "전기차": "Электро",
-    "하이브리드": "Гибрид (Бензин)",
-    "가솔린 하이브리드": "Гибрид (Бензин)",
-    "디젤 하이브리드": "Гибрид (Дизель)",
-    "lpg(일반인 구입)": "Газ",
-    "lpg (일반인 구입)": "Газ",
-    "lpg+전기": "Электро (+ГБО)",
-    "lpg + 전기": "Электро (+ГБО)",
-    "가솔린+전기": "Гибрид (Бензин)",
-    "가솔린 + 전기": "Гибрид (Бензин)",
-    "디젤+전기": "Гибрид (Дизель)",
-    "디젤 + 전기": "Гибрид (Дизель)",
-  };
-  return map[key] ?? ru;
+  const byRu = FUEL_TO_CANON_RU[normFuelAliasKey(ru)];
+  if (byRu) return byRu;
+  const byRaw = FUEL_TO_CANON_RU[normFuelAliasKey(raw)];
+  return byRaw ?? ru;
 }
 
 export function normalizeCatalogDisplayLabel(v: unknown): string | null {

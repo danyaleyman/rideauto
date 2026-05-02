@@ -5,7 +5,7 @@
   "scripts": {
     "sync-static-data": "node scripts/sync-static-data.mjs",
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "npm run sync-static-data && next build",
     "analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "next lint"

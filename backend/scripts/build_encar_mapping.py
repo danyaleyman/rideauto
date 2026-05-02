@@ -9,7 +9,8 @@ import csv
 import json
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = REPO_ROOT / "frontend" / "data"
+# Единый каталог с encar_fetch_tree / engine_hp_resolver / sync-static-data (web/public/data).
+DATA_DIR = REPO_ROOT / "data"
 CSV_PATH = DATA_DIR / "encar_api_flat_for_mapping.csv"
 OUT_PATH = DATA_DIR / "encar_mapping.json"
 

@@ -27,6 +27,7 @@ from fastapi_app.routers import (
     auth,
     cache_invalidate,
     car,
+    catalog_enrich,
     catalog_stats,
     facets,
     images,
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CDNCacheMiddleware)
     app.add_middleware(PrometheusHTTPMiddleware)
     app.include_router(search.router, prefix="/api")
+    app.include_router(catalog_enrich.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
     app.include_router(catalog_stats.router, prefix="/api")
     app.include_router(car.router, prefix="/api")
