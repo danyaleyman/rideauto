@@ -229,7 +229,19 @@ def row_to_car_fields(
     mark = _optional_str(identity.get("mark")) or (d.get("mark") or "").strip() or None
     model = _optional_str(identity.get("model")) or (d.get("model") or "").strip() or None
     generation = _optional_str(identity.get("generation")) or _optional_str(d.get("generation") or d.get("configuration"))
-    trim_name = _optional_str(d.get("gradeName") or d.get("configuration") or d.get("generation"))
+    # Encar trim: только gradeName (+ clean trim); не тащить configuration/generation (Badge-дубли в generation).
+    trim_grade = _optional_str(d.get("gradeName"))
+    trim_identity = _optional_str(identity.get("trim_name"))
+    trim_name = trim_grade or trim_identity
+    if str(src).lower() != "encar":
+        if not trim_name:
+            trim_name = _optional_str(d.get("configuration") or d.get("generation"))
+
+    encar_model_group = None
+    if str(src).lower() == "encar":
+        encar_model_group = _optional_str(d.get("modelGroupName"))
+        if encar_model_group is None:
+            encar_model_group = _optional_str(identity.get("model_group_encar"))
     displacement_cc, displacement_label = _displacement_cc_with_label(
         spec.get("displacement_cc") or d.get("displacement") or d.get("dongchedi_displacement_label")
     )
@@ -251,6 +263,7 @@ def row_to_car_fields(
         "model": model,
         "generation": generation,
         "trim_name": trim_name,
+        "encar_model_group": encar_model_group,
         "body_type": _optional_str(spec.get("body_type")) or _optional_str(d.get("body_type")),
         "fuel_type": _optional_str(spec.get("engine_type")) or _optional_str(d.get("engine_type")),
         "transmission_type": _optional_str(spec.get("transmission_type")) or _optional_str(d.get("transmission_type")),
@@ -279,6 +292,7 @@ def row_to_car_fields(
 UPSERT_CAR_SQL = """
 INSERT INTO cars (
     car_id, brand_id, model_id, mark, model, generation, trim_name,
+    encar_model_group,
     body_type, fuel_type, transmission_type, drive_type, color,
     source, listing_partition_key,
     power_hp, power_kw, torque_nm, displacement_cc, displacement_label, price_rub, mileage_km, year, year_month,
@@ -286,6 +300,7 @@ INSERT INTO cars (
     offer_created_at, data, raw, source_internal_id, created_at, updated_at
 ) VALUES (
     %(car_id)s, %(brand_id)s, %(model_id)s, %(mark)s, %(model)s, %(generation)s, %(trim_name)s,
+    %(encar_model_group)s,
     %(body_type)s, %(fuel_type)s, %(transmission_type)s, %(drive_type)s, %(color)s,
     %(source)s, %(listing_partition_key)s,
     %(power_hp)s, %(power_kw)s, %(torque_nm)s, %(displacement_cc)s, %(displacement_label)s, %(price_rub)s, %(mileage_km)s, %(year)s, %(year_month)s,
@@ -300,6 +315,7 @@ ON CONFLICT (car_id) DO UPDATE SET
     model = EXCLUDED.model,
     generation = EXCLUDED.generation,
     trim_name = EXCLUDED.trim_name,
+    encar_model_group = EXCLUDED.encar_model_group,
     body_type = EXCLUDED.body_type,
     fuel_type = EXCLUDED.fuel_type,
     transmission_type = EXCLUDED.transmission_type,

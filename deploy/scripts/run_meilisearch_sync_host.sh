@@ -5,6 +5,8 @@
 #
 # Полная перезаливка индекса (удаляет UID index и создаёт заново по текущей БД):
 #   bash deploy/scripts/run_meilisearch_sync_host.sh --recreate-index
+# Путь к PATCH settings (по умолчанию infrastructure/meilisearch/index_settings.json в $ROOT):
+#   WRA_MEILISEARCH_SETTINGS=/opt/rideauto/infrastructure/meilisearch/index_settings.json
 # Опционально отключить префлайт, если включён через .env:
 #   unset WRA_MEILI_PREFLIGHT_GATE
 set -euo pipefail
@@ -28,13 +30,22 @@ if [[ -f "$REWRITE_PY" ]]; then
 fi
 
 MEILI_URL="${WRA_MEILISEARCH_URL:-http://127.0.0.1:7700}"
+# Ключ должен совпадать с MEILI_MASTER_KEY у контейнера meilisearch (см. .env / docker compose).
+# Если в шелле старый ключ — unset MEILI_MASTER_KEY WRA_MEILISEARCH_KEY и подставьте актуальный или оставьте пустым для dev без ключа.
 MEILI_KEY="${MEILI_MASTER_KEY:-${WRA_MEILISEARCH_KEY:-}}"
 INDEX="${WRA_MEILISEARCH_INDEX:-cars}"
-SETTINGS="$ROOT/infrastructure/meilisearch/index_settings.json"
+SETTINGS="${WRA_MEILISEARCH_SETTINGS:-$ROOT/infrastructure/meilisearch/index_settings.json}"
 SYNC_PY="$ROOT/infrastructure/meilisearch/sync_meilisearch.py"
 
 if [[ ! -f "$SYNC_PY" ]]; then
   echo "Не найден $SYNC_PY (нужен полный клон репозитория в $ROOT)" >&2
+  exit 1
+fi
+
+if [[ ! -f "$SETTINGS" ]]; then
+  echo "run_meilisearch_sync_host: нет файла настроек Meili: $SETTINGS" >&2
+  echo "  Задайте WRA_MEILISEARCH_SETTINGS или положите index_settings.json в infrastructure/meilisearch/." >&2
+  echo "  Не подставляйте буквально «...» вместо пути (это не имя файла)." >&2
   exit 1
 fi
 

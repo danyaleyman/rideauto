@@ -53,3 +53,69 @@ def test_row_to_document_prefers_clean_fields_in_clean_read_mode():
     assert doc["fuel"] == "Бензин"
     assert doc["price"] == 2000.0
 
+
+def test_row_to_document_model_group_prefers_encar_column_over_heuristic():
+    mod = _load_sync_module()
+    row = {
+        "pg_id": 2,
+        "car_id": "encar-9",
+        "mark": "Kia",
+        "model": "EV6 (Long Range)",
+        "encar_model_group": "The New EV6",
+        "fuel_type": "",
+        "price_rub": None,
+        "generation": "",
+        "trim_name": "",
+        "transmission_type": "",
+        "drive_type": "",
+        "color": "",
+        "body_type": "",
+        "year": None,
+        "year_month": None,
+        "mileage_km": None,
+        "power_hp": None,
+        "power_kw": None,
+        "torque_nm": None,
+        "displacement_cc": None,
+        "displacement_label": None,
+        "source": "encar",
+        "updated_at": None,
+        "created_at": None,
+        "data": {},
+    }
+    doc = mod.row_to_document(row, clean_read_mode=False)
+    assert doc["model_group"] == "The New EV6"
+
+
+def test_row_to_document_model_group_falls_back_to_json_modelGroupName_without_column():
+    mod = _load_sync_module()
+    row = {
+        "pg_id": 3,
+        "car_id": "encar-10",
+        "mark": "Kia",
+        "model": "EV6 (XR)",
+        "encar_model_group": None,
+        "fuel_type": "",
+        "price_rub": None,
+        "generation": "",
+        "trim_name": "",
+        "transmission_type": "",
+        "drive_type": "",
+        "color": "",
+        "body_type": "",
+        "year": None,
+        "year_month": None,
+        "mileage_km": None,
+        "power_hp": None,
+        "power_kw": None,
+        "torque_nm": None,
+        "displacement_cc": None,
+        "displacement_label": None,
+        "source": "encar",
+        "updated_at": None,
+        "created_at": None,
+        "data": {"modelGroupName": "EV6 MY2024"},
+    }
+    doc = mod.row_to_document(row, clean_read_mode=False)
+    assert doc["model_group"] == "EV6 MY2024"
+

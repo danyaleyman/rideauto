@@ -32,6 +32,8 @@ def build_clean_layers(data: Dict[str, Any]) -> Dict[str, Any]:
             "mark": _safe_str(data.get("mark")),
             "model": _safe_str(data.get("model")),
             "generation": _safe_str(data.get("generation")),
+            "trim_name": _safe_str(data.get("gradeName")),
+            "model_group_encar": _safe_str(data.get("modelGroupName")),
             "vin": _safe_str(data.get("vin")),
             "year": _safe_str(data.get("year")),
         },

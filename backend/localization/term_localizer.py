@@ -99,10 +99,10 @@ _CHINA_STATIC: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 _KOREA_MARK_ALIASES: Optional[Dict[str, str]] = None
 _KOREA_EN_DOMAIN_ALIAS_LOCK = threading.Lock()
 _KOREA_EN_DOMAIN_ALIAS_CACHE: Dict[str, Dict[str, str]] = {}
-_KOREA_EN_DOMAIN_NAMES = frozenset({"mark", "model", "generation", "configuration", "gradeName", "trim_name"})
+_KOREA_EN_DOMAIN_NAMES = frozenset({"mark", "model", "generation", "configuration", "gradeName", "trim_name", "modelGroupName"})
 _CHINA_EN_DOMAIN_ALIAS_LOCK = threading.Lock()
 _CHINA_EN_DOMAIN_ALIAS_CACHE: Dict[str, Dict[str, str]] = {}
-_CHINA_EN_DOMAIN_NAMES = frozenset({"mark", "model", "generation", "configuration", "gradeName", "trim_name"})
+_CHINA_EN_DOMAIN_NAMES = frozenset({"mark", "model", "generation", "configuration", "gradeName", "trim_name", "modelGroupName"})
 _KOREA_MARK_EXACT_OVERRIDES: Dict[str, str] = {
     "KG모빌리티(쌍용)": "KG Mobility (SsangYong)",
     "기아": "Kia",
@@ -249,7 +249,7 @@ def _cleanup_china_en_text(text: str, *, domain: str) -> str:
         s = re.sub(r"\b\d(?:\.\d)?T\b.*$", "", s, flags=re.IGNORECASE).strip()
         s = re.sub(r"\b(2WD|4WD|FWD|RWD|Long Range|EREV|Standard|Luxury|Flagship|Premium)\b.*$", "", s, flags=re.IGNORECASE).strip()
         s = re.sub(r"\s+", " ", s).strip(" -")
-    if domain in {"generation", "trim_name", "configuration", "gradeName"}:
+    if domain in {"generation", "trim_name", "configuration", "gradeName", "modelGroupName"}:
         s = re.sub(r"^\d+\s+", "", s).strip()
         s = re.sub(r"\s+", " ", s)
     return s.strip()
@@ -618,7 +618,7 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
         # so old transliteration artifacts do not block static mapping hits.
         return _as_text(data.get(f"{field}_original")) or _as_text(data.get(field))
 
-    name_fields = ("mark", "model", "generation", "configuration", "gradeName")
+    name_fields = ("mark", "model", "generation", "configuration", "gradeName", "modelGroupName")
     for f in name_fields:
         v = _src(f)
         if not v:
@@ -669,7 +669,7 @@ def localize_china_data(data: Dict[str, object], localizer: PgTermLocalizer) -> 
     def _src(field: str) -> str:
         return _as_text(data.get(f"{field}_original")) or _as_text(data.get(field))
 
-    name_fields = ("mark", "model", "generation", "configuration", "gradeName")
+    name_fields = ("mark", "model", "generation", "configuration", "gradeName", "modelGroupName")
     for f in name_fields:
         v = _src(f)
         if not v:

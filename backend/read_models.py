@@ -80,6 +80,7 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
         "model": _safe_text(_pick(identity, "model", data, "model")),
         "generation": _safe_text(_pick(identity, "generation", data, "generation")),
         "trim_name": _safe_text(_pick(identity, "trim_name", data, "trim_name")),
+        "model_group": _safe_text(_pick(identity, "model_group_encar", data, "modelGroupName")),
         "year": _pick(identity, "year", data, "year"),
         "engine_type": _safe_text(_pick(spec, "engine_type", data, "engine_type")),
         "transmission_type": _safe_text(_pick(spec, "transmission_type", data, "transmission_type")),

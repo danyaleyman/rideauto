@@ -5,6 +5,7 @@ Full or incremental sync: PostgreSQL `cars` → Meilisearch index `cars`.
 Field mapping (Meilisearch document):
   brand       ← cars.mark
   model       ← cars.model
+  model_group ← cars.encar_model_group (Encar) или суффикс model без «(…)»
   price       ← cars.price_rub
   year        ← cars.year
   color       ← cars.color
@@ -63,6 +64,15 @@ try:
 except ImportError:
     print("Install meilisearch: pip install meilisearch", file=sys.stderr)
     sys.exit(1)
+
+_MEILI_INVALID_KEY_HINT = (
+    "Ключ API должен совпадать с MEILI_MASTER_KEY экземпляра Meilisearch "
+    "(как в .env / docker-compose у сервиса meilisearch).\n"
+    "  Показать ключ из контейнера: "
+    "docker compose exec -T meilisearch sh -c 'printf %s \"$MEILI_MASTER_KEY\"'\n"
+    "  Затем: export MEILI_MASTER_KEY='…' и снова sync, либо --meili-key '…'.\n"
+    "Если Meili запущен без master key — unset MEILI_MASTER_KEY и не передавайте --meili-key."
+)
 
 
 def _optional_since(raw: Optional[str]) -> Optional[datetime]:
@@ -173,6 +183,21 @@ def _listing_json_root(row: Dict[str, Any]) -> Dict[str, Any]:
     return raw
 
 
+def _encar_model_group_for_document(row: Dict[str, Any]) -> str:
+    mg = str(row.get("encar_model_group") or "").strip()
+    if mg:
+        return mg
+    lj = _listing_json_root(row)
+    if not isinstance(lj, dict):
+        return ""
+    ic = lj.get("identity_clean")
+    if isinstance(ic, dict):
+        s = str(ic.get("model_group_encar") or "").strip()
+        if s:
+            return s
+    return str(lj.get("modelGroupName") or "").strip()
+
+
 def _clean_block(row: Dict[str, Any], key: str) -> Dict[str, Any]:
     raw = _listing_json_root(row)
     if not isinstance(raw, dict):
@@ -189,13 +214,15 @@ def row_to_document(row: Dict[str, Any], *, clean_read_mode: bool = False) -> Di
     identity = _clean_block(row, "identity_clean") if clean_read_mode else {}
     spec = _clean_block(row, "spec_clean") if clean_read_mode else {}
     pricing = _clean_block(row, "pricing_clean") if clean_read_mode else {}
+    base_model = str(identity.get("model") or row.get("model") or "").strip()
+    mg_doc = _encar_model_group_for_document(row)
     doc: Dict[str, Any] = {
         "id": str(car_id),
         "pg_id": int(row["pg_id"]),
         "car_id": str(car_id),
         "brand": str(identity.get("mark") or row.get("mark") or "").strip(),
-        "model": str(identity.get("model") or row.get("model") or "").strip(),
-        "model_group": _model_group(str(identity.get("model") or row.get("model") or "").strip()),
+        "model": base_model,
+        "model_group": mg_doc if mg_doc else _model_group(base_model),
         "fuel": str(spec.get("engine_type") or row.get("fuel_type") or "").strip(),
         "color": str(spec.get("color") or row.get("color") or "").strip(),
         "body_type": str(spec.get("body_type") or row.get("body_type") or "").strip(),
@@ -313,6 +340,7 @@ def iter_car_rows(
                 c.model,
                 c.generation,
                 c.trim_name,
+                c.encar_model_group,
                 c.fuel_type,
                 c.body_type,
                 c.transmission_type,
@@ -424,6 +452,9 @@ def main() -> None:
     parser.add_argument("--preflight-min-model-coverage-pct", type=float, default=99.0)
     args = parser.parse_args()
 
+    mk = (args.meili_key or "").strip()
+    args.meili_key = mk if mk else None
+
     settings_path = args.settings
     if not settings_path.is_file():
         parser.error(f"settings file not found: {settings_path}")
@@ -454,26 +485,32 @@ def main() -> None:
             raise SystemExit(proc.returncode)
 
     settings = load_settings(settings_path)
-    client = Client(args.meili_url, args.meili_key or None)
+    client = Client(args.meili_url, args.meili_key)
 
-    ensure_index(client, args.index_name, recreate=args.recreate_index)
-    apply_settings(client, args.index_name, settings)
+    try:
+        ensure_index(client, args.index_name, recreate=args.recreate_index)
+        apply_settings(client, args.index_name, settings)
 
-    if args.settings_only:
-        print(f"settings applied to index {args.index_name!r}", flush=True)
-        return
+        if args.settings_only:
+            print(f"settings applied to index {args.index_name!r}", flush=True)
+            return
 
-    assert args.pg_dsn
-    n = push_batches(
-        client,
-        args.index_name,
-        args.pg_dsn,
-        since=since_dt,
-        batch_size=max(1, min(args.batch_size, 50_000)),
-        wait_each_batch=not args.no_wait_batches,
-        clean_read_mode=bool(args.clean_read_mode),
-    )
-    print(f"synced document batches (upsert count): {n}", flush=True)
+        assert args.pg_dsn
+        n = push_batches(
+            client,
+            args.index_name,
+            args.pg_dsn,
+            since=since_dt,
+            batch_size=max(1, min(args.batch_size, 50_000)),
+            wait_each_batch=not args.no_wait_batches,
+            clean_read_mode=bool(args.clean_read_mode),
+        )
+        print(f"synced document batches (upsert count): {n}", flush=True)
+    except MeilisearchApiError as e:
+        if "invalid_api_key" in str(e).lower():
+            print("Meilisearch: invalid_api_key.", file=sys.stderr)
+            print(_MEILI_INVALID_KEY_HINT, file=sys.stderr)
+        raise
 
 
 if __name__ == "__main__":

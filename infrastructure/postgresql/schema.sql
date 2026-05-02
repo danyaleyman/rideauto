@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS cars (
     model                    TEXT,
     generation               TEXT,
     trim_name                TEXT,
+    encar_model_group        TEXT,
     body_type                TEXT,
     fuel_type                TEXT,
     transmission_type        TEXT,
@@ -113,6 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_cars_drive ON cars (drive_type);
 
 CREATE INDEX IF NOT EXISTS idx_cars_generation ON cars (generation);
 CREATE INDEX IF NOT EXISTS idx_cars_trim ON cars (trim_name);
+CREATE INDEX IF NOT EXISTS idx_cars_encar_model_group ON cars (encar_model_group);
 
 CREATE INDEX IF NOT EXISTS idx_cars_power ON cars (power_hp);
 CREATE INDEX IF NOT EXISTS idx_cars_power_kw ON cars (power_kw);

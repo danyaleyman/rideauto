@@ -142,6 +142,8 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "trim_name_en",
         "gradeName",
         "gradeName_en",
+        "modelGroupName",
+        "modelGroupName_en",
         "title_en",
         "year",
         "yearMonth",

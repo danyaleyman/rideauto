@@ -46,6 +46,50 @@ def test_row_to_car_fields_prefers_clean_layers_values(monkeypatch: pytest.Monke
     assert f["damaged_parts_count"] == 2
 
 
+def test_row_to_car_fields_encar_trim_no_configuration_fallback(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
+    payload = {
+        "data": {
+            "source": "encar",
+            "mark": "X",
+            "model": "Y",
+            "configuration": "Badge trim only",
+            "generation": "G1",
+            "modelGroupName": "Y LineUp",
+        }
+    }
+    f = row_to_car_fields("41900001", payload)
+    assert f["trim_name"] is None
+    assert f["encar_model_group"] == "Y LineUp"
+
+
+def test_row_to_car_fields_encar_gradeName_trim(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
+    payload = {
+        "data": {
+            "source": "encar",
+            "mark": "Kia",
+            "model": "EV6",
+            "gradeName": "GT-Line AWD",
+            "configuration": "should not leak",
+            "modelGroupName": "EV Group",
+        }
+    }
+    f = row_to_car_fields("41877280", payload)
+    assert f["trim_name"] == "GT-Line AWD"
+    assert f["encar_model_group"] == "EV Group"
+
+
+def test_row_to_car_fields_dongchedi_trim_configuration_fallback(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
+    payload = {
+        "data": {"source": "dongchedi", "mark": "B", "model": "M", "configuration": "330Li"}
+    }
+    f = row_to_car_fields("dongchedi-z", payload)
+    assert f["trim_name"] == "330Li"
+    assert f["encar_model_group"] is None
+
+
 def test_row_to_car_fields_legacy_when_clean_mode_off(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
     payload = {

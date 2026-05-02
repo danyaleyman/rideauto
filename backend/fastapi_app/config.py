@@ -4,7 +4,7 @@ from functools import lru_cache
 import os
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     meilisearch_url: str = Field(default="http://127.0.0.1:7700")
     meilisearch_key: str = Field(default="")
     meilisearch_index: str = Field(default="cars")
+
+    @field_validator("meilisearch_key", mode="before")
+    @classmethod
+    def _strip_meilisearch_key(cls, v: object) -> str:
+        if v is None:
+            return ""
+        s = str(v).strip()
+        return s if s else ""
     clean_read_mode: bool = Field(
         default=False,
         description="WRA_CLEAN_READ_MODE — prefer *_clean blocks in runtime reads",

@@ -24,8 +24,19 @@ echo "==> 1) Containers status"
 "${DOCKER_COMPOSE[@]}" ps
 
 echo "==> 2) API smoke"
-curl -fsS "$API_URL/api/health" >/dev/null
-curl -fsS "$API_URL/api/search?per_page=2" >/dev/null
+for path in "/api/health" "/api/search?per_page=2"; do
+  code="$(curl -sS -o /tmp/wra_smoke_body.txt -w "%{http_code}" "${API_URL}${path}" || echo "000")"
+  if [[ "$code" != "200" ]]; then
+    echo "API smoke failed: GET ${path} -> HTTP ${code}" >&2
+    head -c 2000 /tmp/wra_smoke_body.txt >&2 || true
+    echo >&2
+    echo "Подсказка: 500 на /api/search часто invalid_api_key — сравните длину ключа (должно совпадать):" >&2
+    echo "  docker compose exec -T api sh -c 'printf %s \"\$WRA_MEILISEARCH_KEY\" | wc -c'" >&2
+    echo "  docker compose exec -T meilisearch sh -c 'printf %s \"\$MEILI_MASTER_KEY\" | wc -c'" >&2
+    exit 1
+  fi
+done
+rm -f /tmp/wra_smoke_body.txt
 echo "API health/search: OK"
 
 echo "==> 3) PostgreSQL cars count"
