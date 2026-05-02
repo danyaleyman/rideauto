@@ -301,6 +301,12 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
         if read_model.get("price_rub") is not None
         else _extract_num(slim_data, "my_price")
     )
+    tier = read_model.get("pricing_tier")
+    if tier:
+        out["pricing_tier"] = str(tier)
+    ci = read_model.get("customs_included")
+    if isinstance(ci, bool):
+        out["customs_included"] = ci
     explicit_por = read_model.get("price_on_request")
     if explicit_por is False and "price_on_request" in slim_data:
         explicit_por = slim_data.get("price_on_request")

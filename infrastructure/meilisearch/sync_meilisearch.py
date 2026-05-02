@@ -152,13 +152,29 @@ def _model_group(model: str) -> str:
     return prev or s
 
 
-def _clean_block(row: Dict[str, Any], key: str) -> Dict[str, Any]:
+def _listing_json_root(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Корень JSON из `cars.data`: часто `{ "data": { …поля каталога… } }`."""
     raw = row.get("data")
     if isinstance(raw, str):
         try:
             raw = json.loads(raw)
         except Exception:
-            raw = None
+            return {}
+    if not isinstance(raw, dict):
+        return {}
+    inner = raw.get("data")
+    if isinstance(inner, dict) and (
+        isinstance(inner.get("pricing_clean"), dict)
+        or isinstance(inner.get("identity_clean"), dict)
+        or isinstance(inner.get("mark"), str)
+        or isinstance(inner.get("pricing_tier"), str)
+    ):
+        return inner
+    return raw
+
+
+def _clean_block(row: Dict[str, Any], key: str) -> Dict[str, Any]:
+    raw = _listing_json_root(row)
     if not isinstance(raw, dict):
         return {}
     b = raw.get(key)
@@ -226,6 +242,22 @@ def row_to_document(row: Dict[str, Any], *, clean_read_mode: bool = False) -> Di
         doc["displacement_label"] = str(row.get("displacement_label")).strip()
     if row.get("year_month") is not None:
         doc["year_month"] = int(row["year_month"])
+
+    lj = _listing_json_root(row)
+    tier = lj.get("pricing_tier") if isinstance(lj, dict) else None
+    pc = lj.get("pricing_clean") if isinstance(lj.get("pricing_clean"), dict) else {}
+    if not isinstance(tier, str):
+        tier = (pc.get("pricing_tier") if isinstance(pc.get("pricing_tier"), str) else None) or None
+    if isinstance(tier, str) and tier.strip():
+        doc["pricing_tier"] = tier.strip()
+    ci = pc.get("customs_included") if isinstance(pc.get("customs_included"), bool) else None
+    if ci is None and isinstance(tier, str):
+        if tier == "full_customs":
+            ci = True
+        elif tier in ("korea_land_only", "price_on_request"):
+            ci = False
+    if isinstance(ci, bool):
+        doc["customs_included"] = ci
 
     updated = _fmt_ts_for_meili(row.get("updated_at"))
     if updated:

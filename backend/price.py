@@ -660,6 +660,68 @@ class PriceCalculator:
             "eur_rub": eur_rub,
         }
 
+    def calculate_total_cost_excluding_rf_customs(self, car_data: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Корея: цена авто + документы (KRW→RUB), фрахт USD, брокер, комиссия.
+        Без таможенных платежей РФ (сбор, пошлина, утилизация, НДС ввоза).
+        Комиссия считается от базы без растаможки (customs_total_rub=0 в commission_rub).
+        """
+        cfg = self._get_price_config()
+        documents_krw = float(cfg.get("documents_krw", DOCUMENTS_KRW))
+        freight_usd = float(cfg.get("freight_usd", FREIGHT_USD))
+        broker_rub = float(cfg.get("broker_rub", BROKER_RUB))
+        commission_rate = float(cfg.get("commission_rate", COMMISSION_RATE_DEFAULT))
+
+        price_won_10k = car_data.get("price_won")
+        if price_won_10k is None and "price" in car_data:
+            try:
+                p = car_data["price"]
+                price_won_10k = int(p) if isinstance(p, (int, float)) else int(str(p).replace(" ", ""))
+            except (TypeError, ValueError):
+                price_won_10k = 0
+        if price_won_10k is None:
+            price_won_10k = 0
+        price_won = float(price_won_10k) * 10000.0
+
+        krw_per_usdt = self.get_krw_usdt_rate()
+        usdt_rub = self.get_usdt_rub_rate()
+        krw_to_rub = usdt_rub / krw_per_usdt
+
+        amount_krw_with_docs = price_won + documents_krw
+        car_and_docs_rub = amount_krw_with_docs * krw_to_rub
+        freight_rub = freight_usd * usdt_rub
+        documents_krw_rub = documents_krw * krw_to_rub
+        car_value_rub = car_and_docs_rub
+        eur_rub = self.get_cbr_eur_rub_safe()
+
+        fee = duty = excise = util = vat = 0.0
+        customs_total = 0.0
+        comm, comm_eff = commission_rub(car_and_docs_rub, customs_total, broker_rub, commission_rate)
+        vehicle_sum = car_and_docs_rub + freight_rub
+        total_with_commission = vehicle_sum + broker_rub + comm
+
+        return {
+            "price_won": price_won,
+            "price_rub": car_value_rub,
+            "documents_krw_rub": documents_krw_rub,
+            "freight_rub": freight_rub,
+            "customs_fee": fee,
+            "duty": duty,
+            "excise": excise,
+            "utilization": util,
+            "vat": vat,
+            "customs_total": customs_total,
+            "broker_rub": broker_rub,
+            "commission": comm,
+            "commission_rate_effective": comm_eff,
+            "commission_rate_default": commission_rate,
+            "vehicle_sum": vehicle_sum,
+            "total_with_commission": total_with_commission,
+            "krw_per_usdt": krw_per_usdt,
+            "usdt_rub": usdt_rub,
+            "eur_rub": eur_rub,
+        }
+
     def calculate_total_cost_china(self, car_data: Dict[str, Any]) -> Dict[str, float]:
         cfg = self._get_price_config()
         docs_delivery_cny = float(cfg.get("china_docs_delivery_cny", CHINA_DOCS_DELIVERY_CNY))
@@ -741,6 +803,28 @@ class PriceCalculator:
 
     def update_car_with_prices(self, car_data: Dict[str, Any]) -> Dict[str, Any]:
         prices = self.calculate_total_cost(car_data)
+        car_data["price_rub_estimate"] = prices["price_rub"]
+        car_data["documents_krw_rub"] = prices.get("documents_krw_rub", 0)
+        car_data["freight_rub"] = prices["freight_rub"]
+        car_data["customs_fee_rub"] = prices["customs_fee"]
+        car_data["duty_rub"] = prices["duty"]
+        car_data["excise_rub"] = prices["excise"]
+        car_data["util_rub"] = prices["utilization"]
+        car_data["vat_rub"] = prices["vat"]
+        car_data["customs_total_rub"] = prices["customs_total"]
+        car_data["broker_rub"] = prices["broker_rub"]
+        car_data["commission_rub"] = prices["commission"]
+        car_data["vehicle_sum_rub"] = prices["vehicle_sum"]
+        car_data["my_price"] = prices["total_with_commission"]
+        car_data["krw_per_usdt"] = prices.get("krw_per_usdt")
+        car_data["usdt_rub"] = prices.get("usdt_rub")
+        car_data["commission_rate_effective"] = prices.get("commission_rate_effective")
+        car_data["commission_rate_default"] = prices.get("commission_rate_default")
+        return car_data
+
+    def update_car_with_prices_land_only(self, car_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Итог без РФ таможни (см. calculate_total_cost_excluding_rf_customs)."""
+        prices = self.calculate_total_cost_excluding_rf_customs(car_data)
         car_data["price_rub_estimate"] = prices["price_rub"]
         car_data["documents_krw_rub"] = prices.get("documents_krw_rub", 0)
         car_data["freight_rub"] = prices["freight_rub"]

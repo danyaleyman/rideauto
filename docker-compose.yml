@@ -68,6 +68,9 @@ services:
       WRA_MEILISEARCH_URL: ${WRA_MEILISEARCH_URL:-http://meilisearch:7700}
       WRA_MEILISEARCH_KEY: ${MEILI_MASTER_KEY:-}
       WRA_MEILISEARCH_INDEX: ${WRA_MEILISEARCH_INDEX:-cars}
+      # Опционально: добивка hp_catalog.db скриптом backend/scripts/fill_hp_catalog_deepseek.py внутри контейнера
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       WRA_IMAGE_CACHE_DIR: ${WRA_IMAGE_CACHE_DIR:-/app/var/image_cache}
       WRA_CACHE_INVALIDATE_SECRET: ${WRA_CACHE_INVALIDATE_SECRET:-}
       WRA_METRICS_ENABLED: ${WRA_METRICS_ENABLED:-true}
@@ -90,6 +93,9 @@ services:
       - "${API_PORT:-8080}:8080"
     volumes:
       - api_image_cache:/app/var/image_cache
+      # Репозиторий ./data → /data в контейнере: hp_catalog.db, engine_map.json, encar_mapping.json.
+      # Backend резолвит parent(backend)/data как /data при WORKDIR=/app (см. power_from_external, hp_catalog_store).
+      - ./data:/data
     healthcheck:
       test:
         [

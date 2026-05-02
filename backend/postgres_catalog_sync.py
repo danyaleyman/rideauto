@@ -28,6 +28,7 @@ from catalog_listing_price import (
     encar_has_list_price,
     encar_reserved_placeholder_price,
 )
+from catalog_encar_pricing import encar_catalog_pricing_tier, sync_pricing_clean_block
 from catalog_pg_core import (
     UPSERT_CAR_SQL,
     extract_image_urls,
@@ -336,6 +337,10 @@ def run_sync(
                     localize_china_data(car["data"], localizer)
                 else:
                     localize_car_data(car["data"], localizer)
+                    # HP lookup runs again after EN/RU normalization: engine_map tends to match English marks
+                    # better than Korean-only strings passed on the first pass (before localize).
+                    if not no_power_lookup:
+                        fill_power_from_external(car["data"])
             cars_out.append(car)
 
         if not no_prices and cars_out:
@@ -348,7 +353,8 @@ def run_sync(
                 )
                 calc = PriceCalculator(config_path=str(cfg_path))
                 price_ok = price_failed = price_ok_china = price_skipped_china = 0
-                price_skipped_no_list = price_skipped_missing_engine = price_skipped_non_ice = 0
+                price_skipped_no_list = price_skipped_encar_on_request = 0
+                price_ok_land_only_encar = 0
                 for i, car in enumerate(cars_out):
                     data = car.get("data")
                     if data is None:
@@ -391,34 +397,39 @@ def run_sync(
                         continue
 
                     fuel_kind = classify_fuel(data)
-                    if fuel_kind != "ice":
-                        # До обновления методики расчета электро/гибридов показываем только цену по запросу.
-                        price_skipped_non_ice += 1
-                        data["price_on_request"] = True
-                        clear_estimated_price_fields(data)
-                        if car.get("data") is not data:
-                            car["data"] = data
-                        continue
-
                     hp_raw = parse_power_hp(data)
-                    hp_val = int(hp_raw) if isinstance(hp_raw, (int, float)) and hp_raw > 0 else None
+                    hp_ok = isinstance(hp_raw, (int, float)) and float(hp_raw) > 0
                     cc_val = _parse_positive_int(
                         data.get("displacement")
                         or data.get("displacement_cc")
                         or data.get("engine_volume")
                     )
-                    if hp_val is None or cc_val is None:
-                        # Для каталога не показываем «оценочную» финальную цену без базовых параметров.
-                        price_skipped_missing_engine += 1
+                    cc_ok = cc_val is not None
+                    tier = encar_catalog_pricing_tier(fuel_kind=str(fuel_kind), hp_ok=hp_ok, cc_ok=cc_ok)
+
+                    data.pop("catalog_price_hp_unknown", None)
+
+                    if tier == "price_on_request":
+                        price_skipped_encar_on_request += 1
+                        data["pricing_tier"] = tier
                         data["price_on_request"] = True
                         clear_estimated_price_fields(data)
+                        sync_pricing_clean_block(data)
                         if car.get("data") is not data:
                             car["data"] = data
                         continue
 
                     data.pop("price_on_request", None)
                     try:
-                        calc.update_car_with_prices(data)
+                        if tier == "full_customs":
+                            calc.update_car_with_prices(data)
+                        elif tier == "korea_land_only":
+                            calc.update_car_with_prices_land_only(data)
+                            price_ok_land_only_encar += 1
+                        else:
+                            raise RuntimeError(f"unexpected encar tier: {tier!r}")
+                        data["pricing_tier"] = tier
+                        sync_pricing_clean_block(data)
                         if car.get("data") is not data:
                             car["data"] = data
                         if isinstance(data, dict):
@@ -426,6 +437,11 @@ def run_sync(
                         price_ok += 1
                     except Exception as e:
                         price_failed += 1
+                        if isinstance(data, dict):
+                            clear_estimated_price_fields(data)
+                            data["pricing_tier"] = "price_on_request"
+                            data["price_on_request"] = True
+                            sync_pricing_clean_block(data)
                         if i == 0:
                             print(f"Warning: price calc failed for first car: {e}", file=sys.stderr)
                         if isinstance(data, dict):
@@ -436,8 +452,8 @@ def run_sync(
                     f"Price calc summary: ok={price_ok} failed={price_failed} "
                     f"ok_china={price_ok_china} skipped_china_no_price={price_skipped_china} "
                     f"skipped_no_list_price={price_skipped_no_list} "
-                    f"skipped_non_ice={price_skipped_non_ice} "
-                    f"skipped_missing_hp_or_cc={price_skipped_missing_engine} "
+                    f"skipped_encar_on_request={price_skipped_encar_on_request} "
+                    f"ok_encar_land_only_excl_rf_customs={price_ok_land_only_encar} "
                     f"total={len(cars_out)}",
                     file=sys.stderr,
                 )

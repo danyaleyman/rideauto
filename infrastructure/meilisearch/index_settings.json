@@ -21,6 +21,8 @@
     "brand",
     "model",
     "model_group",
+    "pricing_tier",
+    "customs_included",
     "price",
     "year",
     "year_month",
