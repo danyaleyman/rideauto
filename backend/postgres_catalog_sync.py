@@ -37,6 +37,7 @@ from catalog_pg_core import (
     row_to_car_fields,
 )
 from localization.term_localizer import PgTermLocalizer, localize_car_data, localize_china_data
+from scraper_pipeline.pg_dsn_resolve import resolve_scraper_postgres_dsn
 
 _BACKEND_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _BACKEND_DIR.parent
@@ -104,12 +105,7 @@ def _tree_for_pg_jsonb(value: Any) -> Any:
 
 
 def _dsn_from_config(config: dict) -> str:
-    storage_cfg = config.get("storage", {}) or {}
-    dsn = (storage_cfg.get("postgres") or {}).get("dsn") or ""
-    dsn = str(dsn).strip()
-    if dsn:
-        return dsn
-    return (os.environ.get("DATABASE_URL") or "").strip()
+    return resolve_scraper_postgres_dsn(config)
 
 
 def _load_yaml_config(path: Path) -> dict:
@@ -603,6 +599,8 @@ def main() -> int:
             return 2
         cfg = _load_yaml_config(cfg_path)
         dsn = _dsn_from_config(cfg)
+    if not dsn:
+        dsn = resolve_scraper_postgres_dsn({})
     if not dsn:
         print("PostgreSQL DSN required (--dsn or config storage.postgres.dsn / DATABASE_URL)", file=sys.stderr)
         return 2

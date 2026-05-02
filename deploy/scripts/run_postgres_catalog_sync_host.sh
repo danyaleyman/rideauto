@@ -32,6 +32,8 @@ REWRITE_PY="${ROOT}/deploy/scripts/pg_dsn_host_local_rewrite.py"
 if [[ -f "$REWRITE_PY" ]]; then
   export DATABASE_URL="$(printf '%s' "${DATABASE_URL}" | python "${REWRITE_PY}")"
 fi
+# Иначе storage.postgres.dsn в YAML с @postgres перекрывает этот URL (см. pg_dsn_resolve.py).
+export RIDEAUTO_PG_CHECKPOINT_DSN="$DATABASE_URL"
 export PYTHONPATH="${ROOT}/backend"
 export PYTHONUNBUFFERED=1
 CFG="${WRA_SCRAPER_CONFIG:-${ROOT}/scraper_config.yaml}"

@@ -504,10 +504,10 @@ async def run_scraper(
                 "Запустите: python backend/postgres_catalog_sync.py --config …"
             )
         else:
-            _run_postgres_catalog_sync(config_path, log)
+            _run_postgres_catalog_sync(config_path, config, log)
 
 
-def _run_postgres_catalog_sync(config_path: str, log: logging.Logger) -> None:
+def _run_postgres_catalog_sync(config_path: str, config: dict[str, Any], log: logging.Logger) -> None:
     """После scraper с storage.backend=postgres: цены в БД + опционально Meilisearch (см. postgres_catalog_sync.py)."""
     if os.environ.get("SKIP_POSTGRES_CATALOG_SYNC", "").strip().lower() in ("1", "true", "yes", "on"):
         log.info("postgres_catalog_sync пропущен (SKIP_POSTGRES_CATALOG_SYNC)")
@@ -517,11 +517,17 @@ def _run_postgres_catalog_sync(config_path: str, log: logging.Logger) -> None:
     if not sync_script.is_file():
         log.warning("postgres_catalog_sync.py не найден: %s", sync_script)
         return
+    dsn_sync = _postgres_dsn_for_checkpoint(config)
+    if not dsn_sync:
+        log.warning("postgres_catalog_sync: пустой DSN, пропуск")
+        return
     cmd = [
         os.environ.get("PYTHON", sys.executable),
         str(sync_script),
         "--config",
         str(Path(config_path).resolve()),
+        "--dsn",
+        dsn_sync,
     ]
     if os.environ.get("WRITE_STATIC_CATALOG", "").strip().lower() in ("1", "true", "yes", "on"):
         cmd.extend(["--write-static-json", "--static-gzip", "--static-chunk-size", "5000"])
