@@ -48,21 +48,6 @@ CUSTOMS_FEE_TIERS_RUB: List[Tuple[float, float]] = [
     (10_000_000, 49_240),
     (float("inf"), 73_860),
 ]
-UTIL_HP_THRESHOLD = 160
-UTIL_COEF_BY_ENGINE_AGE: Dict[Tuple[int, int], float] = {
-    (0, 0): 0.17,
-    (0, 1): 0.26,
-    (1, 0): 0.17,
-    (1, 1): 0.26,
-    (2, 0): 0.17,
-    (2, 1): 0.26,
-    (3, 0): 129.2,
-    (3, 1): 197.81,
-    (4, 0): 164.53,
-    (4, 1): 219.48,
-    (5, 0): 180.0,
-    (5, 1): 245.0,
-}
 EXCISE_HP_TIERS_RUB_PER_HP: List[Tuple[float, float]] = [
     (90.0, 0.0),
     (150.0, 64.0),
@@ -74,13 +59,187 @@ EXCISE_HP_TIERS_RUB_PER_HP: List[Tuple[float, float]] = [
 ]
 # НДС при импорте (база: таможенная стоимость + пошлина + акциз), ориентир для калькулятора физлица.
 VAT_IMPORT_RATE = 0.20
-UTIL_POWER_MULTIPLIER_TIERS: List[Tuple[float, float]] = [
-    (160.0, 1.0),
-    (200.0, 1.1),
-    (250.0, 1.25),
-    (300.0, 1.45),
-    (float("inf"), 1.7),
-]
+
+
+def _util_age_band(age_years: int) -> str:
+    if age_years < 3:
+        return "0-3"
+    if age_years <= 5:
+        return "3-5"
+    return "5+"
+
+
+def _effective_power_util(
+    eng_type: str,
+    hybrid_type: str,
+    hp_ice: float,
+    hp_ed_peak: float,
+) -> float:
+    """Совпадает с BuyCalculator.effectivePowerHp (30-мин. мощность ЭД = 0.45×пик)."""
+    ed30 = hp_ed_peak * 0.45
+    if eng_type == "electric":
+        return ed30
+    if eng_type == "hybrid":
+        return ed30 if hybrid_type == "series" else hp_ice + ed30
+    return hp_ice
+
+
+def utilization_buy_page_rub(
+    *,
+    age: str,
+    eng_type: str,
+    hybrid_type: str,
+    vol: int,
+    hp_ice: float,
+    hp_ed: float,
+    purpose: str,
+) -> float:
+    """Паритет с web/src/components/buy/BuyCalculator.tsx → getUtil."""
+    base = UTIL_BASE_PERSONAL_RUB
+    is_personal = purpose == "personal"
+    effective_power = _effective_power_util(eng_type, hybrid_type, hp_ice, hp_ed)
+
+    if is_personal:
+        if eng_type == "electric" or (eng_type == "hybrid" and hybrid_type == "series"):
+            is_loyal = effective_power <= 80
+        else:
+            is_loyal = effective_power <= 160
+        if is_loyal:
+            return 3400.0 if age == "0-3" else 5200.0
+
+    if (eng_type == "electric" or (eng_type == "hybrid" and hybrid_type == "series")) and effective_power > 80:
+        coeff = 1.0
+        if age == "0-3":
+            if effective_power <= 100:
+                coeff = 65.88
+            elif effective_power <= 130:
+                coeff = 79.2
+            elif effective_power <= 160:
+                coeff = 93.6
+            else:
+                coeff = 110.4
+        elif age == "3-5":
+            if effective_power <= 100:
+                coeff = 151.2
+            elif effective_power <= 130:
+                coeff = 172.8
+            elif effective_power <= 160:
+                coeff = 201.6
+            else:
+                coeff = 240.0
+        else:
+            if effective_power <= 100:
+                coeff = 240.0
+            elif effective_power <= 130:
+                coeff = 280.0
+            elif effective_power <= 160:
+                coeff = 320.0
+            else:
+                coeff = 360.0
+        return float(round(base * coeff))
+
+    power_kw = effective_power * 0.7355
+    coeff = 1.0
+    if age == "0-3":
+        if vol <= 1000:
+            if power_kw <= 50:
+                coeff = 1.63
+            elif power_kw <= 100:
+                coeff = 1.85
+            else:
+                coeff = 2.08
+        elif vol <= 2000:
+            if effective_power > 160:
+                coeff = 45.0
+            elif power_kw <= 100:
+                coeff = 3.01
+            elif power_kw <= 150:
+                coeff = 3.62
+            else:
+                coeff = 4.23
+        elif vol <= 3000:
+            coeff = 120.12 if eng_type == "diesel" else 118.2
+        elif vol <= 3500:
+            if power_kw <= 200:
+                coeff = 9.23
+            elif power_kw <= 220:
+                coeff = 10.05
+            else:
+                coeff = 144.0
+        else:
+            coeff = 12.29
+    elif age == "3-5":
+        if vol <= 1000:
+            coeff = 5.73
+        elif vol <= 2000:
+            if power_kw > 161.8:
+                coeff = 177.6
+            elif power_kw > 117.7:
+                coeff = 74.64
+            else:
+                coeff = 8.95
+        elif vol <= 3000:
+            if power_kw > 161.8:
+                coeff = 177.6
+            elif power_kw > 117.7:
+                coeff = 74.64
+            else:
+                coeff = 32.0
+        elif vol <= 3500:
+            coeff = 45.0
+        else:
+            coeff = 60.0
+    else:
+        if vol <= 1000:
+            coeff = 17.5
+        elif vol <= 2000:
+            if power_kw > 161.8:
+                coeff = 177.6
+            elif power_kw > 117.7:
+                coeff = 74.64
+            else:
+                coeff = 28.5
+        elif vol <= 3000:
+            if power_kw > 161.8:
+                coeff = 177.6
+            elif power_kw > 117.7:
+                coeff = 74.64
+            else:
+                coeff = 85.0
+        elif vol <= 3500:
+            coeff = 120.0
+        else:
+            coeff = 150.0
+
+    return float(round(base * coeff))
+
+
+def _engine_type_is_diesel(car_data: Dict[str, Any]) -> bool:
+    raw = str(car_data.get("engine_type") or "")
+    lo = raw.lower()
+    return "дизель" in lo or "diesel" in lo or "디젤" in raw
+
+
+def _hybrid_series_hint(car_data: Dict[str, Any]) -> bool:
+    s = str(car_data.get("hybrid_layout") or car_data.get("hybrid_type") or "").strip().lower()
+    return s in ("series", "serial", "последовательный", "series_hybrid")
+
+
+def _hybrid_ed_peak_hp(car_data: Dict[str, Any]) -> float:
+    for key in ("power_electric_hp", "electric_motor_hp", "motor_hp_peak"):
+        v = car_data.get(key)
+        if v is not None and v != "":
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                pass
+    kw = car_data.get("electric_motor_kw") or car_data.get("motor_kw_peak")
+    if kw is not None and kw != "":
+        try:
+            return float(kw) / 0.7355
+        except (TypeError, ValueError):
+            pass
+    return 0.0
 
 
 def engine_volume_bracket_index(engine_cc: int) -> int:
@@ -246,30 +405,54 @@ def utilization_phys_person_rub(
     age_years: int,
     power_hp_ice: Optional[float],
     fuel: str,
+    car_data: Optional[Dict[str, Any]] = None,
 ) -> float:
+    """Утилизационный сбор физлица — та же логика, что BuyCalculator.getUtil (страница «Как купить»)."""
+    cd = car_data if isinstance(car_data, dict) else {}
+    age = _util_age_band(age_years)
+    hp_i = float(power_hp_ice or 0)
+    vol = int(engine_cc)
+    if vol <= 0:
+        vol = 2000
+
     if fuel == "electric":
-        return 0.0
+        peak = hp_i
+        if peak <= 0:
+            ph = parse_power_hp(cd)
+            peak = float(ph or 0)
+        return utilization_buy_page_rub(
+            age=age,
+            eng_type="electric",
+            hybrid_type="none",
+            vol=0,
+            hp_ice=0.0,
+            hp_ed=peak,
+            purpose="personal",
+        )
 
-    if engine_cc <= 0:
-        engine_cc = 2000
+    if fuel == "hybrid":
+        series = _hybrid_series_hint(cd)
+        hp_ed = _hybrid_ed_peak_hp(cd)
+        return utilization_buy_page_rub(
+            age=age,
+            eng_type="hybrid",
+            hybrid_type="series" if series else "parallel",
+            vol=vol,
+            hp_ice=hp_i,
+            hp_ed=hp_ed,
+            purpose="personal",
+        )
 
-    age_bucket = 0 if age_years < 3 else 1
-    hp_ok = power_hp_ice is None or power_hp_ice <= UTIL_HP_THRESHOLD
-    if hp_ok:
-        k = 0.17 if age_bucket == 0 else 0.26
-        return UTIL_BASE_PERSONAL_RUB * k
-
-    idx = engine_volume_bracket_index(engine_cc)
-    k = UTIL_COEF_BY_ENGINE_AGE.get((idx, age_bucket))
-    if k is None:
-        k = UTIL_COEF_BY_ENGINE_AGE.get((min(idx, 5), age_bucket), 112.52 if age_bucket == 0 else 170.36)
-    power_mult = 1.0
-    if power_hp_ice is not None:
-        for hp_limit, mult in UTIL_POWER_MULTIPLIER_TIERS:
-            if power_hp_ice <= hp_limit:
-                power_mult = mult
-                break
-    return UTIL_BASE_PERSONAL_RUB * k * power_mult
+    eng = "diesel" if _engine_type_is_diesel(cd) else "petrol"
+    return utilization_buy_page_rub(
+        age=age,
+        eng_type=eng,
+        hybrid_type="none",
+        vol=vol,
+        hp_ice=hp_i,
+        hp_ed=0.0,
+        purpose="personal",
+    )
 
 
 def excise_rub(power_hp: Optional[float], hp_tiers: Optional[List[Tuple[float, float]]] = None) -> float:

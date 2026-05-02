@@ -127,6 +127,7 @@ class PriceCalculatorChina:
             age_years=age,
             power_hp_ice=power_ice,
             fuel=fuel,
+            car_data=car_data,
         )
         vat = vat_import_rub(car_value_rub, duty, excise, fuel=fuel, age_years=age)
         customs_total = fee + duty + excise + util + vat

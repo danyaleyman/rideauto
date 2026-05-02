@@ -149,6 +149,7 @@ class PriceCalculatorKorea:
             age_years=age,
             power_hp_ice=power_ice,
             fuel=fuel,
+            car_data=car_data,
         )
         excise_tiers_cfg = cfg.get("excise_hp_tiers_rub_per_hp")
         excise_tiers: Optional[List[Tuple[float, float]]] = None
