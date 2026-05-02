@@ -117,21 +117,13 @@ class PriceCalculatorKorea:
             price_won_10k = 0
         price_won = float(price_won_10k) * 10000.0
 
-        krw_per_usdt = fx.get_krw_usdt_rate()
-        usdt_rub = fx.get_usdt_rub_rate()
-        krw_to_rub_crypto = usdt_rub / krw_per_usdt if krw_per_usdt > 0 else 0.0
+        rub_pw, krw_pricing_source = fx.resolve_korea_krw_to_rub()
+        amount_krw_with_docs = price_won + documents_krw
+        car_and_docs_rub = amount_krw_with_docs * rub_pw
+        documents_krw_rub = documents_krw * rub_pw
 
-        rub_per_won_cbr = fx.get_cbr_krw_rub_per_won_optional()
-        if rub_per_won_cbr is not None:
-            amount_krw_with_docs = price_won + documents_krw
-            car_and_docs_rub = amount_krw_with_docs * rub_per_won_cbr
-            documents_krw_rub = documents_krw * rub_per_won_cbr
-            krw_pricing_source = "cbr_krw"
-        else:
-            amount_krw_with_docs = price_won + documents_krw
-            car_and_docs_rub = amount_krw_with_docs * krw_to_rub_crypto
-            documents_krw_rub = documents_krw * krw_to_rub_crypto
-            krw_pricing_source = "crypto_proxy_usdt_bridge"
+        usdt_rub = fx.get_cbr_usd_rub_exclusive()
+        implied_kpw_usd = float(usdt_rub) / rub_pw if rub_pw > 1e-18 else fx.get_approx_krw_per_usd()
 
         cbr_usd_rub = fx.get_cbr_usd_rub_safe()
         freight_rub = freight_usd * cbr_usd_rub
@@ -200,11 +192,11 @@ class PriceCalculatorKorea:
             "commission_rate_default": float(COMMISSION_RATE_DEFAULT),
             "vehicle_sum": vehicle_sum,
             "total_with_commission": total_with_commission,
-            "krw_per_usdt": krw_per_usdt,
+            "krw_per_usdt": implied_kpw_usd,
             "usdt_rub": usdt_rub,
             "eur_rub": eur_rub,
             "cbr_usd_rub": cbr_usd_rub,
-            "cbr_krw_rub_per_won": float(rub_per_won_cbr) if rub_per_won_cbr is not None else 0.0,
+            "cbr_krw_rub_per_won": float(rub_pw),
             "krw_pricing_source": krw_pricing_source,
         }
 
@@ -227,21 +219,13 @@ class PriceCalculatorKorea:
             price_won_10k = 0
         price_won = float(price_won_10k) * 10000.0
 
-        krw_per_usdt = fx.get_krw_usdt_rate()
-        usdt_rub = fx.get_usdt_rub_rate()
-        krw_to_rub_crypto = usdt_rub / krw_per_usdt if krw_per_usdt > 0 else 0.0
+        rub_pw, krw_pricing_source = fx.resolve_korea_krw_to_rub()
+        amount_krw_with_docs = price_won + documents_krw
+        car_and_docs_rub = amount_krw_with_docs * rub_pw
+        documents_krw_rub = documents_krw * rub_pw
 
-        rub_per_won_cbr = fx.get_cbr_krw_rub_per_won_optional()
-        if rub_per_won_cbr is not None:
-            amount_krw_with_docs = price_won + documents_krw
-            car_and_docs_rub = amount_krw_with_docs * rub_per_won_cbr
-            documents_krw_rub = documents_krw * rub_per_won_cbr
-            krw_pricing_source = "cbr_krw"
-        else:
-            amount_krw_with_docs = price_won + documents_krw
-            car_and_docs_rub = amount_krw_with_docs * krw_to_rub_crypto
-            documents_krw_rub = documents_krw * krw_to_rub_crypto
-            krw_pricing_source = "crypto_proxy_usdt_bridge"
+        usdt_rub = fx.get_cbr_usd_rub_exclusive()
+        implied_kpw_usd = float(usdt_rub) / rub_pw if rub_pw > 1e-18 else fx.get_approx_krw_per_usd()
 
         cbr_usd_rub = fx.get_cbr_usd_rub_safe()
         freight_rub = freight_usd * cbr_usd_rub
@@ -271,11 +255,11 @@ class PriceCalculatorKorea:
             "commission_rate_default": float(COMMISSION_RATE_DEFAULT),
             "vehicle_sum": vehicle_sum,
             "total_with_commission": total_with_commission,
-            "krw_per_usdt": krw_per_usdt,
+            "krw_per_usdt": implied_kpw_usd,
             "usdt_rub": usdt_rub,
             "eur_rub": eur_rub,
             "cbr_usd_rub": cbr_usd_rub,
-            "cbr_krw_rub_per_won": float(rub_per_won_cbr) if rub_per_won_cbr is not None else 0.0,
+            "cbr_krw_rub_per_won": float(rub_pw),
             "krw_pricing_source": krw_pricing_source,
         }
 

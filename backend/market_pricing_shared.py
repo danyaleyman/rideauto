@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Общая часть для рынков: классификация ДВС, таблицы ввоза физлица в РФ, курсы (ЦБ + Binance).
-Не импортировать код «Корея» из «Китай» и наоборот — здесь только нейтральные расчёты.
+Общая часть для рынков: классификация ДВС, таблицы ввоза физлица в РФ, официальные курсы ЦБ РФ.
+Криптобиржи и сторонние FX API не используются для продакшен-расчёта ₽/$ и ₽/₩.
+Корейский след: если в котировках ЦБ нет KRW — кросс «USD ЦБ × ₩/$» с явным параметром из config (price.krw_per_usd).
 """
 
 from __future__ import annotations
@@ -365,7 +366,7 @@ def _load_json_config(config_path: str) -> Dict[str, Any]:
 
 
 class PricingFxRates:
-    """Кэш курсов Бинанс + ЦБ (используется калькуляторами рынков)."""
+    """Официальные курсы ЦБ РФ (кеш) + параметры конфига на случай недоступности выгрузки."""
 
     def __init__(self, config_path: str = "config.json"):
         self.config_path = config_path
@@ -389,70 +390,6 @@ class PricingFxRates:
     def _cache_ttl_sec(self) -> float:
         return float(self._price_cfg().get("cache_minutes", 5)) * 60.0
 
-    def get_krw_usdt_rate(self) -> float:
-        key = "krw_per_usdt"
-        if self._rate_cached(key):
-            return self.exchange_rates[key]
-        cfg = self._price_cfg()
-        fallback = float(cfg.get("krw_per_usdt") or cfg.get("krw_per_usdt_fallback") or 1400.0)
-        try:
-            r = requests.get(
-                "https://api.binance.com/api/v3/ticker/price?symbol=USDTKRW", timeout=8
-            )
-            if r.ok:
-                krw_per_usdt = float(r.json()["price"])
-            else:
-                r.raise_for_status()
-            self.exchange_rates[key] = krw_per_usdt
-            self._touch_cache()
-            logger.info("KRW/USDT (за 1 USDT): %.0f KRW", krw_per_usdt)
-            return krw_per_usdt
-        except Exception as e_binance:
-            try:
-                r2 = requests.get(
-                    "https://api.frankfurter.app/latest?from=USD&to=KRW", timeout=8
-                )
-                r2.raise_for_status()
-                krw_per_usdt = float(r2.json().get("rates", {}).get("KRW") or 0)
-                if krw_per_usdt <= 0:
-                    raise ValueError("no KRW in frankfurter response")
-                self.exchange_rates[key] = krw_per_usdt
-                self._touch_cache()
-                logger.info("KRW/USDT (Frankfurter USD→KRW): %.0f KRW", krw_per_usdt)
-                return krw_per_usdt
-            except Exception as e2:
-                logger.warning(
-                    "KRW/USDT: Binance (%s), Frankfurter (%s); используем %.0f KRW",
-                    e_binance,
-                    e2,
-                    fallback,
-                )
-            self.exchange_rates[key] = fallback
-            self._touch_cache()
-            return fallback
-
-    def get_usdt_rub_rate(self) -> float:
-        key = "usdt_rub"
-        if self._rate_cached(key):
-            return self.exchange_rates[key]
-        try:
-            r = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=USDTRUB", timeout=10)
-            r.raise_for_status()
-            rate = float(r.json()["price"])
-            self.exchange_rates[key] = rate
-            self._touch_cache()
-            logger.info("USDT/RUB: %.2f", rate)
-            return rate
-        except Exception as e:
-            fallback = float(self._price_cfg().get("usdt_rub") or 95.0)
-            logger.warning("USDT/RUB недоступен (%s), используем %s", e, fallback)
-            self.exchange_rates[key] = fallback
-            self._touch_cache()
-            return fallback
-
-    def get_exchange_rate(self) -> float:
-        return self.get_usdt_rub_rate() / self.get_krw_usdt_rate()
-
     def _get_cbr_valutes_dict(self) -> Dict[str, Any]:
         ttl = self._cache_ttl_sec()
         if (
@@ -461,20 +398,26 @@ class PricingFxRates:
             and (time.time() - self._cbr_valutes_snapshot_at) < ttl
         ):
             return self._cbr_valutes_snapshot
-        try:
-            r = requests.get("https://www.cbr-xml-daily.ru/daily_json.js", timeout=8)
-            r.raise_for_status()
-            vu = r.json().get("Valute")
-            snap = vu if isinstance(vu, dict) else {}
-            self._cbr_valutes_snapshot = snap
-            self._cbr_valutes_snapshot_at = time.time()
-            self._touch_cache()
-            return snap
-        except Exception as e:
-            logger.warning("ЦБ JSON (Valute): %s", e)
-            if isinstance(self._cbr_valutes_snapshot, dict):
-                return self._cbr_valutes_snapshot
-            return {}
+        last_err: Optional[Exception] = None
+        for url in (
+            "https://www.cbr-xml-daily.ru/daily_json.js",
+            "https://www.cbr-xml-daily.ru/latest.js",
+        ):
+            try:
+                r = requests.get(url, timeout=10)
+                r.raise_for_status()
+                vu = r.json().get("Valute")
+                snap = vu if isinstance(vu, dict) else {}
+                self._cbr_valutes_snapshot = snap
+                self._cbr_valutes_snapshot_at = time.time()
+                self._touch_cache()
+                return snap
+            except Exception as e:
+                last_err = e
+        logger.warning("ЦБ JSON (Valute): %s", last_err)
+        if isinstance(self._cbr_valutes_snapshot, dict):
+            return self._cbr_valutes_snapshot
+        return {}
 
     def _cbr_currency_rub(self, code: str, fallback: float, *, snapshot: Optional[Dict[str, Any]] = None) -> float:
         key = f"cbr_{code.lower()}_rub"
@@ -496,24 +439,106 @@ class PricingFxRates:
     def get_cbr_cny_rub_safe(self) -> float:
         return self._cbr_currency_rub("CNY", 12.0)
 
-    def get_cbr_usd_rub_safe(self) -> float:
-        vu = self._get_cbr_valutes_dict()
-        direct = _cbr_rub_per_one_foreign_unit(vu.get("USD")) if vu else None
-        if direct is not None and direct > 0:
-            self.exchange_rates["cbr_usd_rub"] = direct
-            self._touch_cache()
-            return direct
-        usdt_fb = float(self._price_cfg().get("usdt_rub") or 95.0)
-        try:
-            alt = float(self.get_usdt_rub_rate())
-            if alt > 0:
-                self.exchange_rates["cbr_usd_rub"] = alt
-                return alt
-        except Exception:
-            pass
-        return usdt_fb
-
     def get_cbr_krw_rub_per_won_optional(self) -> Optional[float]:
         vu = self._get_cbr_valutes_dict()
         rate = _cbr_rub_per_one_foreign_unit(vu.get("KRW"))
         return rate if rate is not None and rate > 0 else None
+
+    def get_cbr_usd_rub_exclusive(self) -> float:
+        """
+        Только официальный курс USD ЦБ ₽/$ (ключ price.usd_rub или price.usdt_rub только как запас,
+        когда выгрузка ЦБ временно недоступна — не биржа).
+        """
+        if self._rate_cached("usd_rub_cbr"):
+            return float(self.exchange_rates["usd_rub_cbr"])
+        vu = self._get_cbr_valutes_dict()
+        rate = _cbr_rub_per_one_foreign_unit(vu.get("USD")) if vu else None
+        if rate is not None and rate > 0:
+            self.exchange_rates["usd_rub_cbr"] = rate
+            self.exchange_rates["usdt_rub"] = rate
+            self._touch_cache()
+            logger.info("ЦБ USD/RUB: %.4f ₽ за 1 USD", rate)
+            return rate
+        cfg = self._price_cfg()
+        fb = float(cfg.get("usd_rub") or cfg.get("usdt_rub") or 95.0)
+        logger.warning("Курс USD ЦБ временно недоступен — из конфига price.usd_rub / usdt_rub: %.4f", fb)
+        self.exchange_rates["usd_rub_cbr"] = fb
+        self.exchange_rates["usdt_rub"] = fb
+        self._touch_cache()
+        return fb
+
+    def get_cbr_usd_rub_safe(self) -> float:
+        """Совместимость: синоним `get_cbr_usd_rub_exclusive`."""
+        return self.get_cbr_usd_rub_exclusive()
+
+    def get_usdt_rub_rate(self) -> float:
+        """Обратная совместимость полей объявления: фактически официальный USD ЦБ, не Binance/USDT."""
+        return self.get_cbr_usd_rub_exclusive()
+
+    def get_approx_krw_per_usd(self) -> float:
+        """
+        Сколько корейских вон за 1 USD — только из конфига, если прямого KRW в Valute ЦБ нет.
+        Поля по приоритету: price.krw_per_usd, price.krw_per_usd_approx, price.krw_per_usd_fallback.
+        """
+        if self._rate_cached("approx_kpw_per_usd"):
+            return float(self.exchange_rates["approx_kpw_per_usd"])
+        cfg = self._price_cfg()
+        parsed: Optional[float] = None
+        for kname in ("krw_per_usd", "krw_per_usd_approx"):
+            raw = cfg.get(kname)
+            if raw is None or raw == "":
+                continue
+            try:
+                v = float(raw)
+                if v > 0:
+                    parsed = v
+                    logger.warning(
+                        "В котировках ЦБ нет KRW или он не загрузился — для кросса к USD используем конфиг "
+                        "%s = %.4f ₩/$ (задайте price.krw_per_usd актуально).",
+                        kname,
+                        v,
+                    )
+                    break
+            except (TypeError, ValueError):
+                continue
+        if parsed is None:
+            try:
+                parsed = float(cfg.get("krw_per_usd_fallback") or 1470.0)
+            except (TypeError, ValueError):
+                parsed = 1470.0
+            logger.warning(
+                "ЦБ KRW недоступен и price.krw_per_usd не задан — временно ₩/$ = %.4f (fallback).",
+                parsed,
+            )
+        self.exchange_rates["approx_kpw_per_usd"] = parsed
+        self._touch_cache()
+        return parsed
+
+    def resolve_korea_krw_to_rub(self) -> Tuple[float, str]:
+        """
+        Сколько ₽ за одну южнокорейскую вону: прямо из строки Valute[KRW],
+        либо (USD ЦБ) / (₩/$ из конфига).
+        """
+        direct = self.get_cbr_krw_rub_per_won_optional()
+        if direct is not None and direct > 0:
+            logger.info("ЦБ KRW/RUB: %.6f ₽ за 1 KRW", direct)
+            return float(direct), "cbr_krw_direct"
+
+        usd_rub = self.get_cbr_usd_rub_exclusive()
+        kpw = self.get_approx_krw_per_usd()
+        rp = float(usd_rub) / max(kpw, 1e-9)
+        logger.info(
+            "Модель ₽/₩ через USD ЦБ: %.6f = %.4f (₽/$) ÷ %.2f (₩/$ конфиг)",
+            rp,
+            usd_rub,
+            kpw,
+        )
+        return rp, "cbr_usd_cross_config_kpw"
+
+    def get_krw_usdt_rate(self) -> float:
+        """Совместимость: трактовать как ₩ за 1 USD для старых цепочек (без биржевого оркакула)."""
+        return float(self.get_approx_krw_per_usd())
+
+    def get_exchange_rate(self) -> float:
+        """Приблизительно 1 KRW → RUB только по правилам `resolve_korea_krw_to_rub`."""
+        return float(self.resolve_korea_krw_to_rub()[0])
