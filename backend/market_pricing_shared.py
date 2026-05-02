@@ -375,6 +375,9 @@ class PricingFxRates:
         self.last_rate_update = 0.0
         self._cbr_valutes_snapshot: Optional[Dict[str, Any]] = None
         self._cbr_valutes_snapshot_at: float = 0.0
+        # Один INFO на прогон каталога, а не на каждую строку (resolve_korea_krw_to_rub).
+        self._info_logged_krw_direct = False
+        self._info_logged_krw_cross = False
 
     def _price_cfg(self) -> Dict[str, Any]:
         p = self.config.get("price")
@@ -521,18 +524,22 @@ class PricingFxRates:
         """
         direct = self.get_cbr_krw_rub_per_won_optional()
         if direct is not None and direct > 0:
-            logger.info("ЦБ KRW/RUB: %.6f ₽ за 1 KRW", direct)
+            if not self._info_logged_krw_direct:
+                self._info_logged_krw_direct = True
+                logger.info("ЦБ KRW/RUB: %.6f ₽ за 1 KRW", direct)
             return float(direct), "cbr_krw_direct"
 
         usd_rub = self.get_cbr_usd_rub_exclusive()
         kpw = self.get_approx_krw_per_usd()
         rp = float(usd_rub) / max(kpw, 1e-9)
-        logger.info(
-            "Модель ₽/₩ через USD ЦБ: %.6f = %.4f (₽/$) ÷ %.2f (₩/$ конфиг)",
-            rp,
-            usd_rub,
-            kpw,
-        )
+        if not self._info_logged_krw_cross:
+            self._info_logged_krw_cross = True
+            logger.info(
+                "Модель ₽/₩ через USD ЦБ: %.6f = %.4f (₽/$) ÷ %.2f (₩/$ конфиг)",
+                rp,
+                usd_rub,
+                kpw,
+            )
         return rp, "cbr_usd_cross_config_kpw"
 
     def get_krw_usdt_rate(self) -> float:

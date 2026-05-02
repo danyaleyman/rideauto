@@ -11,8 +11,17 @@ MEILI_MASTER_KEY="${MEILI_MASTER_KEY:-}"
 
 cd "$PROJECT_DIR"
 
+if docker compose version &>/dev/null; then
+  DOCKER_COMPOSE=(docker compose)
+elif command -v docker-compose &>/dev/null; then
+  DOCKER_COMPOSE=(docker-compose)
+else
+  echo "ERROR: need 'docker compose' (v2) or docker-compose (v1) in PATH" >&2
+  exit 1
+fi
+
 echo "==> 1) Containers status"
-docker-compose ps
+"${DOCKER_COMPOSE[@]}" ps
 
 echo "==> 2) API smoke"
 curl -fsS "$API_URL/api/health" >/dev/null
@@ -21,14 +30,14 @@ echo "API health/search: OK"
 
 echo "==> 3) PostgreSQL cars count"
 PG_COUNT="$(
-  docker-compose exec -T postgres \
+  "${DOCKER_COMPOSE[@]}" exec -T postgres \
     psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM cars;"
 )"
 echo "cars in PostgreSQL: $PG_COUNT"
 
 echo "==> 4) Pick one random car id from PostgreSQL"
 SAMPLE_CAR_ID="$(
-  docker-compose exec -T postgres \
+  "${DOCKER_COMPOSE[@]}" exec -T postgres \
     psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT car_id FROM cars ORDER BY random() LIMIT 1;"
 )"
 if [[ -z "${SAMPLE_CAR_ID}" ]]; then
