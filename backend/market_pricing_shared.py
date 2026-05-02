@@ -72,6 +72,8 @@ EXCISE_HP_TIERS_RUB_PER_HP: List[Tuple[float, float]] = [
     (500.0, 1771.0),
     (float("inf"), 1829.0),
 ]
+# НДС при импорте (база: таможенная стоимость + пошлина + акциз), ориентир для калькулятора физлица.
+VAT_IMPORT_RATE = 0.20
 UTIL_POWER_MULTIPLIER_TIERS: List[Tuple[float, float]] = [
     (160.0, 1.0),
     (200.0, 1.1),
@@ -271,8 +273,26 @@ def utilization_phys_person_rub(
 
 
 def excise_rub(power_hp: Optional[float], hp_tiers: Optional[List[Tuple[float, float]]] = None) -> float:
-    _ = power_hp, hp_tiers
-    return 0.0
+    """Акциз на автомобили: ₽ за каждую л.с. в интервале (ступени по верхней границе мощности, см. НК РФ)."""
+    if power_hp is None or power_hp <= 0:
+        return 0.0
+    tiers = hp_tiers if hp_tiers is not None else EXCISE_HP_TIERS_RUB_PER_HP
+    if not tiers:
+        return 0.0
+    p = float(power_hp)
+    total = 0.0
+    prev_top = 0.0
+    for cap_raw, rub_per_hp in tiers:
+        cap = float(cap_raw)
+        if p <= prev_top:
+            break
+        segment_hi = min(p, cap)
+        width = max(0.0, segment_hi - prev_top)
+        total += width * float(rub_per_hp)
+        prev_top = cap
+        if segment_hi >= p:
+            break
+    return float(round(total, 2))
 
 
 def vat_import_rub(
@@ -283,8 +303,13 @@ def vat_import_rub(
     fuel: str,
     age_years: int,
 ) -> float:
-    _ = car_value_rub, duty_rub, excise_value_rub, fuel, age_years
-    return 0.0
+    _ = fuel, age_years
+    base = (
+        max(0.0, float(car_value_rub))
+        + max(0.0, float(duty_rub))
+        + max(0.0, float(excise_value_rub))
+    )
+    return float(round(base * VAT_IMPORT_RATE, 2))
 
 
 def _cbr_rub_per_one_foreign_unit(valute_entry: Any) -> Optional[float]:

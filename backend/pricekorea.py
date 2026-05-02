@@ -166,7 +166,10 @@ class PriceCalculatorKorea:
         power_for_excise = parse_power_hp(car_data)
         if power_for_excise is None:
             power_for_excise = power_ice
-        excise = excise_rub(power_for_excise, excise_tiers)
+        if fuel == "electric":
+            excise = 0.0
+        else:
+            excise = excise_rub(power_for_excise, excise_tiers)
         vat = vat_import_rub(car_value_rub, duty, excise, fuel=fuel, age_years=age)
 
         customs_total = fee + duty + excise + util + vat
