@@ -76,11 +76,12 @@ if [[ -n "$MEILI_MASTER_KEY" ]]; then
   MEILI_HEADERS=(-H "Authorization: Bearer ${MEILI_MASTER_KEY}")
 fi
 MEILI_STATS="$(curl -fsS "${MEILI_HEADERS[@]}" "$MEILI_URL/indexes/$MEILI_INDEX/stats")"
-echo "$MEILI_STATS" | python3 - <<'PY'
-import json,sys
-s=json.load(sys.stdin)
-print(f"meili numberOfDocuments: {s.get('numberOfDocuments')}")
-PY
+# Нельзя пайпить JSON в `python3 - <<'PY'` — stdin уходит на heredoc, json.load(stdin) получает пусто.
+if [[ -z "$MEILI_STATS" ]]; then
+  echo "ERROR: Meilisearch stats response empty (URL $MEILI_URL/indexes/$MEILI_INDEX/stats)" >&2
+  exit 1
+fi
+echo "$MEILI_STATS" | python3 -c "import json,sys; s=json.load(sys.stdin); print('meili numberOfDocuments:', s.get('numberOfDocuments'))"
 
 echo "==> 7) Summary"
 echo "Post-migration smoke checks passed."
