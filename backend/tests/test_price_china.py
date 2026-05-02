@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from price import CHINA_BROKER_RUB, CHINA_DOCS_DELIVERY_CNY, PriceCalculator, parse_engine_cc
+from market_pricing_shared import parse_engine_cc
+from pricechina import CHINA_BROKER_RUB, CHINA_DOCS_DELIVERY_CNY, PriceCalculatorChina
 
 
 def test_parse_engine_cc_supports_t_label():
@@ -10,9 +11,9 @@ def test_parse_engine_cc_supports_t_label():
 
 
 def test_china_price_calc_uses_required_static_costs():
-    calc = PriceCalculator(config_path="config.json")
-    calc.get_cbr_cny_rub_safe = lambda: 12.0
-    calc.get_cbr_eur_rub_safe = lambda: 100.0
+    calc = PriceCalculatorChina(config_path="config.json")
+    calc._fx.get_cbr_cny_rub_safe = lambda: 12.0
+    calc._fx.get_cbr_eur_rub_safe = lambda: 100.0
     car = {
         "source": "dongchedi",
         "price_cny": 50000,
@@ -24,5 +25,7 @@ def test_china_price_calc_uses_required_static_costs():
     prices = calc.calculate_total_cost_china(car)
     assert prices["china_docs_delivery_cny"] == CHINA_DOCS_DELIVERY_CNY
     assert prices["broker_rub"] == CHINA_BROKER_RUB
-    assert prices["commission_rate_default"] == 0.10
+    assert prices["price_rub"] == 600_000
+    assert prices["commission_rate_default"] == 0.0
+    assert prices["commission"] == 150_000
     assert prices["total_with_commission"] > prices["vehicle_sum"]

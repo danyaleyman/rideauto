@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Добавляет рассчитанные цены (калькулятор растаможки, KRW→USDT→RUB, брокер, 10%)
+Добавляет рассчитанные цены (pricekorea / pricechina по полю source, растаможка физлица, комиссии)
 в существующий cars.json.
 Запуск: python add_prices_to_cars_json.py [путь к cars.json]
 После запуска обновите страницу в браузере — цены появятся в карточках и в «Подробный расчёт».
@@ -27,12 +27,18 @@ def main():
         return
 
     try:
-        from price import PriceCalculator
+        from market_pricing_shared import PricingFxRates
+        from pricechina import PriceCalculatorChina
+        from pricekorea import PriceCalculatorKorea
     except ImportError:
-        print("Ошибка: не найден модуль price. Запустите скрипт из папки проекта.", file=sys.stderr)
+        print("Ошибка: не найдены модули pricekorea/pricechina. Запуск из корня/backend.", file=sys.stderr)
         sys.exit(1)
 
-    calc = PriceCalculator()
+    _here = Path(__file__).resolve().parent
+    _cfg = next((p for p in (_here / "config.json", _here.parent / "config.json") if p.is_file()), None)
+    fx = PricingFxRates(config_path=str(_cfg)) if _cfg else PricingFxRates(config_path="config.json")
+    calc_korea = PriceCalculatorKorea(fx=fx)
+    calc_china = PriceCalculatorChina(fx=fx)
     ok, fail = 0, 0
     for i, car in enumerate(cars):
         obj = car.get("data")
@@ -41,9 +47,9 @@ def main():
         try:
             source = str(obj.get("source") or "").strip().lower() if isinstance(obj, dict) else ""
             if source == "dongchedi":
-                calc.update_china_car_with_prices(obj)
+                calc_china.update_china_car_with_prices(obj)
             else:
-                calc.update_car_with_prices(obj)
+                calc_korea.update_car_with_prices(obj)
             if isinstance(obj, dict):
                 obj.pop("price_calc_failed", None)
             if car.get("data") is not obj:

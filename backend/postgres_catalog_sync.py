@@ -2,7 +2,7 @@
 """
 Обогащение каталога в PostgreSQL (цены, порядок медиа, power lookup) и синхронизация с Meilisearch.
 
-Повторяет логику прежнего export-пайплайна (дедуп по listing key и PriceCalculator),
+Повторяет логику прежнего export-пайплайна (дедуп по listing key и калькуляторы pricekorea/pricechina),
 но upsert в Postgres через общую SQL-логику ingestion.
 
 Опционально: статический дамп `web/public/cars.json` (+ chunks в `web/public/data/`), см. --write-static-json.
@@ -345,13 +345,17 @@ def run_sync(
 
         if not no_prices and cars_out:
             try:
-                from price import PriceCalculator, classify_fuel, parse_power_hp
+                from market_pricing_shared import PricingFxRates, classify_fuel, parse_power_hp
+                from pricechina import PriceCalculatorChina
+                from pricekorea import PriceCalculatorKorea
 
                 cfg_path = next(
                     (p for p in (_BACKEND_DIR / "config.json", _REPO_ROOT / "config.json") if p.is_file()),
                     _BACKEND_DIR / "config.json",
                 )
-                calc = PriceCalculator(config_path=str(cfg_path))
+                fx = PricingFxRates(config_path=str(cfg_path))
+                calc_korea = PriceCalculatorKorea(fx=fx)
+                calc_china = PriceCalculatorChina(fx=fx)
                 price_ok = price_failed = price_ok_china = price_skipped_china = 0
                 price_skipped_no_list = price_skipped_encar_on_request = 0
                 price_ok_land_only_encar = 0
@@ -370,7 +374,7 @@ def run_sync(
                             data.pop("price_calc_failed", None)
                         else:
                             try:
-                                calc.update_china_car_with_prices(data)
+                                calc_china.update_china_car_with_prices(data)
                                 data.pop("price_on_request", None)
                                 data.pop("price_calc_failed", None)
                                 price_ok += 1
@@ -422,9 +426,9 @@ def run_sync(
                     data.pop("price_on_request", None)
                     try:
                         if tier == "full_customs":
-                            calc.update_car_with_prices(data)
+                            calc_korea.update_car_with_prices(data)
                         elif tier == "korea_land_only":
-                            calc.update_car_with_prices_land_only(data)
+                            calc_korea.update_car_with_prices_land_only(data)
                             price_ok_land_only_encar += 1
                         else:
                             raise RuntimeError(f"unexpected encar tier: {tier!r}")
