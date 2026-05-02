@@ -4,6 +4,9 @@ export const PER_PAGE = 10;
 
 export type Market = "korea" | "china";
 
+/** Фильтр каталога по слою цены Encar (Meilisearch ``pricing_tier``). Пустая строка — без фильтра. */
+export type CatalogPricingTierFilter = "" | "full_customs" | "korea_land_only" | "price_on_request";
+
 export type CatalogUrlState = {
   market: Market;
   q: string;
@@ -24,6 +27,10 @@ export type CatalogUrlState = {
   engine_cc_from: string;
   engine_cc_to: string;
   passable_only: boolean;
+  /** Meilisearch: ``pricing_tier`` (CSV на бэкенде — в UI пока один ярус). */
+  pricing_tier: CatalogPricingTierFilter;
+  /** Meilisearch: ``customs_included = true`` (не путать с проходностью авто). */
+  customs_included_only: boolean;
   power_hp_le_160: boolean;
   drive_awd: boolean;
   no_accidents_only: boolean;
@@ -31,6 +38,14 @@ export type CatalogUrlState = {
   sort: string;
   page: number;
 };
+
+function parsePricingTierFilter(raw: string | null): CatalogPricingTierFilter {
+  const v = (raw ?? "").trim();
+  if (v === "full_customs" || v === "korea_land_only" || v === "price_on_request") {
+    return v;
+  }
+  return "";
+}
 
 function splitCsv(v: string | null): string[] {
   if (!v) return [];
@@ -85,6 +100,8 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
     engine_cc_from: (sp.get("engine_cc_from") || "").trim(),
     engine_cc_to: (sp.get("engine_cc_to") || "").trim(),
     passable_only: sp.get("passable_only") === "1",
+    pricing_tier: parsePricingTierFilter(sp.get("pricing_tier")),
+    customs_included_only: sp.get("customs_included") === "1",
     power_hp_le_160: sp.get("power_hp_le_160") === "1",
     drive_awd: sp.get("drive_awd") === "1",
     no_accidents_only: sp.get("no_accidents_only") === "1",
@@ -145,6 +162,8 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   if (state.engine_cc_from) u.set("engine_cc_from", state.engine_cc_from);
   if (state.engine_cc_to) u.set("engine_cc_to", state.engine_cc_to);
   if (state.passable_only) u.set("passable_only", "1");
+  if (state.pricing_tier) u.set("pricing_tier", state.pricing_tier);
+  if (state.customs_included_only) u.set("customs_included", "1");
   if (state.power_hp_le_160) u.set("power_hp_le_160", "1");
   if (state.drive_awd) u.set("drive_awd", "1");
   if (state.no_accidents_only) u.set("no_accidents_only", "1");
@@ -185,6 +204,8 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   if (state.engine_cc_from) p.set("engine_cc_from", state.engine_cc_from);
   if (state.engine_cc_to) p.set("engine_cc_to", state.engine_cc_to);
   if (state.passable_only) p.set("passable_only", "1");
+  if (state.pricing_tier) p.set("pricing_tier", state.pricing_tier);
+  if (state.customs_included_only) p.set("customs_included", "1");
   if (state.power_hp_le_160) p.set("power_hp_le_160", "1");
   if (state.drive_awd) p.set("drive_awd", "1");
   if (state.no_accidents_only) p.set("no_accidents_only", "1");

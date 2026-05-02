@@ -48,6 +48,14 @@ def _safe_float(v: Any) -> Optional[float]:
         return None
 
 
+def _listing_denormalized_price_rub(pricing: Dict[str, Any], inner: Dict[str, Any]) -> Optional[float]:
+    """Колонка cars.price_rub: приоритет final_price_rub из clean-блока, иначе my_price (без ошибки от `or` через 0.0)."""
+    for cand in (_safe_float(pricing.get("final_price_rub")), _safe_float(inner.get("my_price"))):
+        if cand is not None and cand > 0:
+            return cand
+    return None
+
+
 _DISP_LABEL_RE = re.compile(r"(\d(?:\.\d)?)\s*([TL])", re.IGNORECASE)
 
 
@@ -255,7 +263,7 @@ def row_to_car_fields(
         "torque_nm": _safe_int(d.get("torque_nm")),
         "displacement_cc": displacement_cc,
         "displacement_label": displacement_label,
-        "price_rub": _safe_float(pricing.get("final_price_rub")) or _safe_float(d.get("my_price")),
+        "price_rub": _listing_denormalized_price_rub(pricing, d),
         "mileage_km": _safe_int(spec.get("mileage_km")) or _safe_int(d.get("km_age")),
         "year": _safe_int(identity.get("year")) or year_from_data(d),
         "year_month": year_month_ordinal(d),

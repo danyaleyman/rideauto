@@ -16,6 +16,10 @@ export type SlimCar = {
   inner_id?: string | number | null;
   title?: string;
   price?: number | null;
+  /** Encar read-model tier: полный расчёт / Корея+логистика / по запросу. */
+  pricing_tier?: "full_customs" | "korea_land_only" | "price_on_request" | string;
+  /** True, если в оценке учтена таможня РФ (``full_customs``). */
+  customs_included?: boolean;
   /** Из data.price_on_request или эвристика «нет my_price». */
   price_on_request?: boolean;
   /** cars.created_at (ISO) — бейдж «добавлено сегодня», сортировка в Meili. */

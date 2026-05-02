@@ -10,6 +10,7 @@ import {
   parseCatalogUrl,
   PER_PAGE,
   stateToBrowserUrl,
+  type CatalogPricingTierFilter,
   type CatalogUrlState,
   type Market,
   toApiSearchParams,
@@ -639,9 +640,11 @@ function CatalogCardImage({
 function RangeBlock({
   state,
   navigate,
+  market,
 }: {
   state: CatalogUrlState;
   navigate: (s: CatalogUrlState) => void;
+  market: Market;
 }) {
   const [draft, setDraft] = useState({
     price_from: state.price_from,
@@ -684,8 +687,84 @@ function RangeBlock({
       page: 1,
     });
   };
+  const setPricingTier = (raw: string) => {
+    const tier: CatalogPricingTierFilter =
+      raw === "full_customs" || raw === "korea_land_only" || raw === "price_on_request" ? raw : "";
+    navigate({
+      ...state,
+      pricing_tier: tier,
+      customs_included_only: tier === "full_customs" ? false : state.customs_included_only,
+      page: 1,
+    });
+  };
+
   return (
     <>
+      {market === "korea" ? (
+        <div className="mb-1 space-y-3 rounded-xl border border-border/80 bg-muted/15 px-3 py-3 dark:bg-muted/10">
+          <div>
+            <span className="text-sm font-medium text-foreground">Оценка цены</span>
+            <div className="relative mt-1.5">
+              <select
+                aria-label="Фильтр по типу оценки цены"
+                className="h-9 w-full appearance-none rounded-2xl border border-border bg-background px-3 pe-10 text-sm shadow-sm outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+                value={state.pricing_tier || ""}
+                onChange={(e) => setPricingTier(e.target.value)}
+              >
+                <option value="">Любая</option>
+                <option value="full_customs">Под ключ (с таможней РФ)</option>
+                <option value="korea_land_only">Без таможни РФ (Корея и логистика)</option>
+                <option value="price_on_request">Цена по запросу</option>
+              </select>
+              <ChevronsUpDown className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/80" />
+            </div>
+          </div>
+          <label
+            className={cn(
+              "flex cursor-pointer items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm leading-snug shadow-sm",
+              state.pricing_tier === "full_customs"
+                ? "border-border/60 bg-muted/10 text-muted-foreground"
+                : "border-border bg-muted/20",
+            )}
+          >
+            <span className="inline-flex items-start gap-2">
+              <Checkbox
+                checked={state.customs_included_only}
+                disabled={state.pricing_tier === "full_customs"}
+                onCheckedChange={(v) =>
+                  navigate({ ...state, customs_included_only: Boolean(v), page: 1 })
+                }
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                В цене уже учтена таможня РФ
+                {state.pricing_tier === "full_customs" ? (
+                  <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                    Это уже следует из фильтра «Под ключ».
+                  </span>
+                ) : null}
+              </span>
+            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 text-muted-foreground disabled:opacity-40"
+                  aria-label="Пояснение: таможня в цене"
+                  disabled={state.pricing_tier === "full_customs"}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <CircleHelp className="size-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[20rem]">
+                Показываются объявления, где расчёт итога включает пошлины и сборы таможни РФ (слой «под ключ» по
+                данным каталога).
+              </TooltipContent>
+            </Tooltip>
+          </label>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-2 text-sm min-[420px]:grid-cols-2">
         <Input
           placeholder="Цена от"
@@ -1032,6 +1111,8 @@ export function CatalogClient({
       engine_cc_from: "",
       engine_cc_to: "",
       passable_only: false,
+      pricing_tier: "",
+      customs_included_only: false,
       power_hp_le_160: false,
       drive_awd: false,
       no_accidents_only: false,
@@ -1063,6 +1144,8 @@ export function CatalogClient({
       engine_cc_from: "",
       engine_cc_to: "",
       passable_only: false,
+      pricing_tier: "",
+      customs_included_only: false,
       power_hp_le_160: false,
       drive_awd: false,
       no_accidents_only: false,
@@ -1134,6 +1217,16 @@ export function CatalogClient({
     if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
     if (state.power_hp_le_160) chips.push({ key: "power_hp_le_160", label: "До 160 л.с." });
     if (state.passable_only) chips.push({ key: "passable_only", label: "Только проходные авто" });
+    if (state.pricing_tier === "full_customs") {
+      chips.push({ key: "pricing_tier", label: "Оценка: под ключ с таможней РФ" });
+    } else if (state.pricing_tier === "korea_land_only") {
+      chips.push({ key: "pricing_tier", label: "Оценка: без таможни РФ" });
+    } else if (state.pricing_tier === "price_on_request") {
+      chips.push({ key: "pricing_tier", label: "Оценка: цена по запросу" });
+    }
+    if (state.customs_included_only && state.pricing_tier !== "full_customs") {
+      chips.push({ key: "customs_included_only", label: "В цене учтена таможня РФ" });
+    }
     if (state.no_accidents_only) chips.push({ key: "no_accidents_only", label: "Только без ДТП" });
     if (state.new_only) chips.push({ key: "new_only", label: "Только новые авто (< 500 км)" });
     if (state.price_from) chips.push({ key: "price_from", label: `Цена от: ${state.price_from}` });
@@ -1185,6 +1278,14 @@ export function CatalogClient({
     }
     if (chip.key === "passable_only") {
       navigate({ ...state, passable_only: false, page: 1 });
+      return;
+    }
+    if (chip.key === "pricing_tier") {
+      navigate({ ...state, pricing_tier: "", page: 1 });
+      return;
+    }
+    if (chip.key === "customs_included_only") {
+      navigate({ ...state, customs_included_only: false, page: 1 });
       return;
     }
     if (chip.key === "no_accidents_only") {
@@ -1417,7 +1518,7 @@ export function CatalogClient({
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="sm:px-5">
-                  <RangeBlock state={state} navigate={navigate} />
+                  <RangeBlock state={state} navigate={navigate} market={state.market} />
                 </AccordionContent>
               </AccordionItem>
 
@@ -1759,6 +1860,29 @@ export function CatalogClient({
                                 >
                                   {formatCatalogCardPrice(car.price, car.price_on_request)}
                                 </Badge>
+                                {car.pricing_tier === "korea_land_only" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="inline-flex h-7 max-w-full items-center gap-1 rounded-lg border-amber-600/45 bg-amber-500/12 px-2.5 text-xs font-semibold text-amber-950 [overflow-wrap:anywhere] dark:text-amber-100"
+                                  >
+                                    Без таможни РФ
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className="inline-flex shrink-0"
+                                          aria-label="Пояснение: цена без растаможки РФ"
+                                        >
+                                          <CircleHelp className="size-3.5" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-[20rem]">
+                                        Указанная сумма — Корея, логистика и сопутствующие сборы по данным каталога;
+                                        растаможка в РФ в эту цифру не входит и считается отдельно.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </Badge>
+                                ) : null}
                                 {passability === "passable" ? (
                                   <Badge
                                     variant="outline"

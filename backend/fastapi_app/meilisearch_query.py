@@ -132,6 +132,9 @@ def build_meilisearch_filter(
     Строит Meilisearch `filter` по query keys каталога (совместимость с API query-параметрами).
 
     Не покрыто индексом (пока игнорируется): страховые суммы/кол-во, ДТП, passage_cars.
+
+    Прайсинг Encar (после индексации): ``pricing_tier``, ``customs_included``, алиасы
+    ``full_customs_only=1``, ``customs_included`` в ``1``/``true``/``0``/``false``.
     """
     omit = omit_keys or frozenset()
     q = {k: str(v) for k, v in raw_q.items() if k not in omit and v is not None and str(v) != ""}
@@ -225,6 +228,21 @@ def build_meilisearch_filter(
 
     if q.get("new_only") == "1":
         clauses.append("(mileage IS NOT NULL AND mileage <= 500)")
+
+    _valid_pricing_tiers = frozenset({"full_customs", "korea_land_only", "price_on_request"})
+    tier_vals = [t for t in _csv(q, "pricing_tier") if t in _valid_pricing_tiers]
+    inc_tier = _in_clause("pricing_tier", tier_vals)
+    if inc_tier:
+        clauses.append(inc_tier)
+
+    if q.get("full_customs_only") == "1":
+        clauses.append('pricing_tier = "full_customs"')
+
+    ci_raw = (q.get("customs_included") or "").strip().lower()
+    if ci_raw in {"1", "true", "yes", "y", "on"}:
+        clauses.append("customs_included = true")
+    elif ci_raw in {"0", "false", "no", "off"}:
+        clauses.append("customs_included = false")
 
     if q.get("passable_only") == "1":
         now = datetime.now(timezone.utc)

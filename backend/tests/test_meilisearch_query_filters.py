@@ -32,3 +32,25 @@ def test_search_filter_new_only_flag():
     filt = build_meilisearch_filter(q)
     assert filt is not None
     assert "mileage <= 500" in filt
+
+
+def test_search_filter_pricing_tier_encar():
+    q = {"region": "korea", "source": "encar", "pricing_tier": "korea_land_only"}
+    filt = build_meilisearch_filter(q)
+    assert filt is not None
+    assert "pricing_tier" in filt
+    assert "korea_land_only" in filt
+
+
+def test_search_filter_customs_included_true():
+    q = {"region": "korea", "source": "encar", "customs_included": "1"}
+    filt = build_meilisearch_filter(q)
+    assert filt is not None
+    assert "customs_included = true" in filt
+
+
+def test_search_filter_full_customs_only_alias():
+    q = {"region": "korea", "source": "encar", "full_customs_only": "1"}
+    filt = build_meilisearch_filter(q)
+    assert filt is not None
+    assert 'pricing_tier = "full_customs"' in filt

@@ -69,14 +69,13 @@ def test_slim_prefers_pricing_clean_when_present(monkeypatch):
             "my_price": 1000,
             "pricing_clean": {
                 "final_price_rub": 2000,
-                "price_on_request": True,
                 "reserved_placeholder": True,
             },
         }
     }
     out = slim_catalog_car(car, "encar-4")
     assert out.get("price") == 2000
-    assert out.get("price_on_request") is True
+    assert out.get("price_on_request") in (False, None)
     assert out.get("encar_listing_reserved") is True
     get_settings.cache_clear()
 

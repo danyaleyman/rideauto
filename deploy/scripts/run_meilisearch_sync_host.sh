@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Синхронизация PostgreSQL → Meilisearch с хоста (полный репозиторий в /opt/rideauto).
 # Переменные: см. /etc/default/rideauto — нужен DSN Postgres, доступный с этого хоста.
+# Важно: не используйте хостнейм образа compose «postgres» в DSN при запуске с хоста — только 127.0.0.1/локальный проброс порта.
 set -euo pipefail
 
 ROOT="${ROOT:-/opt/rideauto}"
