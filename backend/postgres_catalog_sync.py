@@ -403,6 +403,14 @@ def run_sync(
                     except json.JSONDecodeError:
                         raw_obj = {"_raw_text": raw_obj}
                 raw_adapted = psycopg2.extras.Json(raw_obj) if isinstance(raw_obj, dict) else None
+                # `car` may embed a full `_raw` tree under the JSONB `data` column (duplicating `cars.raw`)
+                # and in edge cases that tree can contain shared/cyclic dict references, which breaks
+                # stdlib JSON encoding for psycopg2.extras.Json. Keep raw in `cars.raw` only.
+                if isinstance(car, dict):
+                    car.pop("_raw", None)
+                    inner = car.get("data")
+                    if isinstance(inner, dict):
+                        inner.pop("_raw", None)
                 fields = row_to_car_fields(
                     str(cid),
                     car,
