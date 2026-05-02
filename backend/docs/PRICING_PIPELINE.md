@@ -43,3 +43,9 @@
 ## Read-path
 
 `read_models.build_catalog_read_model` может **временно** согласовать tier с живыми полями карточки; окончательное состояние БД и рубль после `clear_estimated_price_fields` всё равно даёт **синк с ценами**.
+
+## Пустой каталог на сайте после синка
+
+Каталог в UI обычно идёт из **Meilisearch**. Если включён **`WRA_MEILI_PREFLIGHT_GATE`** и в БД мало строк с `price_rub` (порог по умолчанию ~97% для Encar), `sync_meilisearch.py` завершается с **кодом 2** и **не добавляет документы**. После сброса volume Meili или `--recreate-index` индекс может оказаться пустым, а повторный синк его не заполняет, пока preflight не пройдёт.
+
+**Что сделать:** на время наполнения выставить `WRA_MEILI_PREFLIGHT_GATE=false` (в `.env` или только на команду синка) и снова запустить `postgres_catalog_sync` / `sync_meilisearch.py`; либо вручную вызвать `sync_meilisearch.py` с меньшим `--preflight-min-price-coverage-pct`. Долгосрочно — поднять долю карточек с ценой в Postgres или ослабить пороги осознанно.

@@ -163,6 +163,13 @@ def _maybe_run_meili(dsn: str) -> None:
     r = subprocess.run(cmd, cwd=str(_REPO_ROOT))
     if r.returncode != 0:
         print(f"Warning: meilisearch sync exited {r.returncode}", file=sys.stderr)
+        if r.returncode == 2:
+            print(
+                "Hint: при WRA_MEILI_PREFLIGHT_GATE документы в индекс не пишутся, если не прошли пороги "
+                "(например price_coverage). Пустой Meili → пустой каталог в поиске. "
+                "Временно: WRA_MEILI_PREFLIGHT_GATE=false при запуске синка или снизьте пороги в sync_meilisearch.",
+                file=sys.stderr,
+            )
 
 
 def _maybe_learn_engine_map() -> None:
