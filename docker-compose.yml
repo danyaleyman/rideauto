@@ -66,7 +66,8 @@ services:
       WRA_PG_DSN: ${WRA_PG_DSN:-postgresql://wra:wra@postgres:5432/wra}
       WRA_REDIS_URL: ${WRA_REDIS_URL:-redis://redis:6379/0}
       WRA_MEILISEARCH_URL: ${WRA_MEILISEARCH_URL:-http://meilisearch:7700}
-      WRA_MEILISEARCH_KEY: ${MEILI_MASTER_KEY:-}
+      # После правок .env нужен пересозданный контейнер: docker compose up -d --force-recreate api
+      WRA_MEILISEARCH_KEY: ${WRA_MEILISEARCH_KEY:-${MEILI_MASTER_KEY:-}}
       WRA_MEILISEARCH_INDEX: ${WRA_MEILISEARCH_INDEX:-cars}
       # Опционально: добивка hp_catalog.db скриптом backend/scripts/fill_hp_catalog_deepseek.py внутри контейнера
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
