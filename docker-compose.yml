@@ -102,6 +102,8 @@ services:
       # Репозиторий ./data → /data в контейнере: hp_catalog.db, engine_map.json, encar_mapping.json.
       # Backend резолвит parent(backend)/data как /data при WORKDIR=/app (см. power_from_external, hp_catalog_store).
       - ./data:/data
+      # postgres_catalog_sync внутри api вызывает sync_meilisearch.py (образ собирается только из ./backend).
+      - ./infrastructure/meilisearch:/app/infrastructure/meilisearch:ro
     healthcheck:
       test:
         [

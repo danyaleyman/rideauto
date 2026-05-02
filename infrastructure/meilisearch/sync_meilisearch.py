@@ -66,8 +66,16 @@ except ImportError:
     print("Install meilisearch: pip install meilisearch", file=sys.stderr)
     sys.exit(1)
 
-_REPO_ROOT_MEILI = Path(__file__).resolve().parents[2]
-_BACKEND_MEILI = _REPO_ROOT_MEILI / "backend"
+def _meili_repo_and_backend() -> tuple[Path, Path]:
+    """Monorepo: repo/infrastructure/meilisearch → (repo, repo/backend). Docker WORKDIR=/app → (/app, /app)."""
+    repo = Path(__file__).resolve().parents[2]
+    backend = repo / "backend"
+    if backend.is_dir():
+        return repo, backend
+    return repo, repo
+
+
+_REPO_ROOT_MEILI, _BACKEND_MEILI = _meili_repo_and_backend()
 if str(_BACKEND_MEILI) not in sys.path:
     sys.path.insert(0, str(_BACKEND_MEILI))
 try:
@@ -486,7 +494,7 @@ def main() -> None:
     if args.preflight_gate and not args.settings_only:
         env = dict(os.environ)
         env.setdefault("DATABASE_URL", str(args.pg_dsn or ""))
-        script_path = Path(__file__).resolve().parents[2] / "backend" / "scripts" / "meili_sync_preflight.py"
+        script_path = _BACKEND_MEILI / "scripts" / "meili_sync_preflight.py"
         cmd = [
             sys.executable,
             str(script_path),

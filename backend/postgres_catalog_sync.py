@@ -40,7 +40,25 @@ from localization.term_localizer import PgTermLocalizer, localize_car_data, loca
 from scraper_pipeline.pg_dsn_resolve import resolve_scraper_postgres_dsn
 
 _BACKEND_DIR = Path(__file__).resolve().parent
-_REPO_ROOT = _BACKEND_DIR.parent
+
+
+def _resolve_repo_root() -> Path:
+    """Monorepo: …/backend/postgres_catalog_sync.py → repo root. Docker: …/app only → /app if infra смонтирован."""
+    backend = _BACKEND_DIR
+    env = (os.environ.get("RIDEAUTO_REPO_ROOT") or "").strip()
+    if env:
+        p = Path(env).expanduser().resolve()
+        if p.is_dir():
+            return p
+    up = backend.parent
+    if (up / "infrastructure" / "meilisearch" / "sync_meilisearch.py").is_file():
+        return up
+    if (backend / "infrastructure" / "meilisearch" / "sync_meilisearch.py").is_file():
+        return backend
+    return up
+
+
+_REPO_ROOT = _resolve_repo_root()
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
