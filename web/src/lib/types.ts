@@ -92,6 +92,7 @@ export type FacetRow = {
 
 export type FacetsResponse = {
   marks: FacetRow[];
+  clusters: FacetRow[];
   models: FacetRow[];
   generations: FacetRow[];
   trims: FacetRow[];

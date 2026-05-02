@@ -7,7 +7,9 @@ Prometheus metrics (prometheus_client).
 Метрики:
 - ``wra_http_request_duration_seconds`` — histogram latency
 - ``wra_http_requests_total`` — counter (method, path_group, status_class)
-- ``wra_cache_lookups_total`` — counter (segment, result=hit|miss)
+- ``wra_cache_lookups_total`` — counter (segment, result=hit|miss); enrich: ``catalog_enrich_pair_redis``, ``catalog_enrich_pg_batch``
+- ``wra_catalog_enrich_llm_calls_total`` — LLM enrich (phase)
+- ``wra_catalog_enrich_llm_http_seconds`` — время HTTP к OpenAI (batched запрос)
 """
 from __future__ import annotations
 
@@ -41,6 +43,20 @@ CACHE_LOOKUPS: Final = Counter(
     namespace="wra",
 )
 
+CATALOG_ENRICH_LLM_PHASE: Final = Counter(
+    "catalog_enrich_llm_calls_total",
+    "Вызовы LLM-дозаполнения каталога (по фазе)",
+    ("phase",),
+    namespace="wra",
+)
+
+CATALOG_ENRICH_LLM_HTTP_SECONDS: Final = Histogram(
+    "catalog_enrich_llm_http_seconds",
+    "Длительность POST chat completions при catalog enrich LLM",
+    namespace="wra",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 15.0, 45.0, float("inf")),
+)
+
 
 def normalize_path_group(path: str) -> str:
     """Низкая кардинальность для label path_group."""
@@ -55,6 +71,10 @@ def normalize_path_group(path: str) -> str:
         return "/api/images/{image_id}"
     if path.startswith("/api/internal/"):
         return "/api/internal/..."
+    if path.rstrip("/") == "/api/catalog/enrich-terms":
+        return "/api/catalog/enrich-terms"
+    if path.rstrip("/") == "/api/internal/catalog/enrich-terms":
+        return "/api/internal/catalog/enrich-terms"
     return path
 
 
@@ -79,6 +99,15 @@ def observe_http(method: str, path_group: str, status_code: int, duration_sec: f
 def inc_cache_lookup(segment: str, *, hit: bool) -> None:
     seg = (segment or "unknown").strip() or "unknown"
     CACHE_LOOKUPS.labels(seg, "hit" if hit else "miss").inc()
+
+
+def inc_catalog_enrich_llm_phase(phase: str) -> None:
+    lab = (phase or "unknown").strip() or "unknown"
+    CATALOG_ENRICH_LLM_PHASE.labels(lab).inc()
+
+
+def observe_catalog_enrich_llm_http(duration_sec: float) -> None:
+    CATALOG_ENRICH_LLM_HTTP_SECONDS.observe(max(duration_sec, 0.0))
 
 
 def metrics_payload() -> tuple[bytes, str]:

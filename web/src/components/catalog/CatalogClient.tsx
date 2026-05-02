@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -30,6 +30,7 @@ import {
   fuelSortRank,
   normalizeCatalogDisplayLabel,
   normalizeFuelLabel,
+  trimFacetLabelMinusGeneration,
 } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -1072,6 +1073,11 @@ export function CatalogClient({
     const arr = Array.from(set);
     const next: CatalogUrlState = { ...state, [field]: arr, page: 1 };
     if (field === "marks") {
+      next.clusters = [];
+      next.models = [];
+      next.generations = [];
+      next.trims = [];
+    } else if (field === "clusters") {
       next.models = [];
       next.generations = [];
       next.trims = [];
@@ -1095,6 +1101,7 @@ export function CatalogClient({
       market: state.market,
       q: "",
       marks: [],
+      clusters: [],
       models: [],
       generations: [],
       trims: [],
@@ -1128,6 +1135,7 @@ export function CatalogClient({
       q: state.q,
       sort: state.sort,
       marks: [],
+      clusters: [],
       models: [],
       generations: [],
       trims: [],
@@ -1166,6 +1174,7 @@ export function CatalogClient({
   const facetLabelByValue = useMemo(() => {
     const f = facets ?? {
       marks: [],
+      clusters: [],
       models: [],
       generations: [],
       trims: [],
@@ -1177,6 +1186,7 @@ export function CatalogClient({
     const map = new Map<string, string>();
     const allRows = [
       ...f.marks,
+      ...(f.clusters ?? []),
       ...f.models,
       ...f.generations,
       ...f.trims,
@@ -1191,6 +1201,20 @@ export function CatalogClient({
     }
     return map;
   }, [facets]);
+
+  const trimFacetLabelFormatter = useCallback(
+    (row: FacetRow) => {
+      const base = facetRowLabel(row);
+      if (state.generations.length !== 1) return base;
+      const genVal = state.generations[0];
+      const genLbl =
+        facetLabelByValue.get(genVal) ??
+        normalizeCatalogDisplayLabel(genVal) ??
+        genVal;
+      return trimFacetLabelMinusGeneration(base, genLbl);
+    },
+    [state.generations, facetLabelByValue],
+  );
 
   const activeChips = useMemo(() => {
     const withLabel = (v: string, key?: keyof CatalogUrlState) =>
@@ -1207,6 +1231,7 @@ export function CatalogClient({
       }
     };
     pushDedupByLabel("marks", "Марка", state.marks);
+    pushDedupByLabel("clusters", "Линейка", state.clusters);
     pushDedupByLabel("models", "Модель", state.models);
     pushDedupByLabel("generations", "Поколение", state.generations);
     pushDedupByLabel("trims", "Комплектация", state.trims);
@@ -1243,6 +1268,7 @@ export function CatalogClient({
   const removeChip = (chip: { key: keyof CatalogUrlState; value?: string }) => {
     if (
       chip.key === "marks" ||
+      chip.key === "clusters" ||
       chip.key === "models" ||
       chip.key === "generations" ||
       chip.key === "trims" ||
@@ -1343,7 +1369,7 @@ export function CatalogClient({
                   <div className="min-w-0 flex-1 text-start">
                     <div className="font-semibold leading-tight">Основное</div>
                     <div className="mt-1 text-xs font-normal text-muted-foreground">
-                      Марка, модель, поколение, поиск
+                      Марка, линейка, модель, поколение, поиск
                     </div>
                   </div>
                 </AccordionTrigger>
@@ -1355,6 +1381,13 @@ export function CatalogClient({
                         rows={facets.marks}
                         selected={new Set(state.marks)}
                         onToggle={(v) => toggle("marks", v)}
+                      />
+                      <FacetMultiDropdown
+                        label="Линейка"
+                        rows={facets.clusters ?? []}
+                        selected={new Set(state.clusters)}
+                        onToggle={(v) => toggle("clusters", v)}
+                        disabled={state.marks.length === 0}
                       />
                       <FacetMultiDropdown
                         label="Модель"
@@ -1376,6 +1409,7 @@ export function CatalogClient({
                         selected={new Set(state.trims)}
                         onToggle={(v) => toggle("trims", v)}
                         disabled={state.generations.length === 0}
+                        labelFormatter={trimFacetLabelFormatter}
                       />
                     </div>
                   ) : (

@@ -1,0 +1,11 @@
+{
+  "explicit_any_brand": {},
+  "by_brand": {
+    "hyundai": {
+      "Avante Hybrid": "Avante",
+      "Avante AD": "Avante",
+      "아반테 하이브리드": "Avante",
+      "아반테 AD": "Avante"
+    }
+  }
+}

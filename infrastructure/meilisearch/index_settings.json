@@ -2,6 +2,7 @@
   "searchableAttributes": [
     "brand",
     "model",
+    "model_cluster",
     "model_group",
     "generation",
     "trim",
@@ -20,6 +21,7 @@
   "filterableAttributes": [
     "brand",
     "model",
+    "model_cluster",
     "model_group",
     "pricing_tier",
     "customs_included",

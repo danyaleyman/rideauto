@@ -49,6 +49,8 @@ def test_row_to_document_prefers_clean_fields_in_clean_read_mode():
     doc = mod.row_to_document(row, clean_read_mode=True)
     assert doc["brand"] == "BMW"
     assert doc["model"] == "X5"
+    assert doc["model_group"] == "X5"
+    assert doc["model_cluster"] == "X5"
     assert doc["generation"] == "G05"
     assert doc["fuel"] == "Бензин"
     assert doc["price"] == 2000.0
@@ -85,6 +87,7 @@ def test_row_to_document_model_group_prefers_encar_column_over_heuristic():
     }
     doc = mod.row_to_document(row, clean_read_mode=False)
     assert doc["model_group"] == "The New EV6"
+    assert doc["model_cluster"]
 
 
 def test_row_to_document_model_group_falls_back_to_json_modelGroupName_without_column():
@@ -118,4 +121,39 @@ def test_row_to_document_model_group_falls_back_to_json_modelGroupName_without_c
     }
     doc = mod.row_to_document(row, clean_read_mode=False)
     assert doc["model_group"] == "EV6 MY2024"
+    assert doc["model_cluster"]
+
+
+def test_row_to_document_model_cluster_maps_avante_ad():
+    mod = _load_sync_module()
+    row = {
+        "pg_id": 4,
+        "car_id": "encar-avante",
+        "mark": "Hyundai",
+        "model": "Avante AD 1.6",
+        "encar_model_group": "Avante AD",
+        "fuel_type": "",
+        "price_rub": None,
+        "generation": "",
+        "trim_name": "",
+        "transmission_type": "",
+        "drive_type": "",
+        "color": "",
+        "body_type": "",
+        "year": None,
+        "year_month": None,
+        "mileage_km": None,
+        "power_hp": None,
+        "power_kw": None,
+        "torque_nm": None,
+        "displacement_cc": None,
+        "displacement_label": None,
+        "source": "encar",
+        "updated_at": None,
+        "created_at": None,
+        "data": {},
+    }
+    doc = mod.row_to_document(row, clean_read_mode=False)
+    assert doc["model_group"] == "Avante AD"
+    assert doc["model_cluster"] == "Avante"
 

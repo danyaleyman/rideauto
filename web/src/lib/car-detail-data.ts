@@ -159,6 +159,31 @@ export function normalizeFuelLabel(v: unknown): string | null {
   return byRaw ?? ru;
 }
 
+/**
+ * Если выбрано одно поколение, убираем совпадающие по токенам начала подписи комплектации
+ * (дубль «2.5 GDI …» / разная транслитерация последних токенов не склеиваем — остаётся полная строка).
+ */
+export function trimFacetLabelMinusGeneration(trimRaw: string, generationDisplayRaw: string): string {
+  const tl = trimRaw.trim();
+  const gd = generationDisplayRaw.trim();
+  if (!tl || !gd) return tl;
+  const canonTrim = normalizeCatalogDisplayLabel(tl) ?? tl;
+  const canonGen = normalizeCatalogDisplayLabel(gd) ?? gd;
+  const aTok = canonTrim.trim().split(/\s+/).filter(Boolean);
+  const bTok = canonGen.trim().split(/\s+/).filter(Boolean);
+  let i = 0;
+  while (
+    i < aTok.length &&
+    i < bTok.length &&
+    aTok[i].toLowerCase() === bTok[i].toLowerCase()
+  ) {
+    i++;
+  }
+  if (i === 0) return tl;
+  const rest = aTok.slice(i).join(" ").trim();
+  return rest || tl;
+}
+
 export function normalizeCatalogDisplayLabel(v: unknown): string | null {
   const raw = asStr(v);
   if (!raw) return null;

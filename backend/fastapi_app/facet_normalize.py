@@ -22,6 +22,7 @@ _JUNK_TRANS_NUMERIC = re.compile(r"^0*\d{1,4}$")
 
 _MEILI_TO_EN_DOMAIN = {
     "brand": "mark",
+    "model_cluster": "model",
     "model_group": "model",
     "generation": "generation",
     "trim": "trim_name",
@@ -234,7 +235,7 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
     for patt, repl in _CHINA_PINYIN_TOKEN_REPLACEMENTS.items():
         s = re.sub(patt, repl, s, flags=re.IGNORECASE)
     s = re.sub(r"[()\[\]{}]+", " ", s)
-    if meili_attr in {"model_group", "generation", "trim"}:
+    if meili_attr in {"model_group", "model_cluster", "generation", "trim"}:
         s = re.sub(r"^\d+\s+", "", s).strip()
     s = " ".join(s.split())
     if _KO_OR_ZH_RE.search(s):
@@ -247,9 +248,9 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
             pass
         if _KO_OR_ZH_RE.search(s):
             s = " ".join(re.sub(r"[\u4e00-\u9fff\uac00-\ud7af]+", " ", s).split())
-    # Для model_group гасим «длинные хвосты» комплектации.
+    # Для model_group / model_cluster гасим «длинные хвосты» комплектации.
     # Для generation/trim наоборот сохраняем максимум смысла (только EN-cleanup).
-    if meili_attr == "model_group":
+    if meili_attr in {"model_group", "model_cluster"}:
         low = f" {s.lower()} "
         cut = None
         for marker in _CHINA_SUFFIX_MARKERS:
@@ -403,7 +404,7 @@ def merge_facet_distribution_rows(
         return []
     korea = is_korea_catalog_flat(query_flat)
     china = is_china_catalog_flat(query_flat)
-    china_main_dims = {"brand", "model_group", "generation", "trim"}
+    china_main_dims = {"brand", "model_group", "model_cluster", "generation", "trim"}
     if not korea:
         if china and meili_attr in china_main_dims:
             grouped: Dict[str, Dict[str, object]] = {}
@@ -454,7 +455,7 @@ def merge_facet_distribution_rows(
             key = _canon_ru_transmission(raw)
         elif meili_attr == "brand":
             key = facet_canonical_english(raw, "mark")
-        elif meili_attr == "model_group":
+        elif meili_attr in {"model_group", "model_cluster"}:
             key = facet_canonical_english(raw, "model")
         elif meili_attr == "generation":
             key = facet_canonical_english(raw, "generation")
@@ -497,7 +498,7 @@ def expand_filter_values(meili_attr: str, values: Sequence[str], *, query_flat: 
     korea = is_korea_catalog_flat(query_flat)
     china = is_china_catalog_flat(query_flat)
     if not korea:
-        if china and meili_attr in {"brand", "model_group", "generation", "trim"}:
+        if china and meili_attr in {"brand", "model_group", "model_cluster", "generation", "trim"}:
             # Для China-фасетов в UI хранится raw value из Meili, не расширяем,
             # чтобы не терять связку бренд→модель→поколение→комплектация.
             return [str(v).strip() for v in values if str(v).strip()]
@@ -511,7 +512,7 @@ def expand_filter_values(meili_attr: str, values: Sequence[str], *, query_flat: 
             c = facet_canonical_english(s, "mark")
             bag = _facet_syn_bag(_brand_synonyms_by_canon().get(c), s, c)
             out.extend(bag)
-        elif meili_attr == "model_group":
+        elif meili_attr in {"model_group", "model_cluster"}:
             c = facet_canonical_english(s, "model")
             bag = _facet_syn_bag(_invert_en_domain("model").get(c), s, c)
             out.extend(bag)

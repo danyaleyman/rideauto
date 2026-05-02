@@ -3,9 +3,10 @@
 Full or incremental sync: PostgreSQL `cars` → Meilisearch index `cars`.
 
 Field mapping (Meilisearch document):
-  brand       ← cars.mark
-  model       ← cars.model
-  model_group ← cars.encar_model_group (Encar) или суффикс model без «(…)»
+  brand         ← cars.mark
+  model         ← cars.model
+  model_cluster ← линейка (склейка вариантов; data/model_cluster_rules.json + эвристика)
+  model_group   ← cars.encar_model_group (Encar) или суффикс model без «(…)»
   price       ← cars.price_rub
   year        ← cars.year
   color       ← cars.color
@@ -64,6 +65,18 @@ try:
 except ImportError:
     print("Install meilisearch: pip install meilisearch", file=sys.stderr)
     sys.exit(1)
+
+_REPO_ROOT_MEILI = Path(__file__).resolve().parents[2]
+_BACKEND_MEILI = _REPO_ROOT_MEILI / "backend"
+if str(_BACKEND_MEILI) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_MEILI))
+try:
+    from catalog_model_cluster import compute_model_cluster as _compute_model_cluster  # noqa: E402
+except ImportError:  # tests / упаковка без backend в PYTHONPATH
+
+    def _compute_model_cluster(brand: str, model_group: str, *, rules_path: Optional[str] = None) -> str:
+        return (model_group or "").strip()
+
 
 _MEILI_INVALID_KEY_HINT = (
     "Ключ API должен совпадать с MEILI_MASTER_KEY экземпляра Meilisearch "
@@ -216,13 +229,17 @@ def row_to_document(row: Dict[str, Any], *, clean_read_mode: bool = False) -> Di
     pricing = _clean_block(row, "pricing_clean") if clean_read_mode else {}
     base_model = str(identity.get("model") or row.get("model") or "").strip()
     mg_doc = _encar_model_group_for_document(row)
+    mg_final = mg_doc if mg_doc else _model_group(base_model)
+    brand_s = str(identity.get("mark") or row.get("mark") or "").strip()
+    mc = _compute_model_cluster(brand_s, mg_final)
     doc: Dict[str, Any] = {
         "id": str(car_id),
         "pg_id": int(row["pg_id"]),
         "car_id": str(car_id),
-        "brand": str(identity.get("mark") or row.get("mark") or "").strip(),
+        "brand": brand_s,
         "model": base_model,
-        "model_group": mg_doc if mg_doc else _model_group(base_model),
+        "model_cluster": mc if mc else mg_final,
+        "model_group": mg_final,
         "fuel": str(spec.get("engine_type") or row.get("fuel_type") or "").strip(),
         "color": str(spec.get("color") or row.get("color") or "").strip(),
         "body_type": str(spec.get("body_type") or row.get("body_type") or "").strip(),

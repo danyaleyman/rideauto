@@ -4,11 +4,15 @@
 - korea_static + china_static (в т.ч. кросс-доменный fallback)
 - facet_canonical_english + романизация
 
-Опциональное LLM-дозаполнение (только по флагу в Settings + поле запроса): см. catalog_enrich_llm.py.
-Без term_translation_cache и без нагрузки на БД в основной ветке.
+Опционально: Postgres `term_translation_cache` только SELECT (батч в catalog_enrich_pg.py по флагам сервера+клиента).
+Опциональное LLM — catalog_enrich_llm.py.
+
+По умолчанию статика только, без БД и без OpenAI.
 """
 from __future__ import annotations
 
+import re
+import unicodedata
 from typing import Any, Dict, List, Literal, Tuple
 
 from fastapi_app.facet_normalize import canon_catalog_fuel_ru
@@ -51,6 +55,7 @@ _SourceRu = Literal[
     "korea_cross_domain",
     "china_cross_domain",
     "openai_fallback",
+    "postgres_term_cache",
     "none",
 ]
 
@@ -71,6 +76,16 @@ def known_catalog_enrich_domains() -> frozenset[str]:
     return _KNOWN_DOMAINS
 
 
+_WS_RE = re.compile(r"\s+")
+_COMPACT_PUNCT = re.compile(r"[\s\-–—\(（\)）\[\]\"'`.,:·•]+")
+
+
+def normalize_catalog_lookup_key(text: str) -> str:
+    """NFKC, fullwidth space→space, схлопывание пробелов — для ключей статических словарей."""
+    t = unicodedata.normalize("NFKC", (text or "").strip()).replace("\u3000", " ")
+    return _WS_RE.sub(" ", t).strip()
+
+
 def _canonical_domain_field(domain: str) -> str:
     raw = (domain or "").strip()
     low = raw.lower()
@@ -79,13 +94,27 @@ def _canonical_domain_field(domain: str) -> str:
     return raw
 
 
+def canonical_catalog_enrich_domain(domain: str) -> str:
+    """fuel|fuel_type → engine_type для внешних слоёв (PG cache, доменная логика)."""
+    return _canonical_domain_field(domain)
+
+
+def compact_catalog_lookup_variant(norm: str) -> str:
+    """Второй шаг к статическим словарям: убираем пробелы/скобки/тире после NFKC (без fuzz по Левенштейну)."""
+    n = (norm or "").strip()
+    if not n:
+        return ""
+    c = _COMPACT_PUNCT.sub("", n)
+    return c if len(c) >= 3 else ""
+
+
 def _fuelish(domain: str) -> bool:
     low = domain.lower()
     return low in {"fuel", "fuel_type", "engine_type"}
 
 
-def _lookup_ru_extended(s_in: str, dom_eff: str) -> Tuple[str, _SourceRu]:
-    """Прямой hit по dom_eff, затем кросс-домены (только статика)."""
+def _lookup_ru_extended_primary(s_in: str, dom_eff: str) -> Tuple[str, _SourceRu]:
+    """Прямой hit по dom_eff, затем кросс-домены (только статика). Один текстовый вариант."""
     korea_ru = _lookup_korea_static(_korea_static_maps(), s_in, "ru", dom_eff)
     if korea_ru:
         return korea_ru.strip(), "korea_static_ru"
@@ -102,38 +131,56 @@ def _lookup_ru_extended(s_in: str, dom_eff: str) -> Tuple[str, _SourceRu]:
     return "", "none"
 
 
+def _lookup_ru_extended(s_in: str, dom_eff: str) -> Tuple[str, _SourceRu]:
+    ru, sr = _lookup_ru_extended_primary(s_in, dom_eff)
+    if ru:
+        return ru, sr
+    alt = compact_catalog_lookup_variant(s_in)
+    if alt and alt != s_in:
+        return _lookup_ru_extended_primary(alt, dom_eff)
+    return "", "none"
+
+
 def enrich_one(text: str, domain: str) -> Dict[str, Any]:
-    s_in = (text or "").strip()
+    text_in_disp = (text or "").strip()
+    s_lookup = normalize_catalog_lookup_key(text)
     dom_eff = _canonical_domain_field(domain)
 
-    if not s_in:
-        return {"text_in": s_in, "domain": domain, "ru": "", "en": "", "source_ru": "empty"}
+    if not text_in_disp:
+        return {"text_in": text_in_disp, "domain": domain, "ru": "", "en": "", "source_ru": "empty"}
+
+    if not s_lookup:
+        return {"text_in": text_in_disp, "domain": domain, "ru": "", "en": "", "source_ru": "empty"}
 
     if _fuelish(domain):
-        ru = canon_catalog_fuel_ru(s_in)
+        ru = canon_catalog_fuel_ru(s_lookup)
+        if not ru:
+            cq = compact_catalog_lookup_variant(s_lookup)
+            if cq and cq != s_lookup:
+                ru = canon_catalog_fuel_ru(cq)
         src_ru: _SourceRu = "fuel_facet" if ru else "none"
-        en_hit = _lookup_korea_static(_korea_static_maps(), s_in, "en", "engine_type")
+        en_hit = _lookup_korea_static(_korea_static_maps(), s_lookup, "en", "engine_type")
         china_en = (
             ""
             if en_hit
-            else _lookup_china_static(_china_static_maps(), s_in, "en", "engine_type") or ""
+            else _lookup_china_static(_china_static_maps(), s_lookup, "en", "engine_type") or ""
         )
         en = (en_hit or china_en).strip()
-        if not en and detect_lang(s_in) == "ko":
-            en = _romanize_ko(s_in)
-        elif not en and _looks_english(s_in):
-            en = s_in.strip()
-        return {"text_in": s_in, "domain": domain, "ru": ru, "en": en, "source_ru": src_ru}
+        if not en and detect_lang(s_lookup) == "ko":
+            en = _romanize_ko(s_lookup)
+        elif not en and _looks_english(s_lookup):
+            en = s_lookup.strip()
+        return {"text_in": text_in_disp, "domain": domain, "ru": ru, "en": en, "source_ru": src_ru}
 
-    ru, src_ru = _lookup_ru_extended(s_in, dom_eff)
+    ru, src_ru = _lookup_ru_extended(s_lookup, dom_eff)
 
-    en = facet_canonical_english(s_in, dom_eff).strip()
-    if not en and detect_lang(s_in) == "ko":
-        en = _romanize_ko(s_in)
-    elif not en and _looks_english(s_in):
-        en = s_in.strip()
+    en = facet_canonical_english(s_lookup, dom_eff).strip()
+    if not en and detect_lang(s_lookup) == "ko":
+        en = _romanize_ko(s_lookup)
+    elif not en and _looks_english(s_lookup):
+        en = s_lookup.strip()
 
-    return {"text_in": s_in, "domain": domain, "ru": ru, "en": en, "source_ru": src_ru}
+    return {"text_in": text_in_disp, "domain": domain, "ru": ru, "en": en, "source_ru": src_ru}
 
 
 def enrich_batch(items: List[Tuple[str, str]]) -> List[Dict[str, Any]]:

@@ -55,6 +55,7 @@ class FacetsResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     marks: List[Dict[str, Any]] = Field(default_factory=list)
+    clusters: List[Dict[str, Any]] = Field(default_factory=list)
     models: List[Dict[str, Any]] = Field(default_factory=list)
     generations: List[Dict[str, Any]] = Field(default_factory=list)
     trims: List[Dict[str, Any]] = Field(default_factory=list)

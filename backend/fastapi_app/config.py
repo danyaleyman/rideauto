@@ -237,6 +237,67 @@ class Settings(BaseSettings):
         default="gpt-4o-mini",
         description="WRA_CATALOG_ENRICH_OPENAI_MODEL — модель для enrich-fallback (пусто в env = default)",
     )
+    catalog_enrich_max_payload_chars: int = Field(
+        default=96_000,
+        ge=512,
+        le=512_000,
+        description="WRA_CATALOG_ENRICH_MAX_PAYLOAD_CHARS — сумма len(text) по items (анти‑злоупотребление)",
+    )
+    catalog_enrich_rate_limit_per_minute: int = Field(
+        default=0,
+        ge=0,
+        le=100_000,
+        description="WRA_CATALOG_ENRICH_RATE_LIMIT_PER_MINUTE — 0 выкл.; иначе лимит POST/мин по IP или по enrich‑ключу",
+    )
+    catalog_enrich_pair_redis_ttl_sec: int = Field(
+        default=2_592_000,
+        ge=3_600,
+        le=31_536_000,
+        description="TTL для Redis KV пары text+domain→RU/EN (по умолчанию ~30 сут)",
+    )
+    catalog_enrich_llm_retry_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=8,
+        description="WRA_CATALOG_ENRICH_LLM_RETRY_ATTEMPTS — попытки HTTP к OpenAI (429/502/503/504 + сеть)",
+    )
+    catalog_enrich_llm_retry_base_delay_sec: float = Field(
+        default=0.45,
+        ge=0.05,
+        le=15.0,
+        description="WRA_CATALOG_ENRICH_LLM_RETRY_BASE_DELAY_SEC — пауза перед повтором, экспонента x2 capped",
+    )
+    catalog_enrich_pg_cache_enabled: bool = Field(
+        default=False,
+        description="WRA_CATALOG_ENRICH_PG_CACHE_ENABLED — разрешить read-only чтение term_translation_cache в enrich",
+    )
+    catalog_enrich_pg_timeout_sec: float = Field(
+        default=2.5,
+        ge=0.3,
+        le=30.0,
+        description="WRA_CATALOG_ENRICH_PG_TIMEOUT_SEC — таймаут батч-запроса к term_translation_cache",
+    )
+    catalog_enrich_pg_max_keys: int = Field(
+        default=288,
+        ge=8,
+        le=2000,
+        description="WRA_CATALOG_ENRICH_PG_MAX_KEYS — макс. пар ключей в одном SELECT (UNNEST)",
+    )
+    catalog_enrich_pg_max_rounds: int = Field(
+        default=8,
+        ge=1,
+        le=48,
+        description="WRA_CATALOG_ENRICH_PG_MAX_ROUNDS — доп. раунды UNNEST, пока не исчерпаны ключи",
+    )
+    catalog_enrich_etag_revision: str = Field(
+        default="1",
+        max_length=64,
+        description="WRA_CATALOG_ENRICH_ETAG_REVISION — смена bust кэша ETag при обновлении статических словарей",
+    )
+    catalog_enrich_internal_llm_fallback: bool = Field(
+        default=False,
+        description="WRA_CATALOG_ENRICH_INTERNAL_LLM_FALLBACK — для POST /internal/... включать LLM (если и глобальный LLM вкл.)",
+    )
 
 
 @lru_cache

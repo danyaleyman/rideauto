@@ -255,6 +255,13 @@ def run_sync(
 
     import psycopg2
 
+    try:
+        from power_from_external import invalidate_hp_catalog_cache
+
+        invalidate_hp_catalog_cache()
+    except ImportError:
+        pass
+
     conn = psycopg2.connect(dsn)
     localizer = PgTermLocalizer(dsn)
     localizer.open()

@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Мощность (л.с.): 1) уже в данных авто, 2) data/hp_catalog.db, 3) engine_map.json,
-4) ручной список power_lookup.json.
+Мощность (л.с.): 1) уже в данных авто, 2) hp_catalog «наблюдаемые» источники
+   (PostgreSQL-синхронизация, CSV), 3) engine_map.json, 4) hp_catalog LLM-дозаполнение
+   при достаточной уверенности, 5) power_lookup.json.
 
-Если запись не найдена в hp_catalog.db, добавляем pending-строку для фонового LLM-fill.
+Если запись не найдена даже после LLM-индекса, добавляем pending для фона.
+
+Индекс hp_catalog.db перестраивается при изменении mtime файла (без LRU на весь процесс).
 """
 from __future__ import annotations
 
 import json
+import os
 import re
-import sqlite3
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -18,6 +20,144 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 POWER_LOOKUP_PATH = DATA_DIR / "power_lookup.json"
 HP_CATALOG_DB_PATH = DATA_DIR / "hp_catalog.db"
 _NON_WORD_RE = re.compile(r"[^0-9a-zA-Z가-힣]+")
+
+# Фактические строки каталога (не LLM-догадка).
+HP_CATALOG_OBSERVED_SOURCES = frozenset({"postgres", "csv"})
+
+
+def _skip_review_flagged_llm() -> bool:
+    return str(os.environ.get("HP_CATALOG_SKIP_REVIEW_FLAGGED_LLM", "") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _min_llm_catalog_confidence() -> float:
+    raw = os.environ.get("HP_LLM_MIN_CONFIDENCE", "").strip()
+    if not raw:
+        return 0.72
+    try:
+        return float(raw)
+    except ValueError:
+        return 0.72
+
+
+_hp_index_cache_key: Tuple[int, float] | None = None
+_hp_observed_idx: Dict[str, int] = {}
+_hp_llm_ok_idx: Dict[str, int] = {}
+
+
+def invalidate_hp_catalog_cache() -> None:
+    """Принудительно сбросить индекс (тесты, скрипт сразу после fill)."""
+    global _hp_index_cache_key
+    _hp_index_cache_key = None
+
+
+def _hp_catalog_mtime_key() -> Optional[Tuple[int, float]]:
+    if not HP_CATALOG_DB_PATH.is_file():
+        return None
+    st = HP_CATALOG_DB_PATH.stat()
+    # st_mtime может быть float; ns точнее для быстрых последовательных записей.
+    return (int(st.st_mtime_ns), float(st.st_mtime))
+
+
+def _rebuild_hp_catalog_indices() -> Tuple[Dict[str, int], Dict[str, int]]:
+    observed: Dict[str, int] = {}
+    llm_ok: Dict[str, int] = {}
+    min_c = _min_llm_catalog_confidence()
+    if not HP_CATALOG_DB_PATH.is_file():
+        return observed, llm_ok
+    try:
+        from hp_catalog_store import connect as hp_connect_catalog
+        from hp_catalog_store import ensure_schema as hp_ensure_hp_catalog_schema
+
+        conn = hp_connect_catalog(HP_CATALOG_DB_PATH)
+        try:
+            hp_ensure_hp_catalog_schema(conn)
+            rows = conn.execute(
+                """
+                SELECT
+                    norm_manufacturer, norm_model, norm_version, norm_engine_type,
+                    displacement_cc, year_month, power_hp, source, llm_status, llm_confidence,
+                    COALESCE(review_flag, 0) AS review_flag
+                FROM hp_catalog
+                WHERE power_hp IS NOT NULL AND power_hp > 0 AND llm_status = 'done'
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+    except Exception:
+        return observed, llm_ok
+    skip_rf = _skip_review_flagged_llm()
+    for (
+        nm,
+        nmd,
+        nv,
+        net,
+        dcc,
+        ym,
+        hp,
+        source,
+        _ls,
+        conf,
+        review_flag,
+    ) in rows:
+        try:
+            hpv = int(hp)
+        except (TypeError, ValueError):
+            continue
+        if not (20 <= hpv <= 2500):
+            continue
+        src = str(source or "").strip().lower()
+        keys = _hp_catalog_keys(
+            nm=str(nm or ""),
+            nmd=str(nmd or ""),
+            nv=str(nv or ""),
+            net=str(net or ""),
+            dcc=str(int(dcc)) if dcc not in (None, "") else "",
+            ym=str(ym or ""),
+        )
+        tgt: Dict[str, int]
+        if src in HP_CATALOG_OBSERVED_SOURCES:
+            tgt = observed
+        else:
+            try:
+                rfv = int(review_flag or 0)
+            except (TypeError, ValueError):
+                rfv = 0
+            if skip_rf and rfv != 0:
+                continue
+            if conf is not None:
+                try:
+                    c = float(conf)
+                except (TypeError, ValueError):
+                    c = -1.0
+                if c < min_c:
+                    continue
+            # conf IS NULL → старые записи каталога (до столбца) остаются видимыми.
+            tgt = llm_ok
+        for k in keys:
+            tgt.setdefault(k, hpv)
+    return observed, llm_ok
+
+
+def _load_hp_catalog_indices() -> Tuple[Dict[str, int], Dict[str, int]]:
+    global _hp_index_cache_key, _hp_observed_idx, _hp_llm_ok_idx
+    key = _hp_catalog_mtime_key()
+    if key is None:
+        _hp_index_cache_key = None
+        _hp_observed_idx = {}
+        _hp_llm_ok_idx = {}
+        return {}, {}
+    if _hp_index_cache_key == key:
+        return _hp_observed_idx, _hp_llm_ok_idx
+    observed, llm_ok = _rebuild_hp_catalog_indices()
+    _hp_index_cache_key = key
+    _hp_observed_idx = observed
+    _hp_llm_ok_idx = llm_ok
+    return observed, llm_ok
 
 
 def _norm(s: Any) -> str:
@@ -83,51 +223,8 @@ def _load_power_lookup() -> List[Dict[str, Any]]:
         return []
 
 
-@lru_cache(maxsize=1)
-def _load_hp_catalog_index() -> Dict[str, int]:
-    """in-memory индексы hp_catalog для быстрого поиска."""
-    out: Dict[str, int] = {}
-    if not HP_CATALOG_DB_PATH.is_file():
-        return out
-    try:
-        conn = sqlite3.connect(str(HP_CATALOG_DB_PATH))
-        try:
-            rows = conn.execute(
-                """
-                SELECT
-                    norm_manufacturer, norm_model, norm_version, norm_engine_type,
-                    displacement_cc, year_month, power_hp
-                FROM hp_catalog
-                WHERE power_hp IS NOT NULL AND power_hp > 0
-                """
-            ).fetchall()
-        finally:
-            conn.close()
-    except Exception:
-        return out
-    for nm, nmd, nv, net, dcc, ym, hp in rows:
-        try:
-            hpv = int(hp)
-        except (TypeError, ValueError):
-            continue
-        if not (20 <= hpv <= 2500):
-            continue
-        keys = _hp_catalog_keys(
-            nm=str(nm or ""),
-            nmd=str(nmd or ""),
-            nv=str(nv or ""),
-            net=str(net or ""),
-            dcc=str(int(dcc)) if dcc not in (None, "") else "",
-            ym=str(ym or ""),
-        )
-        for k in keys:
-            out.setdefault(k, hpv)
-    return out
-
-
 def _hp_catalog_keys(*, nm: str, nmd: str, nv: str, net: str, dcc: str, ym: str) -> Tuple[str, ...]:
     """Ключи приоритета: от точного к мягкому."""
-    # keep versioned first, then no-version variants
     return (
         f"{nm}|{nmd}|{nv}|{net}|{dcc}|{ym}",
         f"{nm}|{nmd}|{nv}|{net}|{dcc}|",
@@ -138,8 +235,7 @@ def _hp_catalog_keys(*, nm: str, nmd: str, nv: str, net: str, dcc: str, ym: str)
     )
 
 
-def _hp_catalog_lookup(car_data: Dict[str, Any]) -> Optional[int]:
-    idx = _load_hp_catalog_index()
+def _scan_index(idx: Dict[str, int], car_data: Dict[str, Any]) -> Optional[int]:
     if not idx:
         return None
     nm = _norm_key(car_data.get("mark") or car_data.get("manufacturer") or car_data.get("manufacturerName"))
@@ -160,6 +256,52 @@ def _hp_catalog_lookup(car_data: Dict[str, Any]) -> Optional[int]:
     return None
 
 
+def _hp_catalog_lookup_observed(car_data: Dict[str, Any]) -> Optional[int]:
+    observed, _ = _load_hp_catalog_indices()
+    return _scan_index(observed, car_data)
+
+
+def _hp_catalog_lookup_llm(car_data: Dict[str, Any]) -> Optional[int]:
+    _, llm_ok = _load_hp_catalog_indices()
+    return _scan_index(llm_ok, car_data)
+
+
+def _motor_vin_for_hp_catalog(car_data: Dict[str, Any]) -> Tuple[str, str]:
+    """motor_code_norm + верхний регистр vin prefix (до 11 символов) для OEM-правил."""
+    from hp_catalog_store import normalize_key_part
+
+    try:
+        from engine_hp_resolver import extract_motor_code
+    except ImportError:
+        extract_motor_code = None
+
+    motor_raw = ""
+    candidates: List[Optional[dict]] = []
+    if isinstance(car_data, dict):
+        candidates.append(car_data)
+        inner = car_data.get("data")
+        if isinstance(inner, dict):
+            candidates.append(inner)
+
+    if extract_motor_code is not None:
+        for blob in candidates:
+            if isinstance(blob, dict):
+                m = extract_motor_code(blob)
+                if m:
+                    motor_raw = m
+                    break
+
+    motor_n = normalize_key_part(motor_raw) if motor_raw else ""
+
+    vin = ""
+    for blob in candidates:
+        if isinstance(blob, dict) and blob.get("vin"):
+            vin = str(blob.get("vin") or "").strip().upper()
+            break
+    vin_pf = vin[:11] if vin else ""
+    return motor_n, vin_pf
+
+
 def _enqueue_hp_catalog_pending(car_data: Dict[str, Any]) -> None:
     """Регистрирует пропуск в hp_catalog для фонового LLM-филла."""
     if not HP_CATALOG_DB_PATH.parent.exists():
@@ -178,18 +320,27 @@ def _enqueue_hp_catalog_pending(car_data: Dict[str, Any]) -> None:
     engine_type = str(car_data.get("engine_type") or car_data.get("fuel") or car_data.get("engineType") or "").strip()
     displacement_cc = _norm_disp(car_data.get("displacement") or car_data.get("displacement_cc") or car_data.get("engine_volume"))
     year_month = _norm_ym(car_data.get("yearMonth") or car_data.get("year_month") or car_data.get("year"))
+    motor_n, vin_pf = _motor_vin_for_hp_catalog(car_data)
     try:
-        conn = sqlite3.connect(str(HP_CATALOG_DB_PATH))
+        from hp_catalog_store import connect as hp_connect_catalog
+        from hp_catalog_store import ensure_schema as hp_ensure_hp_catalog_schema
+
+        conn = hp_connect_catalog(HP_CATALOG_DB_PATH)
         try:
+            hp_ensure_hp_catalog_schema(conn)
             conn.execute(
                 """
                 INSERT INTO hp_catalog (
                     manufacturer, model, version, engine_type, displacement_cc, drive, year_month,
                     norm_manufacturer, norm_model, norm_version, norm_engine_type,
+                    motor_code_norm, vin_prefix,
                     llm_status, source
-                ) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, 'pending', 'catalog')
+                ) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, 'pending', 'catalog')
                 ON CONFLICT(norm_manufacturer, norm_model, norm_version, norm_engine_type, COALESCE(displacement_cc, -1), year_month)
-                DO UPDATE SET updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+                DO UPDATE SET
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+                    motor_code_norm = COALESCE(NULLIF(excluded.motor_code_norm, ''), hp_catalog.motor_code_norm),
+                    vin_prefix = COALESCE(NULLIF(excluded.vin_prefix, ''), hp_catalog.vin_prefix)
                 """,
                 (
                     manufacturer,
@@ -202,13 +353,14 @@ def _enqueue_hp_catalog_pending(car_data: Dict[str, Any]) -> None:
                     _norm_key(model),
                     _norm_key(version),
                     _norm_key(engine_type),
+                    motor_n,
+                    vin_pf,
                 ),
             )
             conn.commit()
         finally:
             conn.close()
     except Exception:
-        # Не роняем основной sync из-за вспомогательной очереди.
         return
 
 
@@ -222,7 +374,7 @@ def get_power_from_lookup(car_data: Dict[str, Any]) -> Optional[int]:
         return None
     make = _norm(car_data.get("mark") or car_data.get("manufacturer") or car_data.get("manufacturerName") or "")
     model = _norm(car_data.get("model") or car_data.get("modelName") or "")
-    year = (car_data.get("year") or car_data.get("yearMonth") or "")
+    year = car_data.get("year") or car_data.get("yearMonth") or ""
     if year:
         year = str(year).strip()[:4]
     disp = _norm_disp(car_data.get("displacement"))
@@ -260,8 +412,10 @@ def get_power_for_car(
     record_source: bool = False,
 ) -> Optional[int]:
     """
-    Получить мощность (л.с.): из данных, hp_catalog.db, engine_map.json, power_lookup.json.
-    record_source=True — записать power_source / power_estimated при обогащении.
+    Получить мощность (л.с.): данные карточки → observed hp_catalog → engine_map →
+    LLM hp_catalog (confidence) → power_lookup.json; иначе pending.
+
+    При record_source=True выставляет power_source / power_estimated.
     """
     if not isinstance(car_data, dict):
         return None
@@ -271,11 +425,11 @@ def get_power_for_car(
         except ValueError:
             pass
 
-    hp_catalog = _hp_catalog_lookup(car_data)
-    if hp_catalog is not None:
+    hp_catalog_obs = _hp_catalog_lookup_observed(car_data)
+    if hp_catalog_obs is not None:
         if record_source:
-            car_data.setdefault("power_source", "hp_catalog")
-        return hp_catalog
+            car_data.setdefault("power_source", "hp_catalog_observed")
+        return hp_catalog_obs
 
     try:
         from engine_hp_resolver import resolve_engine_hp
@@ -286,6 +440,13 @@ def get_power_for_car(
     except ImportError:
         pass
 
+    hp_catalog_llm = _hp_catalog_lookup_llm(car_data)
+    if hp_catalog_llm is not None:
+        if record_source:
+            car_data.setdefault("power_source", "hp_catalog_llm")
+            car_data["power_estimated"] = True
+        return hp_catalog_llm
+
     hp_lookup = get_power_from_lookup(car_data)
     if hp_lookup is not None:
         if record_source:
@@ -294,3 +455,4 @@ def get_power_for_car(
 
     _enqueue_hp_catalog_pending(car_data)
     return None
+

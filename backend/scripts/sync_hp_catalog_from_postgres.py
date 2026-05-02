@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ _BACKEND = _HERE.parent
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+from engine_hp_resolver import extract_motor_code
 from hp_catalog_store import (
     DEFAULT_DB_PATH,
     connect,
@@ -32,7 +34,46 @@ def _dsn(args_dsn: str) -> str:
     return (args_dsn or os.environ.get("DATABASE_URL") or os.environ.get("WRA_PG_DSN") or "").strip()
 
 
-def _row_values(row: dict) -> Tuple[str, str, str, str, Optional[int], str, Optional[int]]:
+def _motor_vin_from_pg_data(raw: Any) -> Tuple[str, str]:
+    blob: Any = raw
+    if blob is None:
+        return "", ""
+    if isinstance(blob, (bytes, memoryview)):
+        try:
+            blob = json.loads(bytes(blob).decode("utf-8", errors="replace"))
+        except Exception:
+            blob = {}
+    elif isinstance(blob, str):
+        try:
+            blob = json.loads(blob)
+        except json.JSONDecodeError:
+            blob = {}
+
+    candidates: list[dict] = []
+    if isinstance(blob, dict):
+        candidates.append(blob)
+        inner = blob.get("data")
+        if isinstance(inner, dict):
+            candidates.append(inner)
+
+    motor_raw = ""
+    for c in candidates:
+        m = extract_motor_code(c)
+        if m:
+            motor_raw = m
+            break
+    motor_n = normalize_key_part(motor_raw) if motor_raw else ""
+
+    vin = ""
+    for c in candidates:
+        v = str(c.get("vin") or "").strip().upper()
+        if v:
+            vin = v
+            break
+    return motor_n, (vin[:11] if vin else "")
+
+
+def _row_values(row: dict) -> Tuple[str, str, str, str, Optional[int], str, Optional[int], str, str]:
     manufacturer = normalize_text(row.get("mark"))
     model = normalize_text(row.get("model"))
     version = normalize_text(row.get("trim_name") or row.get("generation") or "")
@@ -40,7 +81,8 @@ def _row_values(row: dict) -> Tuple[str, str, str, str, Optional[int], str, Opti
     displacement_cc = parse_displacement_cc(row.get("displacement_cc"))
     year_month = parse_year_month(row.get("year_month"))
     hp = parse_hp(row.get("power_hp"))
-    return manufacturer, model, version, engine_type, displacement_cc, year_month, hp
+    mn, vp = _motor_vin_from_pg_data(row.get("data"))
+    return manufacturer, model, version, engine_type, displacement_cc, year_month, hp, mn, vp
 
 
 def sync_from_postgres(
@@ -67,7 +109,7 @@ def sync_from_postgres(
             where_parts.append("(power_hp IS NULL OR power_hp <= 0)")
         where_sql = " AND ".join(where_parts)
         sql = f"""
-            SELECT mark, model, generation, trim_name, fuel_type, displacement_cc, year_month, power_hp
+            SELECT mark, model, generation, trim_name, fuel_type, displacement_cc, year_month, power_hp, data
             FROM cars
             WHERE {where_sql}
             ORDER BY id ASC
@@ -81,7 +123,17 @@ def sync_from_postgres(
                 if not rows:
                     break
                 for row in rows:
-                    manufacturer, model, version, engine_type, displacement_cc, year_month, hp = _row_values(dict(row))
+                    (
+                        manufacturer,
+                        model,
+                        version,
+                        engine_type,
+                        displacement_cc,
+                        year_month,
+                        hp,
+                        motor_n,
+                        vin_pf,
+                    ) = _row_values(dict(row))
                     if not manufacturer or not model:
                         continue
 
@@ -90,6 +142,7 @@ def sync_from_postgres(
                     norm_version = normalize_key_part(version)
                     norm_engine_type = normalize_key_part(engine_type)
                     llm_status = "done" if hp is not None else "pending"
+                    llm_conf = 1.0 if hp is not None else None
 
                     hp_conn.execute(
                         """
@@ -97,12 +150,15 @@ def sync_from_postgres(
                             manufacturer, model, version, engine_type, displacement_cc, drive, year_month,
                             power_hp, power_kw,
                             norm_manufacturer, norm_model, norm_version, norm_engine_type,
-                            llm_status, llm_reason, llm_attempts, source, updated_at
+                            motor_code_norm, vin_prefix,
+                            llm_status, llm_reason, llm_attempts, llm_confidence, source, updated_at
                         ) VALUES (
-                            ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, '', 0, 'postgres',
+                            ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            ?, '', 0, ?, 'postgres',
                             strftime('%Y-%m-%dT%H:%M:%fZ','now')
                         )
-                        ON CONFLICT
+                        ON CONFLICT(norm_manufacturer, norm_model, norm_version, norm_engine_type,
+                            COALESCE(displacement_cc, -1), year_month)
                         DO UPDATE SET
                             manufacturer = excluded.manufacturer,
                             model = excluded.model,
@@ -110,6 +166,10 @@ def sync_from_postgres(
                             engine_type = excluded.engine_type,
                             power_hp = COALESCE(excluded.power_hp, hp_catalog.power_hp),
                             power_kw = COALESCE(excluded.power_kw, hp_catalog.power_kw),
+                            llm_confidence = COALESCE(excluded.llm_confidence, hp_catalog.llm_confidence),
+                            motor_code_norm = COALESCE(NULLIF(excluded.motor_code_norm, ''),
+                                hp_catalog.motor_code_norm),
+                            vin_prefix = COALESCE(NULLIF(excluded.vin_prefix, ''), hp_catalog.vin_prefix),
                             llm_status = CASE
                                 WHEN COALESCE(excluded.power_hp, hp_catalog.power_hp) IS NOT NULL THEN 'done'
                                 WHEN hp_catalog.llm_status = 'done' THEN 'done'
@@ -134,7 +194,10 @@ def sync_from_postgres(
                             norm_model,
                             norm_version,
                             norm_engine_type,
+                            motor_n,
+                            vin_pf,
                             llm_status,
+                            llm_conf,
                         ),
                     )
                     inserted_or_updated += 1
@@ -174,4 +237,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

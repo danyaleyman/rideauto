@@ -11,6 +11,7 @@ export type CatalogUrlState = {
   market: Market;
   q: string;
   marks: string[];
+  clusters: string[];
   models: string[];
   generations: string[];
   trims: string[];
@@ -84,6 +85,7 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
     market,
     q: (sp.get("q") || sp.get("query") || "").trim(),
     marks: splitCsv(sp.get("marks")),
+    clusters: splitCsv(sp.get("clusters")),
     models: splitCsv(sp.get("models")),
     generations: splitCsv(sp.get("generations")),
     trims: splitCsv(sp.get("trims")),
@@ -146,6 +148,7 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   }
   if (state.q) u.set("q", state.q);
   setCsv(u, "marks", state.marks);
+  setCsv(u, "clusters", state.clusters);
   setCsv(u, "models", state.models);
   setCsv(u, "generations", state.generations);
   setCsv(u, "trims", state.trims);
@@ -188,6 +191,7 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   }
   if (state.q) p.set("q", state.q);
   setCsv(p, "marks", state.marks);
+  setCsv(p, "clusters", state.clusters);
   setCsv(p, "models", state.models);
   setCsv(p, "generations", state.generations);
   setCsv(p, "trims", state.trims);

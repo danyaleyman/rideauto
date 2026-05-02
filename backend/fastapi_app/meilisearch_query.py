@@ -166,6 +166,9 @@ def build_meilisearch_filter(
     inc = _in_clause("brand", expand_filter_values("brand", _csv(q, "marks"), query_flat=q))
     if inc:
         clauses.append(inc)
+    inc = _in_clause("model_cluster", expand_filter_values("model_cluster", _csv(q, "clusters"), query_flat=q))
+    if inc:
+        clauses.append(inc)
     inc = _in_clause("model_group", expand_filter_values("model_group", _csv(q, "models"), query_flat=q))
     if inc:
         clauses.append(inc)
@@ -291,6 +294,7 @@ def meilisearch_sort_list(sort_key: str) -> List[str]:
 
 FACET_SPECS_MEILI = (
     ("marks", frozenset({"marks"}), "brand"),
+    ("clusters", frozenset({"clusters"}), "model_cluster"),
     ("models", frozenset({"models"}), "model_group"),
     ("generations", frozenset({"generations"}), "generation"),
     ("trims", frozenset({"trims"}), "trim"),
