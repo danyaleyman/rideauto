@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+from urllib.parse import quote, urlsplit, urlunsplit
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 _BACKEND_DIR = _SCRIPTS_DIR.parent
@@ -30,6 +31,30 @@ def _dsn(config_path: Path) -> str:
         except Exception:
             pass
     return (os.environ.get("DATABASE_URL") or "").strip()
+
+
+def _dsn_for_host_outside_compose(dsn: str) -> str:
+    """В YAML часто postgresql://…@postgres:5432/… — с хоста hostname postgres не резолвится."""
+    s = (dsn or "").strip()
+    if not s:
+        return s
+    p = urlsplit(s)
+    if not p.hostname or str(p.hostname).lower() != "postgres":
+        return s
+    port = p.port if p.port is not None else 5432
+    auth = ""
+    if p.username:
+        uq = quote(p.username, safe="")
+        if p.password is not None:
+            uq += ":" + quote(p.password, safe="")
+        auth = uq + "@"
+    netloc = f"{auth}127.0.0.1:{port}"
+    out = urlunsplit((p.scheme, netloc, p.path, p.query, p.fragment))
+    print(
+        "repair_encar_pricing_recompute_queue: DSN host postgres → 127.0.0.1 (скрипт на хосте, не в docker-сети)",
+        file=sys.stderr,
+    )
+    return out
 
 
 def _fetch_encar_candidates(
@@ -83,7 +108,7 @@ def main() -> int:
     p.add_argument("--car-id", action="append", default=[], help="Restrict to car_id (repeatable)")
     args = p.parse_args()
 
-    dsn = _dsn(Path(args.config).expanduser().resolve())
+    dsn = _dsn_for_host_outside_compose(_dsn(Path(args.config).expanduser().resolve()))
     if not dsn:
         print("DATABASE_URL / config storage.postgres.dsn required", file=sys.stderr)
         return 2

@@ -36,7 +36,7 @@
 | Скрипт | Назначение |
 |--------|------------|
 | `backend/postgres_catalog_sync.py` | Материализация цен, сброс очереди при прогоне с ценами |
-| `backend/scripts/repair_encar_pricing_recompute_queue.py` | Пометить «устаревшие» Encar JSON на пересчёт |
+| `backend/scripts/repair_encar_pricing_recompute_queue.py` | Пометить «устаревшие» Encar JSON на пересчёт (с хоста подставляет `postgres` → `127.0.0.1` в DSN, как `deploy/scripts/pg_dsn_host_local_rewrite.py`) |
 
 Обновления **`cars.data`** (или существенных полей для прайсинга) делают **`needs_pricing_recompute = TRUE`** в: saver/upsert, `encar_price_intent_live_worker`, `backfill_cars_power_from_hp_catalog`, `reprocess_from_raw_envelope`, `backfill_china_canonical_names`, `postgresql_database` (legacy upsert при смене `data`). Чекеры **sold** (`encar_listing_live_checker`, `dongchedi_listing_live_checker`) трогают только флаги листинга — очередь не требуется.
 
