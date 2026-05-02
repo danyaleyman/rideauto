@@ -8,7 +8,7 @@
 
 ## Очередь `needs_pricing_recompute`
 
-- Колонка: `cars.needs_pricing_recompute` (миграция `007_pricing_recompute_queue.sql`).
+- Колонка: `cars.needs_pricing_recompute` (миграция `007_pricing_recompute_queue.sql`). UPSERT каталога также ожидает колонку `encar_model_group` (`006_encar_model_group_column.sql`); без неё `postgres_catalog_sync` завершится ошибкой.
 - **Сброс в false**: при UPSERT из `postgres_catalog_sync`, если синк запущен **без** `--no-prices` (пересчитали цены для выгружаемого набора листингов).
 - **Сохранение / довыставление true**: при `--no-prices` колонка обновляется как `(старая OR новая из upsert)` — очередь не теряется.
 - Индекс: `idx_cars_needs_pricing_recompute_encar` (Encar, флаг true).

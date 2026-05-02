@@ -22,7 +22,9 @@ def _dsn(config_path: Path) -> str:
     if yaml and config_path.is_file():
         try:
             cfg = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-            dsn = str((((cfg.get("storage") or {}).get("postgres") or {}).get("dsn") or "")).strip())
+            dsn = str(
+                (((cfg.get("storage") or {}).get("postgres") or {}).get("dsn") or "").strip()
+            )
             if dsn:
                 return dsn
         except Exception:
