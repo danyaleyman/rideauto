@@ -535,7 +535,7 @@ def run_sync(
                     """
                     SELECT COUNT(*) FROM cars
                     WHERE (source IS NULL OR lower(trim(source)) = 'encar')
-                      AND (car_id IS NULL OR car_id NOT LIKE 'dongchedi-%')
+                      AND (car_id IS NULL OR car_id NOT LIKE 'dongchedi-%%')
                       AND COALESCE(data->'pricing_clean'->>'pricing_rules_version', '') <> %s
                       AND (data ? 'price_won' AND NULLIF((data->>'price_won')::text, '') IS NOT NULL
                            AND (data->>'price_won')::numeric > 0)
