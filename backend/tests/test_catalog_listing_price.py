@@ -92,6 +92,43 @@ def test_encar_suspicious_low_sale_price_not_list_price_for_modern_car():
     )
 
 
+def test_encar_suspicious_low_only_near_new_demo_not_used_cars():
+    """Старый парк / нормальный пробег: низкая цифра в price не режет листинг целиком."""
+    assert encar_has_list_price(
+        {
+            "source": "encar",
+            "price_won": 8_500_000,
+            "price": "850",
+            "year": "2018",
+            "km_age": "141452",
+        }
+    )
+    assert encar_has_list_price(
+        {
+            "source": "encar",
+            "price_won": 4_320_000,
+            "price": "432",
+            "year": "2026",
+            "km_age": "12000",
+        }
+    )
+
+
+def test_encar_2025_demo_low_price_still_finance_bait():
+    assert (
+        encar_has_list_price(
+            {
+                "source": "encar",
+                "price_won": 3_990_000,
+                "price": "399",
+                "year": "2025",
+                "km_age": "120",
+            }
+        )
+        is False
+    )
+
+
 def test_encar_regular_listing_with_generic_finance_promo_stays_list_price():
     assert (
         encar_has_list_price(

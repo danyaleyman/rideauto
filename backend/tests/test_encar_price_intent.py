@@ -27,6 +27,20 @@ def test_classify_regular_sale():
     assert signals == []
 
 
+def test_suspicious_low_only_when_2025_plus_and_under_500km():
+    intent, signals = classify_encar_price_intent(
+        {
+            "source": "encar",
+            "price_won": 4_320_000,
+            "price": "432",
+            "year": "2018",
+            "km_age": "141452",
+        }
+    )
+    assert intent == "sale"
+    assert "suspicious_low_sale_price" not in signals
+
+
 def test_strong_list_price_overrides_weak_finance_boilerplate():
     """Типичный Encar: большая цена + общий текст про 할부/개월 без явного 월N만원."""
     intent, signals = classify_encar_price_intent(
