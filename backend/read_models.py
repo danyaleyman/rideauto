@@ -86,11 +86,16 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
     spec = data.get("spec_clean") if use_clean and isinstance(data.get("spec_clean"), dict) else {}
     pricing = data.get("pricing_clean") if use_clean and isinstance(data.get("pricing_clean"), dict) else {}
     condition = data.get("condition_clean") if use_clean and isinstance(data.get("condition_clean"), dict) else {}
+    # Цена в каталоге: при rollout WRA_CLEAN_READ_PERCENT=0 блок pricing_clean не в «clean»-режиме,
+    # но final_price_rub уже записан синком — иначе карточка показывает «по запросу» при пустом my_price.
+    pc_price = data.get("pricing_clean") if isinstance(data.get("pricing_clean"), dict) else {}
 
     tier = _pricing_tier_resolve(data, pricing)
     tier = _reconcile_encar_pricing_tier_from_live_data(data, tier)
     customs_included = _customs_included_for_tier(tier, pricing)
-    numeric_price_rub = _safe_num(_pick(pricing, "final_price_rub", data, "my_price"))
+    numeric_price_rub = _safe_num(
+        _pick(pricing if use_clean else pc_price, "final_price_rub", data, "my_price"),
+    )
 
     legacy_reserved = bool(
         _pick(pricing, "reserved_placeholder", data, "encar_listing_reserved") is True,

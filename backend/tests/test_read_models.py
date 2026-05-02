@@ -61,6 +61,22 @@ def test_encar_reconciles_stale_por_using_spec_clean_displacement_only(monkeypat
     assert rm["price_rub"] == 1_800_000.0
 
 
+def test_final_price_rub_from_pricing_clean_when_clean_read_off(monkeypatch):
+    """WRA_CLEAN_READ_PERCENT=0 → use_clean=False; цена в списке всё равно из pricing_clean."""
+    monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
+    d = {
+        "source": "encar",
+        "price_won": 28_500_000,
+        "engine_type": "gasoline",
+        "power_hp": 180,
+        "displacement": 1598,
+        "pricing_clean": {"final_price_rub": 4_200_000.0, "pricing_tier": "full_customs"},
+    }
+    rm = build_catalog_read_model(d, use_clean=False)
+    assert rm["price_rub"] == 4_200_000.0
+    assert rm["price_on_request"] is False
+
+
 def test_encar_does_not_reconcile_dongchedi(monkeypatch):
     monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
     d = {
