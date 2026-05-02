@@ -132,7 +132,8 @@ class PostgreSQLDatabase:
                         # Хеш изменился - обновляем данные
                         cursor.execute('''
                             UPDATE cars 
-                            SET data = %s, data_hash = %s, updated_at = %s, last_seen = %s
+                            SET data = %s, data_hash = %s, updated_at = %s, last_seen = %s,
+                                needs_pricing_recompute = TRUE
                             WHERE inner_id = %s
                         ''', (json.dumps(car_data['data'], ensure_ascii=False), data_hash, current_time, current_time, inner_id))
                         
@@ -142,8 +143,8 @@ class PostgreSQLDatabase:
                     else:
                         # Новый автомобиль
                         cursor.execute('''
-                            INSERT INTO cars (inner_id, data, data_hash, created_at, updated_at, last_seen)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO cars (inner_id, data, data_hash, created_at, updated_at, last_seen, needs_pricing_recompute)
+                            VALUES (%s, %s, %s, %s, %s, %s, TRUE)
                         ''', (
                             inner_id,
                             json.dumps(car_data['data'], ensure_ascii=False),

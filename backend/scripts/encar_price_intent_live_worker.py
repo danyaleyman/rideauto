@@ -17,6 +17,9 @@ _BACKEND_DIR = _SCRIPTS_DIR.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
+from catalog_encar_pricing import encar_tier_for_pricing_snapshot, sync_pricing_clean_block
+from catalog_listing_price import clear_estimated_price_fields, encar_has_list_price
+from clean_layers import build_clean_layers
 from encar_price_intent import classify_encar_price_intent, price_signals_json
 
 
@@ -109,12 +112,42 @@ def _update_row(
         next_data["price_on_request"] = True
         next_data["encar_listing_reserved"] = (intent == "reserved_placeholder")
         next_data.pop("my_price", None)
+        next_data["pricing_tier"] = "price_on_request"
+        clear_estimated_price_fields(next_data)
         price_rub = None
     else:
         next_data.pop("encar_listing_reserved", None)
         if next_data.get("price_on_request") is True:
             next_data.pop("price_on_request", None)
         price_rub = data.get("my_price")
+        if encar_has_list_price(next_data):
+            snap = encar_tier_for_pricing_snapshot(next_data)
+            next_data["pricing_tier"] = snap
+            if snap == "price_on_request":
+                next_data["price_on_request"] = True
+                clear_estimated_price_fields(next_data)
+                price_rub = None
+            else:
+                next_data.pop("price_on_request", None)
+        else:
+            next_data["pricing_tier"] = "price_on_request"
+            next_data["price_on_request"] = True
+            clear_estimated_price_fields(next_data)
+            price_rub = None
+
+    fresh = build_clean_layers(next_data)
+    for key in (
+        "clean_schema_version",
+        "identity_clean",
+        "spec_clean",
+        "condition_clean",
+        "seller_clean",
+        "media_clean",
+    ):
+        next_data[key] = fresh[key]
+    next_data["pricing_clean"] = fresh["pricing_clean"]
+    sync_pricing_clean_block(next_data)
+
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -122,6 +155,7 @@ def _update_row(
                 UPDATE cars
                 SET data=%s::jsonb,
                     price_rub=COALESCE(%s, price_rub),
+                    needs_pricing_recompute = TRUE,
                     updated_at=now()
                 WHERE id=%s
                 """,

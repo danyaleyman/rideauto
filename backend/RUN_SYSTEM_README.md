@@ -81,6 +81,12 @@ python backend/run_system.py --full --workers 5
 ```
 Настройка количества потоков для парсинга.
 
+## Цены, tier и каталог (прод)
+
+- **Материализация рубля и `pricing_clean`** делается **`postgres_catalog_sync.py` без `--no-prices`** (на сервере: `deploy/scripts/run_postgres_catalog_sync_host.sh`).
+- Рекомендуемый порядок: ingest / daily update → при необходимости воркеры (intent и т.д.) → **синк с ценами и Meilisearch**.
+- Частичные обновления `cars.data` ставят **`needs_pricing_recompute`**; синк с ценами сбрасывает флаг. Подробности, миграция и repair-скрипт: [`backend/docs/PRICING_PIPELINE.md`](docs/PRICING_PIPELINE.md).
+
 ## 🔄 Рабочие процессы
 
 ### Для первого запуска

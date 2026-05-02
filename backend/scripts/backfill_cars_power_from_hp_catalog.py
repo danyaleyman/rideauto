@@ -130,6 +130,7 @@ def main() -> int:
                         UPDATE cars
                         SET data = %s,
                             power_hp = %s,
+                            needs_pricing_recompute = TRUE,
                             updated_at = now()
                         WHERE id = %s
                         """,

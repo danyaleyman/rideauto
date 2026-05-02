@@ -146,6 +146,7 @@ def _apply_batch(conn: psycopg2.extensions.connection, patch_rows: List[Dict[str
                 generation = %(generation)s,
                 trim_name = %(trim_name)s,
                 data = %(data)s,
+                needs_pricing_recompute = TRUE,
                 updated_at = now()
             WHERE id = %(id)s
             """,

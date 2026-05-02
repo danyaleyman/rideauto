@@ -42,7 +42,8 @@ The list API uses `sr: "|ModifiedDate|{offset}|{limit}"`. If the API rejects lar
 
 ## Output
 
-- **PostgreSQL**: таблица `cars` и связанные справочники (см. миграции в `infrastructure/postgresql/`).
+- **PostgreSQL**: таблица `cars` и связанные справочники (см. миграции в `infrastructure/postgresql/`, в т.ч. `007_pricing_recompute_queue.sql`).
+- **Цены и tier**: контракт пайплайна и очередь `needs_pricing_recompute` — [`docs/PRICING_PIPELINE.md`](docs/PRICING_PIPELINE.md).
 
 ## Опциональный статический дамп
 

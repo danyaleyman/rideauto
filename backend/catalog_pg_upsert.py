@@ -39,7 +39,9 @@ def upsert_json_batch(
                     continue
                 if not isinstance(payload, dict):
                     continue
+                payload["_catalog_needs_pricing_recompute"] = True
                 fields = row_to_car_fields(car_id, payload, source_internal_id=None)
+                payload.pop("_catalog_needs_pricing_recompute", None)
                 bid = get_or_create_brand(cur, brand_cache, fields["mark"])
                 mid = get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
                 params = {
@@ -49,6 +51,7 @@ def upsert_json_batch(
                     "data": psycopg2.extras.Json(payload),
                     "raw": None,
                     "created_at": None,
+                    "sync_clear_pricing_recompute_queue": False,
                 }
                 cur.execute(UPSERT_CAR_SQL, params)
                 row = cur.fetchone()

@@ -91,7 +91,7 @@ def _update_data(dsn: str, row_id: int, data: Dict[str, Any]) -> None:
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE cars SET data=%s::jsonb, updated_at=now() WHERE id=%s",
+                "UPDATE cars SET data=%s::jsonb, needs_pricing_recompute = TRUE, updated_at=now() WHERE id=%s",
                 (json.dumps(data, ensure_ascii=False), row_id),
             )
         conn.commit()

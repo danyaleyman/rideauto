@@ -122,10 +122,12 @@ class PostgresCarSaver(CarSaver):
         import psycopg2.extras
 
         payload = dict(car)
+        payload["_catalog_needs_pricing_recompute"] = True
         raw_obj = car.get("_raw") if self.store_raw else None
         raw_obj = self._redact_raw(raw_obj) if raw_obj is not None else None
         encoded_raw = self._encode_raw(raw_obj) if raw_obj is not None else None
         fields = row_to_car_fields(car_id, payload, source_internal_id=None)
+        payload.pop("_catalog_needs_pricing_recompute", None)
         # Postgres cars.source NOT NULL; API/Meilisearch ждут «encar» для Кореи (см. fastapi_app).
         if not fields.get("source"):
             fields["source"] = "encar"
@@ -141,6 +143,7 @@ class PostgresCarSaver(CarSaver):
                     "data": psycopg2.extras.Json(payload),
                     "raw": raw_adapted,
                     "created_at": None,
+                    "sync_clear_pricing_recompute_queue": False,
                 }
                 cur.execute(UPSERT_CAR_SQL, params)
                 row = cur.fetchone()

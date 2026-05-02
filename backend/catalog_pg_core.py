@@ -257,6 +257,8 @@ def row_to_car_fields(
         dmg_safe = _safe_int(condition.get("damaged_parts_count"))
     if dmg_safe is None:
         dmg_safe = 0
+    flag = payload.get("_catalog_needs_pricing_recompute")
+    needs_pricing_recompute = bool(flag) if flag is not None else False
     return {
         "car_id": car_id,
         "mark": mark,
@@ -286,6 +288,7 @@ def row_to_car_fields(
         "damaged_parts_count": dmg_safe,
         "offer_created_at": offer_created_at(payload),
         "source_internal_id": source_internal_id,
+        "needs_pricing_recompute": needs_pricing_recompute,
     }
 
 
@@ -297,7 +300,7 @@ INSERT INTO cars (
     source, listing_partition_key,
     power_hp, power_kw, torque_nm, displacement_cc, displacement_label, price_rub, mileage_km, year, year_month,
     insurance_cases, insurance_payout_krw, insurance_payout_rub, damaged_parts_count,
-    offer_created_at, data, raw, source_internal_id, created_at, updated_at
+    offer_created_at, needs_pricing_recompute, data, raw, source_internal_id, created_at, updated_at
 ) VALUES (
     %(car_id)s, %(brand_id)s, %(model_id)s, %(mark)s, %(model)s, %(generation)s, %(trim_name)s,
     %(encar_model_group)s,
@@ -305,7 +308,7 @@ INSERT INTO cars (
     %(source)s, %(listing_partition_key)s,
     %(power_hp)s, %(power_kw)s, %(torque_nm)s, %(displacement_cc)s, %(displacement_label)s, %(price_rub)s, %(mileage_km)s, %(year)s, %(year_month)s,
     %(insurance_cases)s, %(insurance_payout_krw)s, %(insurance_payout_rub)s, %(damaged_parts_count)s,
-    %(offer_created_at)s, %(data)s, %(raw)s,
+    %(offer_created_at)s, %(needs_pricing_recompute)s, %(data)s, %(raw)s,
     %(source_internal_id)s, COALESCE(%(created_at)s, now()), now()
 )
 ON CONFLICT (car_id) DO UPDATE SET
@@ -337,6 +340,10 @@ ON CONFLICT (car_id) DO UPDATE SET
     insurance_payout_rub = EXCLUDED.insurance_payout_rub,
     damaged_parts_count = EXCLUDED.damaged_parts_count,
     offer_created_at = EXCLUDED.offer_created_at,
+    needs_pricing_recompute = CASE
+        WHEN %(sync_clear_pricing_recompute_queue)s THEN FALSE
+        ELSE (cars.needs_pricing_recompute OR EXCLUDED.needs_pricing_recompute)
+    END,
     data = EXCLUDED.data,
     raw = EXCLUDED.raw,
     source_internal_id = EXCLUDED.source_internal_id,

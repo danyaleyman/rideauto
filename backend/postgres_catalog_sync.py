@@ -28,7 +28,7 @@ from catalog_listing_price import (
     encar_has_list_price,
     encar_reserved_placeholder_price,
 )
-from catalog_encar_pricing import encar_catalog_pricing_tier, sync_pricing_clean_block
+from catalog_encar_pricing import PRICING_RULES_VERSION, encar_tier_for_pricing_snapshot, sync_pricing_clean_block
 from catalog_pg_core import (
     UPSERT_CAR_SQL,
     extract_image_urls,
@@ -269,36 +269,21 @@ def run_sync(
     model_cache: Dict[Tuple[int, str], int] = {}
 
     try:
-        def _parse_positive_int(value: Any) -> Optional[int]:
-            if value is None or value == "":
-                return None
-            try:
-                if isinstance(value, str):
-                    digits = "".join(ch for ch in value if ch.isdigit())
-                    if not digits:
-                        return None
-                    iv = int(digits)
-                else:
-                    iv = int(float(value))
-                return iv if iv > 0 else None
-            except (TypeError, ValueError):
-                return None
-
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, car_id, data, raw, source_internal_id
+                SELECT id, car_id, data, raw, source_internal_id, needs_pricing_recompute
                 FROM cars
                 ORDER BY id ASC
                 """
             )
-            best: Dict[str, Tuple[int, str, Any, Any, Any]] = {}
+            best: Dict[str, Tuple[int, str, Any, Any, Any, bool]] = {}
             while True:
                 chunk = cur.fetchmany(500)
                 if not chunk:
                     break
                 for row in chunk:
-                    pg_id, car_id, data, raw, source_internal_id = row
+                    pg_id, car_id, data, raw, source_internal_id, needs_rq = row
                     if data is None:
                         continue
                     if isinstance(data, (bytes, memoryview)):
@@ -316,21 +301,19 @@ def run_sync(
                     lk = listing_key_for_export(str(car_id), data)
                     prev = best.get(lk)
                     if prev is None or int(pg_id) > int(prev[0]):
-                        best[lk] = (int(pg_id), str(car_id), data, raw, source_internal_id)
+                        best[lk] = (int(pg_id), str(car_id), data, raw, source_internal_id, bool(needs_rq))
 
-        ordered: List[Tuple[int, str, dict, Any, Any]] = sorted(
-            (
-                (int(t[0]), str(t[1]), t[2], t[3], t[4])
-                for t in best.values()
-            ),
+        ordered: List[Tuple[int, str, dict, Any, Any, bool]] = sorted(
+            ((int(t[0]), str(t[1]), t[2], t[3], t[4], bool(t[5])) for t in best.values()),
             key=lambda x: x[0],
         )
         print(f"Postgres catalog: unique listings={len(ordered)} (from rows, deduped)", file=sys.stderr)
 
         cars_out: List[dict] = []
-        for _pg_id, car_id, payload, _raw, _sql_id in ordered:
+        for _pg_id, car_id, payload, _raw, _sql_id, nr_flag in ordered:
             car = dict(payload)
             car["id"] = car_id
+            car["_pg_needs_pricing_recompute"] = bool(nr_flag)
             if isinstance(car.get("data"), dict):
                 car["data"]["id"] = str(car_id)
                 normalize_car_media_fields(car)
@@ -348,7 +331,7 @@ def run_sync(
 
         if not no_prices and cars_out:
             try:
-                from market_pricing_shared import PricingFxRates, classify_fuel, parse_power_hp
+                from market_pricing_shared import PricingFxRates
                 from pricechina import PriceCalculatorChina
                 from pricekorea import PriceCalculatorKorea
 
@@ -403,16 +386,7 @@ def run_sync(
                             car["data"] = data
                         continue
 
-                    fuel_kind = classify_fuel(data)
-                    hp_raw = parse_power_hp(data)
-                    hp_ok = isinstance(hp_raw, (int, float)) and float(hp_raw) > 0
-                    cc_val = _parse_positive_int(
-                        data.get("displacement")
-                        or data.get("displacement_cc")
-                        or data.get("engine_volume")
-                    )
-                    cc_ok = cc_val is not None
-                    tier = encar_catalog_pricing_tier(fuel_kind=str(fuel_kind), hp_ok=hp_ok, cc_ok=cc_ok)
+                    tier = encar_tier_for_pricing_snapshot(data)
 
                     data.pop("catalog_price_hp_unknown", None)
 
@@ -496,11 +470,17 @@ def run_sync(
                     inner = car.get("data")
                     if isinstance(inner, dict):
                         inner.pop("_raw", None)
+                if not no_prices:
+                    car["_catalog_needs_pricing_recompute"] = False
+                else:
+                    car["_catalog_needs_pricing_recompute"] = bool(car.get("_pg_needs_pricing_recompute", False))
                 fields = row_to_car_fields(
                     str(cid),
                     car,
                     source_internal_id=source_internal_id if source_internal_id is not None else None,
                 )
+                car.pop("_catalog_needs_pricing_recompute", None)
+                car.pop("_pg_needs_pricing_recompute", None)
                 bid = get_or_create_brand(cur, brand_cache, fields["mark"])
                 mid = get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
                 params = {
@@ -510,6 +490,7 @@ def run_sync(
                     "data": psycopg2.extras.Json(_tree_for_pg_jsonb(car)),
                     "raw": raw_adapted,
                     "created_at": None,
+                    "sync_clear_pricing_recompute_queue": not no_prices,
                 }
                 cur.execute(UPSERT_CAR_SQL, params)
                 row = cur.fetchone()
@@ -546,6 +527,29 @@ def run_sync(
                     pending = 0
             if pending:
                 conn.commit()
+        try:
+            with conn.cursor() as mcur:
+                mcur.execute("SELECT COUNT(*) FROM cars WHERE needs_pricing_recompute IS TRUE")
+                n_pricing_queued = int(mcur.fetchone()[0])
+                mcur.execute(
+                    """
+                    SELECT COUNT(*) FROM cars
+                    WHERE (source IS NULL OR lower(trim(source)) = 'encar')
+                      AND (car_id IS NULL OR car_id NOT LIKE 'dongchedi-%')
+                      AND COALESCE(data->'pricing_clean'->>'pricing_rules_version', '') <> %s
+                      AND (data ? 'price_won' AND NULLIF((data->>'price_won')::text, '') IS NOT NULL
+                           AND (data->>'price_won')::numeric > 0)
+                    """,
+                    (PRICING_RULES_VERSION,),
+                )
+                n_encar_rules_mismatch = int(mcur.fetchone()[0])
+            print(
+                f"Pricing observability: needs_pricing_recompute={n_pricing_queued} "
+                f"encar_rows_old_pricing_rules_version≈{n_encar_rules_mismatch} (current={PRICING_RULES_VERSION})",
+                file=sys.stderr,
+            )
+        except Exception as e:
+            print(f"Warning: pricing observability query failed: {e}", file=sys.stderr)
         print(f"Postgres upsert + images: {len(cars_out)} listings", file=sys.stderr)
     finally:
         try:

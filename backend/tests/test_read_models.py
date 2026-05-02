@@ -43,6 +43,24 @@ def test_encar_reconciles_stale_price_on_request_to_full_customs(monkeypatch):
     assert rm["price_rub"] == 3_500_000.0
 
 
+def test_encar_reconciles_stale_por_using_spec_clean_displacement_only(monkeypatch):
+    """Объём только в spec_clean (как после clean-слоя без корня) — всё равно korea_land_only для ICE без л.с."""
+    monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
+    d = {
+        "source": "encar",
+        "price_won": 12_000_000,
+        "engine_type": "gasoline",
+        "spec_clean": {"displacement_cc": "998", "engine_type": "gasoline"},
+        "my_price": 1_800_000.0,
+        "pricing_clean": {"pricing_tier": "price_on_request", "price_on_request": True},
+    }
+    rm = build_catalog_read_model(d, use_clean=True)
+    assert rm["pricing_tier"] == "korea_land_only"
+    assert rm["price_on_request"] is False
+    assert rm["customs_included"] is False
+    assert rm["price_rub"] == 1_800_000.0
+
+
 def test_encar_does_not_reconcile_dongchedi(monkeypatch):
     monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
     d = {
