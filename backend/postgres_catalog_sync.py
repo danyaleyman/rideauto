@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import subprocess
 import sys
+from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -38,6 +41,65 @@ _BACKEND_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _BACKEND_DIR.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
+
+
+def _tree_for_pg_jsonb(value: Any) -> Any:
+    """
+    Build a strictly JSON-safe tree for psycopg2.extras.Json(): copy dict/list, break Python-only
+    cycles (stdlib encoder raises Circular reference detected), coerce odd scalars.
+
+    Mirrors what eventually goes to Postgres JSONB; duplication of shared subgraphs is acceptable.
+    """
+    stack: set[int] = set()
+
+    def _walk(x: Any) -> Any:
+        if x is None or isinstance(x, bool):
+            return x
+        if isinstance(x, str):
+            return x
+        if isinstance(x, (bytes, memoryview)):
+            try:
+                return bytes(x).decode("utf-8", errors="replace")
+            except Exception:
+                return str(x)
+        if isinstance(x, int):
+            return x
+        if isinstance(x, float):
+            if math.isnan(x) or math.isinf(x):
+                return None
+            return x
+        if isinstance(x, Decimal):
+            return format(x, "f")
+        if isinstance(x, (datetime, date)):
+            try:
+                return x.isoformat()
+            except Exception:
+                return str(x)
+        if isinstance(x, dict):
+            oid = id(x)
+            if oid in stack:
+                return None
+            stack.add(oid)
+            try:
+                out: Dict[str, Any] = {}
+                for k, v in x.items():
+                    sk = k if isinstance(k, str) else str(k)
+                    out[sk] = _walk(v)
+                return out
+            finally:
+                stack.discard(oid)
+        if isinstance(x, (list, tuple)):
+            oid = id(x)
+            if oid in stack:
+                return None
+            stack.add(oid)
+            try:
+                return [_walk(v) for v in x]
+            finally:
+                stack.discard(oid)
+        return str(x)
+
+    return _walk(value)
 
 
 def _dsn_from_config(config: dict) -> str:
@@ -422,7 +484,7 @@ def run_sync(
                     **fields,
                     "brand_id": bid,
                     "model_id": mid,
-                    "data": psycopg2.extras.Json(car),
+                    "data": psycopg2.extras.Json(_tree_for_pg_jsonb(car)),
                     "raw": raw_adapted,
                     "created_at": None,
                 }
