@@ -9,8 +9,8 @@
     "generate:seo-landings": "node scripts/generate-seo-landings.mjs",
     "lint:js": "npm --prefix web run lint",
     "lh:ci": "lhci autorun --config=web/lighthouserc.cjs",
-    "test:e2e": "playwright test --grep-invert @visual",
-    "test:e2e:visual": "playwright test --grep @visual",
+    "test:e2e": "playwright test --grep-invert \"@visual\"",
+    "test:e2e:visual": "playwright test --grep \"@visual\"",
     "test:unit": "npm --prefix web run test:unit"
   }
 }

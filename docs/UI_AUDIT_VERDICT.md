@@ -14,6 +14,24 @@
 - **Каталог**: фильтры, URL-состояние, клиентский поиск — типичный паттерн маркетплейса.
 - **Smoke-покрытие**: Playwright на мок-API + unit-тесты на чистые функции (каталог URL, цены, VIN).
 
+## Что закрыто по разделам 1–6 (реализация в репозитории)
+
+| Тема | Сделано |
+|------|---------|
+| **1. Токены** | Семантический `--elevated-ring` / `ring-elevated-ring` в `globals.css`; часть карточек переведена с ad-hoc `ring-black/…`. |
+| **1. Состояния каталога** | Явный офлайн-баннер (`role="alert"`), пустая выдача с CTA «Сбросить» + Telegram, отчёт в Sentry при ошибке поиска (см. п. 4). |
+| **1. Storybook** | `npm run storybook` / `build-storybook` (Vite 5 + `@storybook/react-vite` 8.6), сторис: Button, Skeleton; в CI — job `storybook`. |
+| **2. a11y** | Playwright + `@axe-core/playwright` (serious/critical = 0) на главной, каталоге (мок), `/buy`; исправлен плейсхолдер калькулятора (`role="status"`). |
+| **3. Lighthouse CI** | `web/lighthouserc.cjs`, скрипт `npm run lh:ci` (страницы без обязательного API); job `lighthouse` в GitHub Actions. Performance в assert отключён (зависит от окружения). |
+| **3. LCP карточки** | Уже заданы `priority` и `fetchPriority="high"` на герое галереи (`CarPhotoGallery`). |
+| **3. Виртуализация** | Не внедрялась: карточки переменной высоты; зарезервирован флаг `NEXT_PUBLIC_FEATURE_VIRTUAL_LIST`. |
+| **4. Наблюдаемость** | `X-Client-Trace-Id` на клиентских `fetch` (`client-fetch.ts`); `reportClientError` + опциональный `@sentry/browser` при `NEXT_PUBLIC_SENTRY_DSN`. |
+| **4. Feature flags** | `web/src/lib/feature-flags.ts` (`NEXT_PUBLIC_FEATURE_HOME_TRUST`, `NEXT_PUBLIC_FEATURE_VIRTUAL_LIST`). |
+| **5. Доверие / копирайт** | Блок `HomeTrustStrip` на главной (без изменения юридических страниц); тексты пустого каталога вынесены в `messages/ru.json` + `t()`. |
+| **6. Визуальные снапшоты** | `e2e/visual.spec.js`, тег `@visual`; по умолчанию `npm run test:e2e` их пропускает (разница ОС); `npm run test:e2e:visual` на Linux в CI или локально с `--update-snapshots`. |
+| **6. E2E / unit в CI** | Jobs: `frontend-unit` (Vitest), `e2e` (smoke + a11y), `storybook`, `lighthouse`. |
+| **6. i18n** | `web/messages/ru.json` + `t("ключ.с.точками")` — база для второго языка без смены смысла копирайта. |
+
 ## Разрывы относительно «взрослых» крупных проектов
 
 ### 1. Дизайн-система и консистентность
@@ -53,12 +71,12 @@
 
 | Приоритет | Действие |
 |-----------|----------|
-| P0 | Держать зелёными `test:unit` и `test:e2e` в CI; при падении стейджа — не блокировать юнит-тесты. |
-| P1 | Axe + ручной проход форм/модалок; исправить критичные нарушения фокуса и подписей. |
-| P1 | Бюджеты LCP/CLS на главной, каталоге и карточке; алерт при регрессии. |
-| P2 | Storybook (или аналог) для карточки каталога, фильтров, диалога быстрой заявки. |
-| P2 | Визуальные снапшоты для статичных страниц (buy, privacy, cookies). |
-| P3 | Унификация дизайн-токенов и dark/light проверка контраста по палитре. |
+| P0 | Держать зелёными `test:unit`, `test:e2e` (smoke + axe), `storybook`, `lighthouse` в CI. |
+| P1 | Периодический ручной проход форм/модалок; при необходимости расширить axe (например, `moderate`). |
+| P1 | Ужесточить Lighthouse (включить performance с бюджетами) на стейдже с реальным API и CDN. |
+| P2 | Расширить Storybook: карточка каталога, фильтры, `CatalogQuickBuyDialog` (потребуются моки Next/роутера). |
+| P2 | Зафиксировать визуальные эталоны в CI на Linux (`test:e2e:visual`) и коммитить `*-snapshots`. |
+| P3 | Дальнейшая унификация токенов (`spacing-*` семантика) и контраст по палитре. |
 
 ## Итог
 
