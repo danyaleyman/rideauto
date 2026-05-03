@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Fragment,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -48,8 +49,9 @@ import {
   trimFacetLabelMinusGeneration,
 } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
-import { t } from "@/lib/i18n";
+import { LocaleSwitchLinks } from "@/components/LocaleSwitchLinks";
 import { reportClientError } from "@/lib/observability";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { siteBreadcrumbBarClass } from "@/lib/site-layout";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth } from "@/components/AuthProvider";
@@ -132,6 +134,7 @@ export function CatalogClient({
   const sp = useSearchParams();
   const spStr = sp.toString();
   const diagEnabled = useMemo(() => isCatalogDiagEnabled(spStr), [spStr]);
+  const { t } = useLocaleContext();
   const state = useMemo(() => parseCatalogUrl(new URLSearchParams(spStr)), [spStr]);
   const key = useMemo(() => catalogStateKey(state), [state]);
 
@@ -998,6 +1001,9 @@ export function CatalogClient({
                   {carsAddedTodayLabel(dailyNewCount)}
                 </span>
               ) : null}
+              <Suspense fallback={null}>
+                <LocaleSwitchLinks className="shrink-0 text-xs text-muted-foreground" />
+              </Suspense>
             </div>
             {activeChips.length ? (
               <motion.div

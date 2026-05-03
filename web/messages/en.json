@@ -1,0 +1,27 @@
+{
+  "catalog": {
+    "empty": {
+      "title": "No listings match these filters right now",
+      "hint": "Adjust filters on the left, reset them, or message us on Telegram — we can help manually.",
+      "reset": "Reset filters",
+      "telegramCta": "Message on Telegram"
+    },
+    "offline": {
+      "title": "You appear to be offline",
+      "hint": "Check your connection and tap “Retry” below."
+    }
+  },
+  "home": {
+    "trust": {
+      "srHeading": "How we work with you",
+      "item1Title": "Sourcing and checks",
+      "item1Body": "We review history, mileage, and fit before committing to a purchase.",
+      "item2Title": "Logistics and paperwork",
+      "item2Body": "We arrange shipping and customs support end-to-end.",
+      "item3Title": "Always reachable",
+      "item3Body": "We respond on timelines and budget via your preferred channel.",
+      "contactsLink": "Contacts and messengers",
+      "howToBuyLink": "How to buy"
+    }
+  }
+}
