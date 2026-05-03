@@ -1,3 +1,4 @@
+import { PER_PAGE } from "./catalog-url";
 import { getServerApiBase } from "./env";
 import type { CarDetailResponse, SearchResponse, SimilarResponse } from "./types";
 
@@ -28,7 +29,7 @@ export async function fetchSearch(
   options?: { revalidate?: number },
 ): Promise<SearchResponse> {
   const base = getServerApiBase();
-  const q = buildQuery(params, { per_page: "12" });
+  const q = buildQuery(params, { per_page: String(PER_PAGE) });
   const url = `${base}/api/search${q}`;
   const res = await fetch(url, {
     headers: { Accept: "application/json" },

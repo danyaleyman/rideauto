@@ -638,12 +638,12 @@ export function CatalogClient({
             className="mb-4 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 [overflow-wrap:anywhere] dark:text-amber-50"
             role="status"
           >
-            Не удалось получить каталог при отрисовке на сервере — загружаем выдачу в браузере. Если список не
-            появится, проверьте сеть и настройку{" "}
-            <code className="break-all rounded bg-background/80 px-1 dark:bg-background/40">
-              NEXT_PUBLIC_API_BASE
-            </code>
-            .
+            Не удалось получить каталог при отрисовке на сервере — загружаем выдачу в браузере. Проверьте логи API и
+            переменную <code className="break-all rounded bg-background/80 px-1 dark:bg-background/40">WRA_API_INTERNAL</code> в
+            контейнере <code className="rounded bg-background/80 px-1 dark:bg-background/40">web</code>. Для клиента по
+            умолчанию используются запросы на тот же сайт (<code className="rounded bg-background/80 px-1">/api/…</code>); не
+            задавайте <code className="rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE=http://127.0.0.1:8080</code>, если
+            открываете сайт не с localhost.
           </div>
         ) : null}
 
@@ -658,7 +658,10 @@ export function CatalogClient({
               <p className="mt-2 text-muted-foreground">Похоже, вы офлайн — подключитесь к сети и попробуйте снова.</p>
             ) : null}
             <p className="mt-2 text-xs text-muted-foreground">
-              Проверьте <code className="rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE</code> и доступность API.
+              Убедитесь, что API отвечает (логи сервиса <code className="rounded bg-background/80 px-1">api</code>). В Docker не
+              используйте для браузера <code className="rounded bg-background/80 px-1">127.0.0.1:8080</code>, если заходите по IP
+              или домену — оставьте <code className="rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE</code> пустым или
+              укажите публичный URL с тем же host, что и сайт.
             </p>
             <Button
               type="button"

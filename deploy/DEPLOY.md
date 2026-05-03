@@ -38,7 +38,8 @@ location ~ ^/detail/([^/]+)/?$ {
 }
 ```
 
-- **Переменные:** `NEXT_PUBLIC_API_BASE`, `WRA_API_INTERNAL`, **`NEXT_PUBLIC_SITE_URL`**.
+- **Переменные:** `WRA_API_INTERNAL`, **`NEXT_PUBLIC_SITE_URL`**, опционально **`NEXT_PUBLIC_API_BASE`**.
+- **Пустой `NEXT_PUBLIC_API_BASE` (рекомендуется для Docker и одного домена):** браузер вызывает `/api/...` на том же origin, Next проксирует на `WRA_API_INTERNAL`. Так каталог работает при открытии сайта по `http://IP:3000`, а не только с `localhost`.
 - **Важно для Docker:** `NEXT_PUBLIC_*` подставляются на этапе **`docker compose build web`** (см. `web/Dockerfile` и `build.args` в `docker-compose.yml`). После смены публичного URL в `.env` выполните **`docker compose build web`** и **`docker compose up -d web`**.
 
 ### Чеклист: прод (один домен, nginx → Next + API)
@@ -47,11 +48,12 @@ location ~ ^/detail/([^/]+)/?$ {
 
    ```env
    WRA_API_INTERNAL=http://api:8080
-   NEXT_PUBLIC_API_BASE=https://rideauto.ru
    NEXT_PUBLIC_SITE_URL=https://rideauto.ru
+   # NEXT_PUBLIC_API_BASE=   — пусто: браузер → https://rideauto.ru/api/... (через Next или nginx)
+   # либо явно: NEXT_PUBLIC_API_BASE=https://rideauto.ru
    ```
 
-   Браузер ходит на `https://rideauto.ru/api/...`; nginx, как в **`deploy/nginx/rideauto.conf`**, проксирует `/api/` на **`127.0.0.1:8080`**.
+   Браузер ходит на `https://rideauto.ru/api/...`; nginx, как в **`deploy/nginx/rideauto.conf`**, может проксировать `/api/` сразу на **`127.0.0.1:8080`** или на Next — оба варианта совместимы с пустым `NEXT_PUBLIC_API_BASE`.
 
 2. **Пересобрать и поднять `web`** после правок `NEXT_PUBLIC_*`:
 

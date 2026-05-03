@@ -13,8 +13,8 @@ COPY data/fuel_label_aliases.json src/lib/fuel_label_aliases.json
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG WRA_API_INTERNAL=http://api:8080
 ENV WRA_API_INTERNAL=$WRA_API_INTERNAL
-# Inlined at `next build` into the client bundle — pass real prod URLs from compose/build, not only runtime env.
-ARG NEXT_PUBLIC_API_BASE=http://127.0.0.1:8080
+# Inlined at `next build` into the client bundle. Пусто = браузер бьёт в /api на том же host (rewrites).
+ARG NEXT_PUBLIC_API_BASE=
 ARG NEXT_PUBLIC_SITE_URL=https://rideauto.ru
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
