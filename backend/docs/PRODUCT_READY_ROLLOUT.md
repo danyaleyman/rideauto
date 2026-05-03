@@ -1,5 +1,7 @@
 # Product Ready Rollout
 
+Полное описание блока **D** (шаги, dual-run, откат): **`BLOCK_D_CLEAN_ROLLOUT.md`**.
+
 ## Flags
 
 - `WRA_CLEAN_READ_MODE` - master switch for clean-first reads.
@@ -18,7 +20,7 @@
 ## Go/No-Go checks per step
 
 - `encar_parser_audit.py --fail-on-regression` returns `0`.
-- Dual-run diff (`dual_run_clean_vs_legacy.py`) has no unexpected spikes.
+- Dual-run: `python backend/scripts/dual_run_clean_vs_legacy.py --limit 500 --semantic` — смотреть `pct_rows_with_any_diff` (без шума RU vs KO по марке/топливу); опционально `--max-row-diff-pct 2` для CI.
 - Search/facets endpoints have no error-rate increase.
 - Price intent shares stay within threshold deltas.
 

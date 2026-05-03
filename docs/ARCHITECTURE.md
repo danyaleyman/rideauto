@@ -33,7 +33,7 @@
 
 ## Слои данных в каталоге (внутренний контракт)
 
-Единая терминология raw → `cars.data` → `*_clean` → read model / Meilisearch — в **`backend/docs/BLOCK_0_SINGLE_SOURCE_OF_TRUTH.md`**.
+Единая терминология raw → `cars.data` → `*_clean` → read model / Meilisearch — в **`backend/docs/BLOCK_0_SINGLE_SOURCE_OF_TRUTH.md`**. Поэтапное включение clean read (флаги, dual-run, откат): **`backend/docs/BLOCK_D_CLEAN_ROLLOUT.md`**.
 
 ## Пайплайн данных
 
