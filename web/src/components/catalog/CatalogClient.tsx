@@ -1082,6 +1082,131 @@ export function CatalogClient({
               const fav = authenticated && isFavorite(car.id);
               const showCopied = copiedId === car.id;
               const openingThisCard = openingCarId === car.id;
+              const mobileCommerceStatusSegments: { key: string; label: string; tooltip: string }[] = [];
+              if (!listingUnavailable) {
+                if (car.pricing_tier === "korea_land_only") {
+                  mobileCommerceStatusSegments.push({
+                    key: "tier",
+                    label: "Без таможни РФ",
+                    tooltip:
+                      "Указанная сумма — Корея, логистика и сопутствующие сборы по данным каталога; растаможка в РФ в эту цифру не входит и считается отдельно.",
+                  });
+                }
+                if (passability === "passable") {
+                  mobileCommerceStatusSegments.push({
+                    key: "pass",
+                    label: "Проходной",
+                    tooltip: "«Проходной автомобиль»: на него действуют льготные таможенные тарифы.",
+                  });
+                } else if (passability === "young") {
+                  mobileCommerceStatusSegments.push({
+                    key: "young",
+                    label: "Высокая ставка",
+                    tooltip: "Автомобиль менее 3 лет: на него действуют повышенные таможенные тарифы.",
+                  });
+                } else if (passability === "old") {
+                  mobileCommerceStatusSegments.push({
+                    key: "old",
+                    label: "Высокая ставка",
+                    tooltip: "Автомобиль старше 5 лет: на него действуют повышенные таможенные тарифы.",
+                  });
+                }
+              }
+              const hasListingCommerceBadges = mobileCommerceStatusSegments.length > 0;
+              const commerceStatusBadges =
+                !listingUnavailable ? (
+                  <>
+                    {car.pricing_tier === "korea_land_only" ? (
+                      <Badge
+                        variant="outline"
+                        className="inline-flex h-8 max-w-full items-center gap-1 rounded-full border-amber-500/35 bg-amber-500/[0.09] px-2.5 text-[11px] font-medium text-amber-950 [overflow-wrap:anywhere] dark:text-amber-100"
+                      >
+                        Без таможни РФ
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex shrink-0"
+                              aria-label="Пояснение: цена без растаможки РФ"
+                            >
+                              <CircleHelp className="size-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[20rem]">
+                            Указанная сумма — Корея, логистика и сопутствующие сборы по данным каталога;
+                            растаможка в РФ в эту цифру не входит и считается отдельно.
+                          </TooltipContent>
+                        </Tooltip>
+                      </Badge>
+                    ) : null}
+                    {passability === "passable" ? (
+                      <Badge
+                        variant="outline"
+                        className="inline-flex h-8 items-center gap-1 rounded-full border-emerald-600/35 bg-emerald-600/[0.08] px-2.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-200"
+                      >
+                        Проходной
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex shrink-0"
+                              aria-label="Пояснение для проходного автомобиля"
+                            >
+                              <CircleHelp className="size-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            «Проходной автомобиль»: на него действуют льготные таможенные тарифы.
+                          </TooltipContent>
+                        </Tooltip>
+                      </Badge>
+                    ) : passability === "young" ? (
+                      <Badge
+                        variant="outline"
+                        className="inline-flex h-8 items-center gap-1 rounded-full border-red-600/35 bg-red-600/[0.08] px-2.5 text-[11px] font-medium text-red-800 dark:text-red-200"
+                      >
+                        Высокая ставка
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex shrink-0"
+                              aria-label="Пояснение для автомобиля менее 3 лет"
+                            >
+                              <CircleHelp className="size-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            Автомобиль менее 3 лет: на него действуют повышенные таможенные тарифы.
+                          </TooltipContent>
+                        </Tooltip>
+                      </Badge>
+                    ) : passability === "old" ? (
+                      <Badge
+                        variant="outline"
+                        className="inline-flex h-8 items-center gap-1 rounded-full border-red-600/35 bg-red-600/[0.08] px-2.5 text-[11px] font-medium text-red-800 dark:text-red-200"
+                      >
+                        Высокая ставка
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex shrink-0"
+                              aria-label="Пояснение для автомобиля старше 5 лет"
+                            >
+                              <CircleHelp className="size-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            Автомобиль старше 5 лет: на него действуют повышенные таможенные тарифы.
+                          </TooltipContent>
+                        </Tooltip>
+                      </Badge>
+                    ) : null}
+                  </>
+                ) : null;
+              const buyTriggerClass =
+                "h-8 min-h-8 shrink-0 rounded-full border-primary/25 bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/92 max-sm:px-4";
               return (
                 <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout>
                   <Card
@@ -1154,20 +1279,20 @@ export function CatalogClient({
                       </div>
                     </Link>
                     <div className="flex min-w-0 flex-1 flex-col justify-between gap-0 sm:rounded-e-2xl">
-                      <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 sm:py-3.5 md:px-5">
+                      <div className="flex items-start justify-between gap-2 border-b border-border/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3.5 md:px-5">
                         <Link
                           href={`/car/${encodeURIComponent(car.id)}`}
                           prefetch
-                          className="flex min-w-0 flex-1 items-start self-stretch pt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:items-center sm:pt-0"
+                          className="flex min-w-0 flex-1 items-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onClick={(e) => {
                             if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
                           }}
                         >
-                          <p className="font-heading line-clamp-2 min-h-[3rem] text-[15px] font-semibold leading-snug sm:min-h-[2.65rem] sm:text-base md:min-h-[2.85rem]">
+                          <p className="font-heading line-clamp-2 min-h-0 text-[15px] font-semibold leading-snug sm:min-h-[2.65rem] sm:text-base md:min-h-[2.85rem]">
                             {normalizedTitle}
                           </p>
                         </Link>
-                        <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="flex shrink-0 items-start gap-1.5 pt-px">
                           <Button
                             type="button"
                             variant="secondary"
@@ -1214,7 +1339,7 @@ export function CatalogClient({
                           ) : null}
                         </div>
                       </div>
-                      <div className="flex items-start px-3 pb-2 pt-2 sm:px-4 sm:pb-2 sm:pt-2.5 md:px-5 md:pt-3 lg:justify-start">
+                      <div className="flex items-start px-3 pb-1.5 pt-1.5 sm:px-4 sm:pb-2 sm:pt-2.5 md:px-5 md:pt-3 lg:justify-start">
                         {attrChips.length ? (
                           <Link
                             href={`/car/${encodeURIComponent(car.id)}`}
@@ -1235,7 +1360,7 @@ export function CatalogClient({
                                   <li key={c.key} className="min-w-0 max-w-full">
                                     <Badge
                                       variant="outline"
-                                      className="inline-flex h-auto max-w-full items-center gap-1 rounded-full border-border/60 bg-background/80 px-2.5 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/30"
+                                      className="inline-flex h-auto max-w-full items-center gap-1 rounded-full border-border/55 bg-background/55 px-2.5 py-1 text-[11px] font-medium normal-case text-foreground shadow-none [overflow-wrap:anywhere] max-sm:border-dashed max-sm:text-muted-foreground dark:bg-muted/20"
                                     >
                                       <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
                                       <span className="min-w-0">{c.label}</span>
@@ -1247,11 +1372,62 @@ export function CatalogClient({
                           </Link>
                         ) : null}
                       </div>
-                      <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
-                        <div className="flex w-full items-center gap-2">
-                          <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            {!listingUnavailable ? (
-                              <>
+                      <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5 max-sm:bg-muted/30 max-sm:dark:bg-muted/20">
+                        {!listingUnavailable ? (
+                          <>
+                            <div className="flex w-full min-w-0 items-start justify-between gap-3 sm:hidden">
+                              <div className="min-w-0 flex-1">
+                                <Link
+                                  href={`/car/${encodeURIComponent(car.id)}`}
+                                  prefetch
+                                  className="block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  onClick={(e) => {
+                                    if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
+                                  }}
+                                  aria-label={`Открыть объявление: ${normalizedTitle}, цена`}
+                                >
+                                  <span className="block truncate text-[1.0625rem] font-semibold tabular-nums tracking-tight text-foreground [overflow-wrap:anywhere]">
+                                    {formatCatalogCardPrice(car.price, car.price_on_request)}
+                                  </span>
+                                </Link>
+                                {hasListingCommerceBadges ? (
+                                  <p className="mt-1 max-w-full text-xs leading-snug text-muted-foreground [overflow-wrap:anywhere]">
+                                    {mobileCommerceStatusSegments.map((seg, i) => (
+                                      <Fragment key={seg.key}>
+                                        {i > 0 ? (
+                                          <span className="text-muted-foreground/45" aria-hidden>
+                                            {" "}
+                                            ·{" "}
+                                          </span>
+                                        ) : null}
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              type="button"
+                                              className="inline max-w-full border-b border-dotted border-muted-foreground/45 bg-transparent p-0 text-left font-inherit text-inherit underline-offset-2 hover:border-foreground/35 hover:text-foreground"
+                                              aria-label={`Пояснение: ${seg.label}`}
+                                            >
+                                              {seg.label}
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="max-w-[20rem] text-xs">
+                                            {seg.tooltip}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </Fragment>
+                                    ))}
+                                  </p>
+                                ) : null}
+                              </div>
+                              <CatalogQuickBuyDialog
+                                carId={car.id}
+                                carTitle={normalizedTitle}
+                                triggerSize="sm"
+                                triggerClassName={cn(buyTriggerClass, "mt-0.5 shrink-0")}
+                              />
+                            </div>
+                            <div className="hidden w-full items-center gap-2 sm:flex">
+                              <div className="flex min-w-0 flex-wrap items-center gap-2">
                                 <Link
                                   href={`/car/${encodeURIComponent(car.id)}`}
                                   prefetch
@@ -1268,108 +1444,17 @@ export function CatalogClient({
                                     {formatCatalogCardPrice(car.price, car.price_on_request)}
                                   </Badge>
                                 </Link>
-                                {car.pricing_tier === "korea_land_only" ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="inline-flex h-8 max-w-full items-center gap-1 rounded-full border-amber-500/35 bg-amber-500/[0.09] px-2.5 text-[11px] font-medium text-amber-950 [overflow-wrap:anywhere] dark:text-amber-100"
-                                  >
-                                    Без таможни РФ
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          type="button"
-                                          className="inline-flex shrink-0"
-                                          aria-label="Пояснение: цена без растаможки РФ"
-                                        >
-                                          <CircleHelp className="size-3.5" />
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="max-w-[20rem]">
-                                        Указанная сумма — Корея, логистика и сопутствующие сборы по данным каталога;
-                                        растаможка в РФ в эту цифру не входит и считается отдельно.
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </Badge>
-                                ) : null}
-                                {passability === "passable" ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="inline-flex h-8 items-center gap-1 rounded-full border-emerald-600/35 bg-emerald-600/[0.08] px-2.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-200"
-                                  >
-                                    Проходной
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          type="button"
-                                          className="inline-flex shrink-0"
-                                          aria-label="Пояснение для проходного автомобиля"
-                                        >
-                                          <CircleHelp className="size-3.5" />
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">
-                                        «Проходной автомобиль»: на него действуют льготные таможенные
-                                        тарифы.
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </Badge>
-                                ) : passability === "young" ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="inline-flex h-8 items-center gap-1 rounded-full border-red-600/35 bg-red-600/[0.08] px-2.5 text-[11px] font-medium text-red-800 dark:text-red-200"
-                                  >
-                                    Высокая ставка
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          type="button"
-                                          className="inline-flex shrink-0"
-                                          aria-label="Пояснение для автомобиля менее 3 лет"
-                                        >
-                                          <CircleHelp className="size-3.5" />
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">
-                                        Автомобиль менее 3 лет: на него действуют повышенные таможенные
-                                        тарифы.
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </Badge>
-                                ) : passability === "old" ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="inline-flex h-8 items-center gap-1 rounded-full border-red-600/35 bg-red-600/[0.08] px-2.5 text-[11px] font-medium text-red-800 dark:text-red-200"
-                                  >
-                                    Высокая ставка
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          type="button"
-                                          className="inline-flex shrink-0"
-                                          aria-label="Пояснение для автомобиля старше 5 лет"
-                                        >
-                                          <CircleHelp className="size-3.5" />
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">
-                                        Автомобиль старше 5 лет: на него действуют повышенные таможенные
-                                        тарифы.
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </Badge>
-                                ) : null}
-                              </>
-                            ) : null}
-                          </div>
-                          {!listingUnavailable ? (
-                            <CatalogQuickBuyDialog
-                              carId={car.id}
-                              carTitle={normalizedTitle}
-                              triggerSize="sm"
-                              triggerClassName="ms-auto h-8 min-h-8 rounded-full border-primary/25 bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/92"
-                            />
-                          ) : null}
-                        </div>
+                                {commerceStatusBadges}
+                              </div>
+                              <CatalogQuickBuyDialog
+                                carId={car.id}
+                                carTitle={normalizedTitle}
+                                triggerSize="sm"
+                                triggerClassName={cn(buyTriggerClass, "ms-auto")}
+                              />
+                            </div>
+                          </>
+                        ) : null}
                       </div>
                     </div>
                   </Card>
