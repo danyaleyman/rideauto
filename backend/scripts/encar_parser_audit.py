@@ -13,7 +13,7 @@ import psycopg2
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
-from telegram_util import notify_slack_alert, post_telegram  # noqa: E402
+from slack_ops import notify_slack_alert  # noqa: E402
 
 
 def _dsn_from_env() -> str:
@@ -171,6 +171,94 @@ def _evaluate_regression(
     return failures
 
 
+def _failure_hint_ru(failure_line: str) -> str:
+    if "pct_missing_required" in failure_line and "threshold" in failure_line:
+        return "Доля строк с непустым списком missing_required в data_quality."
+    if "delta_pct_missing_required" in failure_line:
+        return "Скачок доли missing_required относительно прошлого запуска."
+    if "pct_schema_version" in failure_line and "threshold" in failure_line:
+        return "Доля строк, где в JSON есть parser_schema_version."
+    if "pct_schema_version" in failure_line:
+        return "Покрытие полем parser_schema_version."
+    if "delta_pct_monthly_finance" in failure_line:
+        return "Изменение доли объявлений с intent monthly_finance."
+    if "delta_pct_reserved_placeholder" in failure_line:
+        return "Изменение доли объявлений с intent reserved_placeholder."
+    return "Подробности см. в stdout / journalctl этого запуска."
+
+
+def format_slack_audit_report(
+    *,
+    slack_channel_label: str,
+    current_summary: dict[str, Any],
+    delta: dict[str, Any],
+    failures: list[str],
+    history_file: str,
+) -> str:
+    """Человекочитаемый текст для Slack (без сырого JSON)."""
+    ok = not failures
+    status_ru = "успешно завершён" if ok else "остановлен с ошибками регрессии"
+    bar = "══════════════════════════════════════"
+    lines: list[str] = [
+        bar,
+        f"Encar parser audit — {'OK' if ok else 'FAILED'}",
+        bar,
+        "",
+        f"Итог: прогон {status_ru}.",
+        "",
+        "Где смотреть",
+        "• Скрипт: backend/scripts/encar_parser_audit.py",
+        "• Данные: PostgreSQL, таблица cars, фильтр source = encar",
+        "",
+        "Сводка по текущей выборке",
+        f"• Всего строк Encar: {int(current_summary.get('total') or 0)}",
+        f"• С parser_schema_version в data: {int(current_summary.get('with_schema_version') or 0)} "
+        f"({float(current_summary.get('pct_schema_version') or 0):.2f}%)",
+        f"• С missing_required (data_quality): {int(current_summary.get('with_missing_required') or 0)} "
+        f"({float(current_summary.get('pct_missing_required') or 0):.2f}%)",
+        f"• С нарушениями контракта (contract_violations): {int(current_summary.get('with_contract_violations') or 0)} "
+        f"({float(current_summary.get('pct_contract_violations') or 0):.2f}%)",
+        f"• Intent sale / monthly / reserved: "
+        f"{float(current_summary.get('pct_sale') or 0):.2f}% / "
+        f"{float(current_summary.get('pct_monthly_finance') or 0):.2f}% / "
+        f"{float(current_summary.get('pct_reserved_placeholder') or 0):.2f}%",
+        f"• Средний raw_quality_score: {float(current_summary.get('avg_raw_quality_score') or 0):.2f}",
+        f"• С clean_schema_version: {int(current_summary.get('with_clean_schema') or 0)} "
+        f"({float(current_summary.get('pct_with_clean_schema') or 0):.2f}%)",
+    ]
+    if slack_channel_label:
+        lines.extend(["", f"Метка окружения (текст): {slack_channel_label}"])
+
+    if delta:
+        lines.extend(
+            [
+                "",
+                "Дельта к прошлому запуску (history file)",
+                f"• Строк Encar: {int(delta.get('delta_total') or 0):+d}",
+                f"• Покрытие schema_version (п.п.): {float(delta.get('delta_pct_schema_version') or 0):+.2f}",
+                f"• Покрытие missing_required (п.п.): {float(delta.get('delta_pct_missing_required') or 0):+.2f}",
+                f"• Доля monthly_finance (п.п.): {float(delta.get('delta_pct_monthly_finance') or 0):+.2f}",
+                f"• Доля reserved_placeholder (п.п.): {float(delta.get('delta_pct_reserved_placeholder') or 0):+.2f}",
+            ]
+        )
+    else:
+        lines.extend(["", "Дельта к прошлому запуску: нет базы (первый прогон или пустой history file)."])
+
+    if failures:
+        lines.extend(["", "Раздел: регресс по порогам", "Нарушены условия из параметров запуска (--max-*, --min-*):", ""])
+        for msg in failures:
+            lines.append(f"• {msg}")
+            lines.append(f"  → {_failure_hint_ru(msg)}")
+    else:
+        lines.extend(["", "Раздел: регресс по порогам", "• Нарушений нет."])
+
+    if history_file:
+        lines.extend(["", f"Файл истории (JSONL): {history_file}"])
+
+    lines.extend(["", "Полный вывод и при необходимости JSON — в логе запуска (stdout / journalctl)."])
+    return "\n".join(lines)
+
+
 def run(
     limit: int,
     baseline_json: str = "",
@@ -185,8 +273,6 @@ def run(
     slack_bot_token: str = "",
     slack_channel_id: str = "",
     slack_channel: str = "",
-    telegram_bot_token: str = "",
-    telegram_chat_id: str = "",
     keep_history_days: int = 0,
 ) -> int:
     dsn = _dsn_from_env()
@@ -368,22 +454,19 @@ def run(
                     print(f" - {msg}")
             else:
                 print("\n## Regression check: PASS")
-            channel_part = f" [{slack_channel}]" if slack_channel else ""
-            status_text = "FAILED" if failures else "OK"
-            slack_text = (
-                f"Encar parser audit{channel_part}: {status_text}\n"
-                f"summary={json.dumps(current_summary, ensure_ascii=False)}\n"
-                f"delta={json.dumps(delta, ensure_ascii=False)}\n"
-                f"failures={json.dumps(failures, ensure_ascii=False)}"
+            slack_text = format_slack_audit_report(
+                slack_channel_label=(slack_channel or "").strip(),
+                current_summary=current_summary,
+                delta=delta,
+                failures=failures,
+                history_file=(history_file or "").strip(),
             )
-            sent_slack = notify_slack_alert(
+            notify_slack_alert(
                 slack_text,
                 webhook_url=slack_webhook_url,
                 bot_token=slack_bot_token,
                 channel_id=slack_channel_id,
             )
-            if not sent_slack:
-                post_telegram(telegram_bot_token, telegram_chat_id, slack_text)
             if fail_on_regression and failures:
                 return 2
     return 0
@@ -474,24 +557,6 @@ def main() -> None:
         help="не ID канала: короткая метка в тексте сообщения (удобно при webhook)",
     )
     ap.add_argument(
-        "--telegram-bot-token",
-        type=str,
-        default=(
-            (os.environ.get("OPS_TELEGRAM_BOT_TOKEN") or os.environ.get("PARSER_AUDIT_TELEGRAM_BOT_TOKEN") or "")
-            .strip()
-        ),
-        help="Telegram bot token (or OPS_TELEGRAM_BOT_TOKEN / PARSER_AUDIT_TELEGRAM_BOT_TOKEN)",
-    )
-    ap.add_argument(
-        "--telegram-chat-id",
-        type=str,
-        default=(
-            (os.environ.get("OPS_TELEGRAM_CHAT_ID") or os.environ.get("PARSER_AUDIT_TELEGRAM_CHAT_ID") or "")
-            .strip()
-        ),
-        help="Telegram chat id (or OPS_TELEGRAM_CHAT_ID / PARSER_AUDIT_TELEGRAM_CHAT_ID)",
-    )
-    ap.add_argument(
         "--keep-history-days",
         type=int,
         default=7,
@@ -512,8 +577,6 @@ def main() -> None:
         slack_bot_token=(args.slack_bot_token or "").strip(),
         slack_channel_id=(args.slack_channel_id or "").strip(),
         slack_channel=(args.slack_channel or "").strip(),
-        telegram_bot_token=(args.telegram_bot_token or "").strip(),
-        telegram_chat_id=(args.telegram_chat_id or "").strip(),
         keep_history_days=max(0, int(args.keep_history_days)),
     )
     raise SystemExit(exit_code)

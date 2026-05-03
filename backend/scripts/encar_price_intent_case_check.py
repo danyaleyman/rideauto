@@ -19,15 +19,49 @@ _BACKEND_DIR = _SCRIPTS_DIR.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
-from telegram_util import (  # noqa: E402
+from slack_ops import (  # noqa: E402
     notify_slack_alert,
-    post_telegram,
     slack_app_credentials_from_env,
     slack_incoming_webhook_from_env,
-    telegram_credentials_from_env,
 )
 
-from encar_price_intent import PriceIntent, classify_encar_price_intent
+from encar_price_intent import classify_encar_price_intent
+
+
+def _format_slack_case_check_failure(stats: Dict[str, int], results: List[Dict[str, Any]]) -> str:
+    bar = "══════════════════════════════════════"
+    lines: List[str] = [
+        bar,
+        "Encar price_intent case-check — FAILED",
+        bar,
+        "",
+        "Итог: один или несколько фиксированных кейсов не совпали с ожидаемым intent.",
+        "",
+        "Где смотреть",
+        "• Скрипт: backend/scripts/encar_price_intent_case_check.py",
+        "• Данные: PostgreSQL cars (source=encar) + опционально живой HTML Encar",
+        "",
+        "Статистика",
+        f"• Всего кейсов: {stats.get('total', 0)}",
+        f"• Успешно: {stats.get('pass', 0)}",
+        f"• Провалено: {stats.get('fail', 0)}",
+        f"• Нет в БД: {stats.get('missing_db', 0)}",
+        "",
+        "Проваленные кейсы",
+    ]
+    bad = [r for r in results if not r.get("ok")]
+    show = bad[:20]
+    for r in show:
+        cid = r.get("car_id", "")
+        exp = r.get("expected", "")
+        act = r.get("actual", "")
+        note = str(r.get("note") or "").strip()
+        tail = f" ({note})" if note else ""
+        lines.append(f"• car_id={cid}: ожидали `{exp}`, классификатор дал `{act}`{tail}")
+    if len(bad) > 20:
+        lines.append(f"… и ещё {len(bad) - 20} (полный список в stdout / journalctl).")
+    lines.extend(["", "Полный JSON результата — в логе запуска."])
+    return "\n".join(lines)
 
 
 def _postgres_dsn(config_path: Path) -> str:
@@ -211,21 +245,14 @@ def main() -> None:
     )
     print(json.dumps({"stats": stats, "results": results}, ensure_ascii=False, indent=2))
     if stats["fail"] != 0:
-        body = "encar_price_intent_case_check FAILED\n" + json.dumps(
-            {"stats": stats, "results": results},
-            ensure_ascii=False,
-        )
+        body = _format_slack_case_check_failure(stats, results)
         sbt, sch = slack_app_credentials_from_env()
-        sent = notify_slack_alert(
+        notify_slack_alert(
             body[:39_000],
             webhook_url=slack_incoming_webhook_from_env(),
             bot_token=sbt,
             channel_id=sch,
         )
-        if not sent:
-            tok, tcid = telegram_credentials_from_env()
-            if tok and tcid:
-                post_telegram(tok, tcid, body[:3500])
         raise SystemExit(2)
     raise SystemExit(0)
 

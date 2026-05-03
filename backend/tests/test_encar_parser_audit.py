@@ -4,7 +4,12 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from scripts.encar_parser_audit import _delta, _evaluate_regression, _trim_history_file
+from scripts.encar_parser_audit import (
+    _delta,
+    _evaluate_regression,
+    _trim_history_file,
+    format_slack_audit_report,
+)
 
 
 def test_delta_computation() -> None:
@@ -39,6 +44,55 @@ def test_regression_thresholds_trigger() -> None:
     assert any("pct_schema_version" in x for x in failures)
     assert any("delta_pct_monthly_finance" in x for x in failures)
     assert any("delta_pct_reserved_placeholder" in x for x in failures)
+
+
+def test_slack_report_human_readable() -> None:
+    summary = {
+        "total": 100,
+        "with_schema_version": 90,
+        "with_missing_required": 2,
+        "pct_schema_version": 90.0,
+        "pct_missing_required": 2.0,
+        "with_contract_violations": 0,
+        "pct_contract_violations": 0.0,
+        "sale_cnt": 80,
+        "monthly_finance_cnt": 10,
+        "reserved_placeholder_cnt": 10,
+        "pct_sale": 80.0,
+        "pct_monthly_finance": 10.0,
+        "pct_reserved_placeholder": 10.0,
+        "avg_raw_quality_score": 0.5,
+        "with_clean_schema": 0,
+        "pct_with_clean_schema": 0.0,
+    }
+    delta = {
+        "delta_total": 5,
+        "delta_pct_schema_version": 1.0,
+        "delta_pct_missing_required": -0.5,
+        "delta_pct_monthly_finance": 0.0,
+        "delta_pct_reserved_placeholder": 0.0,
+    }
+    text_ok = format_slack_audit_report(
+        slack_channel_label="staging",
+        current_summary=summary,
+        delta=delta,
+        failures=[],
+        history_file="/tmp/h.jsonl",
+    )
+    assert "Encar parser audit" in text_ok
+    assert "OK" in text_ok
+    assert "Где смотреть" in text_ok
+    assert "регресс по порогам" in text_ok
+    assert "Нарушений нет" in text_ok
+    text_fail = format_slack_audit_report(
+        slack_channel_label="",
+        current_summary=summary,
+        delta=delta,
+        failures=["pct_schema_version=50.00% < threshold=95.00%"],
+        history_file="",
+    )
+    assert "FAILED" in text_fail
+    assert "Раздел: регресс по порогам" in text_fail
 
 
 def test_trim_history_keeps_recent_rows(tmp_path: Path) -> None:

@@ -14,8 +14,8 @@
      - Скопируйте **Bot User OAuth Token** (`xoxb-…`) в `PARSER_AUDIT_SLACK_BOT_TOKEN` (или `OPS_SLACK_BOT_TOKEN`).
      - **Channel ID** целевого канала: в Slack → канал → About / сведения — скопируйте `C…` / `G…` в `PARSER_AUDIT_SLACK_CHANNEL_ID` (или `OPS_SLACK_CHANNEL_ID`). Бота нужно **добавить в этот канал** (`/invite @YourBot`), иначе `not_in_channel`.
   2. **Incoming Webhook** — альтернатива без OAuth: `PARSER_AUDIT_SLACK_WEBHOOK` (одна привязка к каналу).
-  Порядок в коде: сначала пробуется токен бота + channel id, иначе webhook. Если ни один канал Slack не настроен — запасной вариант **Telegram** (`OPS_TELEGRAM_BOT_TOKEN` + `OPS_TELEGRAM_CHAT_ID`).
-  - **Метка в тексте** (только для читаемости, не ID): `PARSER_AUDIT_SLACK_CHANNEL` — подставляется в тело отчёта аудита.
+  Порядок в коде: сначала пробуется токен бота + channel id, иначе webhook. Уведомление не отправится, если не задан ни один из этих способов (ошибка будет только в логе).
+  - **Метка в тексте** (только для читаемости, не ID): `PARSER_AUDIT_SLACK_CHANNEL` — подставляется в человекочитаемый отчёт аудита в Slack.
 
 После правки `/etc/default/rideauto`: `sudo systemctl daemon-reload` при необходимости и проверка `sudo systemctl start rideauto-encar-parser-audit.service`.
 
