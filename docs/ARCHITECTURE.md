@@ -31,6 +31,10 @@
 - **Redis**: JSON-кеш ответов search / facets / car (см. `fastapi_app.cached_route` и TTL в настройках).
 - **CDN (например Cloudflare)**: статика фронта, кешируемые GET API, изображения; заголовки для кеша — middleware CDN в FastAPI.
 
+## Слои данных в каталоге (внутренний контракт)
+
+Единая терминология raw → `cars.data` → `*_clean` → read model / Meilisearch — в **`backend/docs/BLOCK_0_SINGLE_SOURCE_OF_TRUTH.md`**.
+
 ## Пайплайн данных
 
 ```text
