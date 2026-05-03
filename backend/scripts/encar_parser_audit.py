@@ -3,12 +3,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import psycopg2
-import requests
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+from telegram_util import notify_slack_alert, post_telegram  # noqa: E402
 
 
 def _dsn_from_env() -> str:
@@ -62,6 +67,40 @@ def _append_history(history_file: str, summary: dict[str, Any], delta: dict[str,
     }
     with p.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _trim_history_file(history_file: str, keep_days: int) -> None:
+    """Keep JSONL records whose `ts` is within the last keep_days (UTC)."""
+    if keep_days <= 0:
+        return
+    p = Path(history_file)
+    if not p.is_file():
+        return
+    cutoff = datetime.now(timezone.utc) - timedelta(days=keep_days)
+    kept: list[str] = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        try:
+            row = json.loads(raw)
+        except json.JSONDecodeError:
+            kept.append(line)
+            continue
+        ts_raw = row.get("ts")
+        if not isinstance(ts_raw, str):
+            kept.append(line)
+            continue
+        try:
+            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        except ValueError:
+            kept.append(line)
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        if ts >= cutoff:
+            kept.append(line)
+    p.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
 
 
 def _delta(current: dict[str, Any], previous: dict[str, Any]) -> dict[str, Any]:
@@ -132,22 +171,6 @@ def _evaluate_regression(
     return failures
 
 
-def _post_slack(webhook_url: str, text: str) -> None:
-    if not webhook_url:
-        return
-    try:
-        resp = requests.post(
-            webhook_url,
-            json={"text": text},
-            timeout=10,
-            headers={"Content-Type": "application/json"},
-        )
-        if resp.status_code >= 300:
-            print(f"slack_post_failed status={resp.status_code} body={(resp.text or '')[:200]}")
-    except Exception as exc:
-        print(f"slack_post_exception err={exc}")
-
-
 def run(
     limit: int,
     baseline_json: str = "",
@@ -159,7 +182,12 @@ def run(
     max_monthly_share_delta_pct: float = -1.0,
     max_reserved_share_delta_pct: float = -1.0,
     slack_webhook_url: str = "",
+    slack_bot_token: str = "",
+    slack_channel_id: str = "",
     slack_channel: str = "",
+    telegram_bot_token: str = "",
+    telegram_chat_id: str = "",
+    keep_history_days: int = 0,
 ) -> int:
     dsn = _dsn_from_env()
     baseline = {}
@@ -323,6 +351,7 @@ def run(
                 print(json.dumps(delta, ensure_ascii=False))
             if history_file:
                 _append_history(history_file, current_summary, delta)
+                _trim_history_file(history_file, keep_history_days)
                 print(f"\n## History file\n{history_file}")
             failures = _evaluate_regression(
                 current_summary=current_summary,
@@ -347,7 +376,14 @@ def run(
                 f"delta={json.dumps(delta, ensure_ascii=False)}\n"
                 f"failures={json.dumps(failures, ensure_ascii=False)}"
             )
-            _post_slack(slack_webhook_url, slack_text)
+            sent_slack = notify_slack_alert(
+                slack_text,
+                webhook_url=slack_webhook_url,
+                bot_token=slack_bot_token,
+                channel_id=slack_channel_id,
+            )
+            if not sent_slack:
+                post_telegram(telegram_bot_token, telegram_chat_id, slack_text)
             if fail_on_regression and failures:
                 return 2
     return 0
@@ -410,10 +446,56 @@ def main() -> None:
         help="Slack incoming webhook URL for nightly status posting",
     )
     ap.add_argument(
+        "--slack-bot-token",
+        type=str,
+        default=(
+            (
+                os.environ.get("OPS_SLACK_BOT_TOKEN")
+                or os.environ.get("PARSER_AUDIT_SLACK_BOT_TOKEN")
+                or os.environ.get("SLACK_BOT_TOKEN")
+                or ""
+            ).strip()
+        ),
+        help="Slack app Bot User OAuth token (xoxb-…) for chat.postMessage — см. api.slack.com/apps",
+    )
+    ap.add_argument(
+        "--slack-channel-id",
+        type=str,
+        default=(
+            (os.environ.get("OPS_SLACK_CHANNEL_ID") or os.environ.get("PARSER_AUDIT_SLACK_CHANNEL_ID") or "")
+            .strip()
+        ),
+        help="Slack channel id (C… / G…) куда бот пишет сообщения",
+    )
+    ap.add_argument(
         "--slack-channel",
         type=str,
         default=(os.environ.get("PARSER_AUDIT_SLACK_CHANNEL") or "").strip(),
-        help="optional channel label included in Slack message text",
+        help="не ID канала: короткая метка в тексте сообщения (удобно при webhook)",
+    )
+    ap.add_argument(
+        "--telegram-bot-token",
+        type=str,
+        default=(
+            (os.environ.get("OPS_TELEGRAM_BOT_TOKEN") or os.environ.get("PARSER_AUDIT_TELEGRAM_BOT_TOKEN") or "")
+            .strip()
+        ),
+        help="Telegram bot token (or OPS_TELEGRAM_BOT_TOKEN / PARSER_AUDIT_TELEGRAM_BOT_TOKEN)",
+    )
+    ap.add_argument(
+        "--telegram-chat-id",
+        type=str,
+        default=(
+            (os.environ.get("OPS_TELEGRAM_CHAT_ID") or os.environ.get("PARSER_AUDIT_TELEGRAM_CHAT_ID") or "")
+            .strip()
+        ),
+        help="Telegram chat id (or OPS_TELEGRAM_CHAT_ID / PARSER_AUDIT_TELEGRAM_CHAT_ID)",
+    )
+    ap.add_argument(
+        "--keep-history-days",
+        type=int,
+        default=7,
+        help="trim JSONL history to this many days (0 = never trim)",
     )
     args = ap.parse_args()
     exit_code = run(
@@ -427,7 +509,12 @@ def main() -> None:
         max_monthly_share_delta_pct=float(args.max_monthly_share_delta_pct),
         max_reserved_share_delta_pct=float(args.max_reserved_share_delta_pct),
         slack_webhook_url=(args.slack_webhook_url or "").strip(),
+        slack_bot_token=(args.slack_bot_token or "").strip(),
+        slack_channel_id=(args.slack_channel_id or "").strip(),
         slack_channel=(args.slack_channel or "").strip(),
+        telegram_bot_token=(args.telegram_bot_token or "").strip(),
+        telegram_chat_id=(args.telegram_chat_id or "").strip(),
+        keep_history_days=max(0, int(args.keep_history_days)),
     )
     raise SystemExit(exit_code)
 

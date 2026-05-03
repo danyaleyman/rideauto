@@ -31,6 +31,8 @@ Usage:
 Optional:
   --batch-size 2000
   --index-name cars
+  --live-index-name cars
+  --swap-into-live   (sync into --index-name as build/staging, then swap with live; preflight still blocks writes on failure)
   --settings-only
   --recreate-index
   --since 2025-01-01T00:00:00+00:00
@@ -444,7 +446,21 @@ def main() -> None:
     parser.add_argument("--pg-dsn", default="", help="PostgreSQL connection URI")
     parser.add_argument("--meili-url", default="http://127.0.0.1:7700", help="Meilisearch server URL")
     parser.add_argument("--meili-key", default="", help="Meilisearch API key (Bearer)")
-    parser.add_argument("--index-name", default="cars", help="Meilisearch index UID")
+    parser.add_argument(
+        "--index-name",
+        default="cars",
+        help="Meilisearch index UID (documents target; use another UID + --swap-into-live for blue/green)",
+    )
+    parser.add_argument(
+        "--live-index-name",
+        default=os.environ.get("WRA_MEILI_LIVE_INDEX", "cars").strip() or "cars",
+        help="Production UID when using --swap-into-live (must differ from --index-name)",
+    )
+    parser.add_argument(
+        "--swap-into-live",
+        action="store_true",
+        help="After sync, atomically swap live index with build index (Meilisearch swap-indexes API)",
+    )
     parser.add_argument(
         "--settings",
         type=Path,
@@ -489,6 +505,14 @@ def main() -> None:
     except ValueError as e:
         parser.error(str(e))
 
+    live_uid = (args.live_index_name or "cars").strip()
+    build_uid = (args.index_name or "cars").strip()
+    if args.swap_into_live:
+        if args.settings_only:
+            parser.error("--swap-into-live cannot be combined with --settings-only")
+        if live_uid == build_uid:
+            parser.error("--swap-into-live requires different --index-name (build/staging) and --live-index-name")
+
     if not args.pg_dsn and not args.settings_only:
         parser.error("--pg-dsn is required unless --settings-only")
     if args.preflight_gate and not args.settings_only:
@@ -513,17 +537,19 @@ def main() -> None:
     client = Client(args.meili_url, args.meili_key)
 
     try:
-        ensure_index(client, args.index_name, recreate=args.recreate_index)
-        apply_settings(client, args.index_name, settings)
+        if args.swap_into_live:
+            ensure_index(client, live_uid, recreate=False)
+        ensure_index(client, build_uid, recreate=args.recreate_index)
+        apply_settings(client, build_uid, settings)
 
         if args.settings_only:
-            print(f"settings applied to index {args.index_name!r}", flush=True)
+            print(f"settings applied to index {build_uid!r}", flush=True)
             return
 
         assert args.pg_dsn
         n = push_batches(
             client,
-            args.index_name,
+            build_uid,
             args.pg_dsn,
             since=since_dt,
             batch_size=max(1, min(args.batch_size, 50_000)),
@@ -531,6 +557,14 @@ def main() -> None:
             clean_read_mode=bool(args.clean_read_mode),
         )
         print(f"synced document batches (upsert count): {n}", flush=True)
+        if args.swap_into_live:
+            print(f"swapping Meilisearch indexes {live_uid!r} <-> {build_uid!r}", flush=True)
+            swap_task = client.swap_indexes([{"indexes": [live_uid, build_uid]}])
+            client.wait_for_task(swap_task.task_uid, timeout_in_ms=1_800_000)
+            print(
+                f"swap complete: index {live_uid!r} now serves the data built into {build_uid!r}",
+                flush=True,
+            )
     except MeilisearchApiError as e:
         if "invalid_api_key" in str(e).lower():
             print("Meilisearch: invalid_api_key.", file=sys.stderr)

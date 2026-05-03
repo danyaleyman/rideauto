@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from scripts.encar_parser_audit import _delta, _evaluate_regression
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from scripts.encar_parser_audit import _delta, _evaluate_regression, _trim_history_file
 
 
 def test_delta_computation() -> None:
@@ -35,3 +39,21 @@ def test_regression_thresholds_trigger() -> None:
     assert any("pct_schema_version" in x for x in failures)
     assert any("delta_pct_monthly_finance" in x for x in failures)
     assert any("delta_pct_reserved_placeholder" in x for x in failures)
+
+
+def test_trim_history_keeps_recent_rows(tmp_path: Path) -> None:
+    old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+    recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    p = tmp_path / "h.jsonl"
+    p.write_text(
+        json.dumps({"ts": old, "summary": {"x": 1}}, ensure_ascii=False)
+        + "\n"
+        + json.dumps({"ts": recent, "summary": {"x": 2}}, ensure_ascii=False)
+        + "\n",
+        encoding="utf-8",
+    )
+    _trim_history_file(str(p), keep_days=7)
+    lines = [ln for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len(lines) == 1
+    row = json.loads(lines[0])
+    assert row["summary"]["x"] == 2

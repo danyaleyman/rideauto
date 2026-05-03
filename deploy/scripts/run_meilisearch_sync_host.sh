@@ -34,6 +34,9 @@ MEILI_URL="${WRA_MEILISEARCH_URL:-http://127.0.0.1:7700}"
 # Если в шелле старый ключ — unset MEILI_MASTER_KEY WRA_MEILISEARCH_KEY и подставьте актуальный или оставьте пустым для dev без ключа.
 MEILI_KEY="${MEILI_MASTER_KEY:-${WRA_MEILISEARCH_KEY:-}}"
 INDEX="${WRA_MEILISEARCH_INDEX:-cars}"
+LIVE_INDEX="${WRA_MEILI_LIVE_INDEX:-cars}"
+# Безопасная публикация: полная перезаливка в staging UID, затем swap с боевым (API продолжает читать LIVE_INDEX).
+# Задайте WRA_MEILISEARCH_INDEX=cars_build (staging), WRA_MEILI_LIVE_INDEX=cars, WRA_MEILI_SWAP_INTO_LIVE=1.
 SETTINGS="${WRA_MEILISEARCH_SETTINGS:-$ROOT/infrastructure/meilisearch/index_settings.json}"
 SYNC_PY="$ROOT/infrastructure/meilisearch/sync_meilisearch.py"
 
@@ -49,6 +52,13 @@ if [[ ! -f "$SETTINGS" ]]; then
   exit 1
 fi
 
+SWAP_ARGS=()
+case "${WRA_MEILI_SWAP_INTO_LIVE:-}" in
+  1|true|TRUE|yes|YES|on|ON)
+    SWAP_ARGS+=(--swap-into-live "--live-index-name" "$LIVE_INDEX")
+    ;;
+esac
+
 exec /usr/bin/python3 "$SYNC_PY" \
   --pg-dsn "$PG_DSN" \
   --meili-url "$MEILI_URL" \
@@ -56,4 +66,5 @@ exec /usr/bin/python3 "$SYNC_PY" \
   --index-name "$INDEX" \
   --settings "$SETTINGS" \
   --batch-size "${MEILISEARCH_SYNC_BATCH:-500}" \
+  "${SWAP_ARGS[@]}" \
   "$@"

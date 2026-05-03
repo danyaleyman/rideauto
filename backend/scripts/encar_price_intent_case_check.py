@@ -13,9 +13,19 @@ from typing import Any, Dict, List, Sequence, Tuple
 import requests
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 _BACKEND_DIR = _SCRIPTS_DIR.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
+
+from telegram_util import (  # noqa: E402
+    notify_slack_alert,
+    post_telegram,
+    slack_app_credentials_from_env,
+    slack_incoming_webhook_from_env,
+    telegram_credentials_from_env,
+)
 
 from encar_price_intent import PriceIntent, classify_encar_price_intent
 
@@ -200,7 +210,24 @@ def main() -> None:
         use_live_html=not bool(args.no_live_html),
     )
     print(json.dumps({"stats": stats, "results": results}, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if stats["fail"] == 0 else 2)
+    if stats["fail"] != 0:
+        body = "encar_price_intent_case_check FAILED\n" + json.dumps(
+            {"stats": stats, "results": results},
+            ensure_ascii=False,
+        )
+        sbt, sch = slack_app_credentials_from_env()
+        sent = notify_slack_alert(
+            body[:39_000],
+            webhook_url=slack_incoming_webhook_from_env(),
+            bot_token=sbt,
+            channel_id=sch,
+        )
+        if not sent:
+            tok, tcid = telegram_credentials_from_env()
+            if tok and tcid:
+                post_telegram(tok, tcid, body[:3500])
+        raise SystemExit(2)
+    raise SystemExit(0)
 
 
 if __name__ == "__main__":
