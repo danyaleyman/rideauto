@@ -9,11 +9,15 @@ from typing import Any
 import psycopg2
 
 
-def _dsn() -> str:
-    dsn = (os.environ.get("DATABASE_URL") or "").strip()
-    if not dsn:
-        raise RuntimeError("DATABASE_URL is required")
-    return dsn
+def _dsn_from_env() -> str:
+    """Как у deploy/scripts/run_meilisearch_sync_host.sh: SYNC_PG_DSN → DATABASE_URL → WRA_PG_DSN."""
+    for key in ("SYNC_PG_DSN", "DATABASE_URL", "WRA_PG_DSN"):
+        dsn = (os.environ.get(key) or "").strip()
+        if dsn:
+            return dsn
+    raise RuntimeError(
+        "Задайте DSN: SYNC_PG_DSN, DATABASE_URL или WRA_PG_DSN (например после source /etc/default/rideauto)"
+    )
 
 
 def _pct(part: int, total: int) -> float:
@@ -22,8 +26,13 @@ def _pct(part: int, total: int) -> float:
     return round((part / total) * 100.0, 2)
 
 
-def run(min_price_coverage_pct: float, min_brand_coverage_pct: float, min_model_coverage_pct: float) -> int:
-    with psycopg2.connect(_dsn()) as conn:
+def run(
+    dsn: str,
+    min_price_coverage_pct: float,
+    min_brand_coverage_pct: float,
+    min_model_coverage_pct: float,
+) -> int:
+    with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -59,12 +68,19 @@ def run(min_price_coverage_pct: float, min_brand_coverage_pct: float, min_model_
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Preflight data-quality gates before Meili sync")
+    ap.add_argument(
+        "--dsn",
+        metavar="POSTGRES_URL",
+        help="DSN Postgres (иначе SYNC_PG_DSN / DATABASE_URL / WRA_PG_DSN из окружения)",
+    )
     ap.add_argument("--min-price-coverage-pct", type=float, default=97.0)
     ap.add_argument("--min-brand-coverage-pct", type=float, default=99.0)
     ap.add_argument("--min-model-coverage-pct", type=float, default=99.0)
     args = ap.parse_args()
+    dsn = (args.dsn or "").strip() or _dsn_from_env()
     raise SystemExit(
         run(
+            dsn,
             min_price_coverage_pct=float(args.min_price_coverage_pct),
             min_brand_coverage_pct=float(args.min_brand_coverage_pct),
             min_model_coverage_pct=float(args.min_model_coverage_pct),

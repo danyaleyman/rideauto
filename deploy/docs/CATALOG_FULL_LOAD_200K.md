@@ -18,7 +18,9 @@
 cd /opt/rideauto   # корень репозитория
 source .venv/bin/activate  # или venv из runbook
 export PYTHONPATH=backend
-python backend/scripts/meili_sync_preflight.py --dsn "$DATABASE_URL"
+set -a && source /etc/default/rideauto && set +a   # подтянуть SYNC_PG_DSN / DATABASE_URL / WRA_PG_DSN
+python backend/scripts/meili_sync_preflight.py
+# или явно: python backend/scripts/meili_sync_preflight.py --dsn "$PG_DSN"
 ```
 
 Если включён **preflight gate** (`WRA_MEILI_PREFLIGHT_GATE=true`), синк не упрётся в «плохие» данные только если пороги выполнены.
