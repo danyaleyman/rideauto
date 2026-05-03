@@ -4,7 +4,7 @@ export const PER_PAGE = 10;
 
 export type Market = "korea" | "china";
 
-/** Фильтр каталога по слою цены Encar (Meilisearch ``pricing_tier``). Пустая строка — без фильтра. */
+/** Фильтр каталога по слою цены корейского каталога (Meilisearch ``pricing_tier``). Пустая строка — без фильтра. */
 export type CatalogPricingTierFilter = "" | "full_customs" | "korea_land_only" | "price_on_request";
 
 export type CatalogUrlState = {

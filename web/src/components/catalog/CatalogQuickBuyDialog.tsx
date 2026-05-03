@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import Link from "next/link";
+import { submitLeadRequest } from "@/lib/lead-client";
+import { LEAD_NAME_MAX_LEN, validateLeadFullName, validateLeadPhone } from "@/lib/lead-form-validation";
+import { cn } from "@/lib/utils";
 
 type Props = {
   carId: string;
@@ -16,9 +19,6 @@ type Props = {
   triggerClassName?: string;
   triggerSize?: "sm" | "default" | "lg";
 };
-
-const NAME_RE = /^[А-Яа-яЁё\s-]{1,10}$/;
-const PHONE_RE = /^[78]\d{10}$/;
 
 export function CatalogQuickBuyDialog({
   carId,
@@ -31,55 +31,54 @@ export function CatalogQuickBuyDialog({
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">("idle");
   const [errText, setErrText] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [pdAgree, setPdAgree] = useState(false);
 
   async function submit() {
-    const fullName = name.trim();
-    const contact = phone.trim();
-    if (!NAME_RE.test(fullName) || !PHONE_RE.test(contact)) return;
-    setStatus("sending");
     setErrText("");
-    try {
-      const link = getCarPageAbsoluteUrl(carId);
-      const message = [
-        "Заявка на покупку из каталога",
-        `Автомобиль: ${carTitle}`,
-        `Ссылка: ${link}`,
-        "",
-        `Имя клиента: ${fullName}`,
-        `Контактный номер: ${contact}`,
-      ].join("\n");
-      const res = await fetch("/api/lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          full_name: fullName,
-          contact_method: "Звонок по телефону",
-          message,
-          pd_agree: pdAgree,
-        }),
-      });
-      if (!res.ok) {
-        let detail = "";
-        try {
-          const j = (await res.json()) as { detail?: unknown };
-          if (typeof j.detail === "string") detail = j.detail;
-        } catch {
-          // ignore
-        }
-        throw new Error(detail || `Ошибка ${res.status}`);
-      }
-      setStatus("ok");
-      setName("");
-      setPhone("");
-    } catch (e) {
-      setStatus("err");
-      setErrText(e instanceof Error ? e.message : "Не удалось отправить заявку");
-    }
-  }
+    setNameError("");
+    setPhoneError("");
 
-  const isValidName = NAME_RE.test(name.trim());
-  const isValidPhone = PHONE_RE.test(phone.trim());
+    const nameCheck = validateLeadFullName(name);
+    if (!nameCheck.ok) {
+      setNameError(nameCheck.message);
+      return;
+    }
+    const phoneCheck = validateLeadPhone(phone);
+    if (!phoneCheck.ok) {
+      setPhoneError(phoneCheck.message);
+      return;
+    }
+
+    setStatus("sending");
+    const link = getCarPageAbsoluteUrl(carId);
+    const message = [
+      "Заявка на покупку из каталога",
+      `Автомобиль: ${carTitle}`,
+      `Ссылка: ${link}`,
+      "",
+      `Имя клиента: ${name.trim()}`,
+      `Контактный номер: ${phoneCheck.digits}`,
+    ].join("\n");
+
+    const result = await submitLeadRequest({
+      full_name: name.trim(),
+      contact_method: "Звонок по телефону",
+      message,
+      pd_agree: pdAgree,
+    });
+
+    if (!result.ok) {
+      setStatus("err");
+      setErrText(result.message);
+      return;
+    }
+
+    setStatus("ok");
+    setName("");
+    setPhone("");
+  }
 
   return (
     <Dialog>
@@ -100,14 +99,22 @@ export function CatalogQuickBuyDialog({
               id={`buy-name-${carId}`}
               value={name}
               onChange={(e) => {
-                const next = e.target.value.replace(/[^А-Яа-яЁё\s-]/g, "").slice(0, 10);
-                setName(next);
+                setName(e.target.value);
+                if (nameError) setNameError("");
               }}
               placeholder="Ваше имя"
               autoComplete="name"
-              minLength={1}
-              maxLength={10}
+              minLength={2}
+              maxLength={LEAD_NAME_MAX_LEN}
+              className={cn(nameError && "border-destructive focus-visible:ring-destructive/30")}
+              aria-invalid={Boolean(nameError)}
+              aria-describedby={nameError ? `buy-name-${carId}-err` : undefined}
             />
+            {nameError ? (
+              <p id={`buy-name-${carId}-err`} className="text-sm text-destructive" role="alert">
+                {nameError}
+              </p>
+            ) : null}
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor={`buy-phone-${carId}`}>Контактный номер</Label>
@@ -115,45 +122,54 @@ export function CatalogQuickBuyDialog({
               id={`buy-phone-${carId}`}
               value={phone}
               onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
-                setPhone(digits);
+                const raw = e.target.value;
+                const digits = raw.replace(/\D/g, "");
+                setPhone(digits.length <= 11 ? digits : digits.slice(0, 11));
+                if (phoneError) setPhoneError("");
               }}
-              placeholder="+7 ..."
+              placeholder="+7 …"
               autoComplete="tel"
-              inputMode="numeric"
-              minLength={11}
-              maxLength={11}
+              inputMode="tel"
+              className={cn(phoneError && "border-destructive focus-visible:ring-destructive/30")}
+              aria-invalid={Boolean(phoneError)}
+              aria-describedby={phoneError ? `buy-phone-${carId}-err` : undefined}
             />
+            {phoneError ? (
+              <p id={`buy-phone-${carId}-err`} className="text-sm text-destructive" role="alert">
+                {phoneError}
+              </p>
+            ) : null}
           </div>
-          <Button
-            type="button"
-            onClick={submit}
-            disabled={status === "sending" || !isValidName || !isValidPhone || !pdAgree}
-          >
+          <Button type="button" onClick={submit} disabled={status === "sending" || !pdAgree}>
             {status === "sending" ? "Отправка..." : "Отправить"}
           </Button>
-          <label className="flex items-start gap-2 text-xs text-muted-foreground">
-            <Checkbox
-              checked={pdAgree}
-              onCheckedChange={(v) => setPdAgree(v === true)}
-              className="mt-0.5"
-              aria-label="Согласие на обработку персональных данных"
-            />
-            <span>
-              Согласен на обработку персональных данных по{" "}
-              <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
-                Политике конфиденциальности
-              </Link>
-              .
-            </span>
-          </label>
+          <div className="rounded-xl border border-border/70 bg-muted/25 p-3">
+            <label className="flex items-start gap-3 text-xs text-foreground/90">
+              <Checkbox
+                checked={pdAgree}
+                onCheckedChange={(v) => setPdAgree(v === true)}
+                className="mt-0.5 border-foreground/25"
+                aria-label="Согласие на обработку персональных данных"
+              />
+              <span className="leading-snug">
+                Согласен на обработку персональных данных по{" "}
+                <Link
+                  href="/privacy"
+                  className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
+                >
+                  Политике конфиденциальности
+                </Link>
+                .
+              </span>
+            </label>
+          </div>
           {status === "ok" ? (
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
               Ваша заявка отправлена, в ближайшее время с вами свяжется менеджер.
             </p>
           ) : null}
           {status === "err" ? (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-destructive [overflow-wrap:anywhere]" role="alert">
               {errText}
             </p>
           ) : null}

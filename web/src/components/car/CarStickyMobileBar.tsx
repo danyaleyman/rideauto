@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import type { CarListingAvailability } from "@/lib/car-listing-trust";
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
 
 type Props = {
   priceLine: string;
+  availability?: CarListingAvailability;
 };
 
 /** Фиксированная панель цены + CTA на телефоне (как у агрегаторов). */
-export function CarStickyMobileBar({ priceLine }: Props) {
+export function CarStickyMobileBar({ priceLine, availability = "available" }: Props) {
   const reduceMotion = useReducedMotion();
+
+  const caption =
+    availability === "sold" || availability === "reserved"
+      ? "Статус объявления"
+      : "Стоимость в России под ключ";
 
   return (
     <motion.div
@@ -28,10 +35,17 @@ export function CarStickyMobileBar({ priceLine }: Props) {
     >
       <div className="mx-auto flex max-w-lg flex-col gap-2.5 px-4 pt-3 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between min-[420px]:gap-3">
         <div className="min-w-0 w-full flex-1 pb-0 min-[420px]:pb-0.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Стоимость в России под ключ
-          </p>
-          <p className="text-lg font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{caption}</p>
+          <p
+            className={cn(
+              "text-lg font-bold leading-tight tracking-tight [overflow-wrap:anywhere] tabular-nums",
+              availability === "sold"
+                ? "text-red-700 dark:text-red-300"
+                : availability === "reserved"
+                  ? "text-amber-800 dark:text-amber-200"
+                  : "text-foreground",
+            )}
+          >
             {priceLine}
           </p>
         </div>

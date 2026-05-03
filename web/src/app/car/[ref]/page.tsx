@@ -13,7 +13,14 @@ import { CarPurchaseSidebar } from "@/components/car/CarPurchaseSidebar";
 import { CarHeroMeta } from "@/components/car/CarHeroMeta";
 import { CarStickyMobileBar } from "@/components/car/CarStickyMobileBar";
 import { extractCarImageUrls } from "@/lib/car-images";
+import { carStickyPriceLine, getCarListingAvailability } from "@/lib/car-listing-trust";
 import { Button } from "@/components/ui/button";
+import {
+  siteBreadcrumbBarClass,
+  siteContainerClass,
+  siteMainBottomCarClass,
+  siteMainSurfaceClass,
+} from "@/lib/site-layout";
 import { MotionFadeUp, MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
 import {
   Breadcrumb,
@@ -27,13 +34,13 @@ import {
 type PageProps = { params: Promise<{ ref: string }> };
 
 function formatSimilarPrice(v: unknown): string {
-  if (v == null || v === "") return "Цена по запросу";
+  if (v == null || v === "") return PRICE_ON_REQUEST_RU;
   if (typeof v === "number" && Number.isFinite(v)) return formatPriceLabel(v);
   if (typeof v === "string") {
     const n = Number(v.replace(/\s/g, ""));
     if (!Number.isNaN(n)) return formatPriceLabel(n);
   }
-  return "Цена по запросу";
+  return PRICE_ON_REQUEST_RU;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -57,7 +64,8 @@ export default async function CarPage({ params }: PageProps) {
   const title = carHeading(raw);
   const imgs = getAllCarPhotoUrls(d as Record<string, unknown>);
   const carId = typeof raw.id === "string" ? raw.id : ref;
-  const listingSold = (raw as Record<string, unknown>).encar_listing_sold === true;
+  const rawMap = raw as Record<string, unknown>;
+  const availability = getCarListingAvailability(rawMap);
   const similarPayload = await fetchSimilar(carId, 8, { revalidate: 60 }).catch(() => ({ result: [] }));
   const similar = (similarPayload.result || []) as SlimCar[];
 
@@ -117,13 +125,15 @@ export default async function CarPage({ params }: PageProps) {
   const sourceUpdatedAt =
     sourceUpdatedAtCandidates.find((v) => typeof v === "string" && v.trim()) as string | undefined;
 
-  const priceLine = listingSold ? "Автомобиль продан" : priceOnRequest ? PRICE_ON_REQUEST_RU : formatPriceLabel(rubPrice);
+  const priceLine = carStickyPriceLine(availability, priceOnRequest, rubFinite ? rubPrice : null);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-32 pt-2 sm:pt-4 lg:pb-14">
-      <div className="relative mx-auto min-w-0 max-w-[1440px] px-3 sm:px-6 lg:px-10">
+    <div className={`${siteMainSurfaceClass} ${siteMainBottomCarClass}`}>
+      <div className={siteContainerClass}>
         <MotionFadeUp>
-          <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-2xl border border-border/50 bg-card/70 px-3 py-3 shadow-sm backdrop-blur-sm sm:mb-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 sm:px-5">
+          <div
+            className={`${siteBreadcrumbBarClass} flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4`}
+          >
             <Breadcrumb className="min-w-0 flex-1">
               <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
                 <BreadcrumbItem>
@@ -148,20 +158,30 @@ export default async function CarPage({ params }: PageProps) {
             {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
               <Button variant="outline" size="sm" className="h-auto min-h-9 w-full shrink-0 whitespace-normal rounded-xl px-3 py-2 text-center text-xs shadow-sm sm:h-9 sm:w-auto sm:rounded-full sm:text-sm" asChild>
                 <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
-                  Параметры модели (Dongchedi)
+                  Полные параметры комплектации
                 </a>
               </Button>
             ) : null}
           </div>
         </MotionFadeUp>
 
-        {listingSold ? (
+        {availability === "sold" ? (
           <MotionFadeUp delay={0.03}>
             <div
               className="mb-4 rounded-2xl border border-red-900/35 bg-red-950/25 px-4 py-3 text-sm text-red-50 shadow-sm backdrop-blur-sm"
               role="status"
             >
-              Данный автомобиль забронирован или выкуплен. Объявление будет снято из каталога при ближайшем обновлении.
+              Автомобиль продан или снят с площадки. Карточку уберём из каталога при ближайшем обновлении.
+            </div>
+          </MotionFadeUp>
+        ) : availability === "reserved" ? (
+          <MotionFadeUp delay={0.03}>
+            <div
+              className="mb-4 rounded-2xl border border-amber-700/40 bg-amber-500/12 px-4 py-3 text-sm text-amber-950 shadow-sm backdrop-blur-sm dark:text-amber-50"
+              role="status"
+            >
+              Объявление в статусе резерва на площадке продавца: цена и условия могут измениться. Уточняйте актуальность у
+              менеджера.
             </div>
           </MotionFadeUp>
         ) : null}
@@ -177,7 +197,7 @@ export default async function CarPage({ params }: PageProps) {
                   ? ((raw as Record<string, unknown>)._catalog_created_at as string)
                   : null
               }
-              listingSold={listingSold}
+              availability={availability}
             />
           </MotionFadeUp>
         ) : null}
@@ -187,11 +207,12 @@ export default async function CarPage({ params }: PageProps) {
             title={title}
             data={d as Record<string, unknown>}
             sourceLabel={sourceLabelStr}
+            availability={availability}
           />
         </MotionFadeUp>
 
         <div className="flex min-w-0 flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
-          <div className="min-w-0 flex-1 space-y-6 sm:space-y-8">
+          <div className="order-2 min-w-0 flex-1 space-y-6 sm:space-y-8 lg:order-1">
             {description ? (
               <MotionFadeUp>
                 <section
@@ -213,14 +234,14 @@ export default async function CarPage({ params }: PageProps) {
             </MotionFadeUp>
           </div>
 
-          <div className="mt-6 w-full min-w-0 shrink-0 lg:w-[min(100%,380px)] xl:w-[400px]">
+          <div className="order-1 mt-0 w-full min-w-0 shrink-0 lg:order-2 lg:mt-6 lg:w-[min(100%,380px)] xl:w-[400px]">
             <MotionFadeUp>
               <CarPurchaseSidebar
                 carId={carId}
                 title={title}
                 priceRub={rubFinite ? rubPrice : null}
                 priceOnRequest={priceOnRequest}
-                listingSold={listingSold}
+                availability={availability}
                 sourceUrl={sourceUrl}
                 priceWon={priceWon != null && !Number.isNaN(priceWon) ? priceWon : null}
                 priceCny={priceCny != null && !Number.isNaN(priceCny) ? priceCny : null}
@@ -234,7 +255,7 @@ export default async function CarPage({ params }: PageProps) {
         </div>
       </div>
 
-      <CarStickyMobileBar priceLine={priceLine} />
+      <CarStickyMobileBar priceLine={priceLine} availability={availability} />
 
       {similar.length ? (
         <MotionFadeUp
@@ -248,7 +269,8 @@ export default async function CarPage({ params }: PageProps) {
           <MotionStagger className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {similar.map((car) => {
               const img = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
-              const simSold = Boolean(car.encar_listing_sold);
+              const simSold = Boolean(car.encar_listing_sold || car.dongchedi_listing_sold);
+              const simReserved = !simSold && Boolean(car.encar_listing_reserved);
               return (
                 <MotionStaggerItem key={car.id}>
                   <Link
@@ -280,6 +302,15 @@ export default async function CarPage({ params }: PageProps) {
                           </span>
                           <span className="rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                             Продан
+                          </span>
+                        </div>
+                      ) : simReserved ? (
+                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-amber-950/50 px-2">
+                          <span className="text-center text-[11px] font-semibold leading-tight text-amber-50 sm:text-xs">
+                            Зарезервировано
+                          </span>
+                          <span className="rounded-md bg-amber-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Резерв
                           </span>
                         </div>
                       ) : null}

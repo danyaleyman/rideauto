@@ -1,6 +1,7 @@
 /**
  * E2E mock API for Next smoke tests.
- * Serves /api/health, /api/search, /api/car/:id, /api/similar, /api/facets.
+ * Serves /api/health, /api/search, /api/car/:id, /api/similar, /api/facets,
+ * /api/catalog/daily-additions, POST /api/lead.
  */
 import http from "node:http";
 
@@ -55,7 +56,7 @@ function json(res, code, body) {
   res.end(raw);
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://127.0.0.1:${PORT}`);
 
   if (url.pathname === "/api/health") {
@@ -67,14 +68,30 @@ const server = http.createServer((req, res) => {
       result: CARS,
       meta: {
         total: CARS.length,
-        limit: 12,
-        per_page: 12,
+        limit: 10,
+        per_page: 10,
         pages: 1,
         offset: 0,
         next_cursor: null,
         next_page: null,
       },
     });
+  }
+
+  if (url.pathname === "/api/catalog/daily-additions") {
+    const region = url.searchParams.get("region") || "korea";
+    return json(res, 200, {
+      count: 0,
+      region,
+      local_date: "2026-05-02",
+      timezone: "Asia/Vladivostok",
+    });
+  }
+
+  if (url.pathname === "/api/lead") {
+    if (req.method !== "POST") return json(res, 404, { detail: "not found" });
+    for await (const ch of req) ch; // drain body
+    return json(res, 202, { status: "accepted" });
   }
 
   if (url.pathname.startsWith("/api/car/")) {

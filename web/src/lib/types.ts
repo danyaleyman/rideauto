@@ -18,7 +18,7 @@ export type SlimCar = {
   inner_id?: string | number | null;
   title?: string;
   price?: number | null;
-  /** Encar read-model tier: полный расчёт / Корея+логистика / по запросу. */
+  /** Слой цены корейского контура: полный расчёт / Корея+логистика / по запросу. */
   pricing_tier?: "full_customs" | "korea_land_only" | "price_on_request" | string;
   /** True, если в оценке учтена таможня РФ (``full_customs``). */
   customs_included?: boolean;
@@ -28,11 +28,11 @@ export type SlimCar = {
   catalog_created_at?: string | null;
   /** cars.updated_at (ISO) — свежесть строки; на API v2 обязателен. */
   catalog_updated_at?: string | null;
-  /** Дневной чекер Encar: объявление снято с продажи до ночной выгрузки. */
+  /** Дневной чекер корейского контура: объявление снято с продажи до ночной выгрузки. */
   encar_listing_sold?: boolean;
-  /** Encar placeholder-price marker (e.g. 4444/5550 만원): reserved/pending state, not a final sale price. */
+  /** Маркер «резерв / черновая цена» в корейском контуре (не финальная цена продажи). */
   encar_listing_reserved?: boolean;
-  /** Дневной чекер Dongchedi: объявление снято с продажи до ночной выгрузки. */
+  /** Дневной чекер китайского контура: объявление снято с продажи до ночной выгрузки. */
   dongchedi_listing_sold?: boolean;
   year_num?: number;
   data?: {

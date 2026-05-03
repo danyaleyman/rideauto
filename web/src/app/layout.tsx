@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, Roboto } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -8,20 +8,10 @@ import { getSiteUrl } from "@/lib/env";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const robotoHeading = Roboto({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-heading",
-  weight: ["400", "500", "700"],
-});
-
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
   variable: "--font-inter",
-});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -45,17 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ru"
-      dir="ltr"
-      className={cn(
-        "font-sans",
-        inter.variable,
-        geistSans.variable,
-        geistMono.variable,
-        robotoHeading.variable,
-      )}
-    >
+    <html lang="ru" dir="ltr" className={cn("font-sans", inter.variable, geistMono.variable)}>
       <body className="antialiased">
         <AuthProvider>
           <TooltipProvider>

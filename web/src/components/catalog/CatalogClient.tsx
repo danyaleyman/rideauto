@@ -1,43 +1,78 @@
 ﻿"use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { catalogBreadcrumbSegments } from "@/lib/catalog-breadcrumbs";
+import {
+  cardOverlayBadges,
+  carPassabilityStatus,
+  carsAddedTodayLabel,
+  catalogCardAttributeChips,
+  catalogSearchErrorHint,
+  colorSwatchClass,
+  facetRowLabel,
+  previewImageUrls,
+  shouldShowPendingNavigation,
+  visiblePageItems,
+} from "@/lib/catalog-client-utils";
 import {
   catalogStateKey,
   parseCatalogUrl,
   PER_PAGE,
   stateToBrowserUrl,
-  type CatalogPricingTierFilter,
   type CatalogUrlState,
   type Market,
   toApiSearchParams,
   toFacetApiParams,
 } from "@/lib/catalog-url";
 import { fetchCatalogDailyAdditions, fetchFacetsClient, fetchSearchClient } from "@/lib/client-api";
-import { extractCarImageUrls } from "@/lib/car-images";
-import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
 import { dedupeSlimCarsByVin } from "@/lib/catalog-vin-dedupe";
 import {
-  asStr,
   buildNormalizedCarTitle,
-  formatKm,
-  formatRegYearMonth,
   fuelSortRank,
   normalizeCatalogDisplayLabel,
   normalizeFuelLabel,
   trimFacetLabelMinusGeneration,
 } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
+import { siteBreadcrumbBarClass } from "@/lib/site-layout";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth } from "@/components/AuthProvider";
 import { MarketSegmentedControl } from "@/components/catalog/MarketSegmentedControl";
-import { CatalogQuickBuyDialog } from "@/components/catalog/CatalogQuickBuyDialog";
+const CatalogQuickBuyDialog = dynamic(
+  () => import("@/components/catalog/CatalogQuickBuyDialog").then((m) => m.CatalogQuickBuyDialog),
+  {
+    ssr: false,
+    loading: () => (
+      <span
+        className="ms-auto inline-flex h-7 min-w-[4.5rem] shrink-0 animate-pulse rounded-lg bg-muted/60"
+        aria-hidden
+      />
+    ),
+  },
+);
+import { ColorFacetDialog, FacetMultiDropdown } from "@/components/catalog/CatalogFilterPrimitives";
+import {
+  cardItemVariants,
+  cardListVariants,
+  CatalogCardImage,
+  ListRowSkeleton,
+  RangeBlock,
+  SortDropdown,
+} from "@/components/catalog/CatalogBlockWidgets";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -49,25 +84,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -87,806 +103,27 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
-import type { LucideIcon } from "lucide-react";
 import {
-  CalendarDays,
   CircleHelp,
   Check,
-  ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
   Copy,
-  Fuel,
-  Gauge,
   Heart,
-  LayoutGrid,
   Loader2,
-  Settings2,
   Sparkles,
-  Zap,
 } from "lucide-react";
-import type { FacetRow, FacetsResponse, SearchResponse, SlimCar } from "@/lib/types";
-
-/** Номера страниц с «…» для shadcn Pagination. */
-function visiblePageItems(page: number, total: number): Array<number | "ellipsis"> {
-  if (total < 1) return [];
-  if (total === 1) return [1];
-  const set = new Set<number>();
-  set.add(1);
-  set.add(total);
-  for (let p = page - 1; p <= page + 1; p++) {
-    if (p >= 1 && p <= total) set.add(p);
-  }
-  const sorted = [...set].sort((a, b) => a - b);
-  const out: Array<number | "ellipsis"> = [];
-  for (let i = 0; i < sorted.length; i++) {
-    if (i > 0 && sorted[i] - sorted[i - 1] > 1) out.push("ellipsis");
-    out.push(sorted[i]);
-  }
-  return out;
-}
-
-function shouldShowPendingNavigation(e: ReactMouseEvent<HTMLAnchorElement>): boolean {
-  // Keep indicator only for in-tab navigation; new tab/window clicks should not mark loading state.
-  return !(
-    e.defaultPrevented ||
-    e.button !== 0 ||
-    e.metaKey ||
-    e.ctrlKey ||
-    e.shiftKey ||
-    e.altKey
-  );
-}
-
-function previewImageUrls(car: SlimCar): string[] {
-  const all = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>);
-  if (!all.length) return [];
-  const seen = new Set<string>();
-  const ordered: string[] = [];
-  for (const u of all) {
-    const t = u.trim();
-    const k = imageUrlDedupeKey(t);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    ordered.push(t);
-  }
-  return ordered.slice(0, 4);
-}
-
-function carsAddedTodayLabel(n: number): string {
-  if (n === 0) return "Сегодня новых записей нет";
-  const n10 = n % 10;
-  const n100 = n % 100;
-  let word: string;
-  if (n100 >= 11 && n100 <= 19) word = "автомобилей";
-  else if (n10 === 1) word = "автомобиль";
-  else if (n10 >= 2 && n10 <= 4) word = "автомобиля";
-  else word = "автомобилей";
-  return `${n.toLocaleString("ru-RU")} ${word} добавлено сегодня`;
-}
-
-type PassabilityStatus = "passable" | "young" | "old";
-
-function facetRowLabel(row: FacetRow): string {
-  const label = String(row.label ?? "").trim();
-  const normalized = normalizeCatalogDisplayLabel(label || row.value);
-  return normalized || row.value;
-}
-
-function groupFacetRows(
-  rows: FacetRow[],
-  opts?: { labelFormatter?: (row: FacetRow) => string; comparator?: (a: string, b: string) => number },
-): Array<{ label: string; values: string[]; count: number }> {
-  const grouped = new Map<string, { label: string; values: Set<string>; count: number }>();
-  for (const row of rows) {
-    const label = (opts?.labelFormatter ? opts.labelFormatter(row) : facetRowLabel(row)).trim();
-    if (!label) continue;
-    const key = label.toLowerCase().replace(/\s+/g, " ");
-    const rawValues = Array.isArray(row.values) && row.values.length ? row.values : [row.value];
-    const bucket = grouped.get(key) ?? { label, values: new Set<string>(), count: 0 };
-    for (const v of rawValues) {
-      const t = String(v ?? "").trim();
-      if (t) bucket.values.add(t);
-    }
-    bucket.count += Number(row.count || 0);
-    grouped.set(key, bucket);
-  }
-  const out = Array.from(grouped.values()).map((b) => ({
-    label: b.label,
-    values: Array.from(b.values),
-    count: b.count,
-  }));
-  out.sort((a, b) => (opts?.comparator ? opts.comparator(a.label, b.label) : a.label.localeCompare(b.label)));
-  return out;
-}
-
-function parseYmValue(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    const iv = Math.trunc(value);
-    if (iv >= 190001 && iv % 100 >= 1 && iv % 100 <= 12) return iv;
-  }
-  const s = String(value ?? "").trim();
-  if (!s) return null;
-  const digits = s.replace(/[^\d]/g, "");
-  if (digits.length < 6) return null;
-  const y = Number.parseInt(digits.slice(0, 4), 10);
-  const m = Number.parseInt(digits.slice(4, 6), 10);
-  if (!Number.isFinite(y) || !Number.isFinite(m) || y <= 1900 || m < 1 || m > 12) return null;
-  return y * 100 + m;
-}
-
-function carPassabilityStatus(data: Record<string, unknown>): PassabilityStatus | null {
-  const ym = parseYmValue(data.yearMonth) ?? parseYmValue(data.year_month) ?? parseYmValue(data.year);
-  if (!ym) return null;
-  const now = new Date();
-  const nowYm = now.getUTCFullYear() * 100 + (now.getUTCMonth() + 1);
-  const nowMonths = Math.floor(nowYm / 100) * 12 + (nowYm % 100 - 1);
-  const carMonths = Math.floor(ym / 100) * 12 + (ym % 100 - 1);
-  const ageMonths = nowMonths - carMonths;
-  if (ageMonths <= 36) return "young";
-  if (ageMonths <= 59) return "passable";
-  return "old";
-}
-
-/** Чипы как на странице авто: дата регистрации гг/мм (или год), пробег, топливо — без дублирования заголовка. */
-function formatDisplacementLiters(cc: number): string {
-  const liters = cc / 1000;
-  const rounded = Math.round(liters * 10) / 10;
-  const isInt = Math.abs(rounded - Math.round(rounded)) < 1e-9;
-  const shown = isInt ? String(Math.round(rounded)) : String(rounded).replace(".", ",");
-  const n = rounded;
-  const last = Math.floor(n) % 10;
-  const last2 = Math.floor(n) % 100;
-  const word =
-    !isInt
-      ? "литра"
-      : last === 1 && last2 !== 11
-        ? "литр"
-        : last >= 2 && last <= 4 && !(last2 >= 12 && last2 <= 14)
-          ? "литра"
-          : "литров";
-  return `${shown} ${word}`;
-}
-
-function catalogCardAttributeChips(
-  data: Record<string, unknown>,
-  yearNum?: number | null,
-): { key: string; label: string; Icon: LucideIcon }[] {
-  const chips: { key: string; label: string; Icon: LucideIcon }[] = [];
-  const ym = formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year);
-  if (ym) chips.push({ key: "ym", label: ym, Icon: CalendarDays });
-  else if (yearNum != null && Number.isFinite(yearNum) && yearNum > 0) {
-    chips.push({ key: "y", label: String(Math.round(yearNum)), Icon: CalendarDays });
-  }
-  const km = formatKm(data.km_age);
-  if (km) chips.push({ key: "km", label: km, Icon: Gauge });
-  const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
-  const fuelLabel = normalizeFuelLabel(fuel);
-  if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
-  const normalizedFuelLower = (fuelLabel || "").toLowerCase();
-  const isElectricFuel = normalizedFuelLower.startsWith("электро");
-  const ccRaw = data.displacement ?? data.displacement_cc ?? data.engine_volume;
-  const ccNum =
-    typeof ccRaw === "number"
-      ? Math.trunc(ccRaw)
-      : Number.parseInt(String(ccRaw ?? "").replace(/[^\d]/g, ""), 10);
-  if (!isElectricFuel && Number.isFinite(ccNum) && ccNum > 0) {
-    chips.push({ key: "cc", label: formatDisplacementLiters(ccNum), Icon: Settings2 });
-  }
-  const hpRaw = data.power_hp ?? data.power ?? data.hp;
-  const hpNum =
-    typeof hpRaw === "number"
-      ? Math.trunc(hpRaw)
-      : Number.parseInt(String(hpRaw ?? "").replace(/[^\d]/g, ""), 10);
-  if (Number.isFinite(hpNum) && hpNum > 0) {
-    chips.push({ key: "hp", label: `${hpNum} л.с.`, Icon: Zap });
-  }
-  return chips;
-}
-
-function cardOverlayBadges(
-  data: Record<string, unknown>,
-  yearNum?: number | null,
-  market: Market = "korea",
-): string[] {
-  const out: string[] = [];
-  if (yearNum && Number.isFinite(yearNum)) out.push(String(Math.trunc(yearNum)));
-  if (market === "china") return out.slice(0, 1);
-  return out.slice(0, 4);
-}
-
-function FacetMultiDropdown({
-  label,
-  rows,
-  selected,
-  onToggle,
-  disabled,
-  labelFormatter,
-  comparator,
-}: {
-  label: string;
-  rows: FacetRow[];
-  selected: Set<string>;
-  onToggle: (values: string[]) => void;
-  disabled?: boolean;
-  labelFormatter?: (row: FacetRow) => string;
-  comparator?: (a: string, b: string) => number;
-}) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const groupedRows = useMemo(() => groupFacetRows(rows, { labelFormatter, comparator }), [rows, labelFormatter, comparator]);
-  const filtered = useMemo(
-    () =>
-      !q.trim()
-        ? groupedRows
-        : groupedRows.filter((r) => r.label.toLowerCase().includes(q.trim().toLowerCase())),
-    [groupedRows, q],
-  );
-  const n = groupedRows.filter((r) => r.values.some((v) => selected.has(v))).length;
-  return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) setQ("");
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled || !groupedRows.length}
-          className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
-        >
-          <span className="min-w-0 text-start [overflow-wrap:anywhere]">
-            {label}
-            {n > 0 ? (
-              <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
-            ) : null}
-          </span>
-          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="max-h-[min(24rem,70vh)] w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] overflow-hidden p-0 shadow-lg"
-        onCloseAutoFocus={(e) => e.preventDefault()}
-      >
-        <div className="border-b border-border p-2">
-          <Input
-            placeholder="Поиск…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-8 rounded-xl"
-            onPointerDown={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          />
-        </div>
-        <DropdownMenuLabel className="px-3 py-2 text-xs font-normal text-muted-foreground">
-          Можно выбрать несколько
-        </DropdownMenuLabel>
-        <div className="max-h-60 overflow-y-auto overscroll-contain p-1.5 pt-0">
-          {filtered.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Нет совпадений</p>
-          ) : (
-            filtered.map((r) => (
-              <DropdownMenuCheckboxItem
-                key={r.label}
-                checked={r.values.some((v) => selected.has(v))}
-                onCheckedChange={() => onToggle(r.values)}
-                className="cursor-text rounded-xl select-text [&>span:last-child]:ps-2"
-              >
-                <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">{r.label}</span>
-                <span className="ms-1 shrink-0 tabular-nums text-xs text-muted-foreground">
-                  {r.count.toLocaleString("ru-RU")}
-                </span>
-              </DropdownMenuCheckboxItem>
-            ))
-          )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-const COLOR_SWATCH_BY_NAME: Array<{ re: RegExp; className: string }> = [
-  { re: /(бел|white)/i, className: "bg-white ring-1 ring-border" },
-  { re: /(черн|black)/i, className: "bg-zinc-900 ring-1 ring-zinc-700" },
-  { re: /(сер|gray|grey|silver|сереб)/i, className: "bg-zinc-400" },
-  { re: /(син|blue)/i, className: "bg-blue-500" },
-  { re: /(крас|red)/i, className: "bg-red-500" },
-  { re: /(зелен|green)/i, className: "bg-emerald-500" },
-  { re: /(желт|gold|orange|оранж)/i, className: "bg-amber-400" },
-  { re: /(корич|brown|beige|беж)/i, className: "bg-amber-700" },
-  { re: /(фиолет|purple|violet)/i, className: "bg-violet-500" },
-];
-
-function colorSwatchClass(colorName: string): string {
-  const match = COLOR_SWATCH_BY_NAME.find((item) => item.re.test(colorName));
-  return match?.className ?? "bg-gradient-to-br from-slate-200 to-slate-500";
-}
-
-function ColorFacetDialog({
-  label,
-  rows,
-  selected,
-  onToggle,
-  disabled,
-}: {
-  label: string;
-  rows: FacetRow[];
-  selected: Set<string>;
-  onToggle: (values: string[]) => void;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const groupedRows = useMemo(() => groupFacetRows(rows), [rows]);
-  const filtered = useMemo(
-    () =>
-      !q.trim()
-        ? groupedRows
-        : groupedRows.filter((r) => r.label.toLowerCase().includes(q.trim().toLowerCase())),
-    [groupedRows, q],
-  );
-  const n = groupedRows.filter((r) => r.values.some((v) => selected.has(v))).length;
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) setQ("");
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled || !groupedRows.length}
-          className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
-        >
-          <span className="min-w-0 text-start [overflow-wrap:anywhere]">
-            {label}
-            {n > 0 ? (
-              <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
-            ) : null}
-          </span>
-          <LayoutGrid className="size-4 shrink-0 opacity-50" aria-hidden />
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        showCloseButton
-        className="flex max-h-[92vh] w-[min(96vw,84rem)] max-w-[min(96vw,84rem)] flex-col gap-0 overflow-hidden p-0"
-      >
-        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 pt-6 pb-4 pe-14">
-          <DialogTitle>{label}</DialogTitle>
-          <DialogDescription>Можно выбрать несколько</DialogDescription>
-        </DialogHeader>
-        <div className="shrink-0 border-b border-border px-6 py-3">
-          <Input
-            placeholder="Поиск…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-9 rounded-xl"
-          />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
-          {filtered.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Нет совпадений</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filtered.map((r) => {
-                const active = r.values.some((v) => selected.has(v));
-                return (
-                  <div key={r.label} className="min-w-0">
-                    <Button
-                      type="button"
-                      variant={active ? "default" : "secondary"}
-                      size="sm"
-                      className="h-auto min-h-10 w-full min-w-0 items-start justify-start gap-2 rounded-xl px-2.5 py-2 text-start font-normal whitespace-normal"
-                      onClick={() => onToggle(r.values)}
-                    >
-                      <span
-                        className={cn(
-                          "size-3.5 shrink-0 rounded-full",
-                          colorSwatchClass(r.label),
-                        )}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1 break-words leading-snug">{r.label}</span>
-                      <span className="shrink-0 tabular-nums text-xs opacity-80">
-                        {r.count.toLocaleString("ru-RU")}
-                      </span>
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary" className="w-full sm:w-auto">
-              Закрыть
-            </Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function SortDropdown({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  const active = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" className="mt-2 h-10 w-full justify-between rounded-2xl font-normal">
-          <span className="min-w-0 truncate text-start">{active.label}</span>
-          <ChevronsUpDown className="size-4 shrink-0 opacity-55" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[13rem] p-1.5">
-        <DropdownMenuLabel>Сортировка списка</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          {SORT_OPTIONS.map((o) => (
-            <DropdownMenuRadioItem key={o.value} value={o.value} className="cursor-pointer">
-              {o.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function ListRowSkeleton() {
-  return (
-    <li>
-      <Card
-        size="sm"
-        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/60 sm:min-h-[13rem] sm:flex-row"
-      >
-        <Skeleton className="h-52 w-full shrink-0 rounded-none sm:h-auto sm:w-60 sm:min-h-[13rem] md:w-72" />
-        <div className="flex min-w-0 flex-1 flex-col gap-0">
-          <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
-            <Skeleton className="h-4 w-[70%] rounded-md" />
-            <div className="flex items-center gap-1.5">
-              <Skeleton className="size-8 rounded-lg" />
-              <Skeleton className="size-8 rounded-lg" />
-            </div>
-          </div>
-          <div className="flex flex-1 items-start px-3 py-3 sm:px-4 md:px-5">
-            <div className="flex w-full flex-wrap gap-1.5">
-              <Skeleton className="h-6 w-24 rounded-xl" />
-              <Skeleton className="h-6 w-20 rounded-xl" />
-              <Skeleton className="h-6 w-28 rounded-xl" />
-            </div>
-          </div>
-          <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
-            <Skeleton className="h-8 w-28 rounded-lg" />
-          </div>
-        </div>
-      </Card>
-    </li>
-  );
-}
-
-function CatalogCardImage({
-  images,
-  alt,
-  eager,
-  sold,
-}: {
-  images: string[];
-  alt: string;
-  eager: boolean;
-  sold?: boolean;
-}) {
-  const [idx, setIdx] = useState(0);
-  const canCycle = images.length > 1;
-
-  useEffect(() => {
-    setIdx(0);
-  }, [images]);
-
-  const src = images[idx] ?? images[0] ?? "";
-  if (!src) {
-    return (
-      <div className="flex size-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
-        Нет фото
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="relative size-full"
-      onMouseEnter={() => {
-        if (canCycle) setIdx(0);
-      }}
-      onMouseLeave={() => {
-        setIdx(0);
-      }}
-    >
-      <Image
-        src={src}
-        alt={alt}
-        width={448}
-        height={288}
-        sizes="(min-width: 1024px) 224px, 44vw"
-        className="h-full w-full object-cover object-center"
-        loading={eager ? "eager" : "lazy"}
-        fetchPriority={eager ? "high" : "auto"}
-        decoding="async"
-        unoptimized
-      />
-      {sold ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/58 px-3">
-          <p className="text-center text-sm font-semibold leading-snug text-white drop-shadow-md sm:text-base">
-            Автомобиль продан
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function RangeBlock({
-  state,
-  navigate,
-  market,
-}: {
-  state: CatalogUrlState;
-  navigate: (s: CatalogUrlState) => void;
-  market: Market;
-}) {
-  const [draft, setDraft] = useState({
-    price_from: state.price_from,
-    price_to: state.price_to,
-    mileage_from: state.mileage_from,
-    mileage_to: state.mileage_to,
-    year_from: state.year_from,
-    year_to: state.year_to,
-    engine_cc_from: state.engine_cc_from,
-    engine_cc_to: state.engine_cc_to,
-    passable_only: state.passable_only,
-  });
-  useEffect(() => {
-    setDraft({
-      price_from: state.price_from,
-      price_to: state.price_to,
-      mileage_from: state.mileage_from,
-      mileage_to: state.mileage_to,
-      year_from: state.year_from,
-      year_to: state.year_to,
-      engine_cc_from: state.engine_cc_from,
-      engine_cc_to: state.engine_cc_to,
-      passable_only: state.passable_only,
-    });
-  }, [
-    state.price_from,
-    state.price_to,
-    state.mileage_from,
-    state.mileage_to,
-    state.year_from,
-    state.year_to,
-    state.engine_cc_from,
-    state.engine_cc_to,
-    state.passable_only,
-  ]);
-  const apply = () => {
-    navigate({
-      ...state,
-      ...draft,
-      page: 1,
-    });
-  };
-  const setPricingTier = (raw: string) => {
-    const tier: CatalogPricingTierFilter =
-      raw === "full_customs" || raw === "korea_land_only" || raw === "price_on_request" ? raw : "";
-    navigate({
-      ...state,
-      pricing_tier: tier,
-      customs_included_only: tier === "full_customs" ? false : state.customs_included_only,
-      page: 1,
-    });
-  };
-
-  return (
-    <>
-      {market === "korea" ? (
-        <div className="mb-1 space-y-3 rounded-xl border border-border/80 bg-muted/15 px-3 py-3 dark:bg-muted/10">
-          <div>
-            <span className="text-sm font-medium text-foreground">Оценка цены</span>
-            <div className="relative mt-1.5">
-              <select
-                aria-label="Фильтр по типу оценки цены"
-                className="h-9 w-full appearance-none rounded-2xl border border-border bg-background px-3 pe-10 text-sm shadow-sm outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-                value={state.pricing_tier || ""}
-                onChange={(e) => setPricingTier(e.target.value)}
-              >
-                <option value="">Любая</option>
-                <option value="full_customs">Под ключ (с таможней РФ)</option>
-                <option value="korea_land_only">Без таможни РФ (Корея и логистика)</option>
-                <option value="price_on_request">Цена по запросу</option>
-              </select>
-              <ChevronsUpDown className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/80" />
-            </div>
-          </div>
-          <label
-            className={cn(
-              "flex cursor-pointer items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm leading-snug shadow-sm",
-              state.pricing_tier === "full_customs"
-                ? "border-border/60 bg-muted/10 text-muted-foreground"
-                : "border-border bg-muted/20",
-            )}
-          >
-            <span className="inline-flex items-start gap-2">
-              <Checkbox
-                checked={state.customs_included_only}
-                disabled={state.pricing_tier === "full_customs"}
-                onCheckedChange={(v) =>
-                  navigate({ ...state, customs_included_only: Boolean(v), page: 1 })
-                }
-                className="mt-0.5 shrink-0"
-              />
-              <span>
-                В цене уже учтена таможня РФ
-                {state.pricing_tier === "full_customs" ? (
-                  <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                    Это уже следует из фильтра «Под ключ».
-                  </span>
-                ) : null}
-              </span>
-            </span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex shrink-0 text-muted-foreground disabled:opacity-40"
-                  aria-label="Пояснение: таможня в цене"
-                  disabled={state.pricing_tier === "full_customs"}
-                  onClick={(e) => e.preventDefault()}
-                >
-                  <CircleHelp className="size-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[20rem]">
-                Показываются объявления, где расчёт итога включает пошлины и сборы таможни РФ (слой «под ключ» по
-                данным каталога).
-              </TooltipContent>
-            </Tooltip>
-          </label>
-        </div>
-      ) : null}
-      <div className="grid grid-cols-1 gap-2 text-sm min-[420px]:grid-cols-2">
-        <Input
-          placeholder="Цена от"
-          value={draft.price_from}
-          onChange={(e) => setDraft((d) => ({ ...d, price_from: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          placeholder="Цена до"
-          value={draft.price_to}
-          onChange={(e) => setDraft((d) => ({ ...d, price_to: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          placeholder="Пробег от"
-          value={draft.mileage_from}
-          onChange={(e) => setDraft((d) => ({ ...d, mileage_from: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          placeholder="Пробег до"
-          value={draft.mileage_to}
-          onChange={(e) => setDraft((d) => ({ ...d, mileage_to: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          placeholder="Год от"
-          value={draft.year_from}
-          onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          placeholder="Год до"
-          value={draft.year_to}
-          onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          placeholder="Объём от (см³)"
-          value={draft.engine_cc_from}
-          onChange={(e) => setDraft((d) => ({ ...d, engine_cc_from: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-        <Input
-          placeholder="Объём до (см³)"
-          value={draft.engine_cc_to}
-          onChange={(e) => setDraft((d) => ({ ...d, engine_cc_to: e.target.value }))}
-          className="focus-visible:ring-2 focus-visible:ring-inset"
-        />
-      </div>
-      <label className="mt-2 flex cursor-pointer items-start justify-between gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm">
-        <span className="inline-flex items-start gap-2">
-          <Checkbox
-            checked={draft.passable_only}
-            onCheckedChange={(v) => setDraft((d) => ({ ...d, passable_only: Boolean(v) }))}
-            className="mt-0.5 shrink-0"
-          />
-          Только проходные авто
-        </span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex shrink-0 text-muted-foreground"
-              aria-label="Что такое проходные авто"
-              onClick={(e) => e.preventDefault()}
-            >
-              <CircleHelp className="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            «Проходными» считаются автомобили возрастом от 3 до 5 лет. Для них обычно действуют
-            льготные таможенные тарифы.
-          </TooltipContent>
-        </Tooltip>
-      </label>
-      <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
-        Применить диапазоны
-      </Button>
-    </>
-  );
-}
-
-const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: "date_new", label: "Сначала новые" },
-  { value: "date_old", label: "Сначала старые" },
-  { value: "year_new", label: "Год: новее" },
-  { value: "year_old", label: "Год: старше" },
-  { value: "price_low", label: "Цена: дешевле" },
-  { value: "price_high", label: "Цена: дороже" },
-  { value: "mileage_low", label: "Пробег: меньше" },
-  { value: "mileage_high", label: "Пробег: больше" },
-];
-
-const cardListVariants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: MOTION_TOKENS.stagger.staggerChildren - 0.005,
-      delayChildren: MOTION_TOKENS.stagger.delayChildren,
-    },
-  },
-};
-
-const cardItemVariants = {
-  hidden: { opacity: 0, y: 12, scale: 0.995 },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: MOTION_TOKENS.duration.base, ease: MOTION_TOKENS.easeSoft },
-  },
-};
+import type { FacetRow, FacetsResponse, SearchResponse } from "@/lib/types";
 
 export function CatalogClient({
   initialSearch,
   ssrKey,
+  ssrDegraded = false,
 }: {
   initialSearch: SearchResponse;
   ssrKey: string;
+  /** SSR не смог получить выдачу — клиент обязан запросить API; показываем подсказку до успешной загрузки. */
+  ssrDegraded?: boolean;
 }) {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
@@ -898,14 +135,19 @@ export function CatalogClient({
 
   const [search, setSearch] = useState<SearchResponse>(initialSearch);
   const [facets, setFacets] = useState<FacetsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(ssrDegraded));
   const [err, setErr] = useState<string | null>(null);
+  const [refetchTick, setRefetchTick] = useState(0);
+  const [online, setOnline] = useState(true);
+  const [showSsrDegradedNotice, setShowSsrDegradedNotice] = useState(ssrDegraded);
   const [qDraft, setQDraft] = useState(state.q);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openingCarId, setOpeningCarId] = useState<string | null>(null);
   const [dailyNewCount, setDailyNewCount] = useState<number | null>(null);
   const [dailyNewLoading, setDailyNewLoading] = useState(true);
   const facetsCacheRef = useRef<Map<string, FacetsResponse>>(new Map());
+  const resultsListRef = useRef<HTMLUListElement>(null);
+  const prevCatalogPageRef = useRef<number | null>(null);
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
   const { authenticated } = useAuth();
 
@@ -914,9 +156,34 @@ export function CatalogClient({
   }, [state.q]);
 
   useEffect(() => {
+    const onOff = () => setOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
+    onOff();
+    window.addEventListener("online", onOff);
+    window.addEventListener("offline", onOff);
+    return () => {
+      window.removeEventListener("online", onOff);
+      window.removeEventListener("offline", onOff);
+    };
+  }, []);
+
+  useEffect(() => {
     // Query changed in-place without unmount: clear stale "opening..." marker.
     setOpeningCarId(null);
   }, [key]);
+
+  useEffect(() => {
+    if (prevCatalogPageRef.current === null) {
+      prevCatalogPageRef.current = state.page;
+      return;
+    }
+    if (prevCatalogPageRef.current !== state.page) {
+      prevCatalogPageRef.current = state.page;
+      const el = resultsListRef.current;
+      if (!el) return;
+      if (reduceMotion) el.scrollIntoView({ block: "start" });
+      else el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [state.page, reduceMotion]);
 
   useEffect(() => {
     if (!spStr.trim()) {
@@ -993,13 +260,15 @@ export function CatalogClient({
           query: sq.toString(),
           page: state.page,
         }, { market: state.market });
-        const searchP =
-          key === ssrKey
-            ? Promise.resolve(initialSearch)
-            : fetchSearchClient(sq, { signal: ac.signal });
+        // Не дублируем запрос к /api/search при гидрации, если URL совпал с SSR (ssrKey === key).
+        const useSsrPayload = !ssrDegraded && key === ssrKey;
+        const searchP = useSsrPayload
+          ? Promise.resolve(initialSearch)
+          : fetchSearchClient(sq, { signal: ac.signal });
         const sRes = await searchP;
         if (ac.signal.aborted) return;
         setSearch(sRes);
+        setShowSsrDegradedNotice(false);
         sendCatalogDiagEvent(diagEnabled, "catalog_search_ok", {
           key,
           duration_ms: Date.now() - started,
@@ -1021,7 +290,7 @@ export function CatalogClient({
     return () => {
       ac.abort();
     };
-  }, [diagEnabled, key, ssrKey, state, initialSearch]);
+  }, [diagEnabled, key, refetchTick, ssrDegraded, ssrKey, state, initialSearch]);
 
   useEffect(() => {
     const cached = facetsCacheRef.current.get(facetKey);
@@ -1172,7 +441,7 @@ export function CatalogClient({
       : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
   const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
 
-  /** Один физический авто на Encar часто имеет несколько id объявлений — склеиваем по VIN на текущей странице выдачи. */
+  /** Один автомобиль может иметь несколько объявлений с разными id — склеиваем по VIN на текущей странице выдачи. */
   const catalogCarsDisplay = useMemo(() => dedupeSlimCarsByVin(search.result), [search.result]);
 
   const facetLabelByValue = useMemo(() => {
@@ -1269,6 +538,11 @@ export function CatalogClient({
     return chips;
   }, [state, facetLabelByValue]);
 
+  const breadcrumbSegments = useMemo(
+    () => catalogBreadcrumbSegments(state, facetLabelByValue),
+    [state, facetLabelByValue],
+  );
+
   const removeChip = (chip: { key: keyof CatalogUrlState; value?: string }) => {
     if (
       chip.key === "marks" ||
@@ -1330,31 +604,74 @@ export function CatalogClient({
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-10 pt-2 sm:pt-4">
-      <div className="relative mx-auto min-w-0 max-w-[1440px] px-3 sm:px-6 lg:px-10">
-        <div className="mb-5 flex min-w-0 rounded-2xl border border-border/50 bg-card/70 px-3 py-3 shadow-sm backdrop-blur-sm sm:mb-6 sm:px-5">
+    <>
+        <div className={siteBreadcrumbBarClass}>
           <Breadcrumb className="min-w-0 flex-1">
             <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/">Главная</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem className="min-w-0 max-w-full">
-                <BreadcrumbPage className="line-clamp-2 break-words text-start font-medium [overflow-wrap:anywhere] sm:line-clamp-1">
-                  Каталог
-                </BreadcrumbPage>
-              </BreadcrumbItem>
+              {breadcrumbSegments.map((seg, i) => {
+                const last = i === breadcrumbSegments.length - 1;
+                return (
+                  <Fragment key={`${i}-${seg.label}`}>
+                    {i > 0 ? <BreadcrumbSeparator /> : null}
+                    <BreadcrumbItem className={last ? "min-w-0 max-w-full" : undefined}>
+                      {last ? (
+                        <BreadcrumbPage className="line-clamp-2 break-words text-start font-medium [overflow-wrap:anywhere] sm:line-clamp-1">
+                          {seg.label}
+                        </BreadcrumbPage>
+                      ) : seg.href ? (
+                        <BreadcrumbLink asChild>
+                          <Link href={seg.href}>{seg.label}</Link>
+                        </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbPage>{seg.label}</BreadcrumbPage>
+                      )}
+                    </BreadcrumbItem>
+                  </Fragment>
+                );
+              })}
             </BreadcrumbList>
           </Breadcrumb>
         </div>
 
+        {showSsrDegradedNotice ? (
+          <div
+            className="mb-4 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 [overflow-wrap:anywhere] dark:text-amber-50"
+            role="status"
+          >
+            Не удалось получить каталог при отрисовке на сервере — загружаем выдачу в браузере. Если список не
+            появится, проверьте сеть и настройку{" "}
+            <code className="break-all rounded bg-background/80 px-1 dark:bg-background/40">
+              NEXT_PUBLIC_API_BASE
+            </code>
+            .
+          </div>
+        ) : null}
+
         {err ? (
-          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive [overflow-wrap:anywhere]">
-            {err} — проверьте{" "}
-            <code className="break-all rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE</code> и доступность
-            API.
+          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm [overflow-wrap:anywhere]">
+            <p className="font-medium text-destructive">Не удалось загрузить каталог</p>
+            <p className="mt-1 text-destructive/90">{err}</p>
+            {catalogSearchErrorHint(err) ? (
+              <p className="mt-2 text-muted-foreground">{catalogSearchErrorHint(err)}</p>
+            ) : null}
+            {!online ? (
+              <p className="mt-2 text-muted-foreground">Похоже, вы офлайн — подключитесь к сети и попробуйте снова.</p>
+            ) : null}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Проверьте <code className="rounded bg-background/80 px-1">NEXT_PUBLIC_API_BASE</code> и доступность API.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-3 rounded-full"
+              onClick={() => {
+                setErr(null);
+                setRefetchTick((t) => t + 1);
+              }}
+            >
+              Повторить запрос
+            </Button>
           </div>
         ) : null}
 
@@ -1631,6 +948,13 @@ export function CatalogClient({
             <h1 className="text-base font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-lg md:text-xl">
               {title}
             </h1>
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              {err
+                ? `Ошибка загрузки: ${err}`
+                : loading
+                  ? "Загрузка результатов каталога."
+                  : `Найдено ${(search.meta?.total ?? 0).toLocaleString("ru-RU")} объявлений. На странице показано ${catalogCarsDisplay.length}. Страница ${state.page}.`}
+            </p>
             <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
               <p className="min-w-0 text-sm leading-snug text-muted-foreground [overflow-wrap:anywhere]">
                 Автомобилей в каталоге:{" "}
@@ -1704,7 +1028,8 @@ export function CatalogClient({
           </div>
 
           <motion.ul
-            className="flex flex-col gap-3"
+            ref={resultsListRef}
+            className="flex scroll-mt-28 flex-col gap-3 md:scroll-mt-32"
             variants={reduceMotion ? undefined : cardListVariants}
             initial={reduceMotion ? false : "hidden"}
             animate={reduceMotion ? undefined : "show"}
@@ -1826,7 +1151,9 @@ export function CatalogClient({
                             size="icon-sm"
                             className="rounded-lg shadow-sm"
                             title={showCopied ? "Скопировано" : "Копировать ссылку на объявление"}
-                            aria-label="Копировать ссылку"
+                            aria-label={
+                              showCopied ? "Ссылка на объявление скопирована" : "Копировать ссылку на объявление"
+                            }
                             onClick={() => {
                               void navigator.clipboard
                                 .writeText(getCarPageAbsoluteUrl(car.id))
@@ -1841,9 +1168,9 @@ export function CatalogClient({
                             }}
                           >
                             {showCopied ? (
-                              <Check className="size-4 text-green-600 dark:text-green-400" />
+                              <Check className="size-4 text-green-600 dark:text-green-400" aria-hidden />
                             ) : (
-                              <Copy className="size-4" />
+                              <Copy className="size-4" aria-hidden />
                             )}
                           </Button>
                           {authenticated ? (
@@ -1859,32 +1186,42 @@ export function CatalogClient({
                                 void toggleFavorite(car);
                               }}
                             >
-                              <Heart className={cn("size-4", fav ? "fill-current" : "")} />
+                              <Heart className={cn("size-4", fav ? "fill-current" : "")} aria-hidden />
                             </Button>
                           ) : null}
                         </div>
                       </div>
                       <div className="flex items-start px-3 pb-2 pt-1 sm:px-4 sm:pb-2 sm:pt-0.5 md:px-5">
                         {attrChips.length ? (
-                          <ul
-                            className="flex min-w-0 flex-wrap justify-start gap-2"
-                            aria-label="Краткие характеристики"
+                          <Link
+                            href={`/car/${encodeURIComponent(car.id)}`}
+                            prefetch
+                            className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            onClick={(e) => {
+                              if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
+                            }}
+                            aria-label={`Открыть объявление: ${normalizedTitle}, краткие характеристики`}
                           >
-                            {attrChips.map((c) => {
-                              const Icon = c.Icon;
-                              return (
-                                <li key={c.key} className="min-w-0 max-w-full">
-                                  <Badge
-                                    variant="outline"
-                                    className="inline-flex h-auto max-w-full items-center gap-1 rounded-xl border-border/70 bg-muted/25 px-2 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/20"
-                                  >
-                                    <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
-                                    <span className="min-w-0">{c.label}</span>
-                                  </Badge>
-                                </li>
-                              );
-                            })}
-                          </ul>
+                            <ul
+                              className="flex min-w-0 flex-wrap justify-start gap-2"
+                              aria-label="Краткие характеристики"
+                            >
+                              {attrChips.map((c) => {
+                                const Icon = c.Icon;
+                                return (
+                                  <li key={c.key} className="min-w-0 max-w-full">
+                                    <Badge
+                                      variant="outline"
+                                      className="inline-flex h-auto max-w-full items-center gap-1 rounded-xl border-border/70 bg-muted/25 px-2 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/20"
+                                    >
+                                      <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
+                                      <span className="min-w-0">{c.label}</span>
+                                    </Badge>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </Link>
                         ) : null}
                       </div>
                       <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
@@ -1892,12 +1229,22 @@ export function CatalogClient({
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
                             {!listingUnavailable ? (
                               <>
-                                <Badge
-                                  variant="secondary"
-                                  className="inline-flex h-7 w-fit max-w-full items-center rounded-lg border border-border/60 bg-muted/90 px-2.5 text-xs font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
+                                <Link
+                                  href={`/car/${encodeURIComponent(car.id)}`}
+                                  prefetch
+                                  className="inline-flex max-w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  onClick={(e) => {
+                                    if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
+                                  }}
+                                  aria-label={`Открыть объявление: ${normalizedTitle}, цена`}
                                 >
-                                  {formatCatalogCardPrice(car.price, car.price_on_request)}
-                                </Badge>
+                                  <Badge
+                                    variant="secondary"
+                                    className="inline-flex h-7 w-fit max-w-full cursor-pointer items-center rounded-lg border border-border/60 bg-muted/90 px-2.5 text-xs font-semibold tabular-nums tracking-tight text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/50"
+                                  >
+                                    {formatCatalogCardPrice(car.price, car.price_on_request)}
+                                  </Badge>
+                                </Link>
                                 {car.pricing_tier === "korea_land_only" ? (
                                   <Badge
                                     variant="outline"
@@ -2013,12 +1360,20 @@ export function CatalogClient({
           {catalogCarsDisplay.length < search.result.length ? (
             <p className="mt-2 text-center text-xs text-muted-foreground [overflow-wrap:anywhere]">
               На этой странице не показаны{" "}
-              {search.result.length - catalogCarsDisplay.length} дубл. по VIN (разные id объявления Encar).
+              {search.result.length - catalogCarsDisplay.length} дубл. по VIN (разные номера объявлений).
             </p>
           ) : null}
 
-          {search.result.length === 0 && !loading ? (
-            <p className="mt-16 text-center text-muted-foreground">Ничего не найдено по текущим фильтрам.</p>
+          {search.result.length === 0 && !loading && !err ? (
+            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-border/60 bg-card/60 px-6 py-8 text-center shadow-sm">
+              <p className="text-base font-medium text-foreground">По этим условиям сейчас нет объявлений</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Измените фильтры слева или сбросьте их — так проще найти варианты.
+              </p>
+              <Button type="button" className="mt-5 rounded-full" variant="secondary" onClick={reset}>
+                Сбросить фильтры
+              </Button>
+            </div>
           ) : null}
 
           <Pagination className="mt-10">
@@ -2030,9 +1385,10 @@ export function CatalogClient({
                   size="sm"
                   className="gap-1 rounded-full ps-2"
                   disabled={state.page <= 1}
+                  aria-label="Предыдущая страница каталога"
                   onClick={() => navigate({ ...state, page: state.page - 1 })}
                 >
-                  <ChevronLeft className="size-4 rtl:rotate-180" />
+                  <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
                   <span className="hidden sm:inline">Назад</span>
                 </Button>
               </PaginationItem>
@@ -2049,6 +1405,7 @@ export function CatalogClient({
                       size="sm"
                       className="min-w-9 rounded-full tabular-nums"
                       onClick={() => navigate({ ...state, page: item })}
+                      aria-label={`Страница ${item}`}
                       aria-current={state.page === item ? "page" : undefined}
                     >
                       {item}
@@ -2063,17 +1420,17 @@ export function CatalogClient({
                   size="sm"
                   className="gap-1 rounded-full pe-2"
                   disabled={!search.meta.next_cursor}
+                  aria-label="Следующая страница каталога"
                   onClick={() => navigate({ ...state, page: state.page + 1 })}
                 >
                   <span className="hidden sm:inline">Вперёд</span>
-                  <ChevronRight className="size-4 rtl:rotate-180" />
+                  <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
                 </Button>
               </PaginationItem>
             </PaginationContent>
           </Pagination>
         </div>
       </div>
-      </div>
-    </div>
+    </>
   );
 }

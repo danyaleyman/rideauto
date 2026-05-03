@@ -2,34 +2,71 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Menu, Moon, Sun, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Menu, Monitor, Moon, Sun, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/components/AuthProvider";
-import { FavoritesDialog } from "@/components/FavoritesDialog";
+
+const FavoritesDialog = dynamic(
+  () => import("@/components/FavoritesDialog").then((m) => m.FavoritesDialog),
+  { ssr: false, loading: () => <span className="inline-flex h-8 w-[5.5rem] shrink-0 rounded-full bg-muted/50" aria-hidden /> },
+);
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MOTION_TOKENS } from "@/components/ui/motion";
-import { Switch } from "@/components/ui/switch";
+import {
+  applyThemePreference,
+  readThemePreference,
+  type ThemePreference,
+  writeThemePreference,
+} from "@/lib/theme-preference";
 
 export function SiteHeader() {
   const { authenticated, user, logout } = useAuth();
   const reduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
-  const [dark, setDark] = useState(false);
+  const [themePref, setThemePref] = useState<ThemePreference>("system");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const stored = localStorage.getItem("wra-theme");
-    const isDark = authenticated && stored === "dark";
-    document.documentElement.classList.toggle("dark", isDark);
-    setDark(isDark);
-  }, [authenticated]);
+    const initial = readThemePreference();
+    setThemePref(initial);
+    applyThemePreference(initial);
+  }, []);
 
-  const onThemeChange = (checked: boolean) => {
-    setDark(checked);
-    document.documentElement.classList.toggle("dark", checked);
-    localStorage.setItem("wra-theme", checked ? "dark" : "light");
-  };
+  useEffect(() => {
+    if (!mounted || themePref !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => applyThemePreference("system");
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [mounted, themePref]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileMenuOpen]);
+
+  const setTheme = useCallback((next: ThemePreference) => {
+    setThemePref(next);
+    writeThemePreference(next);
+    applyThemePreference(next);
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -45,16 +82,17 @@ export function SiteHeader() {
             className="rounded-full shadow-sm sm:hidden"
             aria-label={mobileMenuOpen ? "Закрыть меню" : "Открыть меню"}
             aria-expanded={mobileMenuOpen}
+            aria-controls="site-mobile-nav"
             onClick={() => setMobileMenuOpen((v) => !v)}
           >
-            {mobileMenuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+            {mobileMenuOpen ? <X className="size-4" aria-hidden /> : <Menu className="size-4" aria-hidden />}
           </Button>
 
           <nav className="hidden flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium sm:flex">
             <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/about">
               О компании
             </Link>
-            <Link className="text-primary font-medium" href="/catalog?region=korea&source=encar">
+            <Link className="text-primary font-medium" href="/catalog">
               Каталог
             </Link>
             <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/buy">
@@ -71,22 +109,42 @@ export function SiteHeader() {
             </div>
           ) : null}
 
-          {authenticated ? (
-            <div
-              className="hidden items-center gap-2 rounded-full border border-border/80 bg-muted/25 px-2 py-1 shadow-sm sm:flex"
-              title="Тёмная тема"
-            >
-              <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
-              <Switch
-                checked={mounted && dark}
-                onCheckedChange={onThemeChange}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="hidden rounded-full shadow-sm sm:inline-flex"
+                aria-label="Тема оформления: светлая, системная или тёмная"
+                aria-haspopup="menu"
                 disabled={!mounted}
-                aria-label="Переключить тёмную тему"
-                className="data-[state=checked]:border-primary"
-              />
-              <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
-            </div>
-          ) : null}
+              >
+                <Sun className="size-4 dark:hidden" aria-hidden />
+                <Moon className="hidden size-4 dark:block" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[14rem]">
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Оформление</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={themePref}
+                onValueChange={(v) => setTheme(v as ThemePreference)}
+              >
+                <DropdownMenuRadioItem value="light" className="cursor-pointer rounded-xl">
+                  <Sun className="size-4 opacity-70" aria-hidden />
+                  Светлая
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system" className="cursor-pointer rounded-xl">
+                  <Monitor className="size-4 opacity-70" aria-hidden />
+                  Как в системе
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark" className="cursor-pointer rounded-xl">
+                  <Moon className="size-4 opacity-70" aria-hidden />
+                  Тёмная
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             variant="outline"
@@ -104,7 +162,7 @@ export function SiteHeader() {
               onClick={() => {
                 void logout();
               }}
-              title={user?.email || "Выйти"}
+              aria-label={user?.email ? `Выйти из аккаунта ${user.email}` : "Выйти из аккаунта"}
             >
               Выйти
             </Button>
@@ -122,12 +180,15 @@ export function SiteHeader() {
         <AnimatePresence initial={false}>
           {mobileMenuOpen ? (
             <motion.div
+              id="site-mobile-nav"
               key="mobile-menu"
               initial={reduceMotion ? false : { opacity: 0, y: -10, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.985 }}
               transition={reduceMotion ? { duration: 0.01 } : { duration: 0.22, ease: MOTION_TOKENS.easeSoft }}
               className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden"
+              role="navigation"
+              aria-label="Мобильное меню"
             >
               <motion.nav
                 className="flex flex-col gap-1 text-sm font-medium"
@@ -155,7 +216,7 @@ export function SiteHeader() {
                 <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
                   <Link
                     className="rounded-lg px-2 py-2 text-primary"
-                    href="/catalog?region=korea&source=encar"
+                    href="/catalog"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Каталог
@@ -181,26 +242,41 @@ export function SiteHeader() {
                 </motion.div>
               </motion.nav>
 
-              {authenticated ? (
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-border/80 bg-muted/25 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Тёмная тема</span>
-                  <div className="flex items-center gap-2">
-                    <Sun className="size-4 shrink-0 text-amber-500/90" aria-hidden />
-                    <Switch
-                      checked={mounted && dark}
-                      onCheckedChange={onThemeChange}
-                      disabled={!mounted}
-                      aria-label="Переключить тёмную тему"
-                      className="data-[state=checked]:border-primary"
-                    />
-                    <Moon className="size-4 shrink-0 text-sky-600/80 dark:text-sky-400" aria-hidden />
-                  </div>
+              <fieldset className="mt-3 rounded-xl border border-border/80 bg-muted/25 px-3 py-3">
+                <legend className="px-1 text-sm font-medium text-foreground">Тема оформления</legend>
+                <div className="mt-2 flex flex-col gap-2">
+                  {(
+                    [
+                      { value: "light" as const, label: "Светлая", Icon: Sun },
+                      { value: "system" as const, label: "Как в системе", Icon: Monitor },
+                      { value: "dark" as const, label: "Тёмная", Icon: Moon },
+                    ] as const
+                  ).map(({ value, label, Icon }) => (
+                    <label
+                      key={value}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/50"
+                    >
+                      <input
+                        type="radio"
+                        name="wra-theme-mobile"
+                        value={value}
+                        checked={themePref === value}
+                        disabled={!mounted}
+                        onChange={() => setTheme(value)}
+                        className="size-4 accent-primary"
+                      />
+                      <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
+                      <span>{label}</span>
+                    </label>
+                  ))}
                 </div>
-              ) : (
+              </fieldset>
+
+              {!authenticated ? (
                 <p className="mt-3 rounded-xl border border-border/80 bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
-                  Войдите, чтобы включить избранное и настройку темы.
+                  Войдите, чтобы пользоваться избранным в этом браузере.
                 </p>
-              )}
+              ) : null}
             </motion.div>
           ) : null}
         </AnimatePresence>

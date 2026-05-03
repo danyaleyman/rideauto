@@ -1,6 +1,6 @@
 import type { SlimCar } from "@/lib/types";
 
-/** Нормализация VIN для склейки дублей листингов Encar с разными ID. */
+/** Нормализация VIN для склейки дублей объявлений с разными внутренними ID. */
 export function normalizeVinForCatalogDedupe(v: unknown): string {
   const s = String(v ?? "")
     .trim()

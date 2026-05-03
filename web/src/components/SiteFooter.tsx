@@ -10,6 +10,21 @@ export function SiteFooter() {
       <div className="mx-auto flex min-w-0 max-w-[1440px] flex-col gap-4 px-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 lg:px-10">
         <nav className="flex flex-wrap gap-x-4 gap-y-1">
           <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
+            <Link className="transition-colors hover:text-foreground" href="/catalog">
+              Каталог
+            </Link>
+          </motion.div>
+          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
+            <Link className="transition-colors hover:text-foreground" href="/buy">
+              Как купить
+            </Link>
+          </motion.div>
+          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
+            <Link className="transition-colors hover:text-foreground" href="/contacts">
+              Контакты
+            </Link>
+          </motion.div>
+          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
             <Link className="transition-colors hover:text-foreground" href="/privacy">
               Конфиденциальность
             </Link>

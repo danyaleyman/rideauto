@@ -1,6 +1,6 @@
 import { extractCarImageUrls } from "@/lib/car-images";
 
-/** Ключ для дедупликации: один кадр Encar часто приходит и в `images`, и в `h_images` с разным query. */
+/** Ключ для дедупликации: один кадр корейского контура часто приходит и в `images`, и в `h_images` с разным query. */
 export function imageUrlDedupeKey(url: string): string {
   const t = url.trim();
   try {
@@ -8,7 +8,7 @@ export function imageUrlDedupeKey(url: string): string {
     const path = u.pathname.replace(/\/+/g, "/").toLowerCase();
     const host = u.hostname.toLowerCase();
     if (host.endsWith("encar.com")) return `encar:${path}`;
-    // Dongchedi / ByteDance CDN: один и тот же path с разными query — разные кадры;
+    // Китайский CDN: один и тот же path с разными query — разные кадры;
     // дедуп только по path сворачивал всю галерею в одно фото.
     if (
       host.includes("byteimg.com") ||
@@ -63,7 +63,7 @@ function parseJsonArray(v: unknown): unknown[] {
   }
 }
 
-/** URL снизу / диагностика Encar (часто imgcar.encar.com). */
+/** URL снизу / диагностика в корейском контуре. */
 function collectDiagnosisPhotoUrls(raw: Record<string, unknown>): string[] {
   const extra = raw.extra;
   if (!extra || typeof extra !== "object" || Array.isArray(extra)) return [];
@@ -97,7 +97,7 @@ export function getAllCarPhotoUrls(data: Record<string, unknown>): string[] {
   return out;
 }
 
-/** Мета по h_images (Encar): подписи к кадрам для подписей в модалке. */
+/** Мета по h_images (корейский контур): подписи к кадрам для подписей в модалке. */
 export function getHImageMeta(data: Record<string, unknown>): Map<string, string> {
   const map = new Map<string, string>();
   const raw = data.h_images;

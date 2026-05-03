@@ -64,7 +64,7 @@ function translateKoCarRough(s: string): string {
 function normalizeOptionLabel(raw: string): string {
   const cleaned = translateKoCarRough(raw).replace(/\s{2,}/g, " ").trim();
   if (!cleaned) return "";
-  // Иногда Encar присылает только числовой код вместо названия опции.
+  // Иногда в данных приходит только числовой код вместо названия опции.
   if (/^\d{3,}$/.test(cleaned)) return "";
   return cleaned;
 }

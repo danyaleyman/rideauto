@@ -789,3 +789,5 @@ export function BuyCalculator() {
     </section>
   );
 }
+
+export default BuyCalculator;

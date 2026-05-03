@@ -22,7 +22,7 @@ function AuthVerifyInner() {
     void verifyMagicLink(token)
       .then(() => {
         setState("ok");
-        window.setTimeout(() => router.replace("/catalog?region=korea&source=encar"), 700);
+        window.setTimeout(() => router.replace("/catalog"), 700);
       })
       .catch(() => setState("err"));
   }, [router, sp, verifyMagicLink]);

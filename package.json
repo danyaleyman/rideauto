@@ -5,6 +5,7 @@
   },
   "scripts": {
     "generate:seo-landings": "node scripts/generate-seo-landings.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:unit": "npm --prefix web run test:unit"
   }
 }

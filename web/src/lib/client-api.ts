@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchJsonWithRetry } from "./client-fetch";
 import { getPublicApiBase } from "./env";
 import type {
   AuthMeResponse,
@@ -22,6 +23,10 @@ async function readJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function readJsonReliable<T>(url: string, signal?: AbortSignal): Promise<T> {
+  return fetchJsonWithRetry<T>(url, { signal, retries: 1 });
+}
+
 export function clientSearchUrl(searchParams: URLSearchParams): string {
   const base = getPublicApiBase();
   return `${base}/api/search?${searchParams.toString()}`;
@@ -41,21 +46,21 @@ export async function fetchSearchClient(
   params: URLSearchParams,
   options?: { signal?: AbortSignal },
 ): Promise<SearchResponse> {
-  return readJson<SearchResponse>(clientSearchUrl(params), options?.signal);
+  return readJsonReliable<SearchResponse>(clientSearchUrl(params), options?.signal);
 }
 
 export async function fetchFacetsClient(
   params: URLSearchParams,
   options?: { signal?: AbortSignal },
 ): Promise<FacetsResponse> {
-  return readJson<FacetsResponse>(clientFacetsUrl(params), options?.signal);
+  return readJsonReliable<FacetsResponse>(clientFacetsUrl(params), options?.signal);
 }
 
 export async function fetchCatalogDailyAdditions(
   market: Market,
   signal?: AbortSignal,
 ): Promise<CatalogDailyAdditionsResponse> {
-  return readJson<CatalogDailyAdditionsResponse>(clientCatalogDailyAdditionsUrl(market), signal);
+  return readJsonReliable<CatalogDailyAdditionsResponse>(clientCatalogDailyAdditionsUrl(market), signal);
 }
 
 export async function fetchMeClient(options?: { signal?: AbortSignal }): Promise<AuthMeResponse> {

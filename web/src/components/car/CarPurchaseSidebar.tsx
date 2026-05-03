@@ -9,6 +9,7 @@ import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
 import { formatHumanDate } from "@/lib/car-detail-data";
+import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
 import { Button } from "@/components/ui/button";
 import { CatalogQuickBuyDialog } from "@/components/catalog/CatalogQuickBuyDialog";
 import {
@@ -28,7 +29,7 @@ type Props = {
   title: string;
   priceRub: number | null;
   priceOnRequest?: boolean;
-  listingSold?: boolean;
+  availability?: CarListingAvailability;
   sourceUrl: string | null;
   /** Сырые поля для модалки расчёта */
   priceWon: number | null;
@@ -57,7 +58,7 @@ export function CarPurchaseSidebar({
   title,
   priceRub,
   priceOnRequest = false,
-  listingSold = false,
+  availability = "available",
   sourceUrl,
   priceWon,
   priceCny,
@@ -79,7 +80,9 @@ export function CarPurchaseSidebar({
     if (!Number.isFinite(n)) return null;
     return n;
   };
-  if (!listingSold && !priceOnRequest && priceRub != null && !Number.isNaN(priceRub)) {
+  const listingUnavailable = availability === "sold" || availability === "reserved";
+
+  if (!listingUnavailable && !priceOnRequest && priceRub != null && !Number.isNaN(priceRub)) {
     breakdownRows.push({
       label: "Стоимость в России под ключ",
       value: formatPriceLabel(priceRub),
@@ -88,7 +91,7 @@ export function CarPurchaseSidebar({
   if (priceWon != null && !Number.isNaN(priceWon)) {
     const wonTotal = priceWon >= 100000 ? priceWon : priceWon * 10000;
     breakdownRows.push({
-      label: "Цена на площадке Encar",
+      label: "Цена в объявлении (воны)",
       value: `${Math.round(wonTotal).toLocaleString("ru-RU")} ₩ (Вон)`,
     });
   }
@@ -152,16 +155,18 @@ export function CarPurchaseSidebar({
     >
       <h2 className="sr-only">Цена и заказ</h2>
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {listingSold ? "Статус объявления" : "Стоимость в России под ключ"}
+        {listingUnavailable ? "Статус объявления" : "Стоимость в России под ключ"}
       </p>
       <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums sm:text-3xl md:text-[2rem]">
-        {listingSold
+        {availability === "sold"
           ? "Автомобиль продан"
-          : priceOnRequest
-            ? PRICE_ON_REQUEST_RU
-            : priceRub != null && !Number.isNaN(priceRub)
-              ? formatPriceLabel(priceRub)
-              : PRICE_ON_REQUEST_RU}
+          : availability === "reserved"
+            ? "Зарезервировано"
+            : priceOnRequest
+              ? PRICE_ON_REQUEST_RU
+              : priceRub != null && !Number.isNaN(priceRub)
+                ? formatPriceLabel(priceRub)
+                : PRICE_ON_REQUEST_RU}
       </p>
       <p className="mt-3 line-clamp-3 text-sm font-semibold leading-snug text-foreground sm:line-clamp-2">
         {title}
@@ -174,15 +179,20 @@ export function CarPurchaseSidebar({
       ) : null}
       {sourceLabel ? (
         <Badge variant="secondary" className="mt-3 rounded-full px-3 py-1 text-xs font-medium">
-          Источник · {sourceLabel}
+          Источник · {carSourceDisplayName(sourceLabel)}
         </Badge>
       ) : null}
 
       <div className="mt-5 flex min-w-0 flex-wrap gap-2">
         {sourceUrl ? (
           <Button variant="outline" size="icon-sm" className="rounded-xl shadow-sm" asChild>
-            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" title="Оригинал объявления">
-              <span className="sr-only">Оригинал объявления</span>
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Оригинал объявления"
+              aria-label="Открыть оригинальное объявление в новой вкладке"
+            >
               <ExternalLink className="size-4" aria-hidden />
             </a>
           </Button>
@@ -193,6 +203,7 @@ export function CarPurchaseSidebar({
           size="icon-sm"
           className="rounded-xl shadow-sm"
           title={copied ? "Скопировано" : "Копировать ссылку"}
+          aria-label={copied ? "Ссылка скопирована" : "Копировать ссылку на это объявление"}
           onClick={() => {
             void navigator.clipboard.writeText(getCarPageAbsoluteUrl(carId)).then(() => {
               setCopied(true);
@@ -200,7 +211,11 @@ export function CarPurchaseSidebar({
             });
           }}
         >
-          {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
+          {copied ? (
+            <Check className="size-4 text-green-600" aria-hidden />
+          ) : (
+            <Copy className="size-4" aria-hidden />
+          )}
         </Button>
         {authenticated ? (
           <Button
@@ -209,18 +224,19 @@ export function CarPurchaseSidebar({
             size="icon-sm"
             className="rounded-xl shadow-sm"
             title={fav ? "В избранном" : "В избранное"}
+            aria-label={fav ? "Убрать из избранного" : "Добавить в избранное"}
             aria-pressed={fav}
             onClick={() => {
               void toggle(slimForFavorite(carId, title, priceRub));
             }}
           >
-            <Heart className={fav ? "size-4 fill-current" : "size-4"} />
+            <Heart className={fav ? "size-4 fill-current" : "size-4"} aria-hidden />
           </Button>
         ) : null}
       </div>
 
       <div className="mt-6 flex flex-col gap-2.5">
-        {!listingSold ? (
+        {availability === "available" ? (
           <CatalogQuickBuyDialog
             carId={carId}
             carTitle={title}

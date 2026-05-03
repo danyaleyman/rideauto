@@ -22,21 +22,31 @@ export function CookieConsentBanner() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 p-3 shadow-2xl backdrop-blur sm:p-4">
+    <div
+      role="dialog"
+      aria-label="Согласие на использование cookie"
+      className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-primary/25 bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md sm:p-4 sm:pb-4"
+    >
       <div className="mx-auto flex max-w-[1100px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-foreground/90 [overflow-wrap:anywhere]">
           Мы используем обязательные cookie для работы сайта и можем использовать аналитические cookie только с вашего
           согласия. Подробнее в{" "}
-          <Link href="/cookies" className="underline underline-offset-4 hover:text-foreground">
+          <Link
+            href="/cookies"
+            className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
+          >
             Политике cookie
           </Link>{" "}
           и{" "}
-          <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+          <Link
+            href="/privacy"
+            className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
+          >
             Политике конфиденциальности
           </Link>
           .
         </p>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"

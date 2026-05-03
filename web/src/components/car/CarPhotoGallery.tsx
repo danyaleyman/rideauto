@@ -5,6 +5,11 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
+import {
+  type CarListingAvailability,
+  carSourceBadgeVariant,
+  carSourceShortRegionLabel,
+} from "@/lib/car-listing-trust";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,10 +23,10 @@ type CarPhotoGalleryProps = {
   images: string[];
   title: string;
   sourceKey?: string | null;
-  /** ISO created_at каталога — бейдж «Добавлено сегодня» вместо WRA (не Encar). */
+  /** ISO created_at каталога — бейдж «Добавлено сегодня», если нет бейджа региона. */
   catalogCreatedAt?: string | null;
-  /** Дневной чекер: объявление снято с продажи на Encar. */
-  listingSold?: boolean;
+  /** Продан / зарезервирован / в продаже — оверлей и доступность галереи. */
+  availability?: CarListingAvailability;
 };
 
 const THUMB_COUNT = 4;
@@ -31,7 +36,7 @@ export default function CarPhotoGallery({
   title,
   sourceKey,
   catalogCreatedAt,
-  listingSold,
+  availability = "available",
 }: CarPhotoGalleryProps) {
   const images = useMemo(() => {
     const raw = rawImages.filter((x) => /^https?:\/\//i.test(x.trim()));
@@ -104,9 +109,9 @@ export default function CarPhotoGallery({
 
   if (!n || !current) return null;
 
-  const srcNorm = (sourceKey ?? "").toLowerCase();
-  const showEncarBadge = srcNorm === "encar";
-  const showListedTodayBadge = !showEncarBadge && isCatalogListedToday(catalogCreatedAt);
+  const badgeVariant = carSourceBadgeVariant(sourceKey);
+  const showSourceBadge = badgeVariant === "encar" || badgeVariant === "dongchedi";
+  const showListedTodayBadge = !showSourceBadge && isCatalogListedToday(catalogCreatedAt);
 
   /** Без дублей: при n=1 старый (active+k+1)%n давал четыре раза индекс 0. */
   const sideCap = n > 1 ? Math.min(THUMB_COUNT, n - 1) : 0;
@@ -141,15 +146,22 @@ export default function CarPhotoGallery({
               src={current}
               alt={`${title} — фото ${safeActive + 1}`}
               fill
-              sizes="(min-width: 1024px) 72vw, 100vw"
+              sizes="(min-width: 1536px) 900px, (min-width: 1280px) 75vw, (min-width: 1024px) 72vw, 100vw"
               className="object-cover object-center"
               priority
+              fetchPriority="high"
               unoptimized
             />
-            {listingSold ? (
+            {availability === "sold" ? (
               <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/58 px-4">
                 <p className="text-center text-base font-semibold leading-snug text-white drop-shadow-md sm:text-lg">
                   Автомобиль продан
+                </p>
+              </div>
+            ) : availability === "reserved" ? (
+              <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-amber-950/55 px-4">
+                <p className="text-center text-base font-semibold leading-snug text-amber-50 drop-shadow-md sm:text-lg">
+                  Зарезервировано
                 </p>
               </div>
             ) : null}
@@ -158,9 +170,13 @@ export default function CarPhotoGallery({
               aria-hidden
             />
 
-            {showEncarBadge ? (
+            {badgeVariant === "encar" ? (
               <div className="pointer-events-none absolute start-3 top-3 z-[2] rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
-                Encar
+                {carSourceShortRegionLabel(sourceKey)}
+              </div>
+            ) : badgeVariant === "dongchedi" ? (
+              <div className="pointer-events-none absolute start-3 top-3 z-[2] rounded-md bg-sky-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md dark:bg-sky-600">
+                {carSourceShortRegionLabel(sourceKey)}
               </div>
             ) : showListedTodayBadge ? (
               <div className="pointer-events-none absolute start-3 top-3 z-[2] max-w-[min(100%,14rem)] rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium leading-snug text-white shadow-md ring-1 ring-white/15 backdrop-blur-sm sm:text-[11px]">
@@ -276,10 +292,10 @@ export default function CarPhotoGallery({
                 variant="ghost"
                 size="icon-lg"
                 className="absolute start-2 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white sm:start-6"
-                aria-label="Назад"
+                aria-label="Предыдущее фото"
                 onClick={() => goLightbox(-1)}
               >
-                <ChevronLeft className="size-7 rtl:rotate-180" />
+                <ChevronLeft className="size-7 rtl:rotate-180" aria-hidden />
               </Button>
             ) : null}
             {n > 1 ? (
@@ -288,10 +304,10 @@ export default function CarPhotoGallery({
                 variant="ghost"
                 size="icon-lg"
                 className="absolute end-2 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white sm:end-6"
-                aria-label="Вперёд"
+                aria-label="Следующее фото"
                 onClick={() => goLightbox(1)}
               >
-                <ChevronRight className="size-7 rtl:rotate-180" />
+                <ChevronRight className="size-7 rtl:rotate-180" aria-hidden />
               </Button>
             ) : null}
 
@@ -317,9 +333,9 @@ export default function CarPhotoGallery({
                   className="rounded-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
                   disabled={n <= 1}
                   onClick={() => goLightbox(-1)}
-                  aria-label="Предыдущее"
+                  aria-label="Предыдущее фото"
                 >
-                  <ChevronLeft className="size-4 rtl:rotate-180" />
+                  <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
                 </Button>
                 <span className="min-w-[4rem] px-2 text-center text-sm tabular-nums text-white/90">
                   {lightboxIdx + 1} / {n}
@@ -331,19 +347,19 @@ export default function CarPhotoGallery({
                   className="rounded-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
                   disabled={n <= 1}
                   onClick={() => goLightbox(1)}
-                  aria-label="Следующее"
+                  aria-label="Следующее фото"
                 >
-                  <ChevronRight className="size-4 rtl:rotate-180" />
+                  <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="rounded-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-                  aria-label="Закрыть"
+                  aria-label="Закрыть полноэкранную галерею"
                   onClick={() => setLightboxOpen(false)}
                 >
-                  <X className="size-4" />
+                  <X className="size-4" aria-hidden />
                 </Button>
               </div>
 

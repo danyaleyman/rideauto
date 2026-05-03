@@ -2,16 +2,19 @@ import { CalendarDays, Fuel, Gauge, IdCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
 import { asStr, formatKm, formatRegYearMonth, normalizeFuelLabel, translateKoToRuText } from "@/lib/car-detail-data";
+import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
 
 /** Заголовок и ключевые факты под галереей (чипы с иконками — как у крупных площадок). */
 export function CarHeroMeta({
   title,
   data,
   sourceLabel,
+  availability = "available",
 }: {
   title: string;
   data: Record<string, unknown>;
   sourceLabel?: string | null;
+  availability?: CarListingAvailability;
 }) {
   type Chip = {
     key: string;
@@ -38,11 +41,22 @@ export function CarHeroMeta({
   const plate = asStr(data.vehicle_no) ?? asStr(data.car_no);
   if (plate) chips.push({ key: "plate", label: `Гос № ${plate}`, variant: "secondary", icon: IdCard });
 
+  const srcHuman = sourceLabel ? carSourceDisplayName(sourceLabel) : null;
+
   return (
     <header className="mt-6 min-w-0 border-b border-border/60 pb-8 sm:mt-8">
-      {sourceLabel ? (
+      {srcHuman ? (
         <p className="mb-2 break-words text-xs font-medium text-muted-foreground [overflow-wrap:anywhere]">
-          Объявление · <span className="text-foreground">{sourceLabel}</span>
+          Источник · <span className="text-foreground">{srcHuman}</span>
+        </p>
+      ) : null}
+      {availability === "sold" ? (
+        <p className="mb-2 inline-flex rounded-full border border-red-900/35 bg-red-950/20 px-3 py-1 text-xs font-semibold text-red-800 dark:text-red-200">
+          Продан — скоро уберём из каталога
+        </p>
+      ) : availability === "reserved" ? (
+        <p className="mb-2 inline-flex rounded-full border border-amber-700/40 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-950 dark:text-amber-100">
+          Зарезервировано на площадке
         </p>
       ) : null}
       <h1 className="font-heading text-[1.55rem] font-bold leading-snug tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-3xl md:text-[2.15rem]">

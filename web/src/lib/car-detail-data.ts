@@ -1,5 +1,5 @@
 /**
- * Безопасное чтение вложенных полей Encar / Dongchedi в `data` карточки.
+ * Безопасное чтение вложенных полей карточки из сырых `data` (корейский / китайский контур).
  */
 
 import { formatPriceLabel } from "@/lib/format-price";
@@ -273,7 +273,7 @@ export function formatRubFromUnknown(v: unknown): string | null {
   return formatPriceLabel(n);
 }
 
-/** Зелёный / жёлтый / красный по ключевым корейским меткам статуса Encar-диагностики */
+/** Зелёный / жёлтый / красный по ключевым корейским меткам статуса диагностики в карточке */
 export function diagnosisStatusTone(title: string): "ok" | "warn" | "bad" | "neutral" {
   const t = title.toLowerCase();
   if (t.includes("양호") || t.includes("정상")) return "ok";
@@ -385,7 +385,7 @@ export function buildNormalizedCarTitle(
   return joinUniqueSpecs(m1 || markS, m2 || modelS, m3 || genS);
 }
 
-/** Элементы осмотра Encar: заголовок детали вместо сырого JSON. */
+/** Элементы осмотра (корейский контур): заголовок детали вместо сырого JSON. */
 export function formatInspectionListItem(x: unknown): string {
   if (typeof x === "string" || typeof x === "number") return String(x);
   if (!x || typeof x !== "object") return JSON.stringify(x);
