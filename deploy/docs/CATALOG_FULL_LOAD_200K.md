@@ -23,7 +23,7 @@ python backend/scripts/meili_sync_preflight.py
 # или явно: python backend/scripts/meili_sync_preflight.py --dsn "$PG_DSN"
 ```
 
-Если включён **preflight gate** (`WRA_MEILI_PREFLIGHT_GATE=true`), синк не упрётся в «плохие» данные только если пороги выполнены.
+Если включён **preflight gate** (`WRA_MEILI_PREFLIGHT_GATE=true`), синк не упрётся в «плохие» данные только если пороги выполнены. Пока у части Encar нет мощности для tier «под ключ», `price_rub` может быть пустым намеренно (`backend/catalog_encar_pricing.py`) — задайте в `/etc/default/rideauto`, например, `WRA_MEILI_PREFLIGHT_MIN_PRICE_COVERAGE_PCT=96`, или передайте `--min-price-coverage-pct` вручную.
 
 ## 2. Полная синхронизация Postgres → Meilisearch (рекомендуется blue/green)
 

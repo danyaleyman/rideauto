@@ -70,6 +70,17 @@ except ImportError:
     print("Install meilisearch: pip install meilisearch", file=sys.stderr)
     sys.exit(1)
 
+
+def _env_float(name: str, default: float) -> float:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 def _meili_repo_and_backend() -> tuple[Path, Path]:
     """Monorepo: repo/infrastructure/meilisearch → (repo, repo/backend). Docker WORKDIR=/app → (/app, /app)."""
     repo = Path(__file__).resolve().parents[2]
@@ -503,9 +514,21 @@ def main() -> None:
         default=str(os.environ.get("WRA_MEILI_PREFLIGHT_GATE", "")).strip().lower() in {"1", "true", "yes", "on"},
         help="Run DB quality gates before syncing documents",
     )
-    parser.add_argument("--preflight-min-price-coverage-pct", type=float, default=97.0)
-    parser.add_argument("--preflight-min-brand-coverage-pct", type=float, default=99.0)
-    parser.add_argument("--preflight-min-model-coverage-pct", type=float, default=99.0)
+    parser.add_argument(
+        "--preflight-min-price-coverage-pct",
+        type=float,
+        default=_env_float("WRA_MEILI_PREFLIGHT_MIN_PRICE_COVERAGE_PCT", 97.0),
+    )
+    parser.add_argument(
+        "--preflight-min-brand-coverage-pct",
+        type=float,
+        default=_env_float("WRA_MEILI_PREFLIGHT_MIN_BRAND_COVERAGE_PCT", 99.0),
+    )
+    parser.add_argument(
+        "--preflight-min-model-coverage-pct",
+        type=float,
+        default=_env_float("WRA_MEILI_PREFLIGHT_MIN_MODEL_COVERAGE_PCT", 99.0),
+    )
     args = parser.parse_args()
 
     mk = (args.meili_key or "").strip()

@@ -9,6 +9,16 @@ from typing import Any
 import psycopg2
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 def _dsn_from_env() -> str:
     """Как у deploy/scripts/run_meilisearch_sync_host.sh: SYNC_PG_DSN → DATABASE_URL → WRA_PG_DSN."""
     for key in ("SYNC_PG_DSN", "DATABASE_URL", "WRA_PG_DSN"):
@@ -73,9 +83,21 @@ def main() -> None:
         metavar="POSTGRES_URL",
         help="DSN Postgres (иначе SYNC_PG_DSN / DATABASE_URL / WRA_PG_DSN из окружения)",
     )
-    ap.add_argument("--min-price-coverage-pct", type=float, default=97.0)
-    ap.add_argument("--min-brand-coverage-pct", type=float, default=99.0)
-    ap.add_argument("--min-model-coverage-pct", type=float, default=99.0)
+    ap.add_argument(
+        "--min-price-coverage-pct",
+        type=float,
+        default=_env_float("WRA_MEILI_PREFLIGHT_MIN_PRICE_COVERAGE_PCT", 97.0),
+    )
+    ap.add_argument(
+        "--min-brand-coverage-pct",
+        type=float,
+        default=_env_float("WRA_MEILI_PREFLIGHT_MIN_BRAND_COVERAGE_PCT", 99.0),
+    )
+    ap.add_argument(
+        "--min-model-coverage-pct",
+        type=float,
+        default=_env_float("WRA_MEILI_PREFLIGHT_MIN_MODEL_COVERAGE_PCT", 99.0),
+    )
     args = ap.parse_args()
     dsn = (args.dsn or "").strip() or _dsn_from_env()
     raise SystemExit(
