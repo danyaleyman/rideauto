@@ -64,6 +64,8 @@ services:
     environment:
       # Хост ``postgres`` — DNS внутри compose. Значение по умолчанию совпадает с POSTGRES_* ниже; при смене пароля задайте WRA_PG_DSN в .env явно.
       WRA_PG_DSN: ${WRA_PG_DSN:-postgresql://wra:wra@postgres:5432/wra}
+      # Скрейпер/resolve_scraper_postgres_dsn на хосте подменяют postgres→127.0.0.1; внутри api оставляем имя сервиса.
+      WRA_PG_DSN_SKIP_HOST_REWRITE: "1"
       WRA_REDIS_URL: ${WRA_REDIS_URL:-redis://redis:6379/0}
       WRA_MEILISEARCH_URL: ${WRA_MEILISEARCH_URL:-http://meilisearch:7700}
       # После правок .env нужен пересозданный контейнер: docker compose up -d --force-recreate api
