@@ -44,6 +44,63 @@ jobs:
       - run: npm ci
       - run: npm run build:car-tailwind
 
+  frontend-unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run test:unit
+
+  storybook:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build-storybook
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m json.tool data/fuel_label_aliases.json >/dev/null
+        working-directory: ${{ github.workspace }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: node scripts/sync-static-data.mjs
+        working-directory: web
+      - run: python backend/scripts/ci_verify_fuel_alias_sync.py
+        working-directory: ${{ github.workspace }}
+      - run: npm run build
+        working-directory: web
+      - run: npm ci
+        working-directory: ${{ github.workspace }}
+      - run: npm run lh:ci
+        working-directory: ${{ github.workspace }}
+
   next-build:
     runs-on: ubuntu-latest
     defaults:

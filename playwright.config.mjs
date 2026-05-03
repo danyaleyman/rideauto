@@ -9,6 +9,14 @@ export default defineConfig({
   reporter: "list",
   use: {
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
+  },
+  expect: {
+    timeout: 30_000,
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.04,
+      animations: "disabled",
+    },
   },
   webServer: [
     {

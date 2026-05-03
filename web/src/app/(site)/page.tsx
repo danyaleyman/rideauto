@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/env";
+import { HomeTrustStrip } from "@/components/home/HomeTrustStrip";
 import { MotionFadeUp } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
 
@@ -49,7 +50,7 @@ export default function Home() {
       <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/40 via-background to-background pb-10 pt-2 sm:pt-4">
         <div className="relative mx-auto min-w-0 max-w-[1440px] px-3 sm:px-6 lg:px-10">
           <MotionFadeUp>
-            <section className="rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:rounded-3xl sm:p-6 lg:p-8">
+            <section className="rounded-2xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-elevated-ring backdrop-blur-sm sm:rounded-3xl sm:p-6 lg:p-8">
               <p className="text-sm font-medium uppercase tracking-wide text-primary">World Ride Auto</p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-3xl lg:text-4xl">
                 Авто из Южной Кореи и Китая
@@ -73,6 +74,8 @@ export default function Home() {
               </div>
             </section>
           </MotionFadeUp>
+
+          <HomeTrustStrip />
 
           <p className="mt-8 text-center text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere] sm:mt-10">
             Каталог с фильтрами и поиском — в разделе{" "}

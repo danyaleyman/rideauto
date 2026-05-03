@@ -24,6 +24,8 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# SSR (getServerApiBase) читает это в рантайме; совпадает с build ARG по умолчанию. Compose может переопределить.
+ENV WRA_API_INTERNAL=http://api:8080
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

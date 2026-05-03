@@ -84,9 +84,17 @@ export async function fetchJsonWithRetry<T>(url: string, options?: FetchJsonWith
         outer.addEventListener("abort", onOuterAbort, { once: true });
       }
 
+      const traceId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `wra-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
       const res = await fetch(url, {
         cache: "no-store",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          "X-Client-Trace-Id": traceId,
+        },
         signal: attemptController.signal,
       });
 

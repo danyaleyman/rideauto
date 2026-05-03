@@ -48,6 +48,8 @@ import {
   trimFacetLabelMinusGeneration,
 } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
+import { t } from "@/lib/i18n";
+import { reportClientError } from "@/lib/observability";
 import { siteBreadcrumbBarClass } from "@/lib/site-layout";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth } from "@/components/AuthProvider";
@@ -278,6 +280,7 @@ export function CatalogClient({
       } catch (e) {
         if (ac.signal.aborted) return;
         setErr(e instanceof Error ? e.message : "Ошибка загрузки");
+        reportClientError(e, { area: "catalog_search", key, page: state.page });
         sendCatalogDiagEvent(diagEnabled, "catalog_search_failed", {
           key,
           duration_ms: Date.now() - started,
@@ -633,6 +636,16 @@ export function CatalogClient({
           </Breadcrumb>
         </div>
 
+        {!online ? (
+          <div
+            className="mb-4 rounded-xl border border-amber-600/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 [overflow-wrap:anywhere] dark:text-amber-50"
+            role="alert"
+          >
+            <p className="font-medium">{t("catalog.offline.title")}</p>
+            <p className="mt-1 text-amber-900/90 dark:text-amber-100/90">{t("catalog.offline.hint")}</p>
+          </div>
+        ) : null}
+
         {showSsrDegradedNotice ? (
           <div
             className="mb-4 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 [overflow-wrap:anywhere] dark:text-amber-50"
@@ -653,9 +666,6 @@ export function CatalogClient({
             <p className="mt-1 text-destructive/90">{err}</p>
             {catalogSearchErrorHint(err) ? (
               <p className="mt-2 text-muted-foreground">{catalogSearchErrorHint(err)}</p>
-            ) : null}
-            {!online ? (
-              <p className="mt-2 text-muted-foreground">Похоже, вы офлайн — подключитесь к сети и попробуйте снова.</p>
             ) : null}
             <p className="mt-2 text-xs text-muted-foreground">
               Убедитесь, что API отвечает (логи сервиса <code className="rounded bg-background/80 px-1">api</code>). В Docker не
@@ -680,7 +690,7 @@ export function CatalogClient({
 
         <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-7">
           <aside className="w-full min-w-0 shrink-0 self-start lg:w-[22.5rem]">
-            <div className="flex max-w-full flex-col gap-3 rounded-3xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:p-5">
+            <div className="flex max-w-full flex-col gap-3 rounded-3xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-elevated-ring backdrop-blur-sm sm:p-5">
               <MarketSegmentedControl market={state.market} onChange={switchMarket} />
 
               <Accordion
@@ -947,7 +957,7 @@ export function CatalogClient({
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-5 rounded-3xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:mb-6 sm:p-5">
+          <div className="mb-5 rounded-3xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-elevated-ring sm:mb-6 sm:p-5">
             <h1 className="text-base font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-lg md:text-xl">
               {title}
             </h1>
@@ -1368,14 +1378,19 @@ export function CatalogClient({
           ) : null}
 
           {search.result.length === 0 && !loading && !err ? (
-            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-border/60 bg-card/60 px-6 py-8 text-center shadow-sm">
-              <p className="text-base font-medium text-foreground">По этим условиям сейчас нет объявлений</p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Измените фильтры слева или сбросьте их — так проще найти варианты.
-              </p>
-              <Button type="button" className="mt-5 rounded-full" variant="secondary" onClick={reset}>
-                Сбросить фильтры
-              </Button>
+            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-border/60 bg-card/60 px-6 py-8 text-center shadow-sm ring-1 ring-elevated-ring">
+              <p className="text-base font-medium text-foreground">{t("catalog.empty.title")}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t("catalog.empty.hint")}</p>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+                <Button type="button" className="rounded-full" variant="secondary" onClick={reset}>
+                  {t("catalog.empty.reset")}
+                </Button>
+                <Button type="button" className="rounded-full" variant="outline" asChild>
+                  <a href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">
+                    {t("catalog.empty.telegramCta")}
+                  </a>
+                </Button>
+              </div>
             </div>
           ) : null}
 

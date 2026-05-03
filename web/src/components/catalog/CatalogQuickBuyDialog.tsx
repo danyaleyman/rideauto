@@ -90,7 +90,7 @@ export function CatalogQuickBuyDialog({
       <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle>Оставить заявку на покупку</DialogTitle>
-          <DialogDescription>{carTitle}</DialogDescription>
+          <DialogDescription id={`catalog-buy-desc-${carId}`}>{carTitle}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
           <div className="grid gap-1.5">

@@ -25,9 +25,11 @@ async def run_in_thread_traced(name: str, fn: Callable[[], T]) -> T:
     try:
         from opentelemetry import trace
 
-        with trace.get_tracer("rideauto.catalog").start_as_current_span(name):
-            return await asyncio.to_thread(fn)
+        tracer = trace.get_tracer("rideauto.catalog")
     except Exception:
+        return await asyncio.to_thread(fn)
+
+    with tracer.start_as_current_span(name):
         return await asyncio.to_thread(fn)
 
 
@@ -35,7 +37,9 @@ async def await_traced(name: str, coro: Awaitable[T]) -> T:
     try:
         from opentelemetry import trace
 
-        with trace.get_tracer("rideauto.catalog").start_as_current_span(name):
-            return await coro
+        tracer = trace.get_tracer("rideauto.catalog")
     except Exception:
+        return await coro
+
+    with tracer.start_as_current_span(name):
         return await coro

@@ -42,3 +42,6 @@ node_modules/
 # Playwright / e2e
 test-results/
 
+# Storybook build output
+web/storybook-static/
+

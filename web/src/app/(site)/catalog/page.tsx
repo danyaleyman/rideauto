@@ -38,7 +38,11 @@ export default async function CatalogPage({ searchParams }: PageProps) {
   let ssrDegraded = false;
   try {
     initial = await fetchSearch(flat, { revalidate: 30 });
-  } catch {
+  } catch (e) {
+    console.error(
+      "[rideauto] catalog SSR fetchSearch failed (client will retry via /api). Check api logs and WRA_API_INTERNAL on web:",
+      e instanceof Error ? e.message : e,
+    );
     ssrDegraded = true;
   }
 
