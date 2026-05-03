@@ -77,6 +77,30 @@ def test_final_price_rub_from_pricing_clean_when_clean_read_off(monkeypatch):
     assert rm["price_on_request"] is False
 
 
+def test_power_hp_falls_back_to_encar_power_root(monkeypatch):
+    """Encar кладёт л.с. в `power`; без spec_clean legacy-путь раньше давал null."""
+    monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
+    d = {
+        "source": "encar",
+        "mark": "Hyundai",
+        "power": "180",
+        "pricing_clean": {"final_price_rub": 1.0, "pricing_tier": "full_customs"},
+    }
+    rm = build_catalog_read_model(d, use_clean=False)
+    assert rm["power_hp"] == 180
+
+
+def test_power_hp_normalized_from_spec_clean_string(monkeypatch):
+    monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
+    d = {
+        "source": "encar",
+        "spec_clean": {"power_hp": "198"},
+        "pricing_clean": {"final_price_rub": 1.0, "pricing_tier": "full_customs"},
+    }
+    rm = build_catalog_read_model(d, use_clean=True)
+    assert rm["power_hp"] == 198
+
+
 def test_encar_does_not_reconcile_dongchedi(monkeypatch):
     monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
     d = {

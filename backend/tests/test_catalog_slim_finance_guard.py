@@ -98,7 +98,8 @@ def test_slim_uses_legacy_when_clean_mode_off(monkeypatch):
         }
     }
     out = slim_catalog_car(car, "encar-5")
-    assert out.get("price") == 1000
+    # Как в read_models: final_price_rub из pricing_clean используется даже при clean-read выключен
+    assert out.get("price") == 2000
     assert out.get("price_on_request") in (False, None)
     get_settings.cache_clear()
 

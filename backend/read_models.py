@@ -63,6 +63,23 @@ def _safe_num(v: Any) -> float | None:
         return None
 
 
+def _normalize_power_hp_value(v: Any) -> int | None:
+    """Единый тип для read model и dual-run (Encar часто хранит л.с. в `power`, в spec_clean — строка)."""
+    if v is None or v == "":
+        return None
+    try:
+        return int(round(float(str(v).strip())))
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolve_power_hp(spec: Dict[str, Any], data: Dict[str, Any]) -> int | None:
+    raw = _pick(spec, "power_hp", data, "power_hp")
+    if raw in (None, ""):
+        raw = data.get("power")
+    return _normalize_power_hp_value(raw)
+
+
 def _pick(clean: Dict[str, Any], key: str, legacy: Dict[str, Any], legacy_key: str) -> Any:
     if key in clean and clean.get(key) not in (None, ""):
         return clean.get(key)
@@ -116,7 +133,7 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
         "body_type": _safe_text(_pick(spec, "body_type", data, "body_type")),
         "color": _safe_text(_pick(spec, "color", data, "color")),
         "mileage_km": _pick(spec, "mileage_km", data, "km_age"),
-        "power_hp": _pick(spec, "power_hp", data, "power_hp"),
+        "power_hp": _resolve_power_hp(spec, data),
         "price_rub": price_out,
         "price_on_request": price_on_request,
         "reserved_placeholder": legacy_reserved,
