@@ -22,13 +22,13 @@
 | **1. Состояния каталога** | Явный офлайн-баннер (`role="alert"`), пустая выдача с CTA «Сбросить» + Telegram, отчёт в Sentry при ошибке поиска (см. п. 4). |
 | **1. Storybook** | `npm run storybook` / `build-storybook` (Vite 5 + `@storybook/react-vite` 8.6), сторис: Button, Skeleton; в CI — job `storybook`. |
 | **2. a11y** | Playwright + `@axe-core/playwright` (serious/critical = 0) на главной, каталоге (мок), `/buy`; исправлен плейсхолдер калькулятора (`role="status"`). |
-| **3. Lighthouse CI** | `web/lighthouserc.cjs`, скрипт `npm run lh:ci` (страницы без обязательного API); job `lighthouse` в GitHub Actions. Performance в assert отключён (зависит от окружения). |
+| **3. Lighthouse CI** | `web/lighthouserc.cjs` (performance как **warn**, minScore 0.72); пример жёстких порогов для стейджа — `web/lighthouserc.staging.example.cjs`; job `lighthouse` в GitHub Actions. |
 | **3. LCP карточки** | Уже заданы `priority` и `fetchPriority="high"` на герое галереи (`CarPhotoGallery`). |
 | **3. Виртуализация** | Не внедрялась: карточки переменной высоты; зарезервирован флаг `NEXT_PUBLIC_FEATURE_VIRTUAL_LIST`. |
 | **4. Наблюдаемость** | `X-Client-Trace-Id` на клиентских `fetch` (`client-fetch.ts`); `reportClientError` + опциональный `@sentry/browser` при `NEXT_PUBLIC_SENTRY_DSN`. |
 | **4. Feature flags** | `web/src/lib/feature-flags.ts` (`NEXT_PUBLIC_FEATURE_HOME_TRUST`, `NEXT_PUBLIC_FEATURE_VIRTUAL_LIST`). |
 | **5. Доверие / копирайт** | Блок `HomeTrustStrip` на главной (без изменения юридических страниц); тексты пустого каталога вынесены в `messages/ru.json` + `t()`. |
-| **6. Визуальные снапшоты** | `e2e/visual.spec.js`, тег `@visual`; по умолчанию `npm run test:e2e` их пропускает (разница ОС); `npm run test:e2e:visual` на Linux в CI или локально с `--update-snapshots`. |
+| **6. Визуальные снапшоты** | `e2e/visual.spec.js`, тег `@visual`; `snapshotPathTemplate` без суффикса ОС; эталоны коммитить с **Linux**, см. `deploy/docs/VISUAL_REGRESSION.md`; workflow **E2E Visual** (`workflow_dispatch`). |
 | **6. E2E / unit в CI** | Jobs: `frontend-unit` (Vitest), `e2e` (smoke + a11y), `storybook`, `lighthouse`. |
 | **6. i18n** | `web/messages/ru.json` + `t("ключ.с.точками")` — база для второго языка без смены смысла копирайта. |
 

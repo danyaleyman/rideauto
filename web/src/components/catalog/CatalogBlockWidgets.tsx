@@ -21,6 +21,13 @@ import { MOTION_TOKENS } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
 import type { CatalogPricingTierFilter, CatalogUrlState, Market } from "@/lib/catalog-url";
 
+export const PRICING_TIER_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "__any__", label: "Любая" },
+  { value: "full_customs", label: "Под ключ (с таможней РФ)" },
+  { value: "korea_land_only", label: "Без таможни РФ (Корея и логистика)" },
+  { value: "price_on_request", label: "Цена по запросу" },
+];
+
 export const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "date_new", label: "Сначала новые" },
   { value: "date_old", label: "Сначала старые" },
@@ -243,20 +250,38 @@ export function RangeBlock({
         <div className="mb-1 space-y-3 rounded-xl border border-border/80 bg-muted/15 px-3 py-3 dark:bg-muted/10">
           <div>
             <span className="text-sm font-medium text-foreground">Оценка цены</span>
-            <div className="relative mt-1.5">
-              <select
-                aria-label="Фильтр по типу оценки цены"
-                className="h-9 w-full appearance-none rounded-2xl border border-border bg-background px-3 pe-10 text-sm shadow-sm outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-                value={state.pricing_tier || ""}
-                onChange={(e) => setPricingTier(e.target.value)}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-1.5 h-10 w-full justify-between rounded-2xl font-normal"
+                  aria-label={`Фильтр по типу оценки цены: ${PRICING_TIER_FILTER_OPTIONS.find((o) => o.value === (state.pricing_tier || "__any__"))?.label ?? "Любая"}`}
+                >
+                  <span className="min-w-0 truncate text-start">
+                    {PRICING_TIER_FILTER_OPTIONS.find((o) => o.value === (state.pricing_tier || "__any__"))?.label ??
+                      "Любая"}
+                  </span>
+                  <ChevronsUpDown className="size-4 shrink-0 opacity-55" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[13rem] max-w-[min(100vw-2rem,24rem)] p-1.5"
               >
-                <option value="">Любая</option>
-                <option value="full_customs">Под ключ (с таможней РФ)</option>
-                <option value="korea_land_only">Без таможни РФ (Корея и логистика)</option>
-                <option value="price_on_request">Цена по запросу</option>
-              </select>
-              <ChevronsUpDown className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/80" />
-            </div>
+                <DropdownMenuLabel>Оценка цены</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={state.pricing_tier || "__any__"}
+                  onValueChange={(v) => setPricingTier(v === "__any__" ? "" : v)}
+                >
+                  {PRICING_TIER_FILTER_OPTIONS.map((o) => (
+                    <DropdownMenuRadioItem key={o.value} value={o.value} className="cursor-pointer">
+                      {o.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <label
             className={cn(

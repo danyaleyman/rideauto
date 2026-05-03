@@ -1,0 +1,25 @@
+# Визуальные снапшоты Playwright (@visual). Запуск вручную — не блокирует main CI.
+# Эталоны: см. deploy/docs/VISUAL_REGRESSION.md (снимать на Linux, коммитить PNG).
+name: E2E Visual
+
+on:
+  workflow_dispatch:
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: pip install -r backend/requirements.txt
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e:visual

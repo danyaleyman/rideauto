@@ -83,7 +83,12 @@ export function CatalogQuickBuyDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button type="button" size={triggerSize} className={triggerClassName ?? "rounded-lg ms-auto"}>
+        <Button
+          type="button"
+          variant="default"
+          size={triggerSize}
+          className={triggerClassName ?? "ms-auto rounded-full px-4 font-semibold shadow-sm"}
+        >
           {triggerLabel}
         </Button>
       </DialogTrigger>

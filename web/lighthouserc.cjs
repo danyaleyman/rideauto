@@ -23,7 +23,8 @@ module.exports = {
     },
     assert: {
       assertions: {
-        "categories:performance": "off",
+        // PR: при отключённом perf зелёный CI не ловит регрессии. Сначала warn; жёсткий error — на стейдже (см. lighthouserc.staging.example.cjs).
+        "categories:performance": ["warn", { minScore: 0.72 }],
         "categories:accessibility": ["error", { minScore: 0.88 }],
         "categories:best-practices": ["error", { minScore: 0.88 }],
         "categories:seo": ["warn", { minScore: 0.9 }],

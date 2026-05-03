@@ -22,6 +22,7 @@ import {
   catalogSearchErrorHint,
   colorSwatchClass,
   facetRowLabel,
+  groupFacetRows,
   previewImageUrls,
   shouldShowPendingNavigation,
   visiblePageItems,
@@ -481,6 +482,14 @@ export function CatalogClient({
     return map;
   }, [facets]);
 
+  /** Топ по счётчику фасета — компактный ряд в фильтре, остальное в диалоге. */
+  const popularColorRows = useMemo(() => {
+    const colorFacets = facets?.colors;
+    if (!colorFacets?.length) return [];
+    const grouped = groupFacetRows(colorFacets);
+    return [...grouped].sort((a, b) => b.count - a.count).slice(0, 4);
+  }, [facets?.colors]);
+
   const trimFacetLabelFormatter = useCallback(
     (row: FacetRow) => {
       const base = facetRowLabel(row);
@@ -903,34 +912,29 @@ export function CatalogClient({
                 <AccordionContent className="space-y-3 sm:px-5">
                   {facets ? (
                     <>
-                      <div className="rounded-xl border border-border bg-muted/20 p-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Популярные цвета
-                        </p>
+                      <div className="rounded-xl border border-border/70 bg-muted/15 p-3 dark:bg-muted/10">
+                        <p className="text-xs font-medium text-muted-foreground">Популярные цвета</p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {facets.colors.slice(0, 8).map((row, idx) => {
-                            const vals =
-                              Array.isArray(row.values) && row.values.length
-                                ? row.values
-                                : [row.value];
+                          {popularColorRows.map((row) => {
+                            const vals = row.values.length ? row.values : [];
                             const active = vals.some((v) => state.color.includes(v));
                             return (
                               <Button
-                                key={`${idx}:${row.value}`}
+                                key={row.label}
                                 type="button"
-                                variant={active ? "default" : "secondary"}
+                                variant={active ? "default" : "outline"}
                                 size="xs"
-                                className="h-8 max-w-full rounded-full px-2.5"
+                                className="h-8 max-w-[calc(50%-0.25rem)] flex-1 basis-[40%] rounded-full border-border/80 px-2.5 text-xs font-medium shadow-sm sm:max-w-none sm:flex-none sm:basis-auto"
                                 onClick={() => toggle("color", vals)}
                               >
                                 <span
                                   className={cn(
                                     "size-3 shrink-0 rounded-full",
-                                    colorSwatchClass(facetRowLabel(row)),
+                                    colorSwatchClass(row.label),
                                   )}
                                   aria-hidden
                                 />
-                                <span className="truncate">{facetRowLabel(row)}</span>
+                                <span className="truncate">{row.label}</span>
                               </Button>
                             );
                           })}
@@ -1150,16 +1154,16 @@ export function CatalogClient({
                       </div>
                     </Link>
                     <div className="flex min-w-0 flex-1 flex-col justify-between gap-0 sm:rounded-e-2xl">
-                      <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
+                      <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 sm:py-3.5 md:px-5">
                         <Link
                           href={`/car/${encodeURIComponent(car.id)}`}
                           prefetch
-                          className="flex min-w-0 flex-1 items-center self-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex min-w-0 flex-1 items-start self-stretch pt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:items-center sm:pt-0"
                           onClick={(e) => {
                             if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
                           }}
                         >
-                          <p className="font-heading line-clamp-2 min-h-[2.9rem] text-[15px] font-semibold leading-snug sm:min-h-[2.25rem] sm:text-base">
+                          <p className="font-heading line-clamp-2 min-h-[3rem] text-[15px] font-semibold leading-snug sm:min-h-[2.65rem] sm:text-base md:min-h-[2.85rem]">
                             {normalizedTitle}
                           </p>
                         </Link>
@@ -1210,19 +1214,19 @@ export function CatalogClient({
                           ) : null}
                         </div>
                       </div>
-                      <div className="flex items-start px-3 pb-2 pt-1 sm:px-4 sm:pb-2 sm:pt-0.5 md:px-5">
+                      <div className="flex items-start px-3 pb-2 pt-2 sm:px-4 sm:pb-2 sm:pt-2.5 md:px-5 md:pt-3 lg:justify-start">
                         {attrChips.length ? (
                           <Link
                             href={`/car/${encodeURIComponent(car.id)}`}
                             prefetch
-                            className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring lg:max-w-xl"
                             onClick={(e) => {
                               if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
                             }}
                             aria-label={`Открыть объявление: ${normalizedTitle}, краткие характеристики`}
                           >
                             <ul
-                              className="flex min-w-0 flex-wrap justify-start gap-2"
+                              className="flex min-w-0 flex-wrap justify-start gap-1.5 md:gap-2"
                               aria-label="Краткие характеристики"
                             >
                               {attrChips.map((c) => {
@@ -1231,7 +1235,7 @@ export function CatalogClient({
                                   <li key={c.key} className="min-w-0 max-w-full">
                                     <Badge
                                       variant="outline"
-                                      className="inline-flex h-auto max-w-full items-center gap-1 rounded-xl border-border/70 bg-muted/25 px-2 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/20"
+                                      className="inline-flex h-auto max-w-full items-center gap-1 rounded-full border-border/60 bg-background/80 px-2.5 py-1 text-[11px] font-medium normal-case text-foreground shadow-sm [overflow-wrap:anywhere] dark:bg-muted/30"
                                     >
                                       <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
                                       <span className="min-w-0">{c.label}</span>
@@ -1267,7 +1271,7 @@ export function CatalogClient({
                                 {car.pricing_tier === "korea_land_only" ? (
                                   <Badge
                                     variant="outline"
-                                    className="inline-flex h-7 max-w-full items-center gap-1 rounded-lg border-amber-600/45 bg-amber-500/12 px-2.5 text-xs font-semibold text-amber-950 [overflow-wrap:anywhere] dark:text-amber-100"
+                                    className="inline-flex h-8 max-w-full items-center gap-1 rounded-full border-amber-500/35 bg-amber-500/[0.09] px-2.5 text-[11px] font-medium text-amber-950 [overflow-wrap:anywhere] dark:text-amber-100"
                                   >
                                     Без таможни РФ
                                     <Tooltip>
@@ -1290,7 +1294,7 @@ export function CatalogClient({
                                 {passability === "passable" ? (
                                   <Badge
                                     variant="outline"
-                                    className="inline-flex h-7 items-center gap-1 rounded-lg border-emerald-600/40 bg-emerald-600/10 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200"
+                                    className="inline-flex h-8 items-center gap-1 rounded-full border-emerald-600/35 bg-emerald-600/[0.08] px-2.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-200"
                                   >
                                     Проходной
                                     <Tooltip>
@@ -1312,7 +1316,7 @@ export function CatalogClient({
                                 ) : passability === "young" ? (
                                   <Badge
                                     variant="outline"
-                                    className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
+                                    className="inline-flex h-8 items-center gap-1 rounded-full border-red-600/35 bg-red-600/[0.08] px-2.5 text-[11px] font-medium text-red-800 dark:text-red-200"
                                   >
                                     Высокая ставка
                                     <Tooltip>
@@ -1334,7 +1338,7 @@ export function CatalogClient({
                                 ) : passability === "old" ? (
                                   <Badge
                                     variant="outline"
-                                    className="inline-flex h-7 items-center gap-1 rounded-lg border-red-600/40 bg-red-600/10 px-2.5 text-xs font-semibold text-red-800 dark:text-red-200"
+                                    className="inline-flex h-8 items-center gap-1 rounded-full border-red-600/35 bg-red-600/[0.08] px-2.5 text-[11px] font-medium text-red-800 dark:text-red-200"
                                   >
                                     Высокая ставка
                                     <Tooltip>
@@ -1362,7 +1366,7 @@ export function CatalogClient({
                               carId={car.id}
                               carTitle={normalizedTitle}
                               triggerSize="sm"
-                              triggerClassName="ms-auto h-7 min-h-7 rounded-lg px-2.5 text-xs font-semibold"
+                              triggerClassName="ms-auto h-8 min-h-8 rounded-full border-primary/25 bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/92"
                             />
                           ) : null}
                         </div>

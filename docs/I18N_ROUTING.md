@@ -7,6 +7,7 @@
 - Серверные компоненты: `getServerLocale()` из `web/src/lib/locale-server.ts`.
 - Клиент: `LocaleProvider` + `useLocaleContext()` (`t`, `setLocale`).
 - Форматы дат/чисел/валюты: `web/src/lib/format-locale.ts`.
+- **SEO / hreflang:** `generateMetadata` в `web/src/app/(site)/layout.tsx` и `web/src/app/car/layout.tsx` отдаёт `alternates.languages` (`ru-RU`, `en-US` с тем же path + `?lang=en`, `x-default`). Путь и query берутся из заголовков `x-pathname` / `x-search`, которые выставляет `middleware.ts`.
 
 ## Не сделано (как у «больших» продуктов)
 

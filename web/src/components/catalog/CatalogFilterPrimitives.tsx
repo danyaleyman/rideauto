@@ -178,45 +178,47 @@ export function ColorFacetDialog({
       </DialogTrigger>
       <DialogContent
         showCloseButton
-        className="flex max-h-[92vh] w-[min(96vw,84rem)] max-w-[min(96vw,84rem)] flex-col gap-0 overflow-hidden p-0"
+        className="flex max-h-[90vh] w-[min(96vw,56rem)] max-w-[min(96vw,56rem)] flex-col gap-0 overflow-hidden p-0 sm:w-[min(96vw,64rem)] sm:max-w-[min(96vw,64rem)]"
       >
-        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 pt-6 pb-4 pe-14">
-          <DialogTitle>{label}</DialogTitle>
-          <DialogDescription>Можно выбрать несколько</DialogDescription>
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-5 pt-5 pb-3 pe-12 sm:px-6 sm:pt-6 sm:pb-4 sm:pe-14">
+          <DialogTitle className="text-base sm:text-lg">{label}</DialogTitle>
+          <DialogDescription>Можно выбрать несколько значений</DialogDescription>
         </DialogHeader>
-        <div className="shrink-0 border-b border-border px-6 py-3">
+        <div className="shrink-0 border-b border-border px-5 py-3 sm:px-6">
           <Input
-            placeholder="Поиск…"
+            placeholder="Поиск по названию цвета…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-9 rounded-xl"
+            className="h-10 rounded-xl text-sm"
           />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
           {filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Нет совпадений</p>
           ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {filtered.map((r) => {
                 const active = r.values.some((v) => selected.has(v));
                 return (
                   <div key={r.label} className="min-w-0">
                     <Button
                       type="button"
-                      variant={active ? "default" : "secondary"}
+                      variant={active ? "default" : "outline"}
                       size="sm"
-                      className="h-auto min-h-10 w-full min-w-0 items-start justify-start gap-2 rounded-xl px-2.5 py-2 text-start font-normal whitespace-normal"
+                      className="h-auto min-h-11 w-full min-w-0 flex-col items-stretch justify-center gap-1 rounded-xl px-3 py-2.5 text-center font-normal shadow-sm"
                       onClick={() => onToggle(r.values)}
                     >
                       <span
                         className={cn(
-                          "size-3.5 shrink-0 rounded-full",
+                          "mx-auto size-4 shrink-0 rounded-full",
                           colorSwatchClass(r.label),
                         )}
                         aria-hidden
                       />
-                      <span className="min-w-0 flex-1 break-words leading-snug">{r.label}</span>
-                      <span className="shrink-0 tabular-nums text-xs opacity-80">
+                      <span className="min-w-0 text-pretty text-xs leading-snug sm:text-[13px]">{r.label}</span>
+                      <span className="tabular-nums text-[11px] text-muted-foreground">
                         {r.count.toLocaleString("ru-RU")}
                       </span>
                     </Button>

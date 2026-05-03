@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Menu, Monitor, Moon, Sun, X } from "lucide-react";
+import { LogOut, Menu, Monitor, Moon, Sun, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/AuthProvider";
@@ -68,18 +68,100 @@ export function SiteHeader() {
     applyThemePreference(next);
   }, []);
 
+  const navLinks = (
+    <>
+      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/about">
+        О компании
+      </Link>
+      <Link className="text-primary font-medium" href="/catalog">
+        Каталог
+      </Link>
+      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/buy">
+        Как купить
+      </Link>
+      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/contacts">
+        Контакты
+      </Link>
+    </>
+  );
+
+  const themeMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="rounded-full shadow-sm"
+          aria-label="Тема оформления: светлая, системная или тёмная"
+          aria-haspopup="menu"
+          disabled={!mounted}
+        >
+          <Sun className="size-4 dark:hidden" aria-hidden />
+          <Moon className="hidden size-4 dark:block" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[14rem]">
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Оформление</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={themePref} onValueChange={(v) => setTheme(v as ThemePreference)}>
+          <DropdownMenuRadioItem value="light" className="cursor-pointer rounded-xl">
+            <Sun className="size-4 opacity-70" aria-hidden />
+            Светлая
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system" className="cursor-pointer rounded-xl">
+            <Monitor className="size-4 opacity-70" aria-hidden />
+            Как в системе
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark" className="cursor-pointer rounded-xl">
+            <Moon className="size-4 opacity-70" aria-hidden />
+            Тёмная
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const desktopActions = (
+    <>
+      {authenticated ? (
+        <div className={mobileMenuOpen ? "hidden sm:block" : ""}>
+          <FavoritesDialog />
+        </div>
+      ) : null}
+      <div className="hidden sm:block">{themeMenu}</div>
+      <Button variant="outline" size="sm" className="hidden rounded-full shadow-sm sm:inline-flex" asChild>
+        <Link href="/contacts">Написать менеджеру</Link>
+      </Button>
+      {authenticated ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="hidden rounded-full shadow-sm sm:inline-flex"
+          onClick={() => {
+            void logout();
+          }}
+          aria-label={user?.email ? `Выйти из аккаунта ${user.email}` : "Выйти из аккаунта"}
+        >
+          Выйти
+        </Button>
+      ) : (
+        <Button size="sm" className="hidden rounded-full shadow-sm sm:inline-flex" asChild>
+          <Link href="/login">Войти</Link>
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex min-w-0 max-w-[1440px] flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-10">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          World Ride Auto
-        </Link>
-        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:flex-wrap sm:gap-x-3 sm:gap-y-2 sm:gap-x-4">
+      <div className="mx-auto min-w-0 max-w-[1440px] px-3 py-2.5 sm:px-6 sm:py-3 lg:px-10">
+        {/* Мобильная: бургер | Ride Auto по центру | Войти */}
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:hidden">
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="rounded-full shadow-sm sm:hidden"
+            className="rounded-full shadow-sm"
             aria-label={mobileMenuOpen ? "Закрыть меню" : "Открыть меню"}
             aria-expanded={mobileMenuOpen}
             aria-controls="site-mobile-nav"
@@ -87,94 +169,43 @@ export function SiteHeader() {
           >
             {mobileMenuOpen ? <X className="size-4" aria-hidden /> : <Menu className="size-4" aria-hidden />}
           </Button>
-
-          <nav className="hidden flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium sm:flex">
-            <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/about">
-              О компании
-            </Link>
-            <Link className="text-primary font-medium" href="/catalog">
-              Каталог
-            </Link>
-            <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/buy">
-              Как купить
-            </Link>
-            <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/contacts">
-              Контакты
-            </Link>
-          </nav>
-
-          {authenticated ? (
-            <div className={mobileMenuOpen ? "hidden sm:block" : ""}>
-              <FavoritesDialog />
-            </div>
-          ) : null}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <Link href="/" className="text-center text-[0.95rem] font-semibold tracking-tight">
+            Ride Auto
+          </Link>
+          <div className="flex items-center justify-end gap-1">
+            {authenticated ? <FavoritesDialog /> : null}
+            {authenticated ? (
               <Button
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                className="hidden rounded-full shadow-sm sm:inline-flex"
-                aria-label="Тема оформления: светлая, системная или тёмная"
-                aria-haspopup="menu"
-                disabled={!mounted}
+                className="rounded-full shadow-sm"
+                onClick={() => {
+                  void logout();
+                }}
+                aria-label={user?.email ? `Выйти из аккаунта ${user.email}` : "Выйти из аккаунта"}
               >
-                <Sun className="size-4 dark:hidden" aria-hidden />
-                <Moon className="hidden size-4 dark:block" aria-hidden />
+                <LogOut className="size-3.5" aria-hidden />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[14rem]">
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Оформление</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={themePref}
-                onValueChange={(v) => setTheme(v as ThemePreference)}
-              >
-                <DropdownMenuRadioItem value="light" className="cursor-pointer rounded-xl">
-                  <Sun className="size-4 opacity-70" aria-hidden />
-                  Светлая
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system" className="cursor-pointer rounded-xl">
-                  <Monitor className="size-4 opacity-70" aria-hidden />
-                  Как в системе
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark" className="cursor-pointer rounded-xl">
-                  <Moon className="size-4 opacity-70" aria-hidden />
-                  Тёмная
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            ) : (
+              <Button size="sm" variant="outline" className="rounded-full px-2.5 text-xs" asChild>
+                <Link href="/login">Войти</Link>
+              </Button>
+            )}
+          </div>
+        </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className={mobileMenuOpen ? "hidden rounded-full shadow-sm sm:inline-flex" : "rounded-full shadow-sm"}
-            asChild
-          >
-            <Link href="/contacts">Написать менеджеру</Link>
-          </Button>
-          {authenticated ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className={mobileMenuOpen ? "hidden rounded-full shadow-sm sm:inline-flex" : "rounded-full shadow-sm"}
-              onClick={() => {
-                void logout();
-              }}
-              aria-label={user?.email ? `Выйти из аккаунта ${user.email}` : "Выйти из аккаунта"}
-            >
-              Выйти
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              className={mobileMenuOpen ? "hidden rounded-full shadow-sm sm:inline-flex" : "rounded-full shadow-sm"}
-              asChild
-            >
-              <Link href="/login">Войти</Link>
-            </Button>
-          )}
+        {/* Десктоп: логотип | навигация по центру | действия */}
+        <div className="hidden min-h-[2.5rem] grid-cols-[1fr_auto_1fr] items-center gap-3 sm:grid">
+          <Link href="/" className="justify-self-start text-lg font-semibold tracking-tight">
+            World Ride Auto
+          </Link>
+          <nav className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-medium">
+            {navLinks}
+          </nav>
+          <div className="justify-self-end flex flex-wrap items-center justify-end gap-x-2 gap-y-2 sm:gap-x-3">
+            {desktopActions}
+          </div>
         </div>
 
         <AnimatePresence initial={false}>
@@ -238,6 +269,15 @@ export function SiteHeader() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Контакты
+                  </Link>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
+                  <Link
+                    className="rounded-lg px-2 py-2 font-medium text-primary transition-colors hover:bg-muted/60"
+                    href="/contacts"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Написать менеджеру
                   </Link>
                 </motion.div>
               </motion.nav>

@@ -3,10 +3,11 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
   timeout: 90_000,
-  expect: { timeout: 30_000 },
   fullyParallel: false,
   workers: 1,
   reporter: "list",
+  /** Без суффикса ОС в имени файла — эталоны снимаем на Linux (CI) и коммитим один набор PNG. */
+  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}{ext}",
   use: {
     trace: "on-first-retry",
     screenshot: "only-on-failure",

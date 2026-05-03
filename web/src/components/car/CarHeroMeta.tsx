@@ -1,8 +1,10 @@
 import { CalendarDays, Fuel, Gauge, IdCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
+import { CarPricingTierBadge } from "@/components/car/CarPricingTierBadge";
 import { asStr, formatKm, formatRegYearMonth, normalizeFuelLabel, translateKoToRuText } from "@/lib/car-detail-data";
 import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
+import { extractPricingTier } from "@/lib/pricing-tier-ui";
 
 /** Заголовок и ключевые факты под галереей (чипы с иконками — как у крупных площадок). */
 export function CarHeroMeta({
@@ -42,6 +44,7 @@ export function CarHeroMeta({
   if (plate) chips.push({ key: "plate", label: `Гос № ${plate}`, variant: "secondary", icon: IdCard });
 
   const srcHuman = sourceLabel ? carSourceDisplayName(sourceLabel) : null;
+  const pricingTier = extractPricingTier(data);
 
   return (
     <header className="mt-6 min-w-0 border-b border-border/60 pb-8 sm:mt-8">
@@ -62,6 +65,11 @@ export function CarHeroMeta({
       <h1 className="font-heading text-[1.55rem] font-bold leading-snug tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-3xl md:text-[2.15rem]">
         {title}
       </h1>
+      {pricingTier ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <CarPricingTierBadge tier={pricingTier} />
+        </div>
+      ) : null}
       {chips.length > 0 ? (
         <MotionStagger className="mt-4 flex min-w-0 flex-wrap gap-2" aria-label="Краткие характеристики">
           {chips.map((c) => {
