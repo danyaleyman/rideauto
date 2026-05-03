@@ -22,6 +22,16 @@ def test_expand_fuel_includes_original_and_canon():
     assert "가솔린" in out
 
 
+def test_merge_korea_drops_numeric_transmission_rows():
+    flat = {"region": "korea"}
+    merged = merge_facet_distribution_rows(
+        "transmission",
+        [{"value": "6", "count": 5}, {"value": "Автомат", "count": 2}],
+        query_flat=flat,
+    )
+    assert [str(x.get("value")) for x in merged] == ["Автомат"]
+
+
 def test_merge_facets_hides_unmapped_korean_labels():
     flat = {"region": "korea"}
     rows = [

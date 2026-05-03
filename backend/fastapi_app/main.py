@@ -16,12 +16,16 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from meilisearch import Client
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from fastapi_app.cache import NoOpCache
 from fastapi_app.config import get_settings
 from fastapi_app.metrics.prometheus import metrics_payload
 from fastapi_app.middleware.cdn_cache import CDNCacheMiddleware
 from fastapi_app.middleware.prometheus_http import PrometheusHTTPMiddleware
+from fastapi_app.otel_tracing import init_otel_instrumentation
+from fastapi_app.rate_limit import limiter
 from fastapi_app.redis_cache import RedisJSONCache, close_redis_client, create_redis_client
 from fastapi_app.routers import (
     auth,
@@ -69,6 +73,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="RideAuto API", lifespan=lifespan)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    init_otel_instrumentation(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],

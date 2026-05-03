@@ -46,8 +46,10 @@
     "power_kw",
     "torque_nm",
     "displacement_label",
-    "displacement_cc"
+    "displacement_cc",
+    "catalog_dedupe_key"
   ],
+  "distinctAttribute": "catalog_dedupe_key",
   "sortableAttributes": [
     "price",
     "year",

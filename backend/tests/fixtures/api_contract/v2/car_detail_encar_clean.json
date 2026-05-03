@@ -1,0 +1,68 @@
+{
+  "api_version": "v2",
+  "result": {
+    "_catalog_created_at": "2026-01-15T12:00:00+00:00",
+    "data": {
+      "body_type": "sedan",
+      "color": "white",
+      "drive_type": "",
+      "engine_type": "gasoline",
+      "generation": "1.6 Turbo",
+      "generation_en": "1.6 Turbo",
+      "identity_clean": {
+        "mark": "\uae30\uc544",
+        "model": "K5",
+        "generation": "1.6 Turbo"
+      },
+      "images": [
+        "https://ci.encar.com/c1.jpg"
+      ],
+      "inner_id": "inner-snap-2",
+      "km_age": "10000.0",
+      "mark": "Kia",
+      "mark_en": "Kia",
+      "model": "K5",
+      "model_en": "K5",
+      "my_price": 3500000.0,
+      "power": "180",
+      "pricing_clean": {
+        "final_price_rub": 4200000.0,
+        "pricing_tier": "full_customs"
+      },
+      "source": "encar",
+      "spec_clean": {
+        "body_type": "sedan",
+        "color": "\ud76c\uc0c9",
+        "engine_type": "gasoline",
+        "transmission_type": "automatic"
+      },
+      "transmission_type": "automatic",
+      "year": "202108.0"
+    },
+    "id": "snap-encar-2",
+    "catalog_updated_at": "2026-01-15T12:00:05+00:00",
+    "read_model": {
+      "body_type": "sedan",
+      "color": "\ud76c\uc0c9",
+      "customs_included": true,
+      "damaged_parts_count": null,
+      "drive_type": "",
+      "engine_type": "gasoline",
+      "generation": "1.6 Turbo",
+      "insurance_cases": null,
+      "mark": "\uae30\uc544",
+      "mileage_km": "10000.0",
+      "model": "K5",
+      "model_group": "",
+      "power_hp": 180,
+      "price_on_request": false,
+      "price_rub": 4200000.0,
+      "pricing_tier": "full_customs",
+      "reserved_placeholder": false,
+      "transmission_type": "automatic",
+      "trim_name": "",
+      "year": "202108.0"
+    },
+    "read_model_version": "car_detail.v2"
+  }
+}

@@ -115,7 +115,8 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
     )
 
     legacy_reserved = bool(
-        _pick(pricing, "reserved_placeholder", data, "encar_listing_reserved") is True,
+        _pick(pricing if use_clean else pc_price, "reserved_placeholder", data, "encar_listing_reserved")
+        is True,
     )
     price_on_request = tier == "price_on_request"
     price_out: float | None = None if tier == "price_on_request" else numeric_price_rub
@@ -144,10 +145,38 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
     }
 
 
+_DETAIL_ROW_TOP_KEYS = frozenset(
+    {
+        "id",
+        "car_id",
+        "_catalog_created_at",
+        "_catalog_updated_at",
+        "catalog_updated_at",
+        "encar_listing_sold",
+        "dongchedi_listing_sold",
+    }
+)
+
+
 def build_car_detail_read_model(row: Dict[str, Any], *, use_clean: bool, api_version: str) -> Dict[str, Any]:
-    data = row.get("data") if isinstance(row.get("data"), dict) else row
-    rm = build_catalog_read_model(data, use_clean=use_clean)
-    out = dict(row)
+    """Единый публичный вид: всегда есть `data` + `read_model`; карточка не «размазана» по корню."""
+    data_src = row.get("data") if isinstance(row.get("data"), dict) else row
+    rm = build_catalog_read_model(data_src, use_clean=use_clean)
+
+    cid = row.get("id")
+    if cid in (None, ""):
+        cid = row.get("car_id")
+    out: Dict[str, Any] = {"id": str(cid or "").strip()}
+    if isinstance(row.get("data"), dict):
+        out["data"] = dict(row["data"])
+    else:
+        out["data"] = {k: v for k, v in row.items() if k not in _DETAIL_ROW_TOP_KEYS}
+    for fk in ("_catalog_created_at", "encar_listing_sold", "dongchedi_listing_sold"):
+        if fk in row:
+            out[fk] = row[fk]
+    cua = row.get("_catalog_updated_at") or row.get("catalog_updated_at")
+    if cua not in (None, ""):
+        out["catalog_updated_at"] = str(cua).strip()
     out["read_model_version"] = f"car_detail.{api_version}"
     out["read_model"] = rm
     return out

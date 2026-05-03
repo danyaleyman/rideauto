@@ -92,7 +92,7 @@ async def test_similar_core_excludes_self_and_clamps_result(monkeypatch):
     req = _fake_request(meili=_FakeMeili(hits))
     body = await search_router._similar_cars(req, "c1", 2)
 
-    assert [x.get("id") for x in body.result] == ["c2", "c3"]
+    assert [x.id for x in body.result] == ["c2", "c3"]
     assert body.meta.limit == 2
     assert body.meta.total_candidates >= 1
 

@@ -3,6 +3,8 @@
 Full or incremental sync: PostgreSQL `cars` → Meilisearch index `cars`.
 
 Field mapping (Meilisearch document):
+  catalog_dedupe_key ← VIN (нормализованный, ≥11) или source:inner_id или id:car_id (см. `backend/catalog_dedupe.py`);
+                      при `distinctAttribute` в index settings — не более одного хита на ключ в поиске.
   brand         ← cars.mark
   model         ← cars.model
   model_cluster ← линейка (склейка вариантов; data/model_cluster_rules.json + эвристика)
@@ -81,11 +83,16 @@ _REPO_ROOT_MEILI, _BACKEND_MEILI = _meili_repo_and_backend()
 if str(_BACKEND_MEILI) not in sys.path:
     sys.path.insert(0, str(_BACKEND_MEILI))
 try:
+    from catalog_dedupe import catalog_dedupe_key as _catalog_dedupe_key  # noqa: E402
     from catalog_model_cluster import compute_model_cluster as _compute_model_cluster  # noqa: E402
 except ImportError:  # tests / упаковка без backend в PYTHONPATH
 
     def _compute_model_cluster(brand: str, model_group: str, *, rules_path: Optional[str] = None) -> str:
         return (model_group or "").strip()
+
+    def _catalog_dedupe_key(car_id: str, source: Optional[str], listing_root: Dict[str, Any]) -> str:
+        cid = str(car_id or "").strip()
+        return f"id:{cid}" if cid else "id:unknown"
 
 
 _MEILI_INVALID_KEY_HINT = (
@@ -321,6 +328,13 @@ def row_to_document(row: Dict[str, Any], *, clean_read_mode: bool = False) -> Di
     if listed:
         doc["catalog_created_at"] = listed
 
+    lj_dedupe = _listing_json_root(row)
+    doc["catalog_dedupe_key"] = _catalog_dedupe_key(
+        str(car_id),
+        str(row.get("source") or "") if row.get("source") is not None else None,
+        lj_dedupe if isinstance(lj_dedupe, dict) else {},
+    )
+
     return doc
 
 
@@ -392,7 +406,8 @@ def iter_car_rows(
                 c.updated_at,
                 c.created_at
             FROM cars AS c
-            WHERE (%s::timestamptz IS NULL OR c.updated_at >= %s::timestamptz)
+            WHERE (c.dedupe_canonical_car_id IS NULL)
+              AND (%s::timestamptz IS NULL OR c.updated_at >= %s::timestamptz)
             ORDER BY c.id ASC
         """
         itersize = max(256, min(batch_size, 5000))

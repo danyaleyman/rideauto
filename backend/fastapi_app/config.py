@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     cache_ttl_facets_sec: int = Field(default=30, ge=0, description="Кэш /api/facets и /api/filters")
     cache_ttl_car_sec: int = Field(default=60, ge=0, description="Кэш /api/car/{id}")
 
+    catalog_cache_epoch: str = Field(
+        default="",
+        max_length=128,
+        description=(
+            "WRA_CATALOG_CACHE_EPOCH — произвольная метка (например дата релиза). "
+            "Меняется → другой ключ Redis для search/similar/car/facets при тех же query."
+        ),
+    )
+
     cache_invalidate_secret: Optional[str] = Field(
         default=None,
         description="Секрет для POST /api/internal/cache/invalidate (заголовок X-WRA-Admin-Key)",
@@ -123,6 +132,31 @@ class Settings(BaseSettings):
 
     metrics_enabled: bool = Field(default=True, description="WRA_METRICS_ENABLED — /metrics и HTTP middleware")
     metrics_path: str = Field(default="/metrics", description="Путь exposition Prometheus")
+    metrics_response_body_bytes_enabled: bool = Field(
+        default=True,
+        description="WRA_METRICS_RESPONSE_BODY_BYTES — histogram размера тела ответа, если body уже материализован",
+    )
+
+    rate_limit_public_per_minute: int = Field(
+        default=0,
+        ge=0,
+        description="WRA_RATE_LIMIT_PUBLIC_PER_MINUTE — лимит GET /api/search|/cars|/facets|/filters на IP (0=выкл); для нескольких воркеров задайте WRA_RATE_LIMIT_REDIS_URI",
+    )
+    rate_limit_trust_forwarded_for: bool = Field(
+        default=False,
+        description="WRA_RATE_LIMIT_TRUST_FORWARDED_FOR — брать клиента из X-Forwarded-For (только за доверенным прокси!)",
+    )
+    rate_limit_redis_uri: Optional[str] = Field(
+        default=None,
+        description="WRA_RATE_LIMIT_REDIS_URI — отдельный Redis для slowapi; если пусто, при наличии WRA_REDIS_URL он же используется как storage лимита (нужно при uvicorn --workers >1)",
+    )
+
+    otel_enabled: bool = Field(default=False, description="WRA_OTEL_ENABLED — OpenTelemetry OTLP HTTP для FastAPI")
+    otel_service_name: str = Field(default="rideauto-api", description="WRA_OTEL_SERVICE_NAME")
+    otel_exporter_otlp_traces_endpoint: Optional[str] = Field(
+        default=None,
+        description="WRA_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT — например http://jaeger:4318/v1/traces",
+    )
 
     # --- Заявки с формы «Как купить» (POST /api/lead) ---
     lead_email_to: str = Field(

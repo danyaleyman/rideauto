@@ -1,0 +1,8 @@
+# Владельцы по умолчанию (репозиторий: github.com/danyaleyman/rideauto).
+# При переносе в организацию замените на @org/team.
+* @danyaleyman
+
+/infrastructure/meilisearch/ @danyaleyman
+/backend/fastapi_app/meilisearch_query.py @danyaleyman
+/backend/fastapi_app/facet_normalize.py @danyaleyman
+/infrastructure/postgresql/migrations/ @danyaleyman

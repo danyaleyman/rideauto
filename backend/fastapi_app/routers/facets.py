@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Request
 from meilisearch import Client
 
+from fastapi_app.cache_epoch import with_cache_epoch_dict
 from fastapi_app.cached_route import serve_cached_json
 from fastapi_app.config import Settings, get_settings
 from fastapi_app.meilisearch_query import (
@@ -14,6 +15,7 @@ from fastapi_app.meilisearch_query import (
     build_meilisearch_filter,
     facet_distribution_to_rows,
 )
+from fastapi_app.rate_limit import public_rate_limit
 from fastapi_app.schemas.api import FacetsResponse
 
 router = APIRouter(tags=["facets"])
@@ -71,7 +73,7 @@ async def _facets_body(request: Request) -> Dict[str, Any]:
 
 async def _facets_cached(request: Request) -> Dict[str, Any]:
     settings = get_settings()
-    flat = _flat_query(request)
+    flat = with_cache_epoch_dict(_flat_query(request), settings)
 
     async def compute() -> Dict[str, Any]:
         return await _facets_body(request)
@@ -86,11 +88,13 @@ async def _facets_cached(request: Request) -> Dict[str, Any]:
 
 
 @router.get("/facets", response_model=FacetsResponse)
+@public_rate_limit()
 async def facets(request: Request) -> Dict[str, Any]:
     """Фасеты каталога через Meilisearch (omit-паттерн query-параметров)."""
     return await _facets_cached(request)
 
 
 @router.get("/filters", response_model=FacetsResponse)
+@public_rate_limit()
 async def filters_alias(request: Request) -> Dict[str, Any]:
     return await _facets_cached(request)

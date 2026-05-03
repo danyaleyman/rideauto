@@ -33,7 +33,7 @@
 
 ## Слои данных в каталоге (внутренний контракт)
 
-Единая терминология raw → `cars.data` → `*_clean` → read model / Meilisearch — в **`backend/docs/BLOCK_0_SINGLE_SOURCE_OF_TRUTH.md`**. Поэтапное включение clean read (флаги, dual-run, откат): **`backend/docs/BLOCK_D_CLEAN_ROLLOUT.md`**.
+Единая терминология raw → `cars.data` → `*_clean` → read model / Meilisearch — в **`backend/docs/BLOCK_0_SINGLE_SOURCE_OF_TRUTH.md`**. Поэтапное включение clean read (флаги, dual-run, откат): **`backend/docs/BLOCK_D_CLEAN_ROLLOUT.md`**. Публичный JSON slim/detail (`WRA_API_CONTRACT_VERSION`, v1/v2), golden-файлы, контрактные проверки в рантайме и план отказа от legacy-полей: **`backend/docs/API_CONTRACT.md`**, **`backend/docs/API_DEPRECATIONS.md`**. Свежесть `updated_at`, sold, кэш (**J+K**): **`backend/docs/BLOCK_JK_CACHE_FRESHNESS.md`**. Эпики I / L / M / N: **`backend/docs/PRODUCT_BLOCKS_I_L_M_N.md`**. Оценка зрелости J+K / I / L / M / N: **`backend/docs/AUDIT_CATALOG_MATURITY_JK_I_LMN.md`**. Полный аудит репозитория (вне UI): **`docs/AUDIT_REPO_FULL_STACK.md`**. Аудит внедрённых ops-улучшений: **`docs/OPS_IMPLEMENTATION_AUDIT.md`**. Резервное копирование: **`docs/BACKUP_RESTORE.md`**. Smoke lifespan/HTTP без БД: **`backend/tests/test_asgi_smoke.py`**.
 
 ## Пайплайн данных
 

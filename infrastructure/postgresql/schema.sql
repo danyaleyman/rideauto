@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS cars (
     source_internal_id       BIGINT,
     created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    dedupe_canonical_car_id  TEXT NULL,
     CONSTRAINT cars_car_id_unique UNIQUE (car_id)
 );
 
@@ -77,6 +78,8 @@ COMMENT ON COLUMN cars.listing_partition_key IS
     'Dedup key: COALESCE(inner_id, data.id, car_id) — listing partition для каталога';
 COMMENT ON COLUMN cars.year_month IS
     'Ordinal month index: year*12 + (month-1), matching ym_from / ym_to in catalog.js';
+COMMENT ON COLUMN cars.dedupe_canonical_car_id IS
+    'Дубль листинга → car_id канонической строки; см. migrations/008_catalog_dedupe_canonical.sql';
 
 -- -----------------------------------------------------------------------------
 -- images: normalized from data.images (list or JSON string of URLs)
@@ -142,6 +145,14 @@ CREATE INDEX IF NOT EXISTS idx_cars_dongchedi_listing_checker
     WHERE source = 'dongchedi';
 
 CREATE INDEX IF NOT EXISTS idx_cars_data_gin ON cars USING GIN (data);
+
+CREATE INDEX IF NOT EXISTS idx_cars_dedupe_canonical_target
+    ON cars (dedupe_canonical_car_id)
+    WHERE dedupe_canonical_car_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_cars_meili_source_rows
+    ON cars (id ASC)
+    WHERE dedupe_canonical_car_id IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_car_images_car_sort ON car_images (car_pk, sort_order);
 

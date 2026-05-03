@@ -761,6 +761,10 @@ def facet_canonical_english(text: object, domain: str) -> str:
             sh2 = _lookup_china_static(_china_static_maps(), s, "en", "configuration")
         if sh2:
             return sh2
+    if domain in {"trim_name", "configuration", "gradeName", "modelGroupName"}:
+        # Listing-style trims: romanize+cleanup strips CJK and can leave only displacement (e.g. 1.5L) or a bare Latin prefix.
+        if _ZH_RE.search(s) and (_LATIN_RE.search(s) or "款" in s or len(s) >= 10):
+            return s.strip()
     if _looks_english(s):
         out = _cleanup_china_en_text(s, domain=domain)
         return out or s

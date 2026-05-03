@@ -1,20 +1,26 @@
 from __future__ import annotations
 
-import asyncio
-from typing import Any, Dict
+from typing import Annotated, Any, Dict, Optional
 
 import asyncpg
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from meilisearch import Client
 
 from clean_mode import clean_read_enabled_for_key
+from fastapi_app.cache_epoch import with_cache_epoch_dict
 from fastapi_app.cached_route import serve_cached_json
 from fastapi_app.catalog_slim import slim_catalog_car
 from fastapi_app.config import Settings, get_settings
 from fastapi_app.cursor import decode_offset_cursor, encode_offset_cursor
 from fastapi_app.meilisearch_query import build_meilisearch_filter, meilisearch_sort_list
 from fastapi_app.pg_catalog import fetch_car_any_id, fetch_cars_by_ids
+from fastapi_app.rate_limit import public_rate_limit
+from fastapi_app.tracing_ops import await_traced, run_in_thread_traced
 from fastapi_app.schemas.api import SearchMeta, SearchResponse, SimilarMeta, SimilarResponse
+from fastapi_app.schemas.catalog_contract import (
+    validate_catalog_search_response_v1,
+    validate_catalog_similar_response_v1,
+)
 
 router = APIRouter(tags=["catalog"])
 
@@ -80,19 +86,20 @@ async def _search_catalog(request: Request) -> SearchResponse:
     def _run_search():
         return idx.search(qtext, opts)
 
-    ms = await asyncio.to_thread(_run_search)
+    ms = await run_in_thread_traced("meilisearch.search", _run_search)
     hits = ms.get("hits") or []
     car_ids = [str(h.get("id") or h.get("car_id") or "") for h in hits]
     car_ids = [x for x in car_ids if x]
 
-    by_id = await fetch_cars_by_ids(pool, car_ids)
+    by_id = await await_traced("postgres.fetch_cars_by_ids", fetch_cars_by_ids(pool, car_ids))
     result: list = []
     for cid in car_ids:
         car = by_id.get(cid)
         if not car:
             continue
+        display_id = str(car.get("id") or cid)
         if slim:
-            result.append(slim_catalog_car(car, cid))
+            result.append(slim_catalog_car(car, display_id))
         else:
             result.append(car)
 
@@ -127,11 +134,13 @@ async def _search_catalog(request: Request) -> SearchResponse:
 
 async def _search_maybe_cached(request: Request) -> Dict[str, Any]:
     settings = get_settings()
-    flat = _flat_query(request)
+    flat = with_cache_epoch_dict(_flat_query(request), settings)
 
     async def compute() -> Dict[str, Any]:
         body = await _search_catalog(request)
-        return body.model_dump()
+        dumped = body.model_dump()
+        validate_catalog_search_response_v1(dumped)
+        return dumped
 
     return await serve_cached_json(
         request,
@@ -186,7 +195,7 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
     def _run_search():
         return idx.search("", opts)
 
-    ms = await asyncio.to_thread(_run_search)
+    ms = await run_in_thread_traced("meilisearch.similar_search", _run_search)
     hits = ms.get("hits") or []
     seen: set[str] = set()
     ordered_ids: list[str] = []
@@ -199,7 +208,7 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
         if len(ordered_ids) >= limit:
             break
 
-    by_id = await fetch_cars_by_ids(pool, ordered_ids)
+    by_id = await await_traced("postgres.fetch_cars_by_ids_similar", fetch_cars_by_ids(pool, ordered_ids))
     result: list[Dict[str, Any]] = []
     for cid in ordered_ids:
         car = by_id.get(cid)
@@ -207,7 +216,8 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
             continue
         if _is_sold_car(car):
             continue
-        result.append(slim_catalog_car(car, cid))
+        display_id = str(car.get("id") or cid)
+        result.append(slim_catalog_car(car, display_id))
 
     total_raw = int(ms.get("estimatedTotalHits") or ms.get("totalHits") or 0)
     total_candidates = max(0, total_raw - 1)
@@ -221,14 +231,39 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
 
 
 @router.get("/search", response_model=SearchResponse)
-async def search(request: Request) -> Dict[str, Any]:
+@public_rate_limit()
+async def search(
+    request: Request,
+    _full: Annotated[
+        Optional[str],
+        Query(
+            alias="full",
+            description=(
+                "Если `1` — сырые объекты строк Postgres в `result` (без slim-контракта; только отладка/внутренние сценарии). "
+                "Фактическое значение берётся из query string для кэш-ключа."
+            ),
+        ),
+    ] = None,
+) -> Dict[str, Any]:
     """Каталог через Meilisearch + гидратация карточек из PostgreSQL."""
+    _ = _full
     return await _search_maybe_cached(request)
 
 
 @router.get("/cars", response_model=SearchResponse)
-async def cars_alias(request: Request) -> Dict[str, Any]:
+@public_rate_limit()
+async def cars_alias(
+    request: Request,
+    _full: Annotated[
+        Optional[str],
+        Query(
+            alias="full",
+            description="См. `/api/search?full=`.",
+        ),
+    ] = None,
+) -> Dict[str, Any]:
     """Алиас для существующего фронта / nginx (`/api/cars`)."""
+    _ = _full
     return await _search_maybe_cached(request)
 
 
@@ -237,11 +272,13 @@ async def similar(car_id: str, request: Request, limit: int = 8) -> Dict[str, An
     """Похожие авто для карточки Next: по марке/модели, исключая текущий car_id."""
     lim = min(24, max(1, int(limit)))
     settings = get_settings()
-    flat = {"car_id": str(car_id), "limit": str(lim)}
+    flat = with_cache_epoch_dict({"car_id": str(car_id), "limit": str(lim)}, settings)
 
     async def compute() -> Dict[str, Any]:
         body = await _similar_cars(request=request, car_id=str(car_id), limit=lim)
-        return body.model_dump()
+        dumped = body.model_dump()
+        validate_catalog_similar_response_v1(dumped)
+        return dumped
 
     return await serve_cached_json(
         request,

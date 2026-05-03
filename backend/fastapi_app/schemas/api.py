@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from fastapi_app.schemas.catalog_contract import SlimCatalogItemV1
+
 
 class SearchMeta(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -24,7 +26,12 @@ class SearchMeta(BaseModel):
 class SearchResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    result: List[Dict[str, Any]]
+    result: List[Dict[str, Any]] = Field(
+        description=(
+            "При `meta.list_mode=slim` каждый элемент — **SlimCatalogItemV1** (включая `read_model`). "
+            "При `full=1` — нестабильный сырой JSON строки Postgres (вне публичного контракта)."
+        ),
+    )
     meta: SearchMeta
 
 
@@ -47,7 +54,7 @@ class SimilarMeta(BaseModel):
 class SimilarResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    result: List[Dict[str, Any]]
+    result: List[SlimCatalogItemV1]
     meta: SimilarMeta
 
 

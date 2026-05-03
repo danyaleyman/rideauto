@@ -6,6 +6,7 @@ Prometheus metrics (prometheus_client).
 
 Метрики:
 - ``wra_http_request_duration_seconds`` — histogram latency
+- ``wra_http_response_body_bytes`` — histogram размера тела (если известен; streaming может не попадать)
 - ``wra_http_requests_total`` — counter (method, path_group, status_class)
 - ``wra_cache_lookups_total`` — counter (segment, result=hit|miss); enrich: ``catalog_enrich_pair_redis``, ``catalog_enrich_pg_batch``
 - ``wra_catalog_enrich_llm_calls_total`` — LLM enrich (phase)
@@ -34,6 +35,14 @@ HTTP_REQUESTS: Final = Counter(
     "Число HTTP-запросов",
     ("method", "path_group", "status_class"),
     namespace="wra",
+)
+
+HTTP_RESPONSE_BODY_BYTES: Final = Histogram(
+    "http_response_body_bytes",
+    "Размер тела ответа (байт), если доступен буфер (не streaming)",
+    ("method", "path_group"),
+    namespace="wra",
+    buckets=(256.0, 1024.0, 4096.0, 16384.0, 65536.0, 262144.0, 1048576.0, 4194304.0, float("inf")),
 )
 
 CACHE_LOOKUPS: Final = Counter(
@@ -94,6 +103,13 @@ def observe_http(method: str, path_group: str, status_code: int, duration_sec: f
     method_u = (method or "UNKNOWN").upper()
     HTTP_REQUEST_DURATION.labels(method_u, path_group).observe(max(duration_sec, 0.0))
     HTTP_REQUESTS.labels(method_u, path_group, _status_class(int(status_code))).inc()
+
+
+def observe_http_response_body_bytes(method: str, path_group: str, nbytes: int) -> None:
+    if nbytes <= 0:
+        return
+    method_u = (method or "UNKNOWN").upper()
+    HTTP_RESPONSE_BODY_BYTES.labels(method_u, path_group).observe(float(nbytes))
 
 
 def inc_cache_lookup(segment: str, *, hit: bool) -> None:

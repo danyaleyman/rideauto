@@ -58,6 +58,7 @@ def test_slim_keeps_normal_price_for_regular_card_with_finance_promo_text():
 
 def test_slim_prefers_pricing_clean_when_present(monkeypatch):
     monkeypatch.setenv("WRA_CLEAN_READ_MODE", "1")
+    monkeypatch.setenv("WRA_CLEAN_READ_PERCENT", "100")
     from fastapi_app.config import get_settings
 
     get_settings.cache_clear()

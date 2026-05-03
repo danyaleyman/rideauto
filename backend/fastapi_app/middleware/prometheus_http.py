@@ -9,7 +9,11 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 
 from fastapi_app.config import get_settings
-from fastapi_app.metrics.prometheus import normalize_path_group, observe_http
+from fastapi_app.metrics.prometheus import (
+    normalize_path_group,
+    observe_http,
+    observe_http_response_body_bytes,
+)
 
 
 class PrometheusHTTPMiddleware(BaseHTTPMiddleware):
@@ -35,4 +39,11 @@ class PrometheusHTTPMiddleware(BaseHTTPMiddleware):
             raise
         elapsed = time.perf_counter() - start
         observe_http(method, path_group, response.status_code, elapsed)
+        if settings.metrics_response_body_bytes_enabled:
+            try:
+                body = getattr(response, "body", None)
+                if isinstance(body, (bytes, bytearray)) and len(body) > 0:
+                    observe_http_response_body_bytes(method, path_group, len(body))
+            except Exception:
+                pass
         return response

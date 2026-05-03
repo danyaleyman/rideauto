@@ -7,6 +7,7 @@ from typing import Any, Dict
 from clean_mode import clean_read_enabled_for_key
 from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
 from fastapi_app.config import get_settings
+from fastapi_app.schemas.catalog_contract import validate_slim_catalog_item_v1
 from localization.term_localizer import facet_canonical_english
 from read_models import build_catalog_read_model
 
@@ -332,4 +333,10 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     out["api_contract_version"] = str(settings.api_contract_version or "v1")
     if car.get("dongchedi_listing_sold") is True:
         out["dongchedi_listing_sold"] = True
+    out["read_model"] = read_model
+    cua = car.get("_catalog_updated_at") or raw.get("_catalog_updated_at")
+    if cua not in (None, ""):
+        out["catalog_updated_at"] = str(cua).strip()
+    require_ts = str(settings.api_contract_version or "v1").strip().lower() == "v2"
+    validate_slim_catalog_item_v1(out, require_catalog_updated_at=require_ts)
     return out

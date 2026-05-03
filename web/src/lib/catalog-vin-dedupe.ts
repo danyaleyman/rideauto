@@ -17,13 +17,20 @@ export function slimCarVin(car: SlimCar): string {
   return normalizeVinForCatalogDedupe(raw);
 }
 
-/** Оставляем один листинг на VIN (приоритет: новее catalog_created_at, затем меньший id). */
+function freshnessMs(car: SlimCar): number {
+  const u = car.catalog_updated_at ? Date.parse(car.catalog_updated_at) : NaN;
+  if (!Number.isNaN(u)) return u;
+  const c = car.catalog_created_at ? Date.parse(car.catalog_created_at) : NaN;
+  return Number.isNaN(c) ? 0 : c;
+}
+
+/** Оставляем один листинг на VIN (приоритет: новее catalog_updated_at, иначе catalog_created_at, затем меньший id). */
 export function dedupeSlimCarsByVin(cars: SlimCar[]): SlimCar[] {
   if (cars.length < 2) return cars;
 
   function prefer(a: SlimCar, b: SlimCar): SlimCar {
-    const ta = a.catalog_created_at ? Date.parse(a.catalog_created_at) : 0;
-    const tb = b.catalog_created_at ? Date.parse(b.catalog_created_at) : 0;
+    const ta = freshnessMs(a);
+    const tb = freshnessMs(b);
     if (tb !== ta) return tb > ta ? b : a;
     return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }) <= 0 ? a : b;
   }

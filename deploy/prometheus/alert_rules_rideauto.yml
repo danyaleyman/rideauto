@@ -1,0 +1,85 @@
+# Правила Prometheus для RideAuto API и batch-job (node_exporter textfile).
+# Подключение: в prometheus.yml
+#   rule_files:
+#     - "alert_rules_rideauto.yml"
+# Подстройте пороги и job-лейблы под свой деплой.
+
+groups:
+  - name: rideauto_catalog_http
+    interval: 30s
+    rules:
+      - alert: RideautoSearchHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(wra_http_request_duration_seconds_bucket{path_group="/api/search"}[5m])
+            )
+          ) > 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокий p95 latency /api/search"
+          description: "p95 > 3s за 5m. Проверить Meilisearch, Postgres, Redis-кэш."
+
+      - alert: RideautoCatalog5xxRate
+        expr: |
+          (
+            sum(rate(wra_http_requests_total{status_class="5xx", path_group=~"/api/(search|car.*|facets).*"}[5m]))
+            /
+            sum(rate(wra_http_requests_total{path_group=~"/api/(search|car.*|facets).*"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Доля 5xx на каталоге API > 5%"
+          description: "Проверить логи uvicorn и зависимости."
+
+      - alert: RideautoSearchResponseBodyP95Large
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(wra_http_response_body_bytes_bucket{path_group="/api/search"}[10m])
+            )
+          ) > 1048576
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Большой p95 размер ответа /api/search"
+          description: "Порог 1 MiB — при необходимости ужать slim или кэш."
+
+  - name: rideauto_catalog_jobs
+    interval: 60s
+    rules:
+      - alert: RideautoJobLastRunFailed
+        expr: wra_job_last_exit_code != 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Batch job завершилась с ошибкой ({{ $labels.job }})"
+          description: "Проверить journalctl / лог cron; EXIT_CODE в textfile."
+
+      - alert: RideautoMeilisearchSyncStale
+        expr: |
+          (time() - wra_job_last_completion_unixtime{job="wra_meilisearch_sync"}) > 93600
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Давно не было успешного wra_meilisearch_sync (>26h)"
+          description: "Проверить timer systemd и DSN; при другом JOB_NAME поправьте правило."
+
+      - alert: RideautoPostgresCatalogSyncStale
+        expr: |
+          (time() - wra_job_last_completion_unixtime{job="wra_postgres_catalog_sync"}) > 93600
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Давно не отмечалось завершение wra_postgres_catalog_sync"
+          description: "Если job не пишет метрики — отключите правило или задайте JOB_NAME."

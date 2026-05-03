@@ -9,6 +9,8 @@ export type SearchMeta = {
   processing_time_ms?: number | null;
   list_mode?: string;
   sort?: string | null;
+  /** Зеркало `WRA_API_CONTRACT_VERSION` на бэкенде (`v1` / `v2`). */
+  api_version?: string;
 };
 
 export type SlimCar = {
@@ -24,6 +26,8 @@ export type SlimCar = {
   price_on_request?: boolean;
   /** cars.created_at (ISO) — бейдж «добавлено сегодня», сортировка в Meili. */
   catalog_created_at?: string | null;
+  /** cars.updated_at (ISO) — свежесть строки; на API v2 обязателен. */
+  catalog_updated_at?: string | null;
   /** Дневной чекер Encar: объявление снято с продажи до ночной выгрузки. */
   encar_listing_sold?: boolean;
   /** Encar placeholder-price marker (e.g. 4444/5550 만원): reserved/pending state, not a final sale price. */
@@ -49,12 +53,14 @@ export type SearchResponse = {
 
 export type CarDetailResponse = {
   result: Record<string, unknown>;
+  api_version?: string;
 };
 
 export type SimilarMeta = {
   car_id: string;
   limit: number;
   total_candidates: number;
+  api_version?: string;
 };
 
 export type SimilarResponse = {
@@ -102,4 +108,5 @@ export type FacetsResponse = {
   fuels: FacetRow[];
   transmissions: FacetRow[];
   colors: FacetRow[];
+  api_version?: string;
 };

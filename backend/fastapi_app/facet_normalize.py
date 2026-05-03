@@ -20,7 +20,9 @@ from localization.term_localizer import (
 _KO_OR_ZH_RE = re.compile(r"[\uac00-\ud7af\u4e00-\u9fff]")
 _JUNK_TRANS_NUMERIC = re.compile(r"^0*\d{1,4}$")
 
-_MEILI_TO_EN_DOMAIN = {
+# Атрибуты Meilisearch → домен `facet_canonical_english` для China cleanup в `_cleanup_china_facet_value`.
+# Остальные атрибуты из `FACET_SPECS_MEILI` (body_type, fuel, transmission, color) передают domain "".
+FACET_MEILI_ATTR_TO_EN_DOMAIN: Dict[str, str] = {
     "brand": "mark",
     "model_cluster": "model",
     "model_group": "model",
@@ -224,7 +226,7 @@ def _cleanup_china_facet_value(raw: str, meili_attr: str) -> str:
     s = _as_text(raw)
     if not s:
         return ""
-    s = facet_canonical_english(s, _MEILI_TO_EN_DOMAIN.get(meili_attr, ""))
+    s = facet_canonical_english(s, FACET_MEILI_ATTR_TO_EN_DOMAIN.get(meili_attr, ""))
     if not s:
         return ""
     low0 = s.lower()
