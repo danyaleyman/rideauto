@@ -1,0 +1,139 @@
+# Che168 Global — отдельный конфиг (не смешивать с Encar).
+# Локальные секреты: che168_scraper.local.yaml (рядом) или CHE168_DEVICE_ID в окружении.
+
+checkpoint:
+  scope: che168
+  max_pending_ids: 500000
+
+http:
+  concurrency: 6
+  conn_limit_per_host: 10
+  timeout_total: 35
+  timeout_connect: 12
+  timeout_sock_read: 28
+  detail_wall_timeout_sec: 90
+  detail_extras_wall_timeout_sec: 120
+  parse_wall_timeout_sec: 120
+  list_page_size: 20
+  list_page_delay_min: 0.4
+  list_page_delay_max: 1.2
+  list_stall_pages_limit: 40
+  list_max_parallel: 3
+  list_max_fail_streak: 25
+  request_jitter_min: 0.12
+  request_jitter_max: 0.55
+
+retry:
+  max_attempts: 5
+  backoff_base: 1
+  backoff_max: 60
+  retry_statuses: [407, 429, 500, 502, 503, 504]
+
+# Che168: sessionid привязан к egress IP. Один URL (sticky residential/datacenter) + тот же URL в Playwright bootstrap.
+# При sticky_session: true и нескольких urls клиент берёт только первый (без ротации).
+proxy:
+  enabled: false
+  sticky_session: true
+  urls: []
+
+storage:
+  backend: postgres
+  store_raw_responses: true
+  # Для max_cars / max_new_saves считать только China (не все строки cars).
+  count_cars_source: che168
+  postgres:
+    dsn: ""
+
+che168:
+  base_url: https://globalapi.che168.com/api/v1
+  app_id: global.m
+  deviceid: ""
+  language: en
+  origin: https://global.che168.com
+  referer: https://global.che168.com/
+  respect_rate_limit_headers: true
+  rate_limit_sleep_cap_sec: 60
+  # Если API отдаёт цену в «万元», включите true (иначе оставьте false и смотрите che168_price_raw).
+  assume_price_in_wan_yuan: false
+  search_pagesize: 20
+  search_sort: 0
+  vehicle_list: 0
+  # Пустой список = все бренды из GET /brand
+  brand_ids: []
+  list_brand_parallel: 2
+  brand_fetch_max_attempts: 5
+  # 0 = без лимита страниц на бренд
+  max_pageindex_per_brand: 0
+  fetch_recommend: true
+  fetch_report_summary: true
+  # При ответе API «login/session/cookie» — перезапуск Playwright bootstrap (интервал см. ниже).
+  allow_runtime_session_refresh: true
+  session_refresh_min_interval_sec: 90
+  # Синхронизация словаря с GET /brand (официальные имена + brand_by_id). YAML-алиасы перекрывают ключи API.
+  taxonomy_sync_from_brand_api: true
+  # Серии по brandid (если эндпоинт отдаёт 200; иначе оставьте пустым). Типичные кандидаты: /series
+  taxonomy_sync_series: true
+  taxonomy_sync_series_max_brands: 50
+  taxonomy_sync_series_delay_sec: 0.15
+  series_api_path: ""
+  # Если пусто — discover_che168_series_api_path перебирает кандидатов на series_probe_brandid
+  series_api_path_candidates:
+    - series
+    - carseries/serieslist
+    - common/serieslist
+    - GetSeriesList
+  # Необязательно: положительный brandid для автопоиска series_api_path (иначе — первый из GET /brand)
+  # series_probe_brandid: 276
+  # Метрики прогона: путь .prom для node_exporter textfile или env CHE168_PROMETHEUS_TEXTFILE
+  prometheus_textfile_path: ""
+  # Кластеры «похожие лоты» в блоке /recommend (VIN или близкие mark/model/year/цена/пробег).
+  listing_cluster:
+    enabled: true
+    recommend_limit: 40
+    calibration_profile: balanced
+    # Явные значения перекрывают профиль strict|balanced|loose
+    price_rel_tol: 0.08
+    km_abs_tol: 25000
+    year_max_diff: 1
+    near_miss_price_rel_cap: 0.15
+    near_miss_km_abs_cap: 45000
+    telemetry_near_miss: true
+  # Синонимы бренд/модель для поиска (ключ = как в API, значение = канон для индекса).
+  taxonomy:
+    mark_aliases: {}
+    model_aliases: {}
+  # true = перед прогоном Chromium + куки; при proxy.enabled — тот же proxy.urls[0] (см. bootstrap_proxy_url).
+  playwright_bootstrap_on_start: false
+  bootstrap_start_url: https://global.che168.com/
+  # После загрузки страницы — GET /search в том же browser context (закрепляет куки к API).
+  playwright_api_warmup: true
+  bootstrap_warmup_brandid: 276
+  playwright_timeout_ms: 60000
+  playwright_post_load_wait_ms: 3000
+  playwright_headless: true
+  # Явный прокси для браузера; пусто = первый из proxy.urls при proxy.enabled
+  bootstrap_proxy_url: ""
+  sessionid: ""
+  cookies:
+    is_overseas: "1"
+    area: "0"
+
+listing_live_checker:
+  batch_size: 35
+  recheck_hours: 8
+  delay_min: 0.4
+  delay_max: 1.2
+  idle_empty_sec: 45
+  # Опционально: .prom для node_exporter (или env CHE168_LIVE_CHECKER_PROMETHEUS_TEXTFILE)
+  prometheus_textfile_path: ""
+
+max_cars: 0
+max_new_saves_per_run: 0
+
+logging:
+  level: INFO
+  console: true
+  file: logs/che168_scraper.log
+
+user_agents:
+  - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36

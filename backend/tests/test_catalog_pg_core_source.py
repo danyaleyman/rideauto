@@ -11,17 +11,17 @@ def test_row_to_car_fields_defaults_encar_when_data_has_no_source():
     assert f["source"] == "encar"
 
 
-def test_row_to_car_fields_dongchedi_prefix_without_inner_source():
-    cid = "dongchedi-abc-1"
+def test_row_to_car_fields_che168_prefix_without_inner_source():
+    cid = "che168-abc-1"
     payload = {"data": {"mark": "X", "model": "Y", "id": cid}}
     f = row_to_car_fields(cid, payload)
-    assert f["source"] == "dongchedi"
+    assert f["source"] == "che168"
 
 
 def test_row_to_car_fields_respects_inner_source():
-    payload = {"data": {"mark": "M", "model": "N", "source": "dongchedi"}}
+    payload = {"data": {"mark": "M", "model": "N", "source": "che168"}}
     f = row_to_car_fields("x-1", payload)
-    assert f["source"] == "dongchedi"
+    assert f["source"] == "che168"
 
 
 def test_row_to_car_fields_prefers_clean_layers_values(monkeypatch: pytest.MonkeyPatch):
@@ -80,14 +80,30 @@ def test_row_to_car_fields_encar_gradeName_trim(monkeypatch: pytest.MonkeyPatch)
     assert f["encar_model_group"] == "EV Group"
 
 
-def test_row_to_car_fields_dongchedi_trim_configuration_fallback(monkeypatch: pytest.MonkeyPatch):
+def test_row_to_car_fields_che168_trim_configuration_fallback(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
     payload = {
-        "data": {"source": "dongchedi", "mark": "B", "model": "M", "configuration": "330Li"}
+        "data": {"source": "che168", "mark": "B", "model": "M", "configuration": "330Li"}
     }
-    f = row_to_car_fields("dongchedi-z", payload)
+    f = row_to_car_fields("che168-z", payload)
     assert f["trim_name"] == "330Li"
     assert f["encar_model_group"] is None
+
+
+def test_row_to_car_fields_che168_uses_canonical_mark_model(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
+    payload = {
+        "data": {
+            "source": "che168",
+            "mark": "Display",
+            "model": "DispModel",
+            "mark_canonical": "Canon Mark",
+            "model_canonical": "Canon Model",
+        }
+    }
+    f = row_to_car_fields("che168-canon-1", payload)
+    assert f["mark"] == "Canon Mark"
+    assert f["model"] == "Canon Model"
 
 
 def test_row_to_car_fields_legacy_when_clean_mode_off(monkeypatch: pytest.MonkeyPatch):

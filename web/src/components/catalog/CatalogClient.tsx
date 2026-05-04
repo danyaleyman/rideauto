@@ -1076,7 +1076,7 @@ export function CatalogClient({
               );
               const passability = carPassabilityStatus(cardData);
               const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
-              const listingSold = Boolean(car.encar_listing_sold || car.dongchedi_listing_sold);
+              const listingSold = Boolean(car.encar_listing_sold || car.che168_listing_sold);
               const listingReserved = !listingSold && Boolean(car.encar_listing_reserved);
               const listingUnavailable = listingSold || listingReserved;
               const fav = authenticated && isFavorite(car.id);

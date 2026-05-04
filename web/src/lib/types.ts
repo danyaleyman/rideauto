@@ -33,7 +33,7 @@ export type SlimCar = {
   /** Маркер «резерв / черновая цена» в корейском контуре (не финальная цена продажи). */
   encar_listing_reserved?: boolean;
   /** Дневной чекер китайского контура: объявление снято с продажи до ночной выгрузки. */
-  dongchedi_listing_sold?: boolean;
+  che168_listing_sold?: boolean;
   year_num?: number;
   data?: {
     images?: string[];

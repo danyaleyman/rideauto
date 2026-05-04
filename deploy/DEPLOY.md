@@ -173,22 +173,19 @@ curl -fsS "http://127.0.0.1:8080/api/search?per_page=2" | head
 
 4. После стабилизации зафиксировать hotfix или вернуть `main` и повторить деплой.
 
-## Китайский каталог (Dongchedi, Postgres)
+## Китайский каталог (Che168 Global, Postgres)
 
-И Корея, и Китай лежат в **одной** базе Postgres (различаются полями `source` / регион в JSON).
+И Корея, и Китай лежат в **одной** базе Postgres, но с **разными** `source` (`encar` vs `che168`) и раздельными колонками флагов листинга. Интеграция Che168 — см. **`backend/che168/README.md`** (клиент, нормализация, systemd по мере готовности).
 
-- Скрапер: из `backend/` выполните `python -m dongchedi.scraper --config dongchedi_scraper.yaml` (в YAML — `storage.postgres.dsn` или `DATABASE_URL`; `db_path` — только префикс имени **checkpoint**-файла рядом с репо). При обрыве: **`--resume`** и тот же `db_path`.
-- Расписание: **`deploy/systemd/dongchedi-update.timer`** (или **`prod-dongchedi-update.timer`**) — **00:00 Asia/Yekaterinburg**, как **`rideauto-auto-update.timer`**. Сначала один раз полный прогон вручную, затем включите timer.
-- API: **FastAPI** читает Postgres и Meilisearch; отдельный `WRA_CHINA_DB_PATH` для каталога не требуется. После прогона при необходимости обновите индекс Meilisearch и сбросьте кэш nginx для `/api/*`.
+- API: **FastAPI** читает Postgres и Meilisearch. После импорта обновите индекс Meilisearch и при необходимости сбросьте кэш nginx для `/api/*`.
 
 ### Ночное обновление не сработало — диагностика и ручной запуск
 
-- Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u rideauto-auto-update.service -n 150` и `journalctl -u dongchedi-update.service -n 150`.
+- Логи systemd: `bash deploy/scripts/diagnose_nightly_updates.sh` или вручную `journalctl -u rideauto-auto-update.service -n 150`.
 - Частая причина по Корее: **`rideauto-auto-update.service`** запускает **`encar_daily_update.py --once`**; при **ненулевом коде** юнит падает — смотрите `journalctl -u rideauto-auto-update.service`.
 - Если в логе **`password authentication failed for user "postgres"`** — без рабочего Postgres ночной цикл Encar не выполнится. Проверьте `db_config` в **`backend/config.json`** и `DATABASE_URL` у скрапера.
 - Корея вручную (discover + pending): **`sudo bash deploy/scripts/run_korea_encar_daily_once.sh`** из корня репо. **`auto_learn_engine_map`** после sync не запускается, пока не задано **`WRA_LEARN_ENGINE_MAP=1`** в env.
-- Китай полный перескрейп: остановите таймер Dongchedi, затем **`bash deploy/scripts/run_china_dongchedi_full_rescrape.sh`**.
-- Китай **тест одной страницы**: **`sudo bash deploy/scripts/run_china_dongchedi_test_one_page.sh`** из `/opt/rideauto` (лимит: **`CHINA_TEST_LIMIT=12`** и т.д.). Потом обновите Meilisearch и проверьте каталог **`?region=china`**.
+- Китай: после появления скриптов импорта Che168 — следовать `backend/che168/README.md`; затем Meilisearch и **`?region=china`**.
 
 ## Заголовки безопасности (nginx)
 

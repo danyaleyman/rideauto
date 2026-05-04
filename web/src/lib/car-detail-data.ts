@@ -375,7 +375,7 @@ export function buildNormalizedCarTitle(
   const genS = asStr(generation) ?? "";
   const sourceS = (asStr(source) ?? "").toLowerCase();
   const chinaLike =
-    sourceS === "dongchedi" ||
+    sourceS === "che168" ||
     sourceS === "china" ||
     [markS, modelS, genS].some((x) => CJK_RE.test(x) || CHINA_HINT_RE.test(x));
   if (!chinaLike) return joinUniqueSpecs(markS, modelS, genS);

@@ -37,9 +37,9 @@ def test_no_resync_when_aligned_full_customs():
     assert encar_json_suggests_pricing_resync(d) is False
 
 
-def test_no_resync_dongchedi():
+def test_no_resync_che168():
     d = {
-        "source": "dongchedi",
+        "source": "che168",
         "price_won": 20_000_000,
         "pricing_clean": {"pricing_rules_version": "x"},
     }

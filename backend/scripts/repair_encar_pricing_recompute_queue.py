@@ -71,7 +71,7 @@ def _fetch_encar_candidates(
         SELECT id, car_id, data
         FROM cars
         WHERE (source IS NULL OR lower(trim(source)) = 'encar')
-          AND (car_id IS NULL OR car_id NOT LIKE 'dongchedi-%%')
+          AND (car_id IS NULL OR car_id NOT LIKE 'che168-%%')
           AND car_id = ANY(%s)
         ORDER BY id ASC
         """
@@ -81,7 +81,7 @@ def _fetch_encar_candidates(
         SELECT id, car_id, data
         FROM cars
         WHERE (source IS NULL OR lower(trim(source)) = 'encar')
-          AND (car_id IS NULL OR car_id NOT LIKE 'dongchedi-%%')
+          AND (car_id IS NULL OR car_id NOT LIKE 'che168-%%')
         ORDER BY id ASC
         LIMIT %s
         """

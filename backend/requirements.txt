@@ -25,4 +25,6 @@ pypinyin>=0.53.0
 # Production scraper (encar_scraper.py)
 aiohttp>=3.9.0
 PyYAML>=6.0
-playwright>=1.48.0
+
+# Che168 session bootstrap (optional): pip install playwright && playwright install chromium
+playwright>=1.40.0

@@ -44,12 +44,12 @@ def _apply_row_flags(obj: Dict[str, Any], row: asyncpg.Record) -> None:
     _merge_catalog_timestamps(obj, row)
     if row["encar_listing_sold"] is True:
         obj["encar_listing_sold"] = True
-    if row["dongchedi_listing_sold"] is True:
-        obj["dongchedi_listing_sold"] = True
+    if row["che168_listing_sold"] is True:
+        obj["che168_listing_sold"] = True
 
 
 _SELECT_CAR_ROWS = """
-    SELECT car_id, data, created_at, updated_at, encar_listing_sold, dongchedi_listing_sold,
+    SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
            dedupe_canonical_car_id
     FROM cars
     WHERE car_id = ANY($1::text[])
@@ -111,7 +111,7 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
     q = ref.strip()
     row = await pool.fetchrow(
         """
-        SELECT car_id, data, created_at, updated_at, encar_listing_sold, dongchedi_listing_sold,
+        SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
                dedupe_canonical_car_id
         FROM cars
         WHERE car_id = $1
@@ -137,7 +137,7 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
         seen.add(nxt)
         nxt_row = await pool.fetchrow(
             """
-            SELECT car_id, data, created_at, updated_at, encar_listing_sold, dongchedi_listing_sold,
+            SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
                    dedupe_canonical_car_id
             FROM cars
             WHERE car_id = $1

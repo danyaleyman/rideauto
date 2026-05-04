@@ -46,7 +46,7 @@ def main():
             obj = car
         try:
             source = str(obj.get("source") or "").strip().lower() if isinstance(obj, dict) else ""
-            if source == "dongchedi":
+            if source in ("che168", "china"):
                 calc_china.update_china_car_with_prices(obj)
             else:
                 calc_korea.update_car_with_prices(obj)

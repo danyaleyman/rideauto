@@ -1,0 +1,90 @@
+# Ручной или по расписанию: обслуживание каталога China (аудиты / repair queue).
+# Секреты: DATABASE_URL (или переопределите шаги под внутренний runner).
+
+name: china-catalog-maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_repair_queue:
+        description: "Выполнить repair_china_pricing_recompute_queue с --apply"
+        type: boolean
+        default: false
+      run_price_drift_sample:
+        description: "Сверка цены с API carinfo (до 15 объявлений, лишние запросы к Che168)"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "20 2 * * 1"
+
+jobs:
+  china-ops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        run: pip install psycopg2-binary pyyaml aiohttp
+
+      - name: Dry-run China pricing repair queue
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: backend
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then echo "Skip: DATABASE_URL secret empty"; exit 0; fi
+          python scripts/repair_china_pricing_recompute_queue.py --config ../che168_scraper.yaml --limit 5000
+
+      - name: Che168 parser audit (no fail)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: backend
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then echo "Skip: DATABASE_URL secret empty"; exit 0; fi
+          python scripts/che168_parser_audit.py --limit 15 || true
+
+      - name: Raw envelope aggregates
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: backend
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then echo "Skip: DATABASE_URL secret empty"; exit 0; fi
+          python scripts/che168_raw_envelope_audit.py --config ../che168_scraper.yaml --limit 30000
+
+      - name: Parser field coverage (HP/spec surrogate)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: backend
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then echo "Skip: DATABASE_URL secret empty"; exit 0; fi
+          python scripts/che168_parser_field_coverage.py --config ../che168_scraper.yaml --limit 30000
+
+      - name: Cluster registry vs dedupe_canonical
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: backend
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then echo "Skip: DATABASE_URL secret empty"; exit 0; fi
+          python scripts/che168_cluster_consistency_audit.py --config ../che168_scraper.yaml || true
+
+      - name: Price drift sample (optional, hits Che168 API)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_price_drift_sample == true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CHE168_DEVICE_ID: ${{ secrets.CHE168_DEVICE_ID }}
+        working-directory: backend
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then echo "Skip: DATABASE_URL secret empty"; exit 0; fi
+          python scripts/che168_price_drift_worker.py --config ../che168_scraper.yaml --limit 15 --min-age-hours 0
+
+      - name: Apply repair queue (optional)
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_repair_queue == true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: backend
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then echo "Skip: DATABASE_URL secret empty"; exit 0; fi
+          python scripts/repair_china_pricing_recompute_queue.py --config ../che168_scraper.yaml --apply --limit 50000

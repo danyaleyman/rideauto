@@ -110,7 +110,7 @@ export default function CarPhotoGallery({
   if (!n || !current) return null;
 
   const badgeVariant = carSourceBadgeVariant(sourceKey);
-  const showSourceBadge = badgeVariant === "encar" || badgeVariant === "dongchedi";
+  const showSourceBadge = badgeVariant === "encar" || badgeVariant === "china";
   const showListedTodayBadge = !showSourceBadge && isCatalogListedToday(catalogCreatedAt);
 
   /** Без дублей: при n=1 старый (active+k+1)%n давал четыре раза индекс 0. */
@@ -174,7 +174,7 @@ export default function CarPhotoGallery({
               <div className="pointer-events-none absolute start-3 top-3 z-[2] rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
                 {carSourceShortRegionLabel(sourceKey)}
               </div>
-            ) : badgeVariant === "dongchedi" ? (
+            ) : badgeVariant === "china" ? (
               <div className="pointer-events-none absolute start-3 top-3 z-[2] rounded-md bg-sky-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md dark:bg-sky-600">
                 {carSourceShortRegionLabel(sourceKey)}
               </div>

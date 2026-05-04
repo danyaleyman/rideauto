@@ -7,4 +7,4 @@ ALTER TABLE cars ADD COLUMN IF NOT EXISTS encar_listing_checked_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_cars_encar_listing_checker
     ON cars (encar_listing_checked_at NULLS FIRST)
     WHERE (source IS NULL OR source = 'encar')
-      AND car_id NOT LIKE 'dongchedi-%';
+      AND (car_id IS NULL OR car_id NOT LIKE 'che168-%');

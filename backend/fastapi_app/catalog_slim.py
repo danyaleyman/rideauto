@@ -149,8 +149,8 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "year",
         "yearMonth",
         "displacement",
-        "dongchedi_displacement_label",
-        "dongchedi_params_raw",
+        "che168_displacement_label",
+        "che168_params_raw",
         "engine_type",
         "drive_type",
         "prep_drive_type",
@@ -177,6 +177,9 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
         "krw_per_usdt",
         "usdt_rub",
         "source",
+        "price_cny",
+        "china_docs_delivery_rub",
+        "vtb_bank_transfer_rub",
         "price_on_request",
         "price_text",
         "encar_price_type",
@@ -239,7 +242,7 @@ def _car_title(data: Dict[str, Any]) -> str:
     mark = _pick("mark_en", "mark", "mark")
     model = _pick("model_en", "model", "model")
     source = (data.get("source") or "").strip().lower()
-    if source == "dongchedi" or source == "china":
+    if source in ("che168", "china"):
         model = _cleanup_china_model_name(model) or model
         if mark and model and model.lower().startswith(mark.lower()):
             return model
@@ -331,8 +334,8 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     if raw.get("encar_listing_reserved") is True or car.get("encar_listing_reserved") is True or reserved_clean is True:
         out["encar_listing_reserved"] = True
     out["api_contract_version"] = str(settings.api_contract_version or "v1")
-    if car.get("dongchedi_listing_sold") is True:
-        out["dongchedi_listing_sold"] = True
+    if car.get("che168_listing_sold") is True:
+        out["che168_listing_sold"] = True
     out["read_model"] = read_model
     cua = car.get("_catalog_updated_at") or raw.get("_catalog_updated_at")
     if cua not in (None, ""):

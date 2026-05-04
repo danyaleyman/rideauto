@@ -31,6 +31,50 @@ from market_pricing_shared import (
 CHINA_DOCS_DELIVERY_CNY = 13_500
 CHINA_BROKER_RUB = 86_100
 
+# Банк ВТБ: комиссия за перевод в ₽, 2% от стоимости авто (закуп в юанях × курс ЦБ).
+VTB_BANK_TRANSFER_RATE = 0.02
+
+# Bump при изменении формул/констант China-калькулятора (метрики каталога, repair).
+CHINA_PRICING_RULES_VERSION = "2026.05.03"
+
+
+def sync_china_pricing_clean_block(data: Dict[str, Any]) -> None:
+    """Обновляет `pricing_clean` для карточек China (che168) после расчёта или skip."""
+    if not isinstance(data, dict):
+        return
+    tier = data.get("pricing_tier")
+    if tier not in ("full_customs", "price_on_request"):
+        tier = "price_on_request" if data.get("price_on_request") else "full_customs"
+        data["pricing_tier"] = tier
+    mp = data.get("my_price")
+    pc = data.get("pricing_clean")
+    if not isinstance(pc, dict):
+        pc = {}
+        data["pricing_clean"] = pc
+    pc["pricing_tier"] = tier
+    pc["customs_included"] = tier == "full_customs"
+    pc["price_on_request"] = tier == "price_on_request"
+    pc["pricing_rules_version"] = CHINA_PRICING_RULES_VERSION
+    if tier == "price_on_request":
+        pc.pop("final_price_rub", None)
+        return
+    if mp is not None:
+        pc["final_price_rub"] = mp
+
+
+def china_json_suggests_pricing_resync(data: Dict[str, Any]) -> bool:
+    """Устаревший блок цен China в JSON при наличии исходной цены в ¥ — нужен пересчёт каталога."""
+    if not isinstance(data, dict):
+        return False
+    if str(data.get("source") or "").strip().lower() != "che168":
+        return False
+    from catalog_listing_price import china_has_source_price
+
+    if not china_has_source_price(data):
+        return False
+    pc = data.get("pricing_clean") if isinstance(data.get("pricing_clean"), dict) else {}
+    return str(pc.get("pricing_rules_version") or "") != CHINA_PRICING_RULES_VERSION
+
 
 def parse_price_cny(car_data: Dict[str, Any]) -> float:
     raw = car_data.get("price_cny")
@@ -132,7 +176,10 @@ class PriceCalculatorChina:
         vat = vat_import_rub(car_value_rub, duty, excise, fuel=fuel, age_years=age)
         customs_total = fee + duty + excise + util + vat
 
-        vehicle_sum = car_value_rub + docs_delivery_rub + customs_total + broker_rub
+        vtb_bank_transfer_rub = car_value_rub * VTB_BANK_TRANSFER_RATE
+        vehicle_sum = (
+            car_value_rub + docs_delivery_rub + customs_total + broker_rub + vtb_bank_transfer_rub
+        )
         commission, comm_eff = commission_rub_tiered(car_value_rub, customs_total, broker_rub, sched)
         total_with_commission = vehicle_sum + commission
 
@@ -141,6 +188,7 @@ class PriceCalculatorChina:
             "price_rub": car_value_rub,
             "china_docs_delivery_cny": docs_delivery_cny,
             "china_docs_delivery_rub": docs_delivery_rub,
+            "vtb_bank_transfer_rub": vtb_bank_transfer_rub,
             "customs_fee": fee,
             "duty": duty,
             "excise": excise,
@@ -170,6 +218,7 @@ class PriceCalculatorChina:
         car_data["customs_total_rub"] = prices["customs_total"]
         car_data["broker_rub"] = prices["broker_rub"]
         car_data["commission_rub"] = prices["commission"]
+        car_data["vtb_bank_transfer_rub"] = prices["vtb_bank_transfer_rub"]
         car_data["vehicle_sum_rub"] = prices["vehicle_sum"]
         car_data["my_price"] = prices["total_with_commission"]
         car_data["cny_rub"] = prices.get("cny_rub")

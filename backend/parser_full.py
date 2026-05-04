@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from encar_price_intent import classify_encar_price_intent, price_signals_json
-from clean_layers import build_clean_layers
+from clean_layers import build_catalog_clean_layers
 from raw_json_contract import validate_raw_json_min_contract
 
 logger = logging.getLogger(__name__)
@@ -1231,7 +1231,7 @@ class EncarFullParser:
             data["encar_listing_reserved"] = True if intent == "reserved_placeholder" else data.get("encar_listing_reserved", False)
             data.pop("my_price", None)
 
-        clean = build_clean_layers(data)
+        clean = build_catalog_clean_layers(data)
         data.update(clean)
 
         quality_reasons = []

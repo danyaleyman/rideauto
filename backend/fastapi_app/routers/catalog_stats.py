@@ -20,7 +20,7 @@ async def catalog_daily_additions(request: Request, region: str) -> CatalogDaily
     if reg == "korea":
         source = "encar"
     elif reg == "china":
-        source = "dongchedi"
+        source = "che168"
     else:
         raise HTTPException(
             status_code=400,

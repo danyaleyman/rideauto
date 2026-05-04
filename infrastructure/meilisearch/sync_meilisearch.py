@@ -294,8 +294,8 @@ def row_to_document(row: Dict[str, Any], *, clean_read_mode: bool = False) -> Di
         doc["damaged_parts_count"] = int(row["damaged_parts_count"])
     if row.get("encar_listing_sold") is not None:
         doc["encar_listing_sold"] = bool(row.get("encar_listing_sold"))
-    if row.get("dongchedi_listing_sold") is not None:
-        doc["dongchedi_listing_sold"] = bool(row.get("dongchedi_listing_sold"))
+    if row.get("che168_listing_sold") is not None:
+        doc["che168_listing_sold"] = bool(row.get("che168_listing_sold"))
     yr = _year_for_document(row)
     if yr is not None:
         doc["year"] = int(yr)
@@ -413,7 +413,7 @@ def iter_car_rows(
                 c.data,
                 c.source,
                 c.encar_listing_sold,
-                c.dongchedi_listing_sold,
+                c.che168_listing_sold,
                 c.updated_at,
                 c.created_at
             FROM cars AS c

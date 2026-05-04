@@ -214,7 +214,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Backfill hp_catalog.db from PostgreSQL cars table")
     p.add_argument("--dsn", default="", help="PostgreSQL DSN (fallback: DATABASE_URL or WRA_PG_DSN)")
     p.add_argument("--db", type=Path, default=DEFAULT_DB_PATH, help="Path to hp_catalog.db")
-    p.add_argument("--source", default="encar", help="cars.source filter (encar, dongchedi, *, ...)")
+    p.add_argument("--source", default="encar", help="cars.source filter (encar, che168, *, ...)")
     p.add_argument("--only-missing-hp", action="store_true", help="Import only rows without cars.power_hp")
     p.add_argument("--batch-size", type=int, default=5000, help="Read batch size from PostgreSQL")
     args = p.parse_args()

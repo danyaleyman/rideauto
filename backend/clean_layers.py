@@ -78,3 +78,13 @@ def build_clean_layers(data: Dict[str, Any]) -> Dict[str, Any]:
         },
     }
 
+
+def build_catalog_clean_layers(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Единая точка входа: Encar (`encar.clean.v*`) или China (`che168.clean.v*`)."""
+    if not isinstance(data, dict):
+        return build_clean_layers(data)
+    if str(data.get("source") or "").strip().lower() == "che168":
+        from scraper_pipeline.che168.clean_layers import build_che168_clean_layers
+
+        return build_che168_clean_layers(data)
+    return build_clean_layers(data)

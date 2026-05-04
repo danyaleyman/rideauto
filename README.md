@@ -3,7 +3,7 @@
 Проект разделён на слои:
 
 - **Фронт (Next.js)**: папка `web/` — каталог и карточка; бэкенд — FastAPI + Meilisearch + Postgres (см. `docs/ARCHITECTURE.md`, `docker-compose.yml`).
-- **Backend**: папка `backend/` — FastAPI (`fastapi_app`), скраперы Encar/Dongchedi, синхронизация каталога в Postgres.
+- **Backend**: папка `backend/` — FastAPI (`fastapi_app`), скрапер Encar, цепочка Китая Che168 (в разработке), синхронизация каталога в Postgres.
 
 ## Быстрый старт (backend)
 
@@ -25,12 +25,12 @@ cd web && npm install && npm run dev
 
 **Ночное обновление:** в [`backend/config.json`](backend/config.json) `update_config.catalog_encar_nightly` (по умолчанию `true`) — после цикла PostgreSQL вызывается `encar_daily_update.py --once` (discover, sold-check, скрейпер в Postgres). Без доступного Postgres `auto_update` завершается с ошибкой.
 
-**Расписание на VPS (systemd):** в `deploy/systemd/` — **`rideauto-auto-update.timer`** (Корея, 00:00 Asia/Yekaterinburg), **`prod-dongchedi-update.timer`** (Китай, 01:00), **`rideauto-meilisearch-sync.timer`** (выгрузка Postgres → Meilisearch для фронта, 04:00). Ставятся через [`deploy/deploy_prod.sh`](deploy/deploy_prod.sh). На сервере в **`/etc/default/rideauto`** задайте **`SYNC_PG_DSN`** (Postgres с localhost, не `postgres:5432` из Docker) и при необходимости URL/ключ Meilisearch.
+**Расписание на VPS (systemd):** в `deploy/systemd/` — **`rideauto-auto-update.timer`** (Корея, 00:00 Asia/Yekaterinburg), **`rideauto-meilisearch-sync.timer`** (выгрузка Postgres → Meilisearch для фронта). Ставятся через [`deploy/deploy_prod.sh`](deploy/deploy_prod.sh). Китай (Che168) — отдельный unit после интеграции (`backend/che168/README.md`). На сервере в **`/etc/default/rideauto`** задайте **`SYNC_PG_DSN`** (Postgres с localhost, не `postgres:5432` из Docker) и при необходимости URL/ключ Meilisearch.
 
 **Проверить, что запланировано:**
 ```bash
-systemctl list-timers --all | grep -E 'rideauto|dongchedi'
-systemctl status rideauto-auto-update.timer prod-dongchedi-update.timer rideauto-meilisearch-sync.timer --no-pager
+systemctl list-timers --all | grep -E 'rideauto|meilisearch'
+systemctl status rideauto-auto-update.timer rideauto-meilisearch-sync.timer --no-pager
 bash deploy/scripts/diagnose_nightly_updates.sh
 ```
 Ручной прогон индекса: `sudo bash deploy/scripts/run_meilisearch_sync_host.sh` (из `/opt/rideauto`).
@@ -70,20 +70,7 @@ cd backend && uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8080
 
 ## Runbook: scrape -> reindex -> smoke
 
-Короткий цикл после обновления Китая (из корня проекта):
-
-```bash
-# 1) Scrape (пример: China)
-docker compose exec -T api python backend/dongchedi_scraper.py --config backend/dongchedi_scraper.yaml --max-pages 200
-
-# 2) Reindex Meilisearch
-docker compose exec -T api python infrastructure/meilisearch/sync_meilisearch.py --batch-size 500
-
-# 3) Smoke checks
-curl -fsS "http://127.0.0.1:8080/api/health"
-curl -fsS "http://127.0.0.1:8080/api/cars?region=china&limit=12" | python -m json.tool
-curl -fsS "http://127.0.0.1:3000/catalog?region=china" > /dev/null
-```
+После появления импортера Che168: прогон ingest → `postgres_catalog_sync` / `sync_meilisearch.py` → проверка `?region=china` (см. `backend/che168/README.md`).
 
 ## VPS production setup (Nginx + systemd)
 
@@ -93,7 +80,6 @@ curl -fsS "http://127.0.0.1:3000/catalog?region=china" > /dev/null
 - `deploy/systemd/rideauto-api.service`
 - `deploy/systemd/rideauto-auto-update.service`
 - `deploy/systemd/rideauto-auto-update.timer`
-- `deploy/systemd/dongchedi-update.service` + `dongchedi-update.timer` (или **`prod-dongchedi-update.*`** — Китай **01:00 Asia/Yekaterinburg**, после корейского таймера)
 - `deploy/deploy_prod.sh`
 
 Быстрый деплой на Linux VPS:

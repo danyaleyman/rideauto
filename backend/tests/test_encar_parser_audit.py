@@ -4,10 +4,11 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from parser_audit_common import audit_trim_history_file
+
 from scripts.encar_parser_audit import (
     _delta,
     _evaluate_regression,
-    _trim_history_file,
     format_slack_audit_report,
 )
 
@@ -106,7 +107,7 @@ def test_trim_history_keeps_recent_rows(tmp_path: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
-    _trim_history_file(str(p), keep_days=7)
+    audit_trim_history_file(str(p), keep_days=7)
     lines = [ln for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
     assert len(lines) == 1
     row = json.loads(lines[0])

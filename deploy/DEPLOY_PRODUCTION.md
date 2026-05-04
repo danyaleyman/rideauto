@@ -135,7 +135,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 2. **Каждый день 00:00 Asia/Yekaterinburg** — **`rideauto-auto-update.timer`** → **`encar_daily_update.py --once`** (новые объявления, sold, **`encar_scraper --only-pending`**, при необходимости export в фронт по конфигу). Отдельный устаревший **`encar-update`** из репозитория убран — не включайте дубликаты.
 
-3. **Сайт** — Next (`web/`); **API** — FastAPI, Postgres + Meilisearch. Китай — `dongchedi.scraper` в ту же БД; **`dongchedi-update.timer`**. Микрокэш nginx для **`/api/cars`** может отдавать устаревший ответ до ~60 s.
+3. **Сайт** — Next (`web/`); **API** — FastAPI, Postgres + Meilisearch. Китай — отдельная цепочка **Che168** (`source=che168` в БД; см. `backend/che168/README.md`). Микрокэш nginx для **`/api/cars`** может отдавать устаревший ответ до ~60 s.
 
 Если systemd не знает `Asia/Yekaterinburg` в `OnCalendar`, либо обновите systemd, либо задайте UTC-эквивалент: **00:00 Екатеринбурга (UTC+5) = 19:00 UTC предыдущего календарного дня** (запись вида `OnCalendar=*-*-* 19:00:00` в **UTC** требует сдвига при переходе ЛО‑времени — предпочтительно починить timezone в таймере).
 

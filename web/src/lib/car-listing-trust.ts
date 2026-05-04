@@ -8,7 +8,7 @@ import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
 export type CarListingAvailability = "available" | "reserved" | "sold";
 
 export function getCarListingAvailability(raw: Record<string, unknown>): CarListingAvailability {
-  if (raw.encar_listing_sold === true || raw.dongchedi_listing_sold === true) return "sold";
+  if (raw.encar_listing_sold === true || raw.che168_listing_sold === true) return "sold";
   if (raw.encar_listing_reserved === true) return "reserved";
   return "available";
 }
@@ -17,7 +17,7 @@ export function getCarListingAvailability(raw: Record<string, unknown>): CarList
 export function carSourceDisplayName(source: string | null | undefined): string {
   const s = (source ?? "").trim().toLowerCase();
   if (s === "encar") return "Рынок Кореи";
-  if (s === "dongchedi" || s === "china" || s === "che168") return "Рынок Китая";
+  if (s === "china" || s === "che168") return "Рынок Китая";
   if (!s) return "Каталог";
   return (source ?? "").trim();
 }
@@ -26,16 +26,16 @@ export function carSourceDisplayName(source: string | null | undefined): string 
 export function carSourceShortRegionLabel(source: string | null | undefined): string {
   const v = carSourceBadgeVariant(source);
   if (v === "encar") return "Корея";
-  if (v === "dongchedi") return "Китай";
+  if (v === "china") return "Китай";
   return "Каталог";
 }
 
-export type CarSourceBadgeVariant = "encar" | "dongchedi" | "neutral";
+export type CarSourceBadgeVariant = "encar" | "china" | "neutral";
 
 export function carSourceBadgeVariant(source: string | null | undefined): CarSourceBadgeVariant {
   const s = (source ?? "").trim().toLowerCase();
   if (s === "encar") return "encar";
-  if (s === "dongchedi" || s === "china" || s === "che168") return "dongchedi";
+  if (s === "china" || s === "che168") return "china";
   return "neutral";
 }
 

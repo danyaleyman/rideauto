@@ -10,4 +10,4 @@ CREATE INDEX IF NOT EXISTS idx_cars_needs_pricing_recompute_encar
     ON cars (updated_at DESC)
     WHERE needs_pricing_recompute IS TRUE
       AND (source IS NULL OR source = '' OR lower(source) = 'encar')
-      AND (car_id IS NULL OR car_id NOT LIKE 'dongchedi-%');
+      AND (car_id IS NULL OR car_id NOT LIKE 'che168-%');

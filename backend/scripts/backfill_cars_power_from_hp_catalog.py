@@ -46,7 +46,7 @@ def _parse_hp(data: Dict[str, Any]) -> Optional[int]:
 def main() -> int:
     p = argparse.ArgumentParser(description="Backfill cars.power_hp and data.power from hp_catalog")
     p.add_argument("--dsn", default="", help="PostgreSQL DSN (or DATABASE_URL/WRA_PG_DSN)")
-    p.add_argument("--source", default="encar", help="cars.source filter (encar, dongchedi, *, ...)")
+    p.add_argument("--source", default="encar", help="cars.source filter (encar, che168, *, ...)")
     p.add_argument("--batch-size", type=int, default=2000, help="Batch size")
     p.add_argument("--max-rows", type=int, default=0, help="Limit processed rows (0 = all)")
     args = p.parse_args()

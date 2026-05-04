@@ -69,7 +69,7 @@ class SlimCatalogItemV1(BaseModel):
     catalog_created_at: Optional[str] = None
     encar_listing_sold: Optional[bool] = None
     encar_listing_reserved: Optional[bool] = None
-    dongchedi_listing_sold: Optional[bool] = None
+    che168_listing_sold: Optional[bool] = None
     catalog_updated_at: Optional[str] = Field(
         default=None,
         description="ISO-время cars.updated_at (свежесть строки каталога). Обязательно при WRA_API_CONTRACT_VERSION=v2.",

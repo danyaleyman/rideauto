@@ -128,7 +128,7 @@ async def remove_sold_postgres(
                     """
                     SELECT car_id FROM cars
                     WHERE (source IS NULL OR source = 'encar')
-                      AND car_id NOT LIKE 'dongchedi-%%'
+                      AND (car_id IS NULL OR car_id NOT LIKE 'che168-%%')
                     ORDER BY RANDOM()
                     LIMIT %s
                     """,

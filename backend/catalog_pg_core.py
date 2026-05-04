@@ -129,13 +129,20 @@ def power_hp(payload: Dict[str, Any]) -> Optional[int]:
 
 def offer_created_at(payload: Dict[str, Any]) -> Optional[datetime]:
     d = _d(payload)
-    s = _optional_str(d.get("created_at") or d.get("modifiedDate"))
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except ValueError:
-        return None
+    for key in (
+        "created_at",
+        "modifiedDate",
+        "listing_published_at",
+        "che168_listing_published_at",
+    ):
+        s = _optional_str(d.get(key))
+        if not s:
+            continue
+        try:
+            return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+    return None
 
 
 def insurance_cases_and_payout_krw(payload: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
@@ -222,12 +229,19 @@ def row_to_car_fields(
     pricing = _clean(d, "pricing_clean") if use_clean else {}
     condition = _clean(d, "condition_clean") if use_clean else {}
     src = normalized_source(d) or _optional_str((payload or {}).get("source"))
-    if not src and str(car_id).lower().startswith("dongchedi-"):
-        src = "dongchedi"
+    if not src and str(car_id).lower().startswith("che168-"):
+        src = "che168"
     if not src:
         src = "encar"
     mark = _optional_str(identity.get("mark")) or (d.get("mark") or "").strip() or None
     model = _optional_str(identity.get("model")) or (d.get("model") or "").strip() or None
+    if str(src).lower() == "che168":
+        mc = _optional_str(identity.get("mark_canonical")) or _optional_str(d.get("mark_canonical"))
+        moc = _optional_str(identity.get("model_canonical")) or _optional_str(d.get("model_canonical"))
+        if mc:
+            mark = mc
+        if moc:
+            model = moc
     generation = _optional_str(identity.get("generation")) or _optional_str(d.get("generation") or d.get("configuration"))
     # Encar trim: только gradeName (+ clean trim); не тащить configuration/generation (Badge-дубли в generation).
     trim_grade = _optional_str(d.get("gradeName"))
@@ -243,7 +257,7 @@ def row_to_car_fields(
         if encar_model_group is None:
             encar_model_group = _optional_str(identity.get("model_group_encar"))
     displacement_cc, displacement_label = _displacement_cc_with_label(
-        spec.get("displacement_cc") or d.get("displacement") or d.get("dongchedi_displacement_label")
+        spec.get("displacement_cc") or d.get("displacement") or d.get("che168_displacement_label")
     )
     ins_n, ins_krw = insurance_cases_and_payout_krw(payload)
     if ins_n is None:

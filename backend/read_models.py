@@ -7,13 +7,37 @@ from clean_mode import legacy_fallbacks_enabled
 _VALID_TIERS = frozenset({"full_customs", "korea_land_only", "price_on_request"})
 
 
+def _reconcile_che168_pricing_tier_from_live_data(data: Dict[str, Any], resolved_tier: str) -> str:
+    """Если в БД tier=price_on_request, но есть юани и посчитанный my_price — показываем полную цену."""
+    if resolved_tier != "price_on_request":
+        return resolved_tier
+    if not isinstance(data, dict):
+        return resolved_tier
+    if str(data.get("source") or "").strip().lower() != "che168":
+        return resolved_tier
+    try:
+        from catalog_listing_price import china_has_buyer_price, china_has_source_price
+    except ImportError:
+        return resolved_tier
+    if china_has_buyer_price(data):
+        return "full_customs"
+    if china_has_source_price(data):
+        mp = data.get("my_price")
+        try:
+            if mp is not None and float(mp) > 0:
+                return "full_customs"
+        except (TypeError, ValueError):
+            pass
+    return resolved_tier
+
+
 def _reconcile_encar_pricing_tier_from_live_data(data: Dict[str, Any], resolved_tier: str) -> str:
     """Если в БД остался price_on_request, а в живых полях карточки уже хватает данных для tier — показываем цену."""
     if resolved_tier != "price_on_request":
         return resolved_tier
     if not isinstance(data, dict):
         return resolved_tier
-    if str(data.get("source") or "").strip().lower() == "dongchedi":
+    if str(data.get("source") or "").strip().lower() in ("che168", "china"):
         return resolved_tier
     try:
         from catalog_listing_price import encar_has_list_price
@@ -109,6 +133,7 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
 
     tier = _pricing_tier_resolve(data, pricing)
     tier = _reconcile_encar_pricing_tier_from_live_data(data, tier)
+    tier = _reconcile_che168_pricing_tier_from_live_data(data, tier)
     customs_included = _customs_included_for_tier(tier, pricing)
     numeric_price_rub = _safe_num(
         _pick(pricing if use_clean else pc_price, "final_price_rub", data, "my_price"),
@@ -153,7 +178,7 @@ _DETAIL_ROW_TOP_KEYS = frozenset(
         "_catalog_updated_at",
         "catalog_updated_at",
         "encar_listing_sold",
-        "dongchedi_listing_sold",
+        "che168_listing_sold",
     }
 )
 
@@ -171,7 +196,7 @@ def build_car_detail_read_model(row: Dict[str, Any], *, use_clean: bool, api_ver
         out["data"] = dict(row["data"])
     else:
         out["data"] = {k: v for k, v in row.items() if k not in _DETAIL_ROW_TOP_KEYS}
-    for fk in ("_catalog_created_at", "encar_listing_sold", "dongchedi_listing_sold"):
+    for fk in ("_catalog_created_at", "encar_listing_sold", "che168_listing_sold"):
         if fk in row:
             out[fk] = row[fk]
     cua = row.get("_catalog_updated_at") or row.get("catalog_updated_at")

@@ -146,12 +146,10 @@ def build_meilisearch_filter(
     reg = (q.get("region") or "").strip().lower()
     if src == "encar":
         clauses.append('source = "encar"')
-    elif src == "dongchedi":
-        clauses.append('source = "dongchedi"')
     elif src == "che168":
-        clauses.append("year_month = -1")
+        clauses.append('source = "che168"')
     elif src == "china" or reg == "china":
-        clauses.append('source = "dongchedi"')
+        clauses.append('source = "che168"')
     elif reg == "korea":
         clauses.append('source = "encar"')
 
@@ -159,7 +157,7 @@ def build_meilisearch_filter(
         clauses.append(
             "("
             "(encar_listing_sold IS NULL OR encar_listing_sold = false) AND "
-            "(dongchedi_listing_sold IS NULL OR dongchedi_listing_sold = false)"
+            "(che168_listing_sold IS NULL OR che168_listing_sold = false)"
             ")"
         )
 

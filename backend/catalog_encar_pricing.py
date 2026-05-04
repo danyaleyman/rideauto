@@ -60,7 +60,7 @@ def encar_tier_for_pricing_snapshot(data: Dict[str, Any]) -> EncarPricingTier:
     """Актуальный Encar-tier только по полям карточки (без учёта устаревшего pricing_clean).
 
     Вызывать для объявлений с уже проверенной ценой в листинге (см. encar_has_list_price).
-    Не использовать для Dongchedi.
+    Не использовать для Китая (che168 / pricechina).
     """
     from market_pricing_shared import classify_fuel, parse_power_hp
 
@@ -124,7 +124,7 @@ def encar_json_suggests_pricing_resync(data: dict) -> bool:
     """Эвристика для repair: в JSON видно устаревший tier/версию правил при живой цене в листинге."""
     if not isinstance(data, dict):
         return False
-    if str(data.get("source") or "").strip().lower() == "dongchedi":
+    if str(data.get("source") or "").strip().lower() in ("che168", "china"):
         return False
     from catalog_listing_price import encar_has_list_price
 

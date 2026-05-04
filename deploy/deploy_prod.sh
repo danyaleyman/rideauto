@@ -20,8 +20,6 @@ sudo chown -R rideauto:rideauto "${APP_DIR}"
 sudo cp "${APP_DIR}/deploy/systemd/rideauto-api.service" /etc/systemd/system/
 sudo chmod +x "${APP_DIR}/deploy/scripts/rideauto_catalog_install.sh"
 sudo bash "${APP_DIR}/deploy/scripts/rideauto_catalog_install.sh"
-sudo cp "${APP_DIR}/deploy/systemd/prod-dongchedi-update.service" /etc/systemd/system/
-sudo cp "${APP_DIR}/deploy/systemd/prod-dongchedi-update.timer" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/rideauto-meilisearch-sync.service" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/rideauto-meilisearch-sync.timer" /etc/systemd/system/
 sudo cp "${APP_DIR}/deploy/systemd/rideauto-subscriptions-notify.service" /etc/systemd/system/
@@ -37,7 +35,6 @@ echo "[5/6] Reload daemons"
 sudo systemctl daemon-reload
 sudo systemctl enable --now rideauto-api.service
 sudo systemctl enable --now rideauto-auto-update.timer
-sudo systemctl enable --now prod-dongchedi-update.timer
 sudo systemctl enable --now rideauto-meilisearch-sync.timer
 sudo systemctl enable --now rideauto-subscriptions-notify.timer
 sudo systemctl reload nginx

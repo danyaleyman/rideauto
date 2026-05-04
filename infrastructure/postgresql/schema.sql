@@ -62,9 +62,9 @@ CREATE TABLE IF NOT EXISTS cars (
     -- Дневной encar_listing_live_checker: снято с продажи на Encar до ночной выгрузки
     encar_listing_sold       BOOLEAN NOT NULL DEFAULT false,
     encar_listing_checked_at TIMESTAMPTZ,
-    -- Дневной dongchedi_listing_live_checker: снято с продажи на Dongchedi до ночной выгрузки
-    dongchedi_listing_sold       BOOLEAN NOT NULL DEFAULT false,
-    dongchedi_listing_checked_at TIMESTAMPTZ,
+    -- Дневной che168_listing_live_checker: снято с продажи на Che168 Global до ночной выгрузки
+    che168_listing_sold          BOOLEAN NOT NULL DEFAULT false,
+    che168_listing_checked_at    TIMESTAMPTZ,
     data                     JSONB NOT NULL,
     raw                      JSONB,
     source_internal_id       BIGINT,
@@ -138,11 +138,11 @@ CREATE INDEX IF NOT EXISTS idx_cars_offer_created ON cars (offer_created_at DESC
 CREATE INDEX IF NOT EXISTS idx_cars_encar_listing_checker
     ON cars (encar_listing_checked_at NULLS FIRST)
     WHERE (source IS NULL OR source = 'encar')
-      AND car_id NOT LIKE 'dongchedi-%';
+      AND (car_id IS NULL OR car_id NOT LIKE 'che168-%');
 
-CREATE INDEX IF NOT EXISTS idx_cars_dongchedi_listing_checker
-    ON cars (dongchedi_listing_checked_at NULLS FIRST)
-    WHERE source = 'dongchedi';
+CREATE INDEX IF NOT EXISTS idx_cars_che168_listing_checker
+    ON cars (che168_listing_checked_at NULLS FIRST)
+    WHERE source = 'che168';
 
 CREATE INDEX IF NOT EXISTS idx_cars_data_gin ON cars USING GIN (data);
 
@@ -155,6 +155,16 @@ CREATE INDEX IF NOT EXISTS idx_cars_meili_source_rows
     WHERE dedupe_canonical_car_id IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_car_images_car_sort ON car_images (car_pk, sort_order);
+
+CREATE TABLE IF NOT EXISTS che168_cluster_registry (
+    cluster_key TEXT NOT NULL,
+    car_id      TEXT NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (cluster_key, car_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_che168_cluster_registry_car
+    ON che168_cluster_registry (car_id);
 
 -- -----------------------------------------------------------------------------
 -- scraper checkpoint (Encar list/pending/collected state)

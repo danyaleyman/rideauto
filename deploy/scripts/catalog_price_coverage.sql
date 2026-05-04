@@ -53,9 +53,9 @@ SELECT
 FROM cars
 WHERE source = 'encar';
 
--- 4) Dongchedi (если есть в БД): то же покрытие
+-- 4) Che168 (если есть в БД): то же покрытие
 SELECT
-  COUNT(*)                                           AS dongchedi_total,
+  COUNT(*)                                           AS che168_total,
   COUNT(*) FILTER (WHERE COALESCE(price_rub, 0) > 0) AS price_rub_gt_0,
   ROUND(
     100.0 * COUNT(*) FILTER (WHERE COALESCE(price_rub, 0) > 0)
@@ -63,4 +63,4 @@ SELECT
     2
   ) AS pct_with_price_rub
 FROM cars
-WHERE source = 'dongchedi';
+WHERE source = 'che168';

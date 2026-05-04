@@ -169,7 +169,7 @@ docker run -d --name prometheus --restart unless-stopped \
 ```bash
 python3 deploy/scripts/load_profile.py \
   --base-url https://rideauto.ru \
-  --car-id "dongchedi-22752383"
+  --car-id "che168-EXAMPLE"
 ```
 
 При самоподписанном сертификате или корпоративном CA:
@@ -177,7 +177,7 @@ python3 deploy/scripts/load_profile.py \
 ```bash
 python3 deploy/scripts/load_profile.py \
   --base-url https://rideauto.ru \
-  --car-id "dongchedi-22752383" \
+  --car-id "che168-EXAMPLE" \
   --insecure
 ```
 

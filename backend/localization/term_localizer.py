@@ -661,7 +661,7 @@ def localize_car_data(data: Dict[str, object], localizer: PgTermLocalizer) -> No
 
 def localize_china_data(data: Dict[str, object], localizer: PgTermLocalizer) -> None:
     """
-    Локализация полей карточки China (Dongchedi):
+    Локализация полей карточки China (Che168 и общий china_static):
     - названия -> EN (приоритет static china map, затем fallback translate)
     - тех.поля -> RU
     """

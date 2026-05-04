@@ -1,4 +1,10 @@
-from catalog_listing_price import encar_reserved_placeholder_price
+from catalog_listing_price import (
+    china_has_buyer_price,
+    china_has_source_price,
+    china_market_car,
+    encar_has_list_price,
+    encar_reserved_placeholder_price,
+)
 
 
 def test_reserved_placeholder_detects_repeated_digits():
@@ -18,13 +24,6 @@ def test_reserved_placeholder_ignores_regular_prices():
     assert not encar_reserved_placeholder_price({"price": "4380"})
     assert not encar_reserved_placeholder_price({"price_won": 43800000})
     assert not encar_reserved_placeholder_price({"price": "2150"})
-from catalog_listing_price import (
-    china_market_car,
-    dongchedi_has_buyer_price,
-    dongchedi_has_source_price,
-    encar_has_list_price,
-    encar_reserved_placeholder_price,
-)
 
 
 def test_encar_has_list_price_from_won():
@@ -159,16 +158,16 @@ def test_encar_list_price_with_finance_boilerplate_and_realistic_mid_market_pric
 
 
 def test_china_market_car():
-    assert china_market_car("dongchedi-1", {"source": "encar"}) is True
-    assert china_market_car("x", {"source": "dongchedi"}) is True
+    assert china_market_car("che168-1", {"source": "encar"}) is True
+    assert china_market_car("x", {"source": "che168"}) is True
     assert china_market_car("415", {"source": "encar"}) is False
 
 
-def test_dongchedi_has_buyer_price():
-    assert dongchedi_has_buyer_price({"my_price": 1.5}) is True
-    assert dongchedi_has_buyer_price({"my_price": 0}) is False
+def test_china_has_buyer_price():
+    assert china_has_buyer_price({"my_price": 1.5}) is True
+    assert china_has_buyer_price({"my_price": 0}) is False
 
 
-def test_dongchedi_has_source_price():
-    assert dongchedi_has_source_price({"price_cny": 50000}) is True
-    assert dongchedi_has_source_price({"price_cny": "0"}) is False
+def test_china_has_source_price():
+    assert china_has_source_price({"price_cny": 50000}) is True
+    assert china_has_source_price({"price_cny": "0"}) is False

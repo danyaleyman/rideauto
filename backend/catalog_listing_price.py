@@ -26,16 +26,19 @@ _FIELDS_FROM_KOREAN_PRICE_CALC = (
     "commission_rate_default",
     "china_docs_delivery_cny",
     "china_docs_delivery_rub",
+    "vtb_bank_transfer_rub",
     "cny_rub",
     "price_calc_failed",
 )
 
 
 def china_market_car(car_id: str, data: Optional[Dict[str, Any]]) -> bool:
-    if str(car_id or "").lower().startswith("dongchedi-"):
+    if str(car_id or "").lower().startswith("che168-"):
         return True
-    if isinstance(data, dict) and str(data.get("source") or "").strip().lower() == "dongchedi":
-        return True
+    if isinstance(data, dict):
+        src = str(data.get("source") or "").strip().lower()
+        if src in ("che168", "china"):
+            return True
     return False
 
 
@@ -122,7 +125,7 @@ def _encar_monthly_finance_payload(data: Dict[str, Any]) -> bool:
     return intent == "monthly_finance"
 
 
-def dongchedi_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:
+def china_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
     mp = data.get("my_price")
@@ -134,7 +137,7 @@ def dongchedi_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:
     return False
 
 
-def dongchedi_has_source_price(data: Optional[Dict[str, Any]]) -> bool:
+def china_has_source_price(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
     p = data.get("price_cny")

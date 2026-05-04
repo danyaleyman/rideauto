@@ -62,9 +62,7 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
   let market: Market = "korea";
   if (
     region === "china" ||
-    source === "china" ||
-    source === "dongchedi" ||
-    source === "che168"
+    source === "china" || source === "che168"
   ) {
     market = "china";
   }
@@ -141,7 +139,7 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   const u = new URLSearchParams();
   if (state.market === "china") {
     u.set("region", "china");
-    u.set("source", "dongchedi");
+    u.set("source", "che168");
   } else {
     u.set("region", "korea");
     u.set("source", "encar");
@@ -184,7 +182,7 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   p.set("per_page", String(PER_PAGE));
   if (state.market === "china") {
     p.set("region", "china");
-    p.set("source", "dongchedi");
+    p.set("source", "che168");
   } else {
     p.set("region", "korea");
     p.set("source", "encar");

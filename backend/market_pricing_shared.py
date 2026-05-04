@@ -292,7 +292,7 @@ def ice_engine_inputs(car_data: Dict[str, Any], fuel: str) -> Tuple[int, Optiona
         or car_data.get("displacement")
         or car_data.get("displacement_cc")
         or car_data.get("displacement_label")
-        or car_data.get("dongchedi_displacement_label")
+        or car_data.get("che168_displacement_label")
     )
     engine_cc = parse_engine_cc(disp)
 

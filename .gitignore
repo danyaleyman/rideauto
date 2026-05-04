@@ -2,6 +2,7 @@
 
 # Локальные переопределения скрейпера (DSN, лимиты, proxy)
 scraper_config.local.yaml
+che168_scraper.local.yaml
 
 # Server DB dumps (deploy/scripts/backup_postgres_compose.sh)
 backups/

@@ -31,7 +31,6 @@ import {
   collectSelectedEncarOptions,
   displayEncarStandardOption,
 } from "@/lib/encar-options-display";
-import { localizeDongchediOptionText } from "@/lib/dongchedi-option-ru-table";
 import { formatPriceLabel } from "@/lib/format-price";
 
 const SWITCH_BAR_CLASS = "inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1.5";
@@ -476,7 +475,8 @@ function parseJson(v: unknown): unknown {
   }
 }
 
-function collectDongchediRecommendedFallback(d: Record<string, unknown>): string[] {
+/** Опции/подсветки китайского листинга (Che168 и др.): без отдельной таблицы Dongchedi. */
+function collectChinaHighlightLabels(d: Record<string, unknown>): string[] {
   const raw = d.high_light_config;
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
@@ -486,7 +486,7 @@ function collectDongchediRecommendedFallback(d: Record<string, unknown>): string
     const item = entry as Record<string, unknown>;
     const candidate = asStr(item.name) ?? asStr(item.title) ?? asStr(item.value);
     if (!candidate) continue;
-    const ru = localizeDongchediOptionText(candidate);
+    const ru = translateKoToRuText(candidate).trim() || candidate.trim();
     if (!ru || seen.has(ru)) continue;
     seen.add(ru);
     out.push(ru);
@@ -701,20 +701,22 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
   const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
-  const dongchediRecommendedRaw = parseJson(d.dongchedi_recommended_options);
-  const dongchediRecommendedFallback = useMemo(() => collectDongchediRecommendedFallback(d), [d]);
-  const dongchediRecommended = useMemo(() => {
-    if (!Array.isArray(dongchediRecommendedRaw)) return dongchediRecommendedFallback;
+  const chinaRecommendedRaw = parseJson(d.che168_recommended_options);
+  const chinaRecommendedFallback = useMemo(() => collectChinaHighlightLabels(d), [d]);
+  const chinaRecommended = useMemo(() => {
+    if (!Array.isArray(chinaRecommendedRaw)) return chinaRecommendedFallback;
     const out: string[] = [];
     const seen = new Set<string>();
-    for (const item of dongchediRecommendedRaw) {
-      const ru = localizeDongchediOptionText(typeof item === "string" ? item : item != null ? String(item) : "");
+    for (const item of chinaRecommendedRaw) {
+      const raw =
+        typeof item === "string" ? item : item != null ? String(item) : "";
+      const ru = (translateKoToRuText(raw).trim() || raw.trim()).trim();
       if (!ru || seen.has(ru)) continue;
       seen.add(ru);
       out.push(ru);
     }
-    return out.length ? out : dongchediRecommendedFallback;
-  }, [dongchediRecommendedRaw, dongchediRecommendedFallback]);
+    return out.length ? out : chinaRecommendedFallback;
+  }, [chinaRecommendedRaw, chinaRecommendedFallback]);
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
   const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);
@@ -756,11 +758,11 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       seen.add(t);
       out.push(t);
     };
-    for (const v of dongchediRecommended) push(v);
+    for (const v of chinaRecommended) push(v);
     for (const v of selectedLabels) push(v);
     for (const v of staticCodesAll) push(v);
     return out;
-  }, [dongchediRecommended, selectedLabels, staticCodesAll]);
+  }, [chinaRecommended, selectedLabels, staticCodesAll]);
   const hasAnyRenderedOptions = allLabels.length > 0;
 
   type OptGroupKey = "assist" | "interior" | "safety" | "comfort" | "media" | "other";

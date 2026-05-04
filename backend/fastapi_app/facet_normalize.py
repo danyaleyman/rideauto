@@ -51,7 +51,7 @@ def is_china_catalog_flat(q: Optional[Dict[str, str]]) -> bool:
         return False
     src = (q.get("source") or "").strip().lower()
     reg = (q.get("region") or "").strip().lower()
-    return reg == "china" or src in {"china", "dongchedi", "che168"}
+    return reg == "china" or src in {"china", "che168"}
 
 
 @lru_cache(maxsize=1)

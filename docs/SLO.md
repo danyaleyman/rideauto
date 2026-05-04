@@ -41,14 +41,14 @@ Load profile command:
 ```bash
 python3 deploy/scripts/load_profile.py \
   --base-url http://127.0.0.1:8080 \
-  --car-id "dongchedi-22752383"
+  --car-id "che168-EXAMPLE"
 ```
 
 Preflight:
 
 - `GET /api/health`: `200`
 - `GET /api/search?per_page=1`: `200`
-- `GET /api/car/dongchedi-22752383`: `200`
+- `GET /api/car/che168-EXAMPLE`: `200`
 
 Scenarios:
 
@@ -73,14 +73,14 @@ Run from app server (path includes **TLS + nginx + сеть**; микс **~75%**
 ```bash
 python3 deploy/scripts/load_profile.py \
   --base-url https://rideauto.ru \
-  --car-id "dongchedi-22752383"
+  --car-id "che168-EXAMPLE"
 ```
 
 Preflight (server → публичный домен):
 
 - `GET /api/health`: `200` (~64 ms)
 - `GET /api/search?per_page=1`: `200` (~132 ms)
-- `GET /api/car/dongchedi-22752383`: `200` (~80 ms)
+- `GET /api/car/che168-EXAMPLE`: `200` (~80 ms)
 
 Scenarios:
 

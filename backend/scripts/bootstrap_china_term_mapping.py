@@ -115,11 +115,11 @@ def _translate_terms(
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Bootstrap full Dongchedi term mapping into term_translation_cache.",
+        description="Bootstrap China (Che168) term mapping into term_translation_cache.",
     )
     p.add_argument("--dsn", default=(os.environ.get("DATABASE_URL") or "").strip())
     p.add_argument("--csv", default="", help="Path to cars_china.csv (optional alternative to DB)")
-    p.add_argument("--source", default="dongchedi", help="Cars source to map (default: dongchedi)")
+    p.add_argument("--source", default="che168", help="Cars source to map (default: che168)")
     return p.parse_args()
 
 

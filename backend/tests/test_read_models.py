@@ -101,10 +101,10 @@ def test_power_hp_normalized_from_spec_clean_string(monkeypatch):
     assert rm["power_hp"] == 198
 
 
-def test_encar_does_not_reconcile_dongchedi(monkeypatch):
+def test_che168_reconciles_tier_when_buyer_price_present(monkeypatch):
     monkeypatch.setenv("WRA_LEGACY_FALLBACKS_ENABLED", "1")
     d = {
-        "source": "dongchedi",
+        "source": "che168",
         "price_won": 28_500_000,
         "engine_type": "gasoline",
         "power_hp": 180,
@@ -113,5 +113,6 @@ def test_encar_does_not_reconcile_dongchedi(monkeypatch):
         "pricing_clean": {"pricing_tier": "price_on_request", "price_on_request": True},
     }
     rm = build_catalog_read_model(d, use_clean=True)
-    assert rm["pricing_tier"] == "price_on_request"
+    assert rm["pricing_tier"] == "full_customs"
+    assert rm["price_rub"] == 3_500_000.0
 

@@ -58,7 +58,7 @@ def _iter_rows(conn: psycopg2.extensions.connection, batch_size: int) -> Iterabl
             """
             SELECT id, mark, model, generation, trim_name, data
             FROM cars
-            WHERE source = 'dongchedi'
+            WHERE source = 'che168'
             ORDER BY id ASC
             """
         )

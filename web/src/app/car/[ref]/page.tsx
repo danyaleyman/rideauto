@@ -96,8 +96,8 @@ export default async function CarPage({ params }: PageProps) {
         : null;
 
   const sourceUrl =
-    typeof d.dongchedi_usedcar_url === "string" && d.dongchedi_usedcar_url.trim()
-      ? d.dongchedi_usedcar_url.trim()
+    typeof d.che168_vehicle_url === "string" && d.che168_vehicle_url.trim()
+      ? d.che168_vehicle_url.trim()
       : typeof d.url === "string" && d.url.trim()
         ? d.url.trim()
         : null;
@@ -155,9 +155,9 @@ export default async function CarPage({ params }: PageProps) {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
-            {typeof d.dongchedi_specs_url === "string" && d.dongchedi_specs_url.trim() ? (
+            {typeof d.che168_specs_url === "string" && d.che168_specs_url.trim() ? (
               <Button variant="outline" size="sm" className="h-auto min-h-9 w-full shrink-0 whitespace-normal rounded-xl px-3 py-2 text-center text-xs shadow-sm sm:h-9 sm:w-auto sm:rounded-full sm:text-sm" asChild>
-                <a href={d.dongchedi_specs_url} target="_blank" rel="noopener noreferrer">
+                <a href={d.che168_specs_url} target="_blank" rel="noopener noreferrer">
                   Полные параметры комплектации
                 </a>
               </Button>
@@ -269,7 +269,7 @@ export default async function CarPage({ params }: PageProps) {
           <MotionStagger className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {similar.map((car) => {
               const img = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
-              const simSold = Boolean(car.encar_listing_sold || car.dongchedi_listing_sold);
+              const simSold = Boolean(car.encar_listing_sold || car.che168_listing_sold);
               const simReserved = !simSold && Boolean(car.encar_listing_reserved);
               return (
                 <MotionStaggerItem key={car.id}>

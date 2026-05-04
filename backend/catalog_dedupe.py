@@ -87,7 +87,7 @@ def catalog_dedupe_key(car_id: str, source: Optional[str], listing_root: Dict[st
     inner = (
         str(
             listing_root.get("inner_id")
-            or listing_root.get("dongchedi_sku_id")
+            or listing_root.get("che168_listing_id")
             or listing_root.get("innerId")
             or "",
         ).strip()

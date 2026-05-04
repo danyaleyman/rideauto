@@ -49,29 +49,36 @@ def _fingerprint(data: Dict[str, Any]) -> str:
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
-def _fetch_rows(dsn: str, limit: int, car_ids: Sequence[str]) -> List[Tuple[int, str, Dict[str, Any], Dict[str, Any]]]:
+def _fetch_rows(
+    dsn: str,
+    limit: int,
+    car_ids: Sequence[str],
+    *,
+    source: str,
+) -> List[Tuple[int, str, Dict[str, Any], Dict[str, Any]]]:
     import psycopg2
     import psycopg2.extras
 
+    src = str(source or "encar").strip().lower()
     if car_ids:
         q = """
         SELECT id, car_id, data, raw
         FROM cars
-        WHERE source='encar'
+        WHERE lower(trim(source)) = %s
           AND car_id = ANY(%s)
         ORDER BY updated_at DESC
         """
-        params = (list(car_ids),)
+        params = (src, list(car_ids))
     else:
         q = """
         SELECT id, car_id, data, raw
         FROM cars
-        WHERE source='encar'
+        WHERE lower(trim(source)) = %s
           AND raw IS NOT NULL
         ORDER BY updated_at DESC
         LIMIT %s
         """
-        params = (limit,)
+        params = (src, limit)
     out: List[Tuple[int, str, Dict[str, Any], Dict[str, Any]]] = []
     with psycopg2.connect(dsn) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -83,6 +90,14 @@ def _fetch_rows(dsn: str, limit: int, car_ids: Sequence[str]) -> List[Tuple[int,
                     continue
                 out.append((int(row["id"]), str(row["car_id"]), data, raw))
     return out
+
+
+def _che168_external_id(car_id: str) -> str:
+    s = str(car_id).strip()
+    low = s.lower()
+    if low.startswith("che168-"):
+        return s[7:]
+    return s
 
 
 def _update_data(dsn: str, row_id: int, data: Dict[str, Any]) -> None:
@@ -102,6 +117,12 @@ def main() -> None:
     p.add_argument("--config", default="scraper_config.yaml")
     p.add_argument("--limit", type=int, default=200)
     p.add_argument("--car-id", action="append", default=[])
+    p.add_argument("--source", default="encar", help="encar | che168")
+    p.add_argument(
+        "--che168-assume-wan-yuan",
+        action="store_true",
+        help="Che168: interpret small floats as 万元 (see scraper assume_price_in_wan_yuan)",
+    )
     p.add_argument("--apply", action="store_true", help="Write updated normalized data to DB")
     args = p.parse_args()
 
@@ -109,12 +130,19 @@ def main() -> None:
     if not dsn:
         raise SystemExit("DATABASE_URL/storage.postgres.dsn is empty")
 
-    from parser_full import EncarFullParser
-    from scraper_pipeline.encar.parser import parse_one_car_sync
+    source = str(args.source or "encar").strip().lower()
+    rows = _fetch_rows(
+        dsn,
+        limit=max(1, args.limit),
+        car_ids=[str(x).strip() for x in args.car_id if str(x).strip()],
+        source=source,
+    )
+    stats = {"checked": 0, "reprocessed": 0, "changed": 0, "updated": 0, "no_raw_sources": 0, "source": source}
+    encar_parser = None
+    if source != "che168":
+        from parser_full import EncarFullParser
 
-    parser = EncarFullParser()
-    rows = _fetch_rows(dsn, limit=max(1, args.limit), car_ids=[str(x).strip() for x in args.car_id if str(x).strip()])
-    stats = {"checked": 0, "reprocessed": 0, "changed": 0, "updated": 0, "no_raw_sources": 0}
+        encar_parser = EncarFullParser()
     for row_id, car_id, current_data, raw_db in rows:
         stats["checked"] += 1
         envelope = _decode_raw(raw_db)
@@ -122,25 +150,48 @@ def main() -> None:
         if not isinstance(src, dict):
             stats["no_raw_sources"] += 1
             continue
-        item = src.get("list_item") if isinstance(src.get("list_item"), dict) else {}
-        detail = src.get("detail") if isinstance(src.get("detail"), dict) else {}
-        diagnosis = src.get("diagnosis") if isinstance(src.get("diagnosis"), dict) else {}
-        record = src.get("record") if isinstance(src.get("record"), dict) else {}
-        inspection = src.get("inspection") if isinstance(src.get("inspection"), dict) else {}
-        sellingpoint = src.get("sellingpoint") if isinstance(src.get("sellingpoint"), dict) else {}
-        user_info = src.get("user") if isinstance(src.get("user"), dict) else {}
-        out = parse_one_car_sync(
-            parser=parser,
-            car_id=car_id,
-            item=item,
-            detail=detail,
-            diagnosis=diagnosis,
-            record=record,
-            inspection=inspection,
-            sellingpoint=sellingpoint,
-            user_info=user_info,
-            source_meta=(envelope.get("source_meta") if isinstance(envelope.get("source_meta"), dict) else None),
-        )
+        if source == "che168":
+            from scraper_pipeline.che168.parser import parse_one_che168_car_sync
+
+            list_item = src.get("list_item") if isinstance(src.get("list_item"), dict) else {}
+            carinfo = src.get("carinfo") if isinstance(src.get("carinfo"), dict) else None
+            specparam = src.get("specparam") if isinstance(src.get("specparam"), dict) else None
+            specconfig = src.get("specconfig") if isinstance(src.get("specconfig"), dict) else None
+            recommend = src.get("recommend") if isinstance(src.get("recommend"), dict) else None
+            report_summary = src.get("report_summary") if isinstance(src.get("report_summary"), dict) else None
+            out = parse_one_che168_car_sync(
+                external_id=_che168_external_id(car_id),
+                list_item=list_item,
+                carinfo=carinfo,
+                specparam=specparam,
+                specconfig=specconfig,
+                recommend=recommend,
+                report_summary=report_summary,
+                assume_price_wan_yuan=bool(args.che168_assume_wan_yuan),
+                source_meta=(envelope.get("source_meta") if isinstance(envelope.get("source_meta"), dict) else None),
+            )
+        else:
+            from scraper_pipeline.encar.parser import parse_one_car_sync
+
+            item = src.get("list_item") if isinstance(src.get("list_item"), dict) else {}
+            detail = src.get("detail") if isinstance(src.get("detail"), dict) else {}
+            diagnosis = src.get("diagnosis") if isinstance(src.get("diagnosis"), dict) else {}
+            record = src.get("record") if isinstance(src.get("record"), dict) else {}
+            inspection = src.get("inspection") if isinstance(src.get("inspection"), dict) else {}
+            sellingpoint = src.get("sellingpoint") if isinstance(src.get("sellingpoint"), dict) else {}
+            user_info = src.get("user") if isinstance(src.get("user"), dict) else {}
+            out = parse_one_car_sync(
+                parser=encar_parser,
+                car_id=car_id,
+                item=item,
+                detail=detail,
+                diagnosis=diagnosis,
+                record=record,
+                inspection=inspection,
+                sellingpoint=sellingpoint,
+                user_info=user_info,
+                source_meta=(envelope.get("source_meta") if isinstance(envelope.get("source_meta"), dict) else None),
+            )
         if not out or not isinstance(out.get("data"), dict):
             continue
         stats["reprocessed"] += 1

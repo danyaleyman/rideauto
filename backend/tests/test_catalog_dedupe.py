@@ -20,8 +20,8 @@ def test_dedupe_key_prefers_vin():
 
 
 def test_dedupe_key_inner_id_without_vin():
-    k = catalog_dedupe_key("dongchedi-x", "dongchedi", {"dongchedi_sku_id": "12345"})
-    assert k == "dongchedi:12345"
+    k = catalog_dedupe_key("che168-x", "che168", {"che168_listing_id": "12345"})
+    assert k == "che168:12345"
 
 
 def test_dedupe_key_fallback_car_id():

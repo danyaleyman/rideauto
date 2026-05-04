@@ -12,10 +12,10 @@
 
 ## Sold / снятие с публикации
 
-- Колонка **`encar_listing_sold`** (и Аналог для Dongchedi) в Postgres; выставляется воркерами (например `encar_listing_live_checker.py`).
+- Колонки **`encar_listing_sold`** / **`che168_listing_sold`** в Postgres; выставляются воркерами live checker.
 - В индекс Meilisearch поле синхронизируется из Postgres (`sync_meilisearch.py`).
 - Фильтр листинга по умолчанию исключает проданные: **`build_meilisearch_filter`**.
-- В slim/detail флаги **`encar_listing_sold`** / **`dongchedi_listing_sold`** при необходимости пробрасываются в ответ; похожие авто в **`search.py`** отфильтровывают sold при гидратации.
+- В slim/detail флаги **`encar_listing_sold`** / **`che168_listing_sold`** при необходимости пробрасываются в ответ; похожие авто в **`search.py`** отфильтровывают sold при гидратации.
 
 Цель: одно и то же правило «не показывать проданное» на уровне поиска и гидратации.
 

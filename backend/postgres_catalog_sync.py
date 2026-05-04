@@ -21,14 +21,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from catalog_listing_price import (
+    china_has_source_price,
     china_market_car,
     clear_estimated_price_fields,
-    dongchedi_has_buyer_price,
-    dongchedi_has_source_price,
     encar_has_list_price,
     encar_reserved_placeholder_price,
 )
 from catalog_encar_pricing import PRICING_RULES_VERSION, encar_tier_for_pricing_snapshot, sync_pricing_clean_block
+from pricechina import CHINA_PRICING_RULES_VERSION, sync_china_pricing_clean_block
 from catalog_pg_core import (
     UPSERT_CAR_SQL,
     extract_image_urls,
@@ -388,23 +388,31 @@ def run_sync(
                         continue
 
                     if _uses_china_pipeline_pricing(car):
-                        if not dongchedi_has_source_price(data):
+                        if not china_has_source_price(data):
                             price_skipped_china += 1
                             data["price_on_request"] = True
+                            data["pricing_tier"] = "price_on_request"
                             clear_estimated_price_fields(data)
                             data.pop("price_calc_failed", None)
+                            sync_china_pricing_clean_block(data)
                         else:
                             try:
                                 calc_china.update_china_car_with_prices(data)
                                 data.pop("price_on_request", None)
                                 data.pop("price_calc_failed", None)
+                                data["pricing_tier"] = "full_customs"
+                                sync_china_pricing_clean_block(data)
                                 price_ok += 1
                                 price_ok_china += 1
                             except Exception as e:
                                 price_failed += 1
                                 if i == 0:
                                     print(f"Warning: china price calc failed for first car: {e}", file=sys.stderr)
+                                data["price_on_request"] = True
+                                data["pricing_tier"] = "price_on_request"
                                 data["price_calc_failed"] = True
+                                clear_estimated_price_fields(data)
+                                sync_china_pricing_clean_block(data)
                         if car.get("data") is not data:
                             car["data"] = data
                         continue
@@ -570,7 +578,7 @@ def run_sync(
                     """
                     SELECT COUNT(*) FROM cars
                     WHERE (source IS NULL OR lower(trim(source)) = 'encar')
-                      AND (car_id IS NULL OR car_id NOT LIKE 'dongchedi-%%')
+                      AND (car_id IS NULL OR car_id NOT LIKE 'che168-%%')
                       AND COALESCE(data->'pricing_clean'->>'pricing_rules_version', '') <> %s
                       AND (data ? 'price_won' AND NULLIF((data->>'price_won')::text, '') IS NOT NULL
                            AND (data->>'price_won')::numeric > 0)
@@ -578,9 +586,22 @@ def run_sync(
                     (PRICING_RULES_VERSION,),
                 )
                 n_encar_rules_mismatch = int(mcur.fetchone()[0])
+                mcur.execute(
+                    """
+                    SELECT COUNT(*) FROM cars
+                    WHERE lower(trim(source)) = 'che168'
+                      AND COALESCE(che168_listing_sold, false) = false
+                      AND COALESCE(data->'pricing_clean'->>'pricing_rules_version', '') <> %s
+                      AND NULLIF((data->>'price_cny')::text, '') IS NOT NULL
+                      AND (data->>'price_cny')::numeric > 0
+                    """,
+                    (CHINA_PRICING_RULES_VERSION,),
+                )
+                n_china_rules_mismatch = int(mcur.fetchone()[0])
             print(
                 f"Pricing observability: needs_pricing_recompute={n_pricing_queued} "
-                f"encar_rows_old_pricing_rules_version≈{n_encar_rules_mismatch} (current={PRICING_RULES_VERSION})",
+                f"encar_rows_old_pricing_rules_version≈{n_encar_rules_mismatch} (current={PRICING_RULES_VERSION}) "
+                f"che168_rows_old_china_pricing_rules_version≈{n_china_rules_mismatch} (current={CHINA_PRICING_RULES_VERSION})",
                 file=sys.stderr,
             )
         except Exception as e:

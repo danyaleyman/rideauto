@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from catalog_pg_core import UPSERT_CAR_SQL, extract_image_urls, get_or_create_brand, get_or_create_model, row_to_car_fields
 from scraper_pipeline.pg_dsn_resolve import resolve_scraper_postgres_dsn
 
@@ -38,12 +38,13 @@ class CarSaver(ABC):
 class PostgresCarSaver(CarSaver):
     """Один общий lock — кэши brand/model и одна транзакция за машину (psycopg2 не thread-safe)."""
 
-    def __init__(self, dsn: str, store_raw: bool = False):
+    def __init__(self, dsn: str, store_raw: bool = False, *, count_cars_source: Optional[str] = None):
         import psycopg2  # lazy
 
         self._psycopg2 = psycopg2
         self.dsn = dsn
         self.store_raw = store_raw
+        self._count_cars_source = (count_cars_source or "").strip() or None
         self._lock = asyncio.Lock()
         self._brand_cache: Dict[str, int] = {}
         self._model_cache: Dict[tuple, int] = {}
@@ -65,6 +66,14 @@ class PostgresCarSaver(CarSaver):
             "addressDetail",
             "residentNo",
             "ssn",
+            "dealerphone",
+            "shopphone",
+            "phonenumber",
+            "linkphone",
+            "servicephone",
+            "qq",
+            "wechat",
+            "weixin",
         }
         if isinstance(obj, dict):
             out: Dict[str, Any] = {}
@@ -96,7 +105,8 @@ class PostgresCarSaver(CarSaver):
             return
         self._snapshot_dir.mkdir(parents=True, exist_ok=True)
         day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        path = self._snapshot_dir / f"encar_raw_{day}.jsonl"
+        prefix = "che168_raw_" if str(car_id).lower().startswith("che168-") else "encar_raw_"
+        path = self._snapshot_dir / f"{prefix}{day}.jsonl"
         row = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "car_id": str(car_id),
@@ -111,7 +121,7 @@ class PostgresCarSaver(CarSaver):
         if not self._snapshot_dir.is_dir():
             return
         cutoff = datetime.now(timezone.utc) - timedelta(days=self._snapshot_retention_days)
-        for p in self._snapshot_dir.glob("encar_raw_*.jsonl"):
+        for p in (*self._snapshot_dir.glob("encar_raw_*.jsonl"), *self._snapshot_dir.glob("che168_raw_*.jsonl")):
             try:
                 if datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc) < cutoff:
                     p.unlink(missing_ok=True)
@@ -163,6 +173,23 @@ class PostgresCarSaver(CarSaver):
                         """,
                         (car_pk, url, i, i == 0),
                     )
+                if str(car_id).lower().startswith("che168-"):
+                    if str(os.environ.get("CHE168_CLUSTER_REGISTRY", "1")).strip().lower() not in (
+                        "0",
+                        "false",
+                        "no",
+                        "off",
+                    ):
+                        try:
+                            from scraper_pipeline.che168.cluster_registry import (
+                                apply_che168_cluster_registry,
+                            )
+
+                            d = payload.get("data")
+                            if isinstance(d, dict):
+                                apply_che168_cluster_registry(cur, car_id, d)
+                        except Exception:
+                            pass
             conn.commit()
         if raw_obj is not None:
             self._write_snapshot(car_id, raw_obj)
@@ -180,7 +207,13 @@ class PostgresCarSaver(CarSaver):
             def _cnt() -> int:
                 with self._psycopg2.connect(self.dsn) as conn:
                     with conn.cursor() as cur:
-                        cur.execute("SELECT COUNT(*) FROM cars")
+                        if self._count_cars_source:
+                            cur.execute(
+                                "SELECT COUNT(*) FROM cars WHERE lower(trim(source)) = lower(%s)",
+                                (self._count_cars_source,),
+                            )
+                        else:
+                            cur.execute("SELECT COUNT(*) FROM cars")
                         r = cur.fetchone()
                         return int(r[0]) if r else 0
 
@@ -199,4 +232,5 @@ def build_car_saver(config: dict) -> tuple[CarSaver, str]:
     dsn = str(resolve_scraper_postgres_dsn(config) or "").strip()
     if not dsn:
         raise ValueError("storage.backend=postgres requires storage.postgres.dsn or DATABASE_URL or RIDEAUTO_PG_CHECKPOINT_DSN")
-    return PostgresCarSaver(dsn, store_raw=store_raw), "postgres"
+    count_src = str(storage_cfg.get("count_cars_source") or "").strip() or None
+    return PostgresCarSaver(dsn, store_raw=store_raw, count_cars_source=count_src), "postgres"

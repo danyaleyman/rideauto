@@ -40,11 +40,11 @@ def _truthy(v: Any) -> bool:
 
 
 def _is_sold_car(car: Dict[str, Any]) -> bool:
-    if _truthy(car.get("encar_listing_sold")) or _truthy(car.get("dongchedi_listing_sold")):
+    if _truthy(car.get("encar_listing_sold")) or _truthy(car.get("che168_listing_sold")):
         return True
     d = car.get("data")
     if isinstance(d, dict):
-        return _truthy(d.get("encar_listing_sold")) or _truthy(d.get("dongchedi_listing_sold"))
+        return _truthy(d.get("encar_listing_sold")) or _truthy(d.get("che168_listing_sold"))
     return False
 
 

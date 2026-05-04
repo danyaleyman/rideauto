@@ -1,6 +1,6 @@
 """
 Пакетный upsert карточек в PostgreSQL (общая SQL-логика с PostgresCarSaver).
-Используется скрейпером Dongchedi и может переиспользоваться другими ingestion-пайплайнами.
+Используется ingestion в PostgreSQL (в т.ч. Che168) и может переиспользоваться другими пайплайнами.
 """
 from __future__ import annotations
 

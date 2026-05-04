@@ -4,15 +4,23 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import psycopg2
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
+_BACKEND_DIR = _SCRIPTS_DIR.parent
+for _p in (_BACKEND_DIR, _SCRIPTS_DIR):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+from parser_audit_common import (  # noqa: E402
+    audit_append_history,
+    audit_pct,
+    audit_print_section,
+    audit_read_last_summary_from_history,
+    audit_trim_history_file,
+)
 from slack_ops import notify_slack_alert  # noqa: E402
 
 
@@ -21,86 +29,6 @@ def _dsn_from_env() -> str:
     if not dsn:
         raise RuntimeError("DATABASE_URL is required")
     return dsn
-
-
-def _print_section(title: str, rows: list[tuple[Any, ...]]) -> None:
-    print(f"\n## {title}")
-    if not rows:
-        print("(empty)")
-        return
-    for row in rows:
-        print(" - " + " | ".join("" if v is None else str(v) for v in row))
-
-
-def _pct(part: int, total: int) -> float:
-    if total <= 0:
-        return 0.0
-    return round((part / total) * 100.0, 2)
-
-
-def _read_last_summary_from_history(history_file: str) -> dict[str, Any]:
-    p = Path(history_file)
-    if not p.is_file():
-        return {}
-    lines = p.read_text(encoding="utf-8").splitlines()
-    for line in reversed(lines):
-        raw = line.strip()
-        if not raw:
-            continue
-        try:
-            row = json.loads(raw)
-        except json.JSONDecodeError:
-            continue
-        summary = row.get("summary")
-        if isinstance(summary, dict):
-            return summary
-    return {}
-
-
-def _append_history(history_file: str, summary: dict[str, Any], delta: dict[str, Any]) -> None:
-    p = Path(history_file)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    row = {
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "summary": summary,
-        "delta": delta,
-    }
-    with p.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
-
-
-def _trim_history_file(history_file: str, keep_days: int) -> None:
-    """Keep JSONL records whose `ts` is within the last keep_days (UTC)."""
-    if keep_days <= 0:
-        return
-    p = Path(history_file)
-    if not p.is_file():
-        return
-    cutoff = datetime.now(timezone.utc) - timedelta(days=keep_days)
-    kept: list[str] = []
-    for line in p.read_text(encoding="utf-8").splitlines():
-        raw = line.strip()
-        if not raw:
-            continue
-        try:
-            row = json.loads(raw)
-        except json.JSONDecodeError:
-            kept.append(line)
-            continue
-        ts_raw = row.get("ts")
-        if not isinstance(ts_raw, str):
-            kept.append(line)
-            continue
-        try:
-            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
-        except ValueError:
-            kept.append(line)
-            continue
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        if ts >= cutoff:
-            kept.append(line)
-    p.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
 
 
 def _delta(current: dict[str, Any], previous: dict[str, Any]) -> dict[str, Any]:
@@ -117,10 +45,10 @@ def _delta(current: dict[str, Any], previous: dict[str, Any]) -> dict[str, Any]:
         "delta_with_schema_version": with_schema_version - prev_schema,
         "delta_with_missing_required": with_missing_required - prev_missing,
         "delta_with_contract_violations": with_contract_violations - prev_contract_violations,
-        "delta_pct_schema_version": round(_pct(with_schema_version, total) - _pct(prev_schema, prev_total), 2),
-        "delta_pct_missing_required": round(_pct(with_missing_required, total) - _pct(prev_missing, prev_total), 2),
+        "delta_pct_schema_version": round(audit_pct(with_schema_version, total) - audit_pct(prev_schema, prev_total), 2),
+        "delta_pct_missing_required": round(audit_pct(with_missing_required, total) - audit_pct(prev_missing, prev_total), 2),
         "delta_pct_contract_violations": round(
-            _pct(with_contract_violations, total) - _pct(prev_contract_violations, prev_total),
+            audit_pct(with_contract_violations, total) - audit_pct(prev_contract_violations, prev_total),
             2,
         ),
         "delta_pct_sale": round(float(current.get("pct_sale") or 0.0) - float(previous.get("pct_sale") or 0.0), 2),
@@ -283,7 +211,7 @@ def run(
         except json.JSONDecodeError as exc:
             raise RuntimeError(f"invalid --baseline-json: {exc}") from exc
     elif history_file:
-        baseline = _read_last_summary_from_history(history_file)
+        baseline = audit_read_last_summary_from_history(history_file)
     with psycopg2.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -360,7 +288,7 @@ def run(
                 """,
                 (limit,),
             )
-            _print_section("Top detail shape hashes", cur.fetchall())
+            audit_print_section("Top detail shape hashes", cur.fetchall())
 
             cur.execute(
                 """
@@ -376,7 +304,7 @@ def run(
                 """,
                 (limit,),
             )
-            _print_section("Top data_quality reasons", cur.fetchall())
+            audit_print_section("Top data_quality reasons", cur.fetchall())
 
             cur.execute(
                 """
@@ -392,7 +320,7 @@ def run(
                 """,
                 (limit,),
             )
-            _print_section("Top raw-json contract violation groups", cur.fetchall())
+            audit_print_section("Top raw-json contract violation groups", cur.fetchall())
 
             cur.execute(
                 """
@@ -408,25 +336,25 @@ def run(
                 """,
                 (limit,),
             )
-            _print_section("Recent rows with missing required fields", cur.fetchall())
+            audit_print_section("Recent rows with missing required fields", cur.fetchall())
 
             current_summary = {
                 "total": total,
                 "with_schema_version": with_schema_version,
                 "with_missing_required": with_missing_required,
-                "pct_schema_version": _pct(with_schema_version, total),
-                "pct_missing_required": _pct(with_missing_required, total),
+                "pct_schema_version": audit_pct(with_schema_version, total),
+                "pct_missing_required": audit_pct(with_missing_required, total),
                 "sale_cnt": sale_cnt,
                 "monthly_finance_cnt": monthly_cnt,
                 "reserved_placeholder_cnt": reserved_cnt,
-                "pct_sale": _pct(sale_cnt, total),
-                "pct_monthly_finance": _pct(monthly_cnt, total),
-                "pct_reserved_placeholder": _pct(reserved_cnt, total),
+                "pct_sale": audit_pct(sale_cnt, total),
+                "pct_monthly_finance": audit_pct(monthly_cnt, total),
+                "pct_reserved_placeholder": audit_pct(reserved_cnt, total),
                 "with_contract_violations": with_contract_violations,
-                "pct_contract_violations": _pct(with_contract_violations, total),
+                "pct_contract_violations": audit_pct(with_contract_violations, total),
                 "avg_raw_quality_score": avg_raw_quality_score,
                 "with_clean_schema": with_clean_schema,
-                "pct_with_clean_schema": _pct(with_clean_schema, total),
+                "pct_with_clean_schema": audit_pct(with_clean_schema, total),
             }
             print("\n## Summary JSON")
             print(json.dumps(current_summary, ensure_ascii=False))
@@ -436,8 +364,8 @@ def run(
                 delta = _delta(current_summary, baseline)
                 print(json.dumps(delta, ensure_ascii=False))
             if history_file:
-                _append_history(history_file, current_summary, delta)
-                _trim_history_file(history_file, keep_history_days)
+                audit_append_history(history_file, current_summary, delta)
+                audit_trim_history_file(history_file, keep_history_days)
                 print(f"\n## History file\n{history_file}")
             failures = _evaluate_regression(
                 current_summary=current_summary,

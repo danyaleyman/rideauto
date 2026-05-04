@@ -54,7 +54,7 @@
 | `year_num` | `integer` | Из `data.year` |
 | `api_contract_version` | `string` | Копия `WRA_API_CONTRACT_VERSION` |
 
-**Частые опциональные ключи:** `inner_id`, `pricing_tier`, `customs_included`, `catalog_created_at`, `encar_listing_reserved`, `encar_listing_sold`, `dongchedi_listing_sold`.
+**Частые опциональные ключи:** `inner_id`, `pricing_tier`, `customs_included`, `catalog_created_at`, `encar_listing_reserved`, `encar_listing_sold`, `che168_listing_sold`.
 
 Для отображения спеки в списке предпочтительно **`read_model`**, дубли в **`data`** — см. **`API_DEPRECATIONS.md`**.
 
@@ -73,7 +73,7 @@
 - **`id`** — строка;
 - **`data`** — объект карточки: либо копия вложенного `row.data`, либо при **плоском** JSON в БД — все поля строки, кроме служебных (`id`, `_catalog_created_at`, флаги продажи и т.д.), без «размазанных» дублей марки/модели на корне;
 - **`read_model`**, **`read_model_version`**;
-- при наличии: **`_catalog_created_at`**, **`encar_listing_sold`**, **`dongchedi_listing_sold`**.
+- при наличии: **`_catalog_created_at`**, **`encar_listing_sold`**, **`che168_listing_sold`**.
 
 ### Поля **`read_model`**
 

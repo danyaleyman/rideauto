@@ -67,7 +67,7 @@ def _fetch_batch_psycopg2(
                 SELECT car_id
                 FROM cars
                 WHERE (source IS NULL OR source = 'encar')
-                  AND car_id NOT LIKE 'dongchedi-%%'
+                  AND (car_id IS NULL OR car_id NOT LIKE 'che168-%%')
                   AND encar_listing_sold = false
                   AND (
                     encar_listing_checked_at IS NULL

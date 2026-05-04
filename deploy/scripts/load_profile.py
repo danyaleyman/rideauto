@@ -5,12 +5,12 @@ Sprint B load profile for API endpoints.
 Usage:
   python3 deploy/scripts/load_profile.py \
     --base-url http://127.0.0.1:8080 \
-    --car-id dongchedi-23175150
+    --car-id che168-EXAMPLE
 
   # Through public nginx + TLS:
   python3 deploy/scripts/load_profile.py \
     --base-url https://rideauto.ru \
-    --car-id dongchedi-22752383
+    --car-id che168-EXAMPLE2
 
   # Self-signed CA:
   ... --insecure

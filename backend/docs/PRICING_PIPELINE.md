@@ -4,7 +4,7 @@
 
 1. **Источник истины по рублёвой цене и tier для каталога** — результат работы **`postgres_catalog_sync.py` с расчётом цен** (без `--no-prices`). Он обновляет `cars.data` (включая `my_price`, `pricing_tier`, `pricing_clean`) и колонку `cars.price_rub`.
 2. Любой код, который **меняет `cars.data`** в обход этого синка (парсер только до очереди, воркер intent, backfill л.с., reprocess raw), обязан выставить **`needs_pricing_recompute = true`** на строке `cars`, чтобы следующий полный синк с ценами **догнал** tier и рубли.
-3. **Ингест** (Encar saver, Dongchedi batch upsert) выставляет флаг через UPSERT: `needs_pricing_recompute` становится true; после прогона синка **с ценами** флаг **сбрасывается** автоматически.
+3. **Ингест** (Encar saver, Che168/Китай batch upsert) выставляет флаг через UPSERT: `needs_pricing_recompute` становится true; после прогона синка **с ценами** флаг **сбрасывается** автоматически.
 
 ## Очередь `needs_pricing_recompute`
 
@@ -38,7 +38,7 @@
 | `backend/postgres_catalog_sync.py` | Материализация цен, сброс очереди при прогоне с ценами |
 | `backend/scripts/repair_encar_pricing_recompute_queue.py` | Пометить «устаревшие» Encar JSON на пересчёт (с хоста подставляет `postgres` → `127.0.0.1` в DSN, как `deploy/scripts/pg_dsn_host_local_rewrite.py`) |
 
-Обновления **`cars.data`** (или существенных полей для прайсинга) делают **`needs_pricing_recompute = TRUE`** в: saver/upsert, `encar_price_intent_live_worker`, `backfill_cars_power_from_hp_catalog`, `reprocess_from_raw_envelope`, `backfill_china_canonical_names`, `postgresql_database` (legacy upsert при смене `data`). Чекеры **sold** (`encar_listing_live_checker`, `dongchedi_listing_live_checker`) трогают только флаги листинга — очередь не требуется.
+Обновления **`cars.data`** (или существенных полей для прайсинга) делают **`needs_pricing_recompute = TRUE`** в: saver/upsert, `encar_price_intent_live_worker`, `backfill_cars_power_from_hp_catalog`, `reprocess_from_raw_envelope`, `backfill_china_canonical_names`, `postgresql_database` (legacy upsert при смене `data`). Чекеры **sold** (`encar_listing_live_checker`, `che168_listing_live_checker`) трогают только флаги листинга — очередь не требуется. Версия правил China в `pricing_clean.pricing_rules_version` — `CHINA_PRICING_RULES_VERSION` в `pricechina.py` (метрика дрейфа в `postgres_catalog_sync`). Расчёт China включает **13 500 ¥** доставка/документы (→ ₽ ЦБ), **2 % ВТБ** от стоимости авто в ₽, наши комиссии как у Кореи; очередь repair: `repair_china_pricing_recompute_queue.py` + эвристика `china_json_suggests_pricing_resync`.
 
 ## Read-path
 
