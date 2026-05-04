@@ -1,0 +1,30 @@
+[Unit]
+Description=RideAuto Encar mass scraper (full host run, max-cars=0)
+After=network.target
+Documentation=file:/opt/rideauto/deploy/DEPLOY_PRODUCTION.md
+# Вручную: systemctl start rideauto-encar-scraper-full.service
+# Не включайте в автозагрузку (systemctl enable), если не нужен старт после reboot.
+
+[Service]
+Type=simple
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/rideauto
+# Аргумент 0 = без лимита --max-cars (см. run_encar_scraper_max_cars_host.sh).
+ExecStart=/bin/bash /opt/rideauto/deploy/scripts/run_encar_scraper_max_cars_host.sh 0
+# Долгий прогон: не обрывать по таймауту старта (0 = отключить).
+TimeoutStartSec=0
+TimeoutStopSec=300
+Restart=no
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/rideauto
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
