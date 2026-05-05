@@ -23,6 +23,8 @@ python che168_scraper.py --config ../che168_scraper.yaml --max-cars 20
 
 ```bash
 python scripts/che168_smoke_fetch.py --config ../che168_scraper.yaml --limit 5
+# С галереей со страницы /detail/{infoid} (доп. HTTP GET, как в браузере):
+python scripts/che168_smoke_fetch.py --config ../che168_scraper.yaml --limit 2 --detail-html
 ```
 
 Live checker (проставить `che168_listing_sold` в БД):
@@ -49,7 +51,9 @@ python scripts/che168_listing_live_checker.py --config ../che168_scraper.yaml --
 
 Ответ `/carinfo` иногда кладёт галерею **рядом** с `result` (не внутри объекта карточки). Перед парсингом `merge_che168_api_carinfo_envelope` объединяет внутренний слой и такие соседние поля (`images`, `picurls`, …), иначе в каталоге остаётся только обложка.
 
-Дополнительно выполняется **глубокий обход** всего JSON ответа `/carinfo` и поиск URL на CDN (`autoimg` / `escimg` / `erscglobal`), чтобы подхватить галереи под нестандартными ключами. Соцссылки дилера (`wa.me`, WeChat) отфильтровываются. Если в ответе ровно один такой URL — отдельного запроса «фото-листа» в коде пока нет: его имя нужно снять с живого трафика (DevTools → Network).
+Дополнительно выполняется **глубокий обход** всего JSON ответа `/carinfo` и поиск URL на CDN (`autoimg` / `escimg` / `erscglobal`), чтобы подхватить галереи под нестандартными ключами. Соцссылки дилера (`wa.me`, WeChat) отфильтровываются.
+
+Если в `/carinfo` по-прежнему одна обложка, воркер при `che168.fetch_detail_gallery_html: true` запрашивает **HTML** страницы `{origin}/detail/{infoid}` (`che168.detail_page_url_template`) с теми же куками, что и API, и вытаскивает из разметки все `https://erscglobal*.autoimg.cn/escimg/...` — как в колонке Network → Img в браузере.
 
 ## Цена в ¥
 

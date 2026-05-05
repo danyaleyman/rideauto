@@ -66,6 +66,9 @@ che168:
   max_pageindex_per_brand: 0
   fetch_recommend: true
   fetch_report_summary: true
+  # Полная галерея: в HTML страницы детали зашиты CDN-URL, которых нет в JSON /carinfo.
+  fetch_detail_gallery_html: true
+  detail_page_url_template: "{origin}/detail/{infoid}"
   # При ответе API «login/session/cookie» — перезапуск Playwright bootstrap (интервал см. ниже).
   allow_runtime_session_refresh: true
   session_refresh_min_interval_sec: 90

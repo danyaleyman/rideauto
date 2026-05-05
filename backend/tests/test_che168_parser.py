@@ -2,7 +2,9 @@ import pytest
 
 from scraper_pipeline.che168.parser import (
     che168_listing_numeric_id,
+    extract_gallery_urls_from_detail_html,
     merge_che168_api_carinfo_envelope,
+    merge_che168_image_url_lists,
     normalize_price_cny,
     parse_one_che168_car_sync,
 )
@@ -101,6 +103,25 @@ def test_merge_carinfo_envelope_keeps_sibling_images():
     )
     assert car is not None
     assert len(car["data"].get("images") or []) >= 2
+
+
+def test_extract_gallery_urls_from_detail_html():
+    html = (
+        "props:[\"https://erscglobal2.autoimg.cn/escimg/auto/a.jpg.webp\","
+        "\"https://erscglobal2.autoimg.cn/escimg/auto/b.jpg.webp\"]"
+    )
+    u = extract_gallery_urls_from_detail_html(html)
+    assert len(u) == 2
+
+
+def test_merge_che168_image_url_lists_dedupe():
+    a = ["https://erscglobal2.autoimg.cn/a.webp", "https://erscglobal2.autoimg.cn/b.webp"]
+    b = ["https://erscglobal2.autoimg.cn/a.webp", "https://erscglobal2.autoimg.cn/c.webp"]
+    assert merge_che168_image_url_lists(a, b) == [
+        "https://erscglobal2.autoimg.cn/a.webp",
+        "https://erscglobal2.autoimg.cn/b.webp",
+        "https://erscglobal2.autoimg.cn/c.webp",
+    ]
 
 
 def test_merge_carinfo_envelope_deep_nested_autoimg_urls():

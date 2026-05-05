@@ -93,6 +93,53 @@ def _deep_collect_car_photo_urls(obj: Any, *, max_urls: int = 48, max_depth: int
     return out
 
 
+# Галерея на сайте подгружается с CDN; URL часто вшиты в HTML/SSR до гидрации (см. Network → Img).
+_CHE168_DETAIL_GALLERY_RE = re.compile(
+    r"https://erscglobal\d*\.autoimg\.cn/escimg/[^\s\"'<>)]+",
+    re.IGNORECASE,
+)
+
+
+def extract_gallery_urls_from_detail_html(html: str, *, max_urls: int = 96) -> List[str]:
+    """Достаёт URL фото из HTML страницы объявления global.che168.com (и встроенного JSON)."""
+    if not html or len(html) < 80:
+        return []
+    seen: set[str] = set()
+    out: List[str] = []
+    for m in _CHE168_DETAIL_GALLERY_RE.finditer(html):
+        u = m.group(0).rstrip("\\,.);'\"")
+        if not _is_likely_che168_vehicle_photo_url(u):
+            continue
+        if u not in seen:
+            seen.add(u)
+            out.append(u)
+        if len(out) >= max_urls:
+            break
+    return out
+
+
+def merge_che168_image_url_lists(primary: List[str], secondary: List[str]) -> List[str]:
+    """Порядок: сначала primary (страница детали — обычно полный набор и 1400x0), затем доп. из API."""
+    seen: set[str] = set()
+    merged: List[str] = []
+    for u in primary:
+        if u and u not in seen:
+            seen.add(u)
+            merged.append(u)
+    for u in secondary:
+        if u and u not in seen:
+            seen.add(u)
+            merged.append(u)
+    return merged
+
+
+def che168_collect_api_layer_photo_urls(ci_body: dict) -> List[str]:
+    """Все URL фото, уже видимые в слое после merge API /carinfo (без HTML)."""
+    if not isinstance(ci_body, dict):
+        return []
+    return _deep_collect_car_photo_urls(ci_body, max_urls=96)
+
+
 def _shape_hash(payload: Any) -> str:
     if not isinstance(payload, dict):
         return ""

@@ -22,8 +22,11 @@ if str(_BACKEND) not in sys.path:
 
 from encar_scraper import load_config  # noqa: E402
 from scraper_pipeline.che168.parser import (  # noqa: E402
+    che168_collect_api_layer_photo_urls,
     che168_listing_numeric_id,
+    extract_gallery_urls_from_detail_html,
     merge_che168_api_carinfo_envelope,
+    merge_che168_image_url_lists,
     parse_one_che168_car_sync,
 )
 from scraper_pipeline.che168.workers import (  # noqa: E402
@@ -160,6 +163,14 @@ async def _amain(args: argparse.Namespace) -> int:
             layer = merge_che168_api_carinfo_envelope(ci) if isinstance(ci, dict) else {}
             if not isinstance(layer, dict):
                 layer = {}
+            if args.detail_html:
+                html, sth, _eh = await client.fetch_global_detail_html(ext)
+                if sth == 200 and html:
+                    page_u = extract_gallery_urls_from_detail_html(html)
+                    if page_u:
+                        layer["images"] = merge_che168_image_url_lists(
+                            page_u, che168_collect_api_layer_photo_urls(layer)
+                        )
             specid = layer.get("specid") or layer.get("specId")
             sparam, s1, _ = await client.fetch_specparam(str(specid)) if specid else (None, 0, None)
             scfg, s2, _ = await client.fetch_specconfig(str(specid)) if specid else (None, 0, None)
@@ -194,14 +205,16 @@ async def _amain(args: argparse.Namespace) -> int:
                 session_cookie_hints=hints if hints else None,
                 listing_cluster=lc,
             )
-            out.append(
-                {
-                    "infoid": ext,
-                    "http_carinfo": sti,
-                    "err_carinfo": ei,
-                    "normalized": norm,
-                }
-            )
+            row: Dict[str, Any] = {
+                "infoid": ext,
+                "http_carinfo": sti,
+                "err_carinfo": ei,
+                "normalized": norm,
+            }
+            if args.detail_html and isinstance(norm, dict):
+                d = norm.get("data") if isinstance(norm.get("data"), dict) else {}
+                row["image_count_after_detail_html"] = len(d.get("images") or []) if isinstance(d.get("images"), list) else 0
+            out.append(row)
 
     print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
     return 0
@@ -216,6 +229,11 @@ def main() -> None:
         "--bootstrap",
         action="store_true",
         help="Сначала Chromium на том же прокси что API → куки + фиксация _session_proxy_url",
+    )
+    p.add_argument(
+        "--detail-html",
+        action="store_true",
+        help="После /carinfo подтянуть HTML /detail/{infoid} и слить CDN-галерею (как в браузере)",
     )
     args = p.parse_args()
     raise SystemExit(asyncio.run(_amain(args)))

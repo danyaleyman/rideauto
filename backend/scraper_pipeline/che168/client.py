@@ -326,3 +326,73 @@ class AsyncChe168Client:
             "/report/summary",
             params={"dealerid": dealerid, "paramkey": paramkey},
         )
+
+    async def fetch_global_detail_html(self, infoid: int | str) -> Tuple[Optional[str], int, Optional[str]]:
+        """
+        HTML страницы объявления на global.che168.com: в SSR/встроенном JSON часто есть
+        полный список URL галереи (erscglobal*.autoimg.cn), которого нет в /carinfo JSON.
+        """
+        if not self._session:
+            return None, 0, "no session"
+        ch = self.config.get("che168", {}) or {}
+        tmpl = str(ch.get("detail_page_url_template") or "{origin}/detail/{infoid}").strip()
+        url = tmpl.format(origin=self._origin, infoid=str(infoid).strip())
+
+        last_error: Optional[str] = None
+        last_http_status = 0
+        hard = self._hard_deadline_per_attempt
+        if hard is None:
+            tot = float(self.config.get("http", {}).get("timeout_total", 30) or 30)
+            sr = float(self.config.get("http", {}).get("timeout_sock_read", 25) or 25)
+            c = float(self.config.get("http", {}).get("timeout_connect", 10) or 10)
+            hard = max(tot, sr) + c + 8.0
+
+        for attempt in range(self.max_attempts):
+            proxy = self._next_proxy()
+            await self._jitter()
+            h: Dict[str, str] = {
+                "User-Agent": self._next_ua(),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Origin": self._origin,
+                "Referer": self._referer,
+            }
+            try:
+
+                async def _one_html() -> Tuple[str, Optional[str], int, Optional[str], Optional[str]]:
+                    p_url, p_auth = _proxy_url_and_auth(proxy)
+                    async with self._session.get(
+                        url,
+                        headers=h,
+                        cookies=self._initial_cookies or None,
+                        proxy=p_url,
+                        proxy_auth=p_auth,
+                        allow_redirects=True,
+                    ) as resp:
+                        status = int(resp.status)
+                        retry_after = resp.headers.get("Retry-After")
+                        if status in self.retry_statuses:
+                            return "retry", None, status, f"status {status}", retry_after
+                        if status != 200:
+                            frag = (await resp.text())[:400]
+                            return "final", None, status, frag, None
+                        await self._maybe_rate_limit_sleep(resp)
+                        body = await resp.text()
+                        return "final", body, 200, None, None
+
+                kind, text, st, err, retry_after = await asyncio.wait_for(_one_html(), timeout=hard)
+                if kind == "retry":
+                    last_error = err or ""
+                    last_http_status = st
+                    await sleep_backoff(self._backoff, attempt, retry_after)
+                    continue
+                return text, st, err
+            except asyncio.TimeoutError as e:
+                last_error = f"hard_deadline {hard:.0f}s ({e})"
+                await sleep_backoff(self._backoff, attempt)
+            except asyncio.CancelledError:
+                raise
+            except aiohttp.ClientError as e:
+                last_error = str(e)
+                await sleep_backoff(self._backoff, attempt)
+        return None, last_http_status, last_error

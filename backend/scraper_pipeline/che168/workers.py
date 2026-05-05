@@ -17,8 +17,11 @@ from scraper_pipeline.che168.api_outcome import (
 )
 from scraper_pipeline.che168.client import AsyncChe168Client
 from scraper_pipeline.che168.parser import (
+    che168_collect_api_layer_photo_urls,
     che168_listing_numeric_id,
+    extract_gallery_urls_from_detail_html,
     merge_che168_api_carinfo_envelope,
+    merge_che168_image_url_lists,
     parse_one_che168_car_async,
 )
 from scraper_pipeline.encar.savers import CarSaver
@@ -465,6 +468,21 @@ async def detail_worker_che168(
         source_meta: Dict[str, Dict[str, Any]] = {
             "carinfo": {"status": st_info, "ok": True, "latency_ms": None, "error": None},
         }
+
+        if bool(ch.get("fetch_detail_gallery_html", True)):
+            html, st_h, err_h = await client.fetch_global_detail_html(external_id)
+            source_meta["detail_page"] = {
+                "status": int(st_h),
+                "ok": st_h == 200 and bool(html),
+                "error": None if st_h == 200 else str(err_h or "")[:220],
+            }
+            if st_h == 200 and html:
+                page_urls = extract_gallery_urls_from_detail_html(html)
+                if page_urls:
+                    api_urls = che168_collect_api_layer_photo_urls(ci_body)
+                    ci_body["images"] = merge_che168_image_url_lists(page_urls, api_urls)
+                    if len(page_urls) >= 2:
+                        stats["detail_html_gallery_ge2"] = stats.get("detail_html_gallery_ge2", 0) + 1
 
         specid = ci_body.get("specid") or ci_body.get("specId")
         dealerid = ci_body.get("dealerid") or ci_body.get("dealerId")
