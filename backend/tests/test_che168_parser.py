@@ -73,6 +73,40 @@ def test_parse_one_merges_list_images_when_carinfo_has_none():
     assert any("list.jpg" in u for u in imgs)
 
 
+def test_parse_one_collects_nested_images_and_shape_fallbacks():
+    car = parse_one_che168_car_sync(
+        external_id="100",
+        list_item={
+            "id": 100,
+            "data": {"gallery": [{"image_url": "https://example.com/2.jpg"}]},
+            "price": 240000,
+            "brandname": "Audi",
+        },
+        carinfo={
+            "price": 240000,
+            "result": {
+                "cover_image": "https://example.com/1.jpg",
+                "detail": {"imglist": [{"bigUrl": "https://example.com/3.jpg"}]},
+                "modelYear": 2021,
+                "km": 55000,
+            },
+        },
+        specparam={"result": {"gearBoxType": "AT", "engineType": "Gasoline"}},
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    d = car["data"]
+    assert len(d.get("images") or []) >= 3
+    assert d.get("year") == 2021
+    assert d.get("km_age") == 55000
+    assert d.get("transmission_type") == "AT"
+    assert d.get("engine_type") == "Gasoline"
+    dq = d.get("data_quality") or {}
+    assert (dq.get("field_sources") or {}).get("images")
+
+
 def test_taxonomy_aliases():
     car = parse_one_che168_car_sync(
         external_id="1",

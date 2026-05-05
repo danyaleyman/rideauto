@@ -45,6 +45,38 @@ def _unwrap_layer(d: Any) -> dict:
     return d
 
 
+def _nested_dict_candidates(payload: Any) -> List[dict]:
+    out: List[dict] = []
+    seen_ids: set[int] = set()
+
+    def _add(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        nid = id(node)
+        if nid in seen_ids:
+            return
+        seen_ids.add(nid)
+        out.append(node)
+        for k in ("result", "data", "carinfo", "detail", "vehicle", "info"):
+            v = node.get(k)
+            if isinstance(v, dict):
+                _add(v)
+
+    _add(payload)
+    return out
+
+
+def _pick_first_non_empty_with_source(sources: List[tuple[str, dict]], keys: tuple[str, ...]) -> tuple[Optional[Any], Optional[str]]:
+    for src_name, src in sources:
+        if not isinstance(src, dict):
+            continue
+        for k in keys:
+            v = src.get(k)
+            if v is not None and str(v).strip():
+                return v, f"{src_name}.{k}"
+    return None, None
+
+
 def che168_listing_numeric_id(item: dict) -> str:
     for k in ("id", "infoid", "infoId", "InfoId", "carid", "CarId"):
         v = item.get(k)
@@ -56,7 +88,20 @@ def che168_listing_numeric_id(item: dict) -> str:
 def _collect_image_urls_from_dict(carinfo: dict, *, prepend_cover: bool) -> List[str]:
     chunk: List[str] = []
     seen_local: set[str] = set()
-    for key in ("images", "photo_list", "picurls", "picUrls", "photos", "photolist", "imageList", "imglist"):
+    for key in (
+        "images",
+        "photo_list",
+        "picurls",
+        "picUrls",
+        "photos",
+        "photolist",
+        "imageList",
+        "imglist",
+        "gallery",
+        "album",
+        "carImages",
+        "carimages",
+    ):
         raw = carinfo.get(key)
         if isinstance(raw, str) and raw.strip():
             raw = [raw]
@@ -76,6 +121,14 @@ def _collect_image_urls_from_dict(carinfo: dict, *, prepend_cover: bool) -> List
                     or x.get("picUrl")
                     or x.get("imageurl")
                     or x.get("imgUrl")
+                    or x.get("image")
+                    or x.get("image_url")
+                    or x.get("big_url")
+                    or x.get("bigUrl")
+                    or x.get("thumb_url")
+                    or x.get("thumbUrl")
+                    or x.get("cover_url")
+                    or x.get("coverUrl")
                 )
                 if isinstance(u, str) and u.strip():
                     u = u.strip()
@@ -105,7 +158,12 @@ def _collect_image_urls(carinfo: dict, list_item: Optional[dict] = None) -> List
     """Сначала carinfo, затем URL из листинга."""
     out: List[str] = []
     seen: set[str] = set()
-    for i, src in enumerate([x for x in (carinfo, list_item) if isinstance(x, dict) and x]):
+    all_sources: List[dict] = []
+    if isinstance(carinfo, dict) and carinfo:
+        all_sources.extend(_nested_dict_candidates(carinfo))
+    if isinstance(list_item, dict) and list_item:
+        all_sources.extend(_nested_dict_candidates(list_item))
+    for i, src in enumerate(all_sources):
         chunk = _collect_image_urls_from_dict(src, prepend_cover=(i == 0))
         for u in chunk:
             if u not in seen:
@@ -293,9 +351,11 @@ def _extract_datetimes(carinfo: dict, list_item: dict) -> Dict[str, str]:
 
 
 def _extract_description(carinfo: dict, list_item: dict) -> Optional[str]:
+    cands: List[dict] = []
+    cands.extend(_nested_dict_candidates(carinfo))
+    cands.extend(_nested_dict_candidates(list_item))
     raw = _first_non_empty_str(
-        carinfo,
-        list_item,
+        *cands,
         keys=(
             "description",
             "Description",
@@ -313,6 +373,9 @@ def _extract_description(carinfo: dict, list_item: dict) -> Optional[str]:
             "carDescription",
             "subtitle",
             "subTitle",
+            "desc",
+            "text",
+            "detail",
         ),
     )
     return raw if raw and len(raw) > 1 else None
@@ -535,7 +598,10 @@ def _vin_from(carinfo: dict) -> Optional[str]:
 
 
 def _vin_from_sources(carinfo: dict, list_item: dict) -> Optional[str]:
-    for src in (carinfo, list_item):
+    cands: List[dict] = []
+    cands.extend(_nested_dict_candidates(carinfo))
+    cands.extend(_nested_dict_candidates(list_item))
+    for src in cands:
         if isinstance(src, dict) and src:
             v = _vin_from(src)
             if v:
@@ -544,8 +610,11 @@ def _vin_from_sources(carinfo: dict, list_item: dict) -> Optional[str]:
 
 
 def _mileage_km(carinfo: dict, list_item: dict) -> Optional[int]:
-    for src in (carinfo, list_item):
-        for k in ("mileage", "mileagekm", "mileageKm", "totalmileage"):
+    cands: List[dict] = []
+    cands.extend(_nested_dict_candidates(carinfo))
+    cands.extend(_nested_dict_candidates(list_item))
+    for src in cands:
+        for k in ("mileage", "mileagekm", "mileageKm", "totalmileage", "kilometer", "km", "mile"):
             n = _safe_int(src.get(k))
             if n is not None and n >= 0:
                 return n
@@ -553,34 +622,43 @@ def _mileage_km(carinfo: dict, list_item: dict) -> Optional[int]:
 
 
 def _year_from(carinfo: dict, list_item: dict) -> Optional[int]:
-    for src in (carinfo, list_item):
-        y = _safe_int(src.get("year"))
-        if y and 1980 <= y <= 2035:
-            return y
+    cands: List[dict] = []
+    cands.extend(_nested_dict_candidates(carinfo))
+    cands.extend(_nested_dict_candidates(list_item))
+    for src in cands:
+        for key in ("year", "modelyear", "modelYear", "regyear", "registeryear"):
+            y = _safe_int(src.get(key))
+            if y and 1980 <= y <= 2035:
+                return y
     return None
 
 
 def _brand_model_title(carinfo: dict, list_item: dict) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    title = carinfo.get("title") or list_item.get("title")
-    title = str(title).strip() if title else None
-    mark = (
-        carinfo.get("brandname")
-        or carinfo.get("brandName")
-        or carinfo.get("BrandName")
-        or list_item.get("brandname")
-        or list_item.get("brandName")
+    cands: List[dict] = []
+    cands.extend(_nested_dict_candidates(carinfo))
+    cands.extend(_nested_dict_candidates(list_item))
+    title = _first_non_empty_str(
+        *cands,
+        keys=("title", "carname", "carName", "name", "vehicleTitle", "subtitle", "subTitle"),
     )
-    mark = str(mark).strip() if mark else None
-    model = (
-        carinfo.get("seriesname")
-        or carinfo.get("seriesName")
-        or carinfo.get("vehicleName")
-        or carinfo.get("modelname")
-        or carinfo.get("modelName")
-        or list_item.get("seriesname")
-        or list_item.get("modelname")
+    mark = _first_non_empty_str(
+        *cands,
+        keys=("brandname", "brandName", "BrandName", "brand", "maker", "make"),
     )
-    model = str(model).strip() if model else None
+    model = _first_non_empty_str(
+        *cands,
+        keys=(
+            "seriesname",
+            "seriesName",
+            "vehicleName",
+            "modelname",
+            "modelName",
+            "model",
+            "serieName",
+            "trimname",
+            "trimName",
+        ),
+    )
     return mark, model, title
 
 
@@ -650,18 +728,21 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
         return {}
     out: Dict[str, Any] = {}
     for key, targets in (
-        ("displacement", ("displacement", "displacementml", "liter")),
-        ("gearbox", ("gearbox", "transmission", "transmissiontype")),
-        ("fueltype", ("fueltype", "fuelType", "engine")),
-        ("drivemode", ("drivemode", "driveType", "drive")),
-        ("bodytype", ("bodytype", "bodyType", "level")),
-        ("color", ("color", "bodycolor")),
-        ("power", ("power", "horsepower", "maxpower")),
+        ("displacement", ("displacement", "displacementml", "displacementMl", "liter", "enginecc")),
+        ("gearbox", ("gearbox", "transmission", "transmissiontype", "gearBoxType")),
+        ("fueltype", ("fueltype", "fuelType", "engine", "fuel", "engineType")),
+        ("drivemode", ("drivemode", "driveType", "drive", "drivetype")),
+        ("bodytype", ("bodytype", "bodyType", "level", "bodyStyle", "carBodyType")),
+        ("color", ("color", "bodycolor", "exteriorColor")),
+        ("power", ("power", "horsepower", "maxpower", "powerhp", "maxPower")),
     ):
-        for t in targets:
-            v = body.get(t)
-            if v is not None and str(v).strip():
-                out[key] = v
+        for cand in _nested_dict_candidates(body):
+            for t in targets:
+                v = cand.get(t)
+                if v is not None and str(v).strip():
+                    out[key] = v
+                    break
+            if key in out:
                 break
     return out
 
@@ -754,12 +835,13 @@ def parse_one_che168_car_sync(
     vin = _vin_from_sources(ci, li)
     yr = _year_from(ci, li)
     km_v = _mileage_km(ci, li)
-    trim = (
-        ci.get("trimname")
-        or ci.get("trimName")
-        or ci.get("carname")
-        or ci.get("specname")
-        or li.get("subtitle")
+    trim, trim_src = _pick_first_non_empty_with_source(
+        [("carinfo", c) for c in _nested_dict_candidates(ci)] + [("list_item", c) for c in _nested_dict_candidates(li)],
+        ("trimname", "trimName", "carname", "specname", "subtitle", "subTitle", "name"),
+    )
+    color_value, color_src = _pick_first_non_empty_with_source(
+        [("spec", {"color": spec_hints.get("color")})] + [("carinfo", c) for c in _nested_dict_candidates(ci)] + [("list_item", c) for c in _nested_dict_candidates(li)],
+        ("color", "bodycolor", "exteriorColor"),
     )
 
     data: Dict[str, Any] = {
@@ -779,7 +861,7 @@ def parse_one_che168_car_sync(
         "images": images,
         "vin": vin,
         "configuration": trim,
-        "color": spec_hints.get("color") or ci.get("color") or li.get("color"),
+        "color": color_value,
         "body_type": spec_hints.get("bodytype"),
         "engine_type": spec_hints.get("fueltype"),
         "transmission_type": spec_hints.get("gearbox"),
@@ -872,6 +954,17 @@ def parse_one_che168_car_sync(
         "options_flat_count": n_opt,
         "options_enriched_count": len(opts_enriched) if opts_enriched else 0,
     }
+    sources_used: Dict[str, str] = {}
+    if color_src:
+        sources_used["color"] = color_src
+    if trim_src:
+        sources_used["trim"] = trim_src
+    if mark:
+        sources_used["mark"] = "carinfo/list_item"
+    if model:
+        sources_used["model"] = "carinfo/list_item"
+    if images:
+        sources_used["images"] = "carinfo/list_item(+nested)"
     score = 100
     score -= 12 if not completeness["has_vin"] else 0
     score -= min(20, (3 if n_img == 0 else 0) + max(0, 5 - n_img) * 2)
@@ -889,6 +982,8 @@ def parse_one_che168_car_sync(
         "raw_quality_score": score,
         "completeness": completeness,
         "price_interpretation_rule": price_meta.get("che168_price_cny_rule"),
+        "field_sources": sources_used,
+        "degraded_listing_data": bool(n_img <= 1 and n_spec_keys <= 2),
     }
     if envelope["integrity"]["missing_sources"]:
         quality.setdefault("reasons", []).append("raw_sources_missing")

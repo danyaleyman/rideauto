@@ -116,3 +116,36 @@ def test_slim_includes_vin_in_data_for_catalog_dedupe():
     }
     out = slim_catalog_car(car, "encar-vin")
     assert out["data"].get("vin") == "KNALC41BBMA240855"
+
+
+def test_slim_fallbacks_from_raw_envelope_when_primary_fields_are_sparse():
+    car = {
+        "data": {
+            "source": "che168",
+            "mark": "BMW",
+            "model": "X3",
+            "year": "2020",
+            "images": ["https://example.com/cover.jpg"],
+            "raw_envelope": {
+                "sources": {
+                    "carinfo": {
+                        "images": [
+                            {"url": "https://example.com/cover.jpg"},
+                            {"url": "https://example.com/2.jpg"},
+                        ],
+                        "bodyType": "SUV",
+                        "gearbox": "AT",
+                        "fuelType": "Gasoline",
+                        "drivemode": "AWD",
+                    }
+                }
+            },
+        }
+    }
+    out = slim_catalog_car(car, "che168-raw-fallback")
+    data = out.get("data") or {}
+    assert len(data.get("images") or []) >= 2
+    assert data.get("body_type") == "SUV"
+    assert data.get("transmission_type") == "AT"
+    assert data.get("engine_type") == "Gasoline"
+    assert data.get("drive_type") == "AWD"

@@ -194,6 +194,83 @@ _SLIM_CATALOG_DATA_KEYS = frozenset(
 )
 
 
+def _raw_envelope_sources(raw: Dict[str, Any]) -> list[Dict[str, Any]]:
+    env = raw.get("raw_envelope") if isinstance(raw.get("raw_envelope"), dict) else {}
+    src = env.get("sources") if isinstance(env.get("sources"), dict) else {}
+    out: list[Dict[str, Any]] = []
+    for key in ("carinfo", "list_item", "specparam", "specconfig", "recommend", "report_summary"):
+        node = src.get(key)
+        if isinstance(node, dict):
+            out.append(node)
+            for k in ("result", "data", "carinfo", "detail", "vehicle", "info"):
+                inner = node.get(k)
+                if isinstance(inner, dict):
+                    out.append(inner)
+    return out
+
+
+def _first_non_empty_from_sources(sources: list[Dict[str, Any]], keys: tuple[str, ...]) -> Any:
+    for src in sources:
+        if not isinstance(src, dict):
+            continue
+        for k in keys:
+            v = src.get(k)
+            if v is not None and str(v).strip():
+                return v
+    return None
+
+
+def _fallback_images_from_sources(sources: list[Dict[str, Any]]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for src in sources:
+        for key in ("images", "photo_list", "picurls", "picUrls", "photos", "photolist", "imageList", "imglist", "gallery"):
+            raw = src.get(key)
+            if isinstance(raw, str):
+                try:
+                    raw = json.loads(raw)
+                except Exception:
+                    raw = [raw] if raw.startswith("http") else []
+            if not isinstance(raw, list):
+                continue
+            for item in raw:
+                u = None
+                if isinstance(item, str):
+                    u = item.strip()
+                elif isinstance(item, dict):
+                    u = (
+                        item.get("url")
+                        or item.get("image")
+                        or item.get("image_url")
+                        or item.get("pic_url")
+                        or item.get("picUrl")
+                        or item.get("big_url")
+                        or item.get("bigUrl")
+                        or item.get("thumb_url")
+                        or item.get("thumbUrl")
+                        or item.get("cover_url")
+                        or item.get("coverUrl")
+                    )
+                    u = str(u).strip() if isinstance(u, str) else None
+                if isinstance(u, str) and u.startswith("http") and u not in seen:
+                    seen.add(u)
+                    out.append(u)
+        cover = (
+            src.get("cover_image")
+            or src.get("picurl")
+            or src.get("picUrl")
+            or src.get("imageurl")
+            or src.get("imgurl")
+            or src.get("photo")
+        )
+        if isinstance(cover, str) and cover.strip().startswith("http"):
+            u = cover.strip()
+            if u not in seen:
+                seen.add(u)
+                out.insert(0, u)
+    return out
+
+
 def _extract_num(data: Dict[str, Any], key: str) -> float | None:
     try:
         value = data.get(key)
@@ -290,6 +367,36 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         raw = car if isinstance(car, dict) else {}
     slim_data: Dict[str, Any] = {k: raw[k] for k in _SLIM_CATALOG_DATA_KEYS if k in raw}
+    envelope_sources = _raw_envelope_sources(raw)
+    raw_images = slim_data.get("images")
+    img_count = 0
+    if isinstance(raw_images, list):
+        img_count = len(raw_images)
+    elif isinstance(raw_images, str):
+        try:
+            parsed = json.loads(raw_images)
+            img_count = len(parsed) if isinstance(parsed, list) else 0
+        except Exception:
+            img_count = 0
+    if img_count <= 1:
+        fb_images = _fallback_images_from_sources(envelope_sources)
+        if len(fb_images) >= 2:
+            slim_data["images"] = fb_images
+    fallback_map = {
+        "body_type": ("bodytype", "bodyType", "bodyStyle", "level"),
+        "engine_type": ("fueltype", "fuelType", "engine", "engineType", "fuel"),
+        "transmission_type": ("gearbox", "transmission", "transmissiontype", "gearBoxType"),
+        "drive_type": ("drivemode", "driveType", "drive", "drivetype"),
+        "configuration": ("trimname", "trimName", "specname", "carname", "subtitle"),
+        "description": ("description", "remark", "content", "cardesc", "carDesc", "details", "summary"),
+    }
+    for dst, keys in fallback_map.items():
+        cur = slim_data.get(dst)
+        if cur is not None and str(cur).strip():
+            continue
+        fb = _first_non_empty_from_sources(envelope_sources, keys)
+        if fb is not None and str(fb).strip():
+            slim_data[dst] = fb
     _trim_slim_list_field(slim_data, "images", 12)
     _trim_slim_list_field(slim_data, "h_images", 18)
     inner = raw.get("inner_id") if raw.get("inner_id") not in (None, "") else car.get("inner_id")
