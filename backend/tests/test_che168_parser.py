@@ -103,6 +103,30 @@ def test_merge_carinfo_envelope_keeps_sibling_images():
     assert len(car["data"].get("images") or []) >= 2
 
 
+def test_merge_carinfo_envelope_deep_nested_autoimg_urls():
+    raw = {
+        "returncode": 0,
+        "result": {
+            "infoid": 88,
+            "title": "Deep pics",
+            "price": 100000,
+            "brandname": "B",
+            "picurl": "https://erscglobal2.autoimg.cn/escimg/auto/cover.webp",
+        },
+        "sidecar": {
+            "nodes": [
+                {"x": "https://erscglobal2.autoimg.cn/escimg/auto/p1.webp"},
+                "https://erscglobal2.autoimg.cn/escimg/auto/p2.webp",
+            ]
+        },
+        "dealer_social": {"whatsapp": "https://wa.me/8612345678"},
+    }
+    merged = merge_che168_api_carinfo_envelope(raw)
+    imgs = merged.get("images") or []
+    assert len(imgs) >= 3
+    assert all("wa.me" not in u for u in imgs)
+
+
 def test_parse_one_collects_nested_images_and_shape_fallbacks():
     car = parse_one_che168_car_sync(
         external_id="100",

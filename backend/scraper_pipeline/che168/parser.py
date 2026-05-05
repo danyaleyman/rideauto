@@ -53,6 +53,46 @@ _CHE168_OPTIONAL_MEDIA_BUCKETS: tuple[str, ...] = ("extinfo", "extendinfo", "ext
 _URL_IN_TEXT = re.compile(r"https?://[^\s\"'<>|]+", re.I)
 
 
+def _is_likely_che168_vehicle_photo_url(u: str) -> bool:
+    """Отсекаем соцссылки дилера; оставляем типичные CDN Авто-дома/Che168 global."""
+    low = u.lower()
+    if any(x in low for x in ("wa.me", "weixin.qq", "work.weixin", "mailto:", "tel:", "javascript:")):
+        return False
+    return (
+        "erscglobal" in low
+        or "/escimg/" in low
+        or "autoimg.cn" in low
+        or "autohomecar" in low
+        or "che168.com" in low
+    )
+
+
+def _deep_collect_car_photo_urls(obj: Any, *, max_urls: int = 48, max_depth: int = 22) -> List[str]:
+    """Рекурсивно собирает URL фото из произвольного вложения ответа API (нестандартные ключи)."""
+    seen: set[str] = set()
+    out: List[str] = []
+
+    def visit(x: Any, depth: int) -> None:
+        if len(out) >= max_urls or depth > max_depth:
+            return
+        if isinstance(x, str):
+            s = x.strip()
+            if s.startswith("http") and _is_likely_che168_vehicle_photo_url(s) and s not in seen:
+                seen.add(s)
+                out.append(s)
+            return
+        if isinstance(x, dict):
+            for v in x.values():
+                visit(v, depth + 1)
+            return
+        if isinstance(x, list):
+            for v in x:
+                visit(v, depth + 1)
+
+    visit(obj, 0)
+    return out
+
+
 def _shape_hash(payload: Any) -> str:
     if not isinstance(payload, dict):
         return ""
@@ -106,6 +146,16 @@ def merge_che168_api_carinfo_envelope(raw: dict) -> dict:
         b = raw.get(bk)
         if isinstance(b, dict):
             _overlay(b)
+
+    cur_im = out.get("images")
+    cur_n = 0
+    if isinstance(cur_im, list):
+        cur_n = len(cur_im)
+    elif isinstance(cur_im, str) and cur_im.strip():
+        cur_n = 1
+    deep = _deep_collect_car_photo_urls(raw)
+    if len(deep) > cur_n:
+        out["images"] = deep
     return out
 
 
@@ -217,6 +267,7 @@ def _collect_image_urls_from_dict(carinfo: dict, *, prepend_cover: bool) -> List
         or carinfo.get("picurl")
         or carinfo.get("picUrl")
         or carinfo.get("imageurl")
+        or carinfo.get("imageUrl")
         or carinfo.get("imgurl")
         or carinfo.get("photo")
     )
@@ -909,6 +960,16 @@ def parse_one_che168_car_sync(
     dt_fields = _extract_datetimes(ci, li)
     description = _extract_description(ci, li)
     images = _collect_image_urls(ci if ci else {}, li if li else None)
+    if len(images) <= 1 and isinstance(li, dict) and li:
+        dextra = _deep_collect_car_photo_urls(li)
+        if len(dextra) > len(images):
+            seen_m: set[str] = set(images)
+            merged_im: List[str] = list(images)
+            for u in dextra:
+                if u not in seen_m:
+                    seen_m.add(u)
+                    merged_im.append(u)
+            images = merged_im
     vin = _vin_from_sources(ci, li)
     yr = _year_from(ci, li)
     km_v = _mileage_km(ci, li)
