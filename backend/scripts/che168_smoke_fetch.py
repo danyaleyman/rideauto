@@ -23,6 +23,7 @@ if str(_BACKEND) not in sys.path:
 from encar_scraper import load_config  # noqa: E402
 from scraper_pipeline.che168.parser import (  # noqa: E402
     che168_listing_numeric_id,
+    merge_che168_api_carinfo_envelope,
     parse_one_che168_car_sync,
 )
 from scraper_pipeline.che168.workers import (  # noqa: E402
@@ -156,7 +157,7 @@ async def _amain(args: argparse.Namespace) -> int:
             li = p["list_item"]
             info, sti, ei = await client.fetch_carinfo(ext)
             ci = info if isinstance(info, dict) else {}
-            layer = ci.get("result") if isinstance(ci.get("result"), dict) else ci
+            layer = merge_che168_api_carinfo_envelope(ci) if isinstance(ci, dict) else {}
             if not isinstance(layer, dict):
                 layer = {}
             specid = layer.get("specid") or layer.get("specId")

@@ -2,6 +2,7 @@ import pytest
 
 from scraper_pipeline.che168.parser import (
     che168_listing_numeric_id,
+    merge_che168_api_carinfo_envelope,
     normalize_price_cny,
     parse_one_che168_car_sync,
 )
@@ -71,6 +72,35 @@ def test_parse_one_merges_list_images_when_carinfo_has_none():
     assert car is not None
     imgs = car["data"].get("images") or []
     assert any("list.jpg" in u for u in imgs)
+
+
+def test_merge_carinfo_envelope_keeps_sibling_images():
+    raw = {
+        "returncode": 0,
+        "result": {
+            "infoid": 777,
+            "title": "Sibling images test",
+            "price": 200000,
+            "brandname": "BMW",
+            "modelname": "X3",
+        },
+        "images": ["https://example.com/a.jpg", "https://example.com/b.jpg"],
+    }
+    merged = merge_che168_api_carinfo_envelope(raw)
+    assert merged.get("brandname") == "BMW"
+    assert isinstance(merged.get("images"), list)
+    assert len(merged["images"]) == 2
+    car = parse_one_che168_car_sync(
+        external_id="777",
+        list_item={"id": 777, "price": 200000},
+        carinfo=merged,
+        specparam=None,
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    assert len(car["data"].get("images") or []) >= 2
 
 
 def test_parse_one_collects_nested_images_and_shape_fallbacks():

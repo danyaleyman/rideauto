@@ -47,6 +47,8 @@ python scripts/che168_listing_live_checker.py --config ../che168_scraper.yaml --
 
 Реализованы вызовы: `/brand`, `/search`, `/carinfo/{id}`, `/specparam`, `/specconfig`, `/recommend`, `/report/summary` с параметрами `_appid`, `deviceid`, `language` и заголовками Origin/Referer под `global.che168.com`.
 
+Ответ `/carinfo` иногда кладёт галерею **рядом** с `result` (не внутри объекта карточки). Перед парсингом `merge_che168_api_carinfo_envelope` объединяет внутренний слой и такие соседние поля (`images`, `picurls`, …), иначе в каталоге остаётся только обложка.
+
 ## Цена в ¥
 
 - В каталоге для расчёта используется **`price_cny`** (полные юани). Сырой ответ API сохраняется в **`che168_price_raw`**.

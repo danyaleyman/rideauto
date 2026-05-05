@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import re
 import time
@@ -25,6 +26,32 @@ log = logging.getLogger(__name__)
 RAW_ENVELOPE_VERSION = "che168.raw.v1"
 PARSER_SCHEMA_VERSION = "che168.normalized.v1"
 
+# Соседние к `result`/`data` поля в сыром JSON /carinfo (иначе `_unwrap_layer` их отбрасывает).
+_CHE168_CARINFO_ENVELOPE_MEDIA_KEYS: tuple[str, ...] = (
+    "images",
+    "photo_list",
+    "picurls",
+    "picUrls",
+    "photos",
+    "photolist",
+    "imageList",
+    "imglist",
+    "gallery",
+    "album",
+    "carImages",
+    "carimages",
+    "cover_image",
+    "picurl",
+    "picUrl",
+    "imageurl",
+    "imgurl",
+    "photo",
+)
+
+_CHE168_OPTIONAL_MEDIA_BUCKETS: tuple[str, ...] = ("extinfo", "extendinfo", "extra", "ext", "appendix", "other")
+
+_URL_IN_TEXT = re.compile(r"https?://[^\s\"'<>|]+", re.I)
+
 
 def _shape_hash(payload: Any) -> str:
     if not isinstance(payload, dict):
@@ -43,6 +70,43 @@ def _unwrap_layer(d: Any) -> dict:
         if isinstance(v, dict) and len(v) >= 3:
             return v
     return d
+
+
+def _is_empty_media_value(v: Any) -> bool:
+    if v is None:
+        return True
+    if isinstance(v, str):
+        return not v.strip()
+    if isinstance(v, (list, dict)):
+        return len(v) == 0
+    return False
+
+
+def merge_che168_api_carinfo_envelope(raw: dict) -> dict:
+    """
+    Собирает слой карточки для парсера: внутренний объект из `_unwrap_layer(raw)`
+    плюс медиа/обложки с верхнего уровня ответа API (и типичных вложенных bucket-ов),
+    которые иначе теряются при `carinfo = result`.
+    """
+    inner = _unwrap_layer(raw)
+    out: Dict[str, Any] = dict(inner) if isinstance(inner, dict) else {}
+
+    def _overlay(src: Any) -> None:
+        if not isinstance(src, dict):
+            return
+        for k in _CHE168_CARINFO_ENVELOPE_MEDIA_KEYS:
+            v = src.get(k)
+            if _is_empty_media_value(v):
+                continue
+            if k not in out or _is_empty_media_value(out.get(k)):
+                out[k] = v
+
+    _overlay(raw)
+    for bk in _CHE168_OPTIONAL_MEDIA_BUCKETS:
+        b = raw.get(bk)
+        if isinstance(b, dict):
+            _overlay(b)
+    return out
 
 
 def _nested_dict_candidates(payload: Any) -> List[dict]:
@@ -104,7 +168,20 @@ def _collect_image_urls_from_dict(carinfo: dict, *, prepend_cover: bool) -> List
     ):
         raw = carinfo.get(key)
         if isinstance(raw, str) and raw.strip():
-            raw = [raw]
+            s = raw.strip()
+            if s.startswith("["):
+                try:
+                    parsed = json.loads(s)
+                    if isinstance(parsed, list):
+                        raw = parsed
+                    else:
+                        raw = [s]
+                except json.JSONDecodeError:
+                    found = _URL_IN_TEXT.findall(s)
+                    raw = found if len(found) >= 2 else [s]
+            else:
+                found = _URL_IN_TEXT.findall(s)
+                raw = found if len(found) >= 2 else [s]
         if not isinstance(raw, list):
             continue
         for x in raw:

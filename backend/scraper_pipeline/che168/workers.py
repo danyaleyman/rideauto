@@ -17,8 +17,8 @@ from scraper_pipeline.che168.api_outcome import (
 )
 from scraper_pipeline.che168.client import AsyncChe168Client
 from scraper_pipeline.che168.parser import (
-    _unwrap_layer,
     che168_listing_numeric_id,
+    merge_che168_api_carinfo_envelope,
     parse_one_che168_car_async,
 )
 from scraper_pipeline.encar.savers import CarSaver
@@ -96,7 +96,7 @@ def che168_brand_id(row: dict) -> Optional[int]:
 def che168_carinfo_body(raw: Any) -> dict:
     if not isinstance(raw, dict):
         return {}
-    layer = _unwrap_layer(raw)
+    layer = merge_che168_api_carinfo_envelope(raw)
     if che168_listing_numeric_id(layer) or layer.get("price") is not None or layer.get("title"):
         return layer
     return layer
