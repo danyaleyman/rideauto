@@ -940,29 +940,21 @@ def _flatten_specconfig_options(specconfig: Any) -> List[str]:
         if not isinstance(node, dict):
             return
 
-        children: List[Any] = []
-        for k in (
-            "list",
-            "configlist",
-            "items",
-            "optionlist",
-            "sublist",
-            "valueitems",
-            "paramitems",
-            "data",
-            "result",
-        ):
-            v = node.get(k)
+        has_children = any(isinstance(v, (list, dict)) for v in node.values())
+        if not has_children:
+            # Leaf option entry: prefer human-readable name/value tokens.
+            _push(
+                node.get("name")
+                or node.get("itemname")
+                or node.get("title")
+                or node.get("configName")
+                or node.get("optionName")
+                or node.get("optionname")
+            )
+            _push(node.get("value") or node.get("dispvalue") or node.get("subvalue") or node.get("text") or node.get("optionValue"))
+        for v in node.values():
             if isinstance(v, (list, dict)):
-                children.append(v)
-        if children:
-            for ch in children:
-                _walk(ch)
-            return
-
-        # Leaf option entry: prefer human-readable name/value tokens.
-        _push(node.get("name") or node.get("itemname") or node.get("title") or node.get("configName"))
-        _push(node.get("value") or node.get("dispvalue") or node.get("subvalue") or node.get("text"))
+                _walk(v)
 
     _walk(specconfig)
     return out
@@ -1055,12 +1047,12 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
                 break
 
     label_aliases = {
-        "displacement": ("displacement", "排量", "发动机排量"),
-        "gearbox": ("gearbox", "变速箱", "变速箱类型"),
-        "fueltype": ("fueltype", "燃料形式", "发动机类型", "能源类型"),
-        "drivemode": ("drivemode", "驱动方式", "驱动形式"),
-        "bodytype": ("bodytype", "车身结构", "车体结构"),
-        "power": ("power", "最大马力", "马力", "最大功率"),
+        "displacement": ("displacement", "排量", "发动机排量", "enginecapacity", "enginedisplacement"),
+        "gearbox": ("gearbox", "变速箱", "变速箱类型", "变速器", "transmission", "gear"),
+        "fueltype": ("fueltype", "燃料形式", "发动机类型", "能源类型", "燃油类型", "发动机", "fuel", "engine"),
+        "drivemode": ("drivemode", "驱动方式", "驱动形式", "驱动类型", "驱动", "drive"),
+        "bodytype": ("bodytype", "车身结构", "车体结构", "车身形式", "车身类型", "body"),
+        "power": ("power", "最大马力", "马力", "最大功率", "功率", "horsepower"),
     }
     norm_alias_to_key: Dict[str, str] = {}
     for key, aliases in label_aliases.items():

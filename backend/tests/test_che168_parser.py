@@ -297,6 +297,47 @@ def test_parse_one_extracts_nested_specconfig_options():
     assert "电动天窗" in opts
 
 
+def test_parse_one_extracts_options_from_unknown_nested_keys():
+    car = parse_one_che168_car_sync(
+        external_id="58120001",
+        list_item={"id": 58120001, "brandname": "Audi", "modelname": "A4", "price": 228000},
+        carinfo={"title": "Audi A4", "price": 228000, "specid": 70003},
+        specparam={
+            "result": {
+                "meta": {
+                    "rows": [
+                        {"label": "驱动类型", "value": "前置四驱"},
+                        {"label": "车身形式", "value": "SUV"},
+                        {"label": "发动机", "value": "汽油"},
+                    ]
+                }
+            }
+        },
+        specconfig={
+            "payload": {
+                "sections": [
+                    {
+                        "children": [
+                            {"optionName": "HUD 抬头显示", "optionValue": "标配"},
+                            {"optionName": "前排手机无线充电", "optionValue": "标配"},
+                        ]
+                    }
+                ]
+            }
+        },
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    d = car["data"]
+    assert d.get("drive_type") == "前置四驱"
+    assert d.get("body_type") == "SUV"
+    assert d.get("engine_type") == "汽油"
+    opts = d.get("che168_recommended_options") or []
+    assert "HUD 抬头显示" in opts
+    assert "前排手机无线充电" in opts
+
+
 def test_taxonomy_aliases():
     car = parse_one_che168_car_sync(
         external_id="1",
