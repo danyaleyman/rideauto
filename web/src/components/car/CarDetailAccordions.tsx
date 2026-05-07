@@ -475,6 +475,26 @@ function parseJson(v: unknown): unknown {
   }
 }
 
+function normalizeSpecValue(v: unknown): string | null {
+  const s = asStr(v)?.trim();
+  if (!s) return null;
+  const low = s.toLowerCase();
+  if (["--", "-", "—", "null", "none", "n/a", "undefined", "не указано"].includes(low)) return null;
+  return s;
+}
+
+function parseHp(v: unknown): number | null {
+  const s = normalizeSpecValue(v);
+  if (!s) return null;
+  const tagged = /(\d{2,4})\s*(?:hp|ps|л\.?с\.?|horsepower|马力)?/i.exec(s);
+  if (tagged) {
+    const n = Number(tagged[1]);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
+  return Number.isFinite(plain) && plain > 0 ? plain : null;
+}
+
 /** Опции/подсветки китайского листинга (Che168 и др.): без отдельной таблицы Dongchedi. */
 function collectChinaHighlightLabels(d: Record<string, unknown>): string[] {
   const raw = d.high_light_config;
@@ -701,15 +721,14 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
   const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
-  const chinaRecommendedRaw = parseJson(d.che168_recommended_options);
+  const chinaRecommendedRaw = parseJson(d.che168_recommended_options ?? d.che168_options_enriched);
   const chinaRecommendedFallback = useMemo(() => collectChinaHighlightLabels(d), [d]);
   const chinaRecommended = useMemo(() => {
     if (!Array.isArray(chinaRecommendedRaw)) return chinaRecommendedFallback;
     const out: string[] = [];
     const seen = new Set<string>();
     for (const item of chinaRecommendedRaw) {
-      const raw =
-        typeof item === "string" ? item : item != null ? String(item) : "";
+      const raw = typeof item === "string" ? item : item && typeof item === "object" ? asStr((item as Record<string, unknown>).name) ?? asStr((item as Record<string, unknown>).value) ?? String(item) : item != null ? String(item) : "";
       const ru = (translateKoToRuText(raw).trim() || raw.trim()).trim();
       if (!ru || seen.has(ru)) continue;
       seen.add(ru);
@@ -904,9 +923,30 @@ export function CarDetailAccordions({
   const vin = asStr(data.vin) ?? asStr(getPath(detail, ["vin"]));
 
   const power =
-    asStr((data as Record<string, unknown>).power_kwhp) ??
-    asStr(data.power) ??
-    asStr(data.hp);
+    ((): string | null => {
+      const hp =
+        parseHp((data as Record<string, unknown>).power_hp) ??
+        parseHp((data as Record<string, unknown>).power_kwhp) ??
+        parseHp(data.power) ??
+        parseHp(data.hp);
+      return hp ? `${hp} л.с.` : null;
+    })();
+  const transmissionRaw =
+    normalizeSpecValue(data.transmission_type) ??
+    normalizeSpecValue((data as Record<string, unknown>).gearbox) ??
+    normalizeSpecValue((data as Record<string, unknown>).transmission);
+  const transmission =
+    transmissionRaw && /^\d{1,2}$/.test(transmissionRaw) ? `${transmissionRaw}-ст.` : transmissionRaw;
+  const drive =
+    normalizeSpecValue(data.drive_type) ??
+    normalizeSpecValue((data as Record<string, unknown>).drivemode) ??
+    normalizeSpecValue((data as Record<string, unknown>).drivingmode);
+  const displacementText =
+    normalizeSpecValue((data as Record<string, unknown>).displacement) ??
+    ((): string | null => {
+      const cc = Number((data as Record<string, unknown>).displacement_cc);
+      return Number.isFinite(cc) && cc > 0 ? `${Math.round(cc)} см3` : null;
+    })();
 
   const generalRows: { label: string; value: string }[] = [];
   const push = (label: string, v: string | null) => {
@@ -929,9 +969,9 @@ export function CarDetailAccordions({
   push("VIN", vin);
   push(
     "Двигатель / объём",
-    [normalizeFuelLabel(data.engine_type), asStr(data.displacement)].filter(Boolean).join(", ") || null,
+    [normalizeFuelLabel(data.engine_type), displacementText].filter(Boolean).join(", ") || null,
   );
-  push("КПП / привод", [asStr(data.transmission_type), asStr(data.drive_type)].filter(Boolean).join(", ") || null);
+  push("КПП / привод", [transmission, drive].filter(Boolean).join(", ") || null);
   push("Мощность", power);
   push("Места", asStr(data.seatCount));
 

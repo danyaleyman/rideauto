@@ -20,11 +20,24 @@ export function pickCarData(raw: Record<string, unknown>): Record<string, unknow
       year: data.year ?? readModel.year,
       km_age: data.km_age ?? readModel.mileage_km,
       engine_type: data.engine_type ?? readModel.engine_type,
-      transmission_type: data.transmission_type ?? readModel.transmission_type,
-      drive_type: data.drive_type ?? readModel.drive_type,
+      transmission_type:
+        data.transmission_type ??
+        readModel.transmission_type ??
+        readModel.transmission ??
+        readModel.gearbox,
+      drive_type:
+        data.drive_type ??
+        readModel.drive_type ??
+        readModel.drivemode ??
+        readModel.drive,
       body_type: data.body_type ?? readModel.body_type,
       color: data.color ?? readModel.color,
-      power_hp: data.power_hp ?? readModel.power_hp,
+      power_hp: data.power_hp ?? readModel.power_hp ?? readModel.hp,
+      displacement_cc: data.displacement_cc ?? readModel.displacement_cc,
+      che168_recommended_options:
+        data.che168_recommended_options ?? readModel.che168_recommended_options ?? raw.che168_recommended_options,
+      che168_options_enriched:
+        data.che168_options_enriched ?? readModel.che168_options_enriched ?? raw.che168_options_enriched,
       configuration: data.configuration ?? readModel.trim_name,
       trim_name: data.trim_name ?? readModel.trim_name,
       source: data.source ?? raw.source,
