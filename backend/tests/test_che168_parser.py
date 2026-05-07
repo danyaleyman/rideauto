@@ -338,6 +338,53 @@ def test_parse_one_extracts_options_from_unknown_nested_keys():
     assert "前排手机无线充电" in opts
 
 
+def test_parse_one_extracts_english_paramtypeitems_format():
+    car = parse_one_che168_car_sync(
+        external_id="58120002",
+        list_item={"id": 58120002, "brandname": "BYD", "modelname": "Song Plus", "price": 168000},
+        carinfo={"title": "BYD Song Plus", "price": 168000, "specid": 70004},
+        specparam={
+            "result": {
+                "paramtypeitems": [
+                    {
+                        "name": "Basic Specifications",
+                        "paramitems": [
+                            {"name": "Engine Displacement", "value": "1.5L"},
+                            {"name": "Max Power (hp)", "value": "112"},
+                            {"name": "Transmission", "value": "1-speed DHT"},
+                            {"name": "Drive Mode", "value": "Front-Wheel Drive (FWD)"},
+                            {"name": "Energy Type", "value": "Plug-in Hybrid"},
+                            {"name": "Body Structure", "value": "SUV"},
+                        ],
+                    }
+                ]
+            }
+        },
+        specconfig={
+            "result": {
+                "list": [
+                    {"name": "Safety", "list": ["ABS", "ESP", "Airbags"]},
+                    {"name": "Comfort", "list": ["Climate control", "Cruise control"]},
+                ]
+            }
+        },
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    d = car["data"]
+    assert d.get("power_hp") == 112
+    assert d.get("displacement_cc") == 1500
+    assert d.get("engine_type") == "Plug-in Hybrid"
+    assert d.get("transmission_type") == "1-speed DHT"
+    assert d.get("drive_type") == "Front-Wheel Drive (FWD)"
+    assert d.get("body_type") == "SUV"
+    opts = d.get("che168_recommended_options") or []
+    assert "ABS" in opts
+    assert "ESP" in opts
+    assert "Cruise control" in opts
+
+
 def test_taxonomy_aliases():
     car = parse_one_che168_car_sync(
         external_id="1",

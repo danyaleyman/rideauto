@@ -1047,12 +1047,48 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
                 break
 
     label_aliases = {
-        "displacement": ("displacement", "排量", "发动机排量", "enginecapacity", "enginedisplacement"),
-        "gearbox": ("gearbox", "变速箱", "变速箱类型", "变速器", "transmission", "gear"),
-        "fueltype": ("fueltype", "燃料形式", "发动机类型", "能源类型", "燃油类型", "发动机", "fuel", "engine"),
-        "drivemode": ("drivemode", "驱动方式", "驱动形式", "驱动类型", "驱动", "drive"),
-        "bodytype": ("bodytype", "车身结构", "车体结构", "车身形式", "车身类型", "body"),
-        "power": ("power", "最大马力", "马力", "最大功率", "功率", "horsepower"),
+        "displacement": (
+            "displacement",
+            "displacementl",
+            "enginedisplacement",
+            "enginecapacity",
+            "排量",
+            "发动机排量",
+        ),
+        "gearbox": (
+            "gearbox",
+            "transmission",
+            "transmissiontype",
+            "gear",
+            "变速箱",
+            "变速箱类型",
+            "变速器",
+        ),
+        "fueltype": (
+            "fueltype",
+            "fuel",
+            "fueltype",
+            "energytype",
+            "engine",
+            "enginetype",
+            "燃料形式",
+            "发动机类型",
+            "能源类型",
+            "燃油类型",
+            "发动机",
+        ),
+        "drivemode": (
+            "drivemode",
+            "drivetype",
+            "drivetrain",
+            "drive",
+            "驱动方式",
+            "驱动形式",
+            "驱动类型",
+            "驱动",
+        ),
+        "bodytype": ("bodytype", "body", "bodystructure", "bodystyle", "车身结构", "车体结构", "车身形式", "车身类型"),
+        "power": ("power", "maxpower", "maxpowerhp", "maximumpower", "horsepower", "最大马力", "马力", "最大功率", "功率"),
     }
     norm_alias_to_key: Dict[str, str] = {}
     for key, aliases in label_aliases.items():
