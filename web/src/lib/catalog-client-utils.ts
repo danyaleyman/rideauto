@@ -156,6 +156,14 @@ export function catalogCardAttributeChips(
   data: Record<string, unknown>,
   yearNum?: number | null,
 ): { key: string; label: string; Icon: LucideIcon }[] {
+  const parseYear = (v: unknown): number | null => {
+    const s = asStr(v);
+    if (!s) return null;
+    const m = /(19|20)\d{2}/.exec(s);
+    if (!m) return null;
+    const y = Number(m[0]);
+    return Number.isFinite(y) && y >= 1980 && y <= 2035 ? y : null;
+  };
   const parseHp = (v: unknown): number | null => {
     const s = asStr(v);
     if (!s) return null;
@@ -183,6 +191,15 @@ export function catalogCardAttributeChips(
   if (ym) chips.push({ key: "ym", label: ym, Icon: CalendarDays });
   else if (yearNum != null && Number.isFinite(yearNum) && yearNum > 0) {
     chips.push({ key: "y", label: String(Math.round(yearNum)), Icon: CalendarDays });
+  } else {
+    const yearFromData =
+      parseYear(data.year) ??
+      parseYear(data.modelyear) ??
+      parseYear(data.year_name) ??
+      parseYear(data.first_registration_at);
+    if (yearFromData) {
+      chips.push({ key: "y", label: String(yearFromData), Icon: CalendarDays });
+    }
   }
   const km = formatKm(data.km_age);
   if (km) chips.push({ key: "km", label: km, Icon: Gauge });
@@ -191,7 +208,12 @@ export function catalogCardAttributeChips(
   if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
   const normalizedFuelLower = (fuelLabel || "").toLowerCase();
   const isElectricFuel = normalizedFuelLower.startsWith("электро");
-  const ccRaw = data.displacement_cc ?? data.displacement ?? data.engine_volume;
+  const ccRaw =
+    data.displacement_cc ??
+    data.displacement ??
+    data.engine_volume ??
+    data.engine_displacement ??
+    data.displacement_ml;
   const ccNum = typeof ccRaw === "number" ? Math.trunc(ccRaw) : parseCc(ccRaw);
   const ccValue = Number.isFinite(ccNum) ? ccNum : null;
   if (!isElectricFuel && ccValue !== null && ccValue > 0) {

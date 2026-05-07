@@ -483,6 +483,14 @@ function normalizeSpecValue(v: unknown): string | null {
   return s;
 }
 
+function isMeaningfulOptionLabel(v: string): boolean {
+  const t = v.trim();
+  if (!t) return false;
+  if (/^\d+$/.test(t)) return false;
+  if (/^[\W_]+$/.test(t)) return false;
+  return true;
+}
+
 function parseHp(v: unknown): number | null {
   const s = normalizeSpecValue(v);
   if (!s) return null;
@@ -730,7 +738,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     for (const item of chinaRecommendedRaw) {
       const raw = typeof item === "string" ? item : item && typeof item === "object" ? asStr((item as Record<string, unknown>).name) ?? asStr((item as Record<string, unknown>).value) ?? String(item) : item != null ? String(item) : "";
       const ru = (translateKoToRuText(raw).trim() || raw.trim()).trim();
-      if (!ru || seen.has(ru)) continue;
+      if (!isMeaningfulOptionLabel(ru) || seen.has(ru)) continue;
       seen.add(ru);
       out.push(ru);
     }
