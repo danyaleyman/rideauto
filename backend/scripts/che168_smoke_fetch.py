@@ -36,7 +36,7 @@ from scraper_pipeline.che168.workers import (  # noqa: E402
     _api_layer_list,
     _returncode_ok,
 )
-from scraper_pipeline.che168.client import AsyncChe168Client  # noqa: E402
+from scraper_pipeline.che168.client import AsyncChe168Client, ensure_che168_deviceid  # noqa: E402
 
 
 async def _amain(args: argparse.Namespace) -> int:

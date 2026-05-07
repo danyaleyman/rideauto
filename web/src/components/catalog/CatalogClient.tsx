@@ -1060,7 +1060,21 @@ export function CatalogClient({
           >
             {catalogCarsDisplay.map((car, idx) => {
               const preview = previewImageUrls(car);
-              const cardData = (car.data ?? {}) as Record<string, unknown>;
+              const cardDataRaw = (car.data ?? {}) as Record<string, unknown>;
+              const cardReadModel =
+                car.read_model && typeof car.read_model === "object" && !Array.isArray(car.read_model)
+                  ? (car.read_model as Record<string, unknown>)
+                  : {};
+              const cardData: Record<string, unknown> = {
+                ...cardDataRaw,
+                km_age: cardDataRaw.km_age ?? cardReadModel.mileage_km,
+                power_hp: cardDataRaw.power_hp ?? cardReadModel.power_hp,
+                engine_type: cardDataRaw.engine_type ?? cardReadModel.engine_type,
+                transmission_type: cardDataRaw.transmission_type ?? cardReadModel.transmission_type,
+                drive_type: cardDataRaw.drive_type ?? cardReadModel.drive_type,
+                body_type: cardDataRaw.body_type ?? cardReadModel.body_type,
+                color: cardDataRaw.color ?? cardReadModel.color,
+              };
               const normalizedTitle =
                 buildNormalizedCarTitle(
                   cardData.mark,

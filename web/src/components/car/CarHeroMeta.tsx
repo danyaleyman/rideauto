@@ -18,6 +18,30 @@ export function CarHeroMeta({
   sourceLabel?: string | null;
   availability?: CarListingAvailability;
 }) {
+  const parseHp = (v: unknown): number | null => {
+    const s = asStr(v);
+    if (!s) return null;
+    const tagged = /(\d{2,4})\s*(?:hp|ps|л\.?с\.?)/i.exec(s);
+    if (tagged) return Number(tagged[1]);
+    const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
+    return Number.isFinite(plain) && plain > 0 ? plain : null;
+  };
+  const parseDisplacementCc = (v: unknown): number | null => {
+    const s = asStr(v);
+    if (!s) return null;
+    const cc = /(\d{3,5})\s*(?:cc|см3|см³)/i.exec(s);
+    if (cc) return Number(cc[1]);
+    const liters = /(\d(?:[.,]\d)?)\s*(?:t|l)\b/i.exec(s);
+    if (liters) {
+      const n = Number(liters[1].replace(",", "."));
+      if (Number.isFinite(n) && n > 0) return Math.round(n * 1000);
+    }
+    const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
+    if (!Number.isFinite(plain) || plain <= 0) return null;
+    // guard against "1.2T 116HP L4" -> 121164
+    if (plain > 10000) return null;
+    return plain;
+  };
   type Chip = {
     key: string;
     label: string;
@@ -36,10 +60,14 @@ export function CarHeroMeta({
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
   const fuelLabel = normalizeFuelLabel(fuel);
   if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, icon: Fuel });
-  const hp = asStr(data.power_kwhp) ?? asStr(data.power) ?? asStr(data.hp);
-  if (hp) chips.push({ key: "hp", label: `${translateKoToRuText(hp)} л.с.`, icon: Gauge });
-  const displacement = asStr(data.displacement) ?? asStr(data.engine_displacement);
-  if (displacement) chips.push({ key: "cc", label: `${translateKoToRuText(displacement)} см3`, icon: Fuel });
+  const hp =
+    parseHp(data.power_hp) ?? parseHp(data.power_kwhp) ?? parseHp(data.power) ?? parseHp(data.hp);
+  if (hp) chips.push({ key: "hp", label: `${hp} л.с.`, icon: Gauge });
+  const displacementCc =
+    parseDisplacementCc(data.displacement_cc) ??
+    parseDisplacementCc(data.displacement) ??
+    parseDisplacementCc(data.engine_displacement);
+  if (displacementCc) chips.push({ key: "cc", label: `${displacementCc} см3`, icon: Fuel });
   const plate = asStr(data.vehicle_no) ?? asStr(data.car_no);
   if (plate) chips.push({ key: "plate", label: `Гос № ${plate}`, variant: "secondary", icon: IdCard });
 

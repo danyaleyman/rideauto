@@ -156,6 +156,28 @@ export function catalogCardAttributeChips(
   data: Record<string, unknown>,
   yearNum?: number | null,
 ): { key: string; label: string; Icon: LucideIcon }[] {
+  const parseHp = (v: unknown): number | null => {
+    const s = asStr(v);
+    if (!s) return null;
+    const tagged = /(\d{2,4})\s*(?:hp|ps|л\.?с\.?)/i.exec(s);
+    if (tagged) return Number(tagged[1]);
+    const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
+    return Number.isFinite(plain) && plain > 0 ? plain : null;
+  };
+  const parseCc = (v: unknown): number | null => {
+    const s = asStr(v);
+    if (!s) return null;
+    const cc = /(\d{3,5})\s*(?:cc|см3|см³)/i.exec(s);
+    if (cc) return Number(cc[1]);
+    const liters = /(\d(?:[.,]\d)?)\s*(?:t|l)\b/i.exec(s);
+    if (liters) {
+      const n = Number(liters[1].replace(",", "."));
+      if (Number.isFinite(n) && n > 0) return Math.round(n * 1000);
+    }
+    const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
+    if (!Number.isFinite(plain) || plain <= 0 || plain > 10000) return null;
+    return plain;
+  };
   const chips: { key: string; label: string; Icon: LucideIcon }[] = [];
   const ym = formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year);
   if (ym) chips.push({ key: "ym", label: ym, Icon: CalendarDays });
@@ -169,19 +191,13 @@ export function catalogCardAttributeChips(
   if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
   const normalizedFuelLower = (fuelLabel || "").toLowerCase();
   const isElectricFuel = normalizedFuelLower.startsWith("электро");
-  const ccRaw = data.displacement ?? data.displacement_cc ?? data.engine_volume;
-  const ccNum =
-    typeof ccRaw === "number"
-      ? Math.trunc(ccRaw)
-      : Number.parseInt(String(ccRaw ?? "").replace(/[^\d]/g, ""), 10);
+  const ccRaw = data.displacement_cc ?? data.displacement ?? data.engine_volume;
+  const ccNum = typeof ccRaw === "number" ? Math.trunc(ccRaw) : parseCc(ccRaw);
   if (!isElectricFuel && Number.isFinite(ccNum) && ccNum > 0) {
     chips.push({ key: "cc", label: formatDisplacementLiters(ccNum), Icon: Settings2 });
   }
   const hpRaw = data.power_hp ?? data.power ?? data.hp;
-  const hpNum =
-    typeof hpRaw === "number"
-      ? Math.trunc(hpRaw)
-      : Number.parseInt(String(hpRaw ?? "").replace(/[^\d]/g, ""), 10);
+  const hpNum = typeof hpRaw === "number" ? Math.trunc(hpRaw) : parseHp(hpRaw);
   if (Number.isFinite(hpNum) && hpNum > 0) {
     chips.push({ key: "hp", label: `${hpNum} л.с.`, Icon: Zap });
   }

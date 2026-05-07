@@ -2,11 +2,35 @@ import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/env";
 import { asStr, buildNormalizedCarTitle } from "@/lib/car-detail-data";
 
+function pickReadModel(raw: Record<string, unknown>): Record<string, unknown> | null {
+  const rm = raw.read_model;
+  if (!rm || typeof rm !== "object" || Array.isArray(rm)) return null;
+  return rm as Record<string, unknown>;
+}
+
 export function pickCarData(raw: Record<string, unknown>): Record<string, unknown> {
   const inner = raw.data;
+  const readModel = pickReadModel(raw);
   if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-    return inner as Record<string, unknown>;
+    const data = inner as Record<string, unknown>;
+    if (!readModel) return data;
+    // Keep raw payload intact, but fill commonly used UI fields from read_model.
+    return {
+      ...data,
+      year: data.year ?? readModel.year,
+      km_age: data.km_age ?? readModel.mileage_km,
+      engine_type: data.engine_type ?? readModel.engine_type,
+      transmission_type: data.transmission_type ?? readModel.transmission_type,
+      drive_type: data.drive_type ?? readModel.drive_type,
+      body_type: data.body_type ?? readModel.body_type,
+      color: data.color ?? readModel.color,
+      power_hp: data.power_hp ?? readModel.power_hp,
+      configuration: data.configuration ?? readModel.trim_name,
+      trim_name: data.trim_name ?? readModel.trim_name,
+      source: data.source ?? raw.source,
+    };
   }
+  if (readModel) return { ...raw, ...readModel };
   return raw;
 }
 

@@ -515,6 +515,13 @@ async def detail_worker_che168(
         specid = ci_body.get("specid") or ci_body.get("specId")
         dealerid = ci_body.get("dealerid") or ci_body.get("dealerId")
         paramkey = ci_body.get("paramkey") or ci_body.get("paramKey") or ""
+        if (specid is None or not str(specid).strip()) and isinstance(raw_info, dict):
+            raw_result = raw_info.get("result")
+            if isinstance(raw_result, dict):
+                restored = raw_result.get("specid") or raw_result.get("specId")
+                if restored is not None and str(restored).strip():
+                    specid = restored
+                    log.info("Che168 worker %s: restored specid=%s for id=%s", worker_id, restored, external_id)
         if isinstance(paramkey, str):
             paramkey = paramkey.strip()
         else:

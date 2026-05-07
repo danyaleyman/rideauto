@@ -46,9 +46,24 @@ _CHE168_CARINFO_ENVELOPE_MEDIA_KEYS: tuple[str, ...] = (
     "imageurl",
     "imgurl",
     "photo",
+    "specid",
+    "specId",
+    "dealerid",
+    "dealerId",
+    "paramkey",
+    "paramKey",
 )
 
-_CHE168_OPTIONAL_MEDIA_BUCKETS: tuple[str, ...] = ("extinfo", "extendinfo", "extra", "ext", "appendix", "other")
+_CHE168_OPTIONAL_MEDIA_BUCKETS: tuple[str, ...] = (
+    "extinfo",
+    "extendinfo",
+    "extra",
+    "ext",
+    "appendix",
+    "other",
+    "spec",
+    "params",
+)
 
 _URL_IN_TEXT = re.compile(r"https?://[^\s\"'<>|]+", re.I)
 
