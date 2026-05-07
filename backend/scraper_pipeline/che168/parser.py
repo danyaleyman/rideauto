@@ -242,6 +242,51 @@ def _nested_dict_candidates(payload: Any) -> List[dict]:
     return out
 
 
+def _iter_deep_nodes(payload: Any) -> List[Any]:
+    out: List[Any] = []
+    seen_ids: set[int] = set()
+
+    def walk(node: Any) -> None:
+        nid = id(node)
+        if nid in seen_ids:
+            return
+        seen_ids.add(nid)
+        out.append(node)
+        if isinstance(node, dict):
+            for v in node.values():
+                if isinstance(v, (dict, list)):
+                    walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                if isinstance(x, (dict, list)):
+                    walk(x)
+
+    walk(payload)
+    return out
+
+
+def _norm_label_token(s: Any) -> str:
+    if s is None:
+        return ""
+    txt = str(s).strip().lower()
+    if not txt:
+        return ""
+    return re.sub(r"[\s\-_:/()（）\[\]【】.]+", "", txt)
+
+
+def _map_spec_alias(label: Any, alias_to_key: Dict[str, str]) -> Optional[str]:
+    n = _norm_label_token(label)
+    if not n:
+        return None
+    direct = alias_to_key.get(n)
+    if direct:
+        return direct
+    for alias, key in alias_to_key.items():
+        if alias and alias in n:
+            return key
+    return None
+
+
 def _pick_first_non_empty_with_source(sources: List[tuple[str, dict]], keys: tuple[str, ...]) -> tuple[Optional[Any], Optional[str]]:
     for src_name, src in sources:
         if not isinstance(src, dict):
@@ -871,28 +916,56 @@ def _brand_model_title(carinfo: dict, list_item: dict) -> tuple[Optional[str], O
 def _flatten_specconfig_options(specconfig: Any) -> List[str]:
     if specconfig is None:
         return []
-    opts: List[str] = []
-    if isinstance(specconfig, dict):
-        for k in ("list", "configlist", "items", "optionlist", "data", "result"):
-            v = specconfig.get(k)
-            if isinstance(v, list):
-                return _flatten_specconfig_options(v)
-        for v in specconfig.values():
-            opts.extend(_flatten_specconfig_options(v))
-        return opts
-    if isinstance(specconfig, list):
-        for x in specconfig:
-            if isinstance(x, str) and x.strip():
-                opts.append(x.strip())
-            elif isinstance(x, dict):
-                name = x.get("name") or x.get("itemname") or x.get("title") or x.get("configName")
-                if name:
-                    opts.append(str(name).strip())
-                sub = x.get("list") or x.get("items")
-                if sub:
-                    opts.extend(_flatten_specconfig_options(sub))
-        return opts
-    return opts
+    out: List[str] = []
+    seen: set[str] = set()
+
+    def _push(v: Any) -> None:
+        if v is None:
+            return
+        s = str(v).strip()
+        if not s:
+            return
+        if s not in seen:
+            seen.add(s)
+            out.append(s)
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, str):
+            _push(node)
+            return
+        if isinstance(node, list):
+            for x in node:
+                _walk(x)
+            return
+        if not isinstance(node, dict):
+            return
+
+        children: List[Any] = []
+        for k in (
+            "list",
+            "configlist",
+            "items",
+            "optionlist",
+            "sublist",
+            "valueitems",
+            "paramitems",
+            "data",
+            "result",
+        ):
+            v = node.get(k)
+            if isinstance(v, (list, dict)):
+                children.append(v)
+        if children:
+            for ch in children:
+                _walk(ch)
+            return
+
+        # Leaf option entry: prefer human-readable name/value tokens.
+        _push(node.get("name") or node.get("itemname") or node.get("title") or node.get("configName"))
+        _push(node.get("value") or node.get("dispvalue") or node.get("subvalue") or node.get("text"))
+
+    _walk(specconfig)
+    return out
 
 
 def _power_hp_from_hints(spec_hints: Dict[str, Any]) -> Optional[int]:
@@ -910,19 +983,48 @@ def _power_hp_from_hints(spec_hints: Dict[str, Any]) -> Optional[int]:
     return _safe_int(s)
 
 
+def _displacement_cc_from_value(v: Any) -> Optional[int]:
+    if v is None:
+        return None
+    n = _safe_int(v)
+    if n is not None and 500 <= n <= 12000:
+        return n
+    f = _safe_float(v)
+    if f is not None and 0.5 <= f <= 8.0:
+        cc = int(round(f * 1000))
+        if 500 <= cc <= 12000:
+            return cc
+    s = str(v).strip()
+    if not s:
+        return None
+    m_ml = re.search(r"(\d{3,5})\s*(?:ml|cc|cm3|см3|см³)", s, re.I)
+    if m_ml:
+        try:
+            cc = int(m_ml.group(1))
+            if 500 <= cc <= 12000:
+                return cc
+        except ValueError:
+            return None
+    m_l = re.search(r"(\d(?:[.,]\d)?)\s*(?:t|l)\b", s, re.I)
+    if m_l:
+        try:
+            lit = float(m_l.group(1).replace(",", "."))
+            cc = int(round(lit * 1000))
+            if 500 <= cc <= 12000:
+                return cc
+        except ValueError:
+            return None
+    return None
+
+
 def _displacement_cc_from_spec(spec_raw: dict) -> Optional[int]:
     for k in ("displacementml", "displacementMl", "displacement", "liter"):
         v = spec_raw.get(k)
         if v is None:
             continue
-        n = _safe_int(v)
-        if n is not None and 500 <= n <= 12000:
-            return n
-        f = _safe_float(v)
-        if f is not None and 0.5 <= f <= 8.0:
-            cc = int(round(f * 1000))
-            if 500 <= cc <= 12000:
-                return cc
+        cc = _displacement_cc_from_value(v)
+        if cc is not None:
+            return cc
     return None
 
 
@@ -933,7 +1035,7 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
     if not isinstance(body, dict):
         return {}
     out: Dict[str, Any] = {}
-    for key, targets in (
+    field_targets = (
         ("displacement", ("displacement", "displacementml", "displacementMl", "liter", "enginecc")),
         ("gearbox", ("gearbox", "transmission", "transmissiontype", "gearBoxType")),
         ("fueltype", ("fueltype", "fuelType", "engine", "fuel", "engineType")),
@@ -941,7 +1043,8 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
         ("bodytype", ("bodytype", "bodyType", "level", "bodyStyle", "carBodyType")),
         ("color", ("color", "bodycolor", "exteriorColor")),
         ("power", ("power", "horsepower", "maxpower", "powerhp", "maxPower")),
-    ):
+    )
+    for key, targets in field_targets:
         for cand in _nested_dict_candidates(body):
             for t in targets:
                 v = cand.get(t)
@@ -949,6 +1052,49 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
                     out[key] = v
                     break
             if key in out:
+                break
+
+    label_aliases = {
+        "displacement": ("displacement", "排量", "发动机排量"),
+        "gearbox": ("gearbox", "变速箱", "变速箱类型"),
+        "fueltype": ("fueltype", "燃料形式", "发动机类型", "能源类型"),
+        "drivemode": ("drivemode", "驱动方式", "驱动形式"),
+        "bodytype": ("bodytype", "车身结构", "车体结构"),
+        "power": ("power", "最大马力", "马力", "最大功率"),
+    }
+    norm_alias_to_key: Dict[str, str] = {}
+    for key, aliases in label_aliases.items():
+        for a in aliases:
+            na = _norm_label_token(a)
+            if na:
+                norm_alias_to_key[na] = key
+
+    name_keys = ("name", "itemname", "title", "paramname", "specname", "configName", "key", "label")
+    value_keys = ("value", "dispvalue", "paramvalue", "specvalue", "subvalue", "text", "val")
+    for node in _iter_deep_nodes(body):
+        if not isinstance(node, dict):
+            continue
+        for k_raw, v in node.items():
+            if v is None or not str(v).strip():
+                continue
+            mapped = _map_spec_alias(k_raw, norm_alias_to_key)
+            if mapped and mapped not in out:
+                out[mapped] = v
+        n_val = None
+        for nk in name_keys:
+            cand = node.get(nk)
+            if cand is not None and str(cand).strip():
+                n_val = cand
+                break
+        if n_val is None:
+            continue
+        mapped = _map_spec_alias(n_val, norm_alias_to_key)
+        if not mapped or mapped in out:
+            continue
+        for vk in value_keys:
+            vv = node.get(vk)
+            if vv is not None and str(vv).strip():
+                out[mapped] = vv
                 break
     return out
 
@@ -1032,6 +1178,8 @@ def parse_one_che168_car_sync(
     similar_dedup = _dedupe_ids_preserve_order(similar_raw)
     similar_dedup = [x for x in similar_dedup if x != str(external_id)]
     disp_cc = _displacement_cc_from_spec(spec_raw) if spec_raw else None
+    if disp_cc is None and spec_hints.get("displacement") is not None:
+        disp_cc = _displacement_cc_from_value(spec_hints.get("displacement"))
     p_hp = _power_hp_from_hints(spec_hints)
 
     geo = _extract_geo(ci, li, session_cookie_hints)

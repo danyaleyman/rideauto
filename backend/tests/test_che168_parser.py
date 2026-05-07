@@ -220,6 +220,83 @@ def test_parse_one_collects_nested_images_and_shape_fallbacks():
     assert (dq.get("field_sources") or {}).get("images")
 
 
+def test_parse_one_extracts_spec_fields_from_nested_name_value_payload():
+    car = parse_one_che168_car_sync(
+        external_id="58123456",
+        list_item={"id": 58123456, "brandname": "Audi", "modelname": "A4", "price": 228000},
+        carinfo={"title": "Audi A4", "price": 228000, "specid": 70001},
+        specparam={
+            "result": {
+                "paramtypeitems": [
+                    {
+                        "name": "发动机",
+                        "paramitems": [
+                            {"name": "排量(L)", "value": "2.0T"},
+                            {"name": "最大马力(Ps)", "value": "190"},
+                            {"name": "燃料形式", "value": "汽油"},
+                        ],
+                    },
+                    {
+                        "name": "底盘转向",
+                        "paramitems": [
+                            {"name": "驱动方式", "value": "前置前驱"},
+                            {"name": "变速箱", "value": "7挡湿式双离合"},
+                        ],
+                    },
+                    {
+                        "name": "车身",
+                        "paramitems": [{"name": "车身结构", "value": "4门5座三厢车"}],
+                    },
+                ]
+            }
+        },
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    d = car["data"]
+    assert d.get("power_hp") == 190
+    assert d.get("displacement_cc") == 2000
+    assert d.get("engine_type") == "汽油"
+    assert d.get("transmission_type") == "7挡湿式双离合"
+    assert d.get("drive_type") == "前置前驱"
+    assert d.get("body_type") == "4门5座三厢车"
+
+
+def test_parse_one_extracts_nested_specconfig_options():
+    car = parse_one_che168_car_sync(
+        external_id="58129999",
+        list_item={"id": 58129999, "brandname": "Audi", "modelname": "A4", "price": 228000},
+        carinfo={"title": "Audi A4", "price": 228000, "specid": 70002},
+        specparam=None,
+        specconfig={
+            "result": {
+                "configlist": [
+                    {
+                        "name": "外部配置",
+                        "sublist": [
+                            {
+                                "name": "天窗",
+                                "valueitems": [
+                                    {"name": "可开启全景天窗", "value": "标配"},
+                                    {"name": "电动天窗", "value": "选配"},
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        },
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    opts = car["data"].get("che168_recommended_options") or []
+    assert "可开启全景天窗" in opts
+    assert "电动天窗" in opts
+
+
 def test_taxonomy_aliases():
     car = parse_one_che168_car_sync(
         external_id="1",
