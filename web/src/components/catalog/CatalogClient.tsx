@@ -1061,9 +1061,11 @@ export function CatalogClient({
             {catalogCarsDisplay.map((car, idx) => {
               const preview = previewImageUrls(car);
               const cardDataRaw = (car.data ?? {}) as Record<string, unknown>;
+              const carObj = car as unknown as Record<string, unknown>;
+              const rawReadModel = carObj.read_model;
               const cardReadModel =
-                car.read_model && typeof car.read_model === "object" && !Array.isArray(car.read_model)
-                  ? (car.read_model as Record<string, unknown>)
+                rawReadModel && typeof rawReadModel === "object" && !Array.isArray(rawReadModel)
+                  ? (rawReadModel as Record<string, unknown>)
                   : {};
               const cardData: Record<string, unknown> = {
                 ...cardDataRaw,
