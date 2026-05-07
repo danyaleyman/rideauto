@@ -44,6 +44,8 @@ export type SlimCar = {
     vin?: string;
     [key: string]: unknown;
   };
+  /** Normalized projection from backend for stable UI fallbacks. */
+  read_model?: Record<string, unknown> | null;
 };
 
 export type SearchResponse = {

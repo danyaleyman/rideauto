@@ -193,13 +193,15 @@ export function catalogCardAttributeChips(
   const isElectricFuel = normalizedFuelLower.startsWith("электро");
   const ccRaw = data.displacement_cc ?? data.displacement ?? data.engine_volume;
   const ccNum = typeof ccRaw === "number" ? Math.trunc(ccRaw) : parseCc(ccRaw);
-  if (!isElectricFuel && Number.isFinite(ccNum) && ccNum > 0) {
-    chips.push({ key: "cc", label: formatDisplacementLiters(ccNum), Icon: Settings2 });
+  const ccValue = Number.isFinite(ccNum) ? ccNum : null;
+  if (!isElectricFuel && ccValue !== null && ccValue > 0) {
+    chips.push({ key: "cc", label: formatDisplacementLiters(ccValue), Icon: Settings2 });
   }
   const hpRaw = data.power_hp ?? data.power ?? data.hp;
   const hpNum = typeof hpRaw === "number" ? Math.trunc(hpRaw) : parseHp(hpRaw);
-  if (Number.isFinite(hpNum) && hpNum > 0) {
-    chips.push({ key: "hp", label: `${hpNum} л.с.`, Icon: Zap });
+  const hpValue = Number.isFinite(hpNum) ? hpNum : null;
+  if (hpValue !== null && hpValue > 0) {
+    chips.push({ key: "hp", label: `${hpValue} л.с.`, Icon: Zap });
   }
   return chips;
 }
