@@ -26,6 +26,22 @@ function isHttpUrl(v: unknown): v is string {
   return typeof v === "string" && /^https?:\/\//i.test(v);
 }
 
+function normalizeImageUrl(v: string): string {
+  const t = v.trim();
+  if (!t) return t;
+  const withProto = t.startsWith("//") ? `https:${t}` : t;
+  const safe = withProto.replace(/ /g, "%20");
+  if (!/^https?:\/\//i.test(safe)) return safe;
+  try {
+    const u = new URL(safe);
+    // Avoid mixed content on https storefronts: known CDNs support https.
+    if (u.protocol === "http:") u.protocol = "https:";
+    return u.toString();
+  } catch {
+    return safe;
+  }
+}
+
 function isLikelyNonPhoto(url: string): boolean {
   const s = url.toLowerCase();
   return (
@@ -59,13 +75,13 @@ function collectRawImageUrls(raw: Record<string, unknown>): string[] {
   for (const field of fields) {
     const value = unwrapJsonStrings(parseJsonMaybe(field));
     if (isHttpUrl(value)) {
-      out.push(value);
+      out.push(normalizeImageUrl(value));
       continue;
     }
     if (!Array.isArray(value)) continue;
     for (const item of value) {
       if (isHttpUrl(item)) {
-        out.push(item);
+        out.push(normalizeImageUrl(item));
         continue;
       }
       if (!item || typeof item !== "object") continue;
@@ -83,7 +99,7 @@ function collectRawImageUrls(raw: Record<string, unknown>): string[] {
         o.thumbUrl ??
         o.cover_url ??
         o.coverUrl;
-      if (isHttpUrl(maybeUrl)) out.push(maybeUrl);
+      if (isHttpUrl(maybeUrl)) out.push(normalizeImageUrl(maybeUrl));
     }
   }
   return Array.from(new Set(out));

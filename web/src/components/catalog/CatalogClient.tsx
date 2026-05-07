@@ -1067,8 +1067,11 @@ export function CatalogClient({
                   : {};
               const cardData: Record<string, unknown> = {
                 ...cardDataRaw,
+                year: cardDataRaw.year ?? cardReadModel.year ?? car.year_num,
+                yearMonth: cardDataRaw.yearMonth ?? cardReadModel.yearMonth ?? cardReadModel.year_month,
                 km_age: cardDataRaw.km_age ?? cardReadModel.mileage_km,
                 power_hp: cardDataRaw.power_hp ?? cardReadModel.power_hp,
+                displacement_cc: cardDataRaw.displacement_cc ?? cardReadModel.displacement_cc,
                 engine_type: cardDataRaw.engine_type ?? cardReadModel.engine_type,
                 transmission_type: cardDataRaw.transmission_type ?? cardReadModel.transmission_type,
                 drive_type: cardDataRaw.drive_type ?? cardReadModel.drive_type,

@@ -17,7 +17,12 @@ export function pickCarData(raw: Record<string, unknown>): Record<string, unknow
     // Keep raw payload intact, but fill commonly used UI fields from read_model.
     return {
       ...data,
-      year: data.year ?? readModel.year,
+      year: data.year ?? readModel.year ?? raw.year_num ?? raw.year,
+      yearMonth:
+        data.yearMonth ??
+        readModel.yearMonth ??
+        readModel.year_month ??
+        readModel.first_registration_at,
       km_age: data.km_age ?? readModel.mileage_km,
       engine_type: data.engine_type ?? readModel.engine_type,
       transmission_type:

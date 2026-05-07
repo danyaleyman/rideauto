@@ -382,7 +382,43 @@ export function buildNormalizedCarTitle(
   const m1 = cleanupChinaNamePart(markS, "mark");
   const m2 = cleanupChinaNamePart(modelS, "model");
   const m3 = cleanupChinaNamePart(genS, "generation");
-  return joinUniqueSpecs(m1 || markS, m2 || modelS, m3 || genS);
+  const parts = [m1 || markS, m2 || modelS, m3 || genS].filter(Boolean) as string[];
+
+  const norm = (s: string): string =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9а-яё]+/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const tokens = (s: string): Set<string> => new Set(norm(s).split(" ").filter(Boolean));
+  const overlap = (a: string, b: string): number => {
+    const ta = tokens(a);
+    const tb = tokens(b);
+    if (!ta.size || !tb.size) return 0;
+    let inter = 0;
+    for (const x of ta) if (tb.has(x)) inter += 1;
+    return inter / Math.min(ta.size, tb.size);
+  };
+
+  const compact: string[] = [];
+  for (const p of parts) {
+    if (!compact.length) {
+      compact.push(p);
+      continue;
+    }
+    const prev = compact[compact.length - 1];
+    const pn = norm(p);
+    const vn = norm(prev);
+    const similar = overlap(p, prev) >= 0.8;
+    const contains = pn.includes(vn) || vn.includes(pn);
+    if (similar || contains) {
+      // keep the richer variant to avoid duplicated long titles.
+      if (pn.length > vn.length) compact[compact.length - 1] = p;
+      continue;
+    }
+    compact.push(p);
+  }
+  return joinUniqueSpecs(...compact);
 }
 
 /** Элементы осмотра (корейский контур): заголовок детали вместо сырого JSON. */
