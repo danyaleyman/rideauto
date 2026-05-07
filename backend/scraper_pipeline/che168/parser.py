@@ -249,6 +249,22 @@ def che168_listing_numeric_id(item: dict) -> str:
 def _collect_image_urls_from_dict(carinfo: dict, *, prepend_cover: bool) -> List[str]:
     chunk: List[str] = []
     seen_local: set[str] = set()
+    # Che168 Global /carinfo (globalapi) часто кладёт галерею в result.catepiclist[*].list.
+    # После _unwrap_layer(carinfo) это становится просто carinfo["catepiclist"].
+    cate = carinfo.get("catepiclist")
+    if isinstance(cate, list):
+        for cat in cate:
+            if not isinstance(cat, dict):
+                continue
+            lst = cat.get("list")
+            if not isinstance(lst, list):
+                continue
+            for x in lst:
+                if isinstance(x, str) and x.strip():
+                    u = x.strip()
+                    if u not in seen_local:
+                        seen_local.add(u)
+                        chunk.append(u)
     for key in (
         "images",
         "photo_list",

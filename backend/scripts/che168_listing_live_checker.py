@@ -27,7 +27,7 @@ from scraper_pipeline.che168.api_outcome import (  # noqa: E402
     che168_carinfo_outcome,
     che168_response_suggests_session_refresh,
 )
-from scraper_pipeline.che168.client import AsyncChe168Client  # noqa: E402
+from scraper_pipeline.che168.client import AsyncChe168Client, ensure_che168_deviceid  # noqa: E402
 
 _last_session_refresh_mono: float = 0.0
 
@@ -170,6 +170,7 @@ async def amain(args: argparse.Namespace) -> int:
     _dev = (os.environ.get("CHE168_DEVICE_ID") or os.environ.get("CHE168_DEVICEID") or "").strip()
     if _dev:
         config.setdefault("che168", {})["deviceid"] = _dev
+    ensure_che168_deviceid(config, log)
 
     dsn = _postgres_dsn(config)
     if not dsn:

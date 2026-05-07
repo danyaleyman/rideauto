@@ -12,6 +12,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import asyncpg
+import platform
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -100,10 +102,28 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health")
     async def health(request: Request):
-        return {
+        out = {
             "status": "ok",
             "service": "rideauto-fastapi",
             "redis_cache": getattr(request.app.state, "redis", None) is not None,
+        }
+        if (request.query_params.get("deep") or "").strip() == "1":
+            pg_pool = getattr(request.app.state, "pg_pool", None)
+            if pg_pool is not None:
+                try:
+                    total = await pg_pool.fetchval("SELECT COUNT(*) FROM cars")
+                    out["catalog_db"] = {"ok": True, "cars_count": int(total or 0)}
+                except Exception as e:
+                    out["catalog_db"] = {"ok": False, "error": str(e)[:200]}
+        return out
+
+    @app.get("/api/version")
+    async def version():
+        settings = get_settings()
+        return {
+            "service": "rideauto-api",
+            "api_contract_version": settings.api_contract_version,
+            "python": platform.python_version(),
         }
 
     def _metrics_path() -> str:
@@ -117,6 +137,8 @@ def create_app() -> FastAPI:
         return Response(content=body, media_type=ctype)
 
     app.add_api_route(_metrics_path(), prometheus_metrics, methods=["GET"], include_in_schema=False)
+    # Legacy path compatibility (historically used in docs/infra).
+    app.add_api_route("/api/metrics", prometheus_metrics, methods=["GET"], include_in_schema=False)
 
     return app
 

@@ -51,10 +51,19 @@ export type SearchResponse = {
   meta: SearchMeta;
 };
 
-export type CarDetailResponse = {
+export type CarDetailFoundResponse = {
+  found: true;
   result: Record<string, unknown>;
   api_version?: string;
 };
+
+export type CarDetailNotFoundResponse = {
+  found: false;
+  result: Record<string, unknown>;
+  api_version?: string;
+};
+
+export type CarDetailResponse = CarDetailFoundResponse | CarDetailNotFoundResponse;
 
 export type SimilarMeta = {
   car_id: string;

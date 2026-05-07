@@ -1,0 +1,18 @@
+{{ define "slack.ru.title" -}}
+{{- if eq .Status "firing" -}}:red_circle: Сработал мониторинг
+{{- else if eq .Status "resolved" -}}:large_green_circle: Проблема устранена
+{{- else -}}:warning: {{ .Status }}
+{{- end -}}
+{{- end }}
+
+{{ define "slack.ru.text" -}}
+{{- range .Alerts }}
+*{{ if .Annotations.summary }}{{ .Annotations.summary }}{{ else }}{{ .Labels.alertname }}{{ end }}*
+{{- if .Annotations.description }}
+{{ .Annotations.description }}
+{{- end }}
+{{- if .Labels.severity }}severity: `{{ .Labels.severity }}`{{ end }}
+{{- if .Labels.instance }} · instance: `{{ .Labels.instance }}`{{ end }}
+
+{{ end -}}
+{{- end }}

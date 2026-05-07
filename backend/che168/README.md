@@ -33,10 +33,16 @@ Live checker (проставить `che168_listing_sold` в БД):
 python scripts/che168_listing_live_checker.py --config ../che168_scraper.yaml --once
 ```
 
+Daily update цикл (discover + remove sold + `--only-pending`):
+
+```bash
+python che168_daily_update.py --config ../che168_scraper.yaml --once
+```
+
 Секреты и устройство:
 
-- В YAML: `che168.deviceid` (UUID), опционально `che168.sessionid` / `che168.cookies`.
-- Либо окружение: `CHE168_DEVICE_ID` (подставится в `che168.deviceid`).
+- `che168.deviceid`: при пустом значении в YAML скрейпер **сгенерирует случайный UUID** (`ensure_che168_deviceid`); для стабильной долгой сессии лучше задать свой или `CHE168_DEVICE_ID`.
+- Опционально: `che168.sessionid` / `che168.cookies` или Playwright bootstrap.
 - Для непустой выдачи `/search` обычно нужен **валидный `sessionid`** (см. `che168_scraper.local.yaml` в `.gitignore`).
 
 Прокси: блок `proxy` (`enabled`, `urls`). Для Che168 по умолчанию **`sticky_session: true`**: используется только **`urls[0]`** без ротации (иначе смена IP сбрасывает `sessionid`). После Playwright bootstrap клиент берёт **`che168._session_proxy_url`** — тот же URL, что и у Chromium. Ротацию можно включить **`sticky_session: false`** (не рекомендуется с живой сессией). Установка браузера: `pip install playwright && playwright install chromium`.
@@ -67,5 +73,4 @@ python scripts/che168_listing_live_checker.py --config ../che168_scraper.yaml --
 
 ## Следующие шаги
 
-- Live checker: отдельный скрипт по аналогии с `encar_listing_live_checker.py` (HEAD/GET к `carinfo` или поиску).
 - Уточнить форму ответов API под прод и при необходимости подправить `che168_search_items` / разбор полей в `parser.py`.

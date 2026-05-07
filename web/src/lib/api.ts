@@ -53,12 +53,13 @@ export async function fetchCar(
     next: { revalidate: options?.revalidate ?? 60 },
   });
   if (res.status === 404) {
-    return { result: {} };
+    return { found: false, result: {} };
   }
   if (!res.ok) {
     throw new Error(`car failed: ${res.status} ${res.statusText}`);
   }
-  return res.json() as Promise<CarDetailResponse>;
+  const payload = (await res.json()) as CarDetailResponse;
+  return { ...payload, found: true };
 }
 
 export async function fetchSimilar(

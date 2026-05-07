@@ -4,7 +4,7 @@ from functools import lru_cache
 import os
 from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,11 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+    )
+
+    deployment_env: str = Field(
+        default="dev",
+        description="WRA_DEPLOYMENT_ENV — dev|staging|prod (в prod включает fail-fast валидации)",
     )
 
     pg_dsn: str = Field(
@@ -332,6 +337,29 @@ class Settings(BaseSettings):
         default=False,
         description="WRA_CATALOG_ENRICH_INTERNAL_LLM_FALLBACK — для POST /internal/... включать LLM (если и глобальный LLM вкл.)",
     )
+
+    @field_validator("metrics_enabled", mode="before")
+    @classmethod
+    def _metrics_enabled_compat(cls, v: object) -> object:
+        # Backward compatibility with historical env name.
+        if v is not None:
+            return v
+        legacy = os.environ.get("WRA_PROMETHEUS_METRICS")
+        if legacy is None:
+            return v
+        return str(legacy).strip().lower() in {"1", "true", "yes", "on"}
+
+    @model_validator(mode="after")
+    def _validate_prod_security(self) -> "Settings":
+        env = (self.deployment_env or "dev").strip().lower()
+        if env in {"prod", "production"}:
+            if "postgres:postgres@" in (self.pg_dsn or ""):
+                raise ValueError("WRA_PG_DSN must not use default postgres:postgres credentials in production")
+            if not (self.auth_secret or "").strip():
+                raise ValueError("WRA_AUTH_SECRET is required in production")
+            if not (self.cache_invalidate_secret or "").strip():
+                raise ValueError("WRA_CACHE_INVALIDATE_SECRET is required in production")
+        return self
 
 
 @lru_cache

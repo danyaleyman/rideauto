@@ -69,6 +69,12 @@ def load_config(config_path: str = "scraper_config.yaml") -> dict:
         with open(local_path, "r", encoding="utf-8") as lf:
             overlay = yaml.safe_load(lf) or {}
         _deep_merge_config(config, overlay)
+    # Рядом с основным файлом: che168_scraper.local.yaml, smoke.local.yaml и т.д. (см. .gitignore).
+    named_local = path.parent / f"{path.stem}.local.yaml"
+    if named_local.is_file() and named_local.resolve() != local_path.resolve():
+        with open(named_local, "r", encoding="utf-8") as nf:
+            overlay_named = yaml.safe_load(nf) or {}
+        _deep_merge_config(config, overlay_named)
     for key, value in os.environ.items():
         if not key.startswith("SCRAPER_"):
             continue
@@ -253,6 +259,7 @@ async def run_scraper(
     parser = EncarFullParser()
     stats_lock = asyncio.Lock()
     start_time = time.time()
+    stats["run_started_unixtime"] = int(start_time)
     refill_done = False
 
     try:
@@ -293,8 +300,11 @@ async def run_scraper(
                     first_wait = False
                     p = await checkpoint.pending_count()
                     elapsed_sec = time.time() - start_time
+                    httpm = client.snapshot_metrics()
                     log.info(
-                        "Stats: elapsed_sec=%.0f processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s pending=%s queue_size=%s",
+                        "Stats: elapsed_sec=%.0f processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s "
+                        "pending=%s queue_size=%s http_ok=%s retries=%s cb_open=%s cb_short=%s parsed_ok=%s "
+                        "with_images=%s images_fallback=%s with_user=%s",
                         elapsed_sec,
                         stats["processed"],
                         stats["saved"],
@@ -303,6 +313,14 @@ async def run_scraper(
                         stats["parse_fail"],
                         p,
                         queue.qsize(),
+                        httpm.get("requests_ok", 0),
+                        httpm.get("retries_total", 0),
+                        httpm.get("circuit_breaker_opened", 0),
+                        httpm.get("circuit_breaker_short_circuit", 0),
+                        stats.get("cars_parsed_ok", 0),
+                        stats.get("cars_with_images", 0),
+                        stats.get("cars_with_images_fallback", 0),
+                        stats.get("cars_with_user_info", 0),
                     )
                     _stats_reports += 1
                     if (
@@ -368,6 +386,7 @@ async def run_scraper(
 
             async def refill_queue():
                 nonlocal refill_done
+                _drain_warn_mono: float = 0.0
                 while True:
                     if _new_saves_cap_reached(stats, config):
                         refill_done = True
@@ -386,17 +405,38 @@ async def run_scraper(
                             await queue.put(None)
                         log.info("Refill stopping: max_cars=%s reached (saved=%s)", max_cars, stats["saved"])
                         break
-                    if queue.qsize() > concurrency * 3:
+
+                    pending_left = await checkpoint.pending_count()
+                    # Завершение: листинг закончился, в checkpoint нет pending, in-memory очередь пуста
+                    # (воркеры могут ещё обрабатывать последний взятый id — Nones они заберут после task_done).
+                    if producer.done() and pending_left == 0 and queue.empty():
+                        refill_done = True
+                        for _ in workers:
+                            await queue.put(None)
+                        log.info(
+                            "Refill stopping: list producer done, checkpoint pending=0, queue drained "
+                            "(отправлены sentinels воркерам)"
+                        )
+                        break
+
+                    qs = queue.qsize()
+                    if qs > concurrency * 3:
+                        if producer.done() and pending_left == 0 and qs > 0:
+                            now_m = time.monotonic()
+                            if now_m - _drain_warn_mono >= 120.0:
+                                _drain_warn_mono = now_m
+                                log.warning(
+                                    "Refill: checkpoint pending=0, листинг завершён, но очередь деталей "
+                                    "ещё не пуста (qsize=%s). Ждём воркеры. Если так часами — смотрите "
+                                    "зависшие HTTP/БД воркеры (detail_wall_timeout_sec, saver, прокси).",
+                                    qs,
+                                )
                         continue
+
                     batch = await checkpoint.pop_pending_batch(100)
                     pending_left = await checkpoint.pending_count()
                     for it in batch:
                         await queue.put(it)
-                    if producer.done() and not batch and pending_left == 0:
-                        refill_done = True
-                        for _ in workers:
-                            await queue.put(None)
-                        break
 
             refill_task = asyncio.create_task(refill_queue())
 
@@ -475,6 +515,21 @@ async def run_scraper(
             saver.close()
 
     elapsed = time.time() - start_time
+    cm = client.snapshot_metrics() if "client" in locals() else {}
+    if cm:
+        stats["client_metrics"] = cm
+        log.info(
+            "Encar HTTP summary requests_total=%s ok=%s retries=%s final_http_err=%s timeout_exc=%s client_exc=%s cb_opened=%s cb_short=%s",
+            cm.get("requests_total", 0),
+            cm.get("requests_ok", 0),
+            cm.get("retries_total", 0),
+            cm.get("final_http_errors", 0),
+            cm.get("exceptions_timeout", 0),
+            cm.get("exceptions_client", 0),
+            cm.get("circuit_breaker_opened", 0),
+            cm.get("circuit_breaker_short_circuit", 0),
+        )
+    stats["run_finished_unixtime"] = int(time.time())
     log.info(
         "Scraper finished. list_pages=%s ids_discovered=%s ids_queued=%s processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s elapsed=%.1fs",
         stats["list_pages"],
@@ -496,6 +551,19 @@ async def run_scraper(
         )
     except Exception:
         pass
+
+    tp = (os.environ.get("ENCAR_PROMETHEUS_TEXTFILE") or "").strip()
+    if not tp:
+        tp = str(config.get("prometheus_textfile_path") or "").strip()
+    if tp:
+        try:
+            from scraper_pipeline.encar.scraper_prometheus import (
+                write_encar_scraper_prometheus_textfile,
+            )
+
+            write_encar_scraper_prometheus_textfile(tp, stats)
+        except Exception as e:
+            log.warning("Encar Prometheus textfile: %s", e)
 
     if backend == "postgres":
         if os.environ.get("SKIP_FRONTEND_EXPORT", "").strip().lower() in ("1", "true", "yes", "on"):

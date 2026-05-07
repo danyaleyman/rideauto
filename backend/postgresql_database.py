@@ -6,16 +6,21 @@ from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import threading
 import logging
+import os
+import re
 
 logger = logging.getLogger(__name__)
 
 
 class PostgreSQLDatabase:
     """PostgreSQL база данных для хранения информации об автомобилях с поддержкой отслеживания изменений"""
+    _SAFE_JSON_KEY = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_:-]{0,63}$")
     
     def __init__(self, host: str = "localhost", port: int = 5432, 
                  database: str = "encar", user: str = "postgres", 
-                 password: str = "password", pool_size: int = 20):
+                 password: str = "", pool_size: int = 20):
+        if not str(password or "").strip():
+            raise ValueError("PostgreSQLDatabase: password must be provided explicitly")
         self.connection_params = {
             'host': host,
             'port': port,
@@ -42,7 +47,7 @@ class PostgreSQLDatabase:
                             id SERIAL PRIMARY KEY,
                             inner_id VARCHAR(255) UNIQUE NOT NULL,
                             data JSONB NOT NULL,
-                            data_hash VARCHAR(32) NOT NULL,
+                            data_hash VARCHAR(64) NOT NULL,
                             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
                             updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
                             last_seen TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -92,7 +97,7 @@ class PostgreSQLDatabase:
         data_copy.pop('id', None)
         
         data_str = json.dumps(data_copy, sort_keys=True, ensure_ascii=False)
-        return hashlib.md5(data_str.encode('utf-8')).hexdigest()
+        return hashlib.sha256(data_str.encode('utf-8')).hexdigest()
     
     def add_or_update_car(self, car_data: Dict) -> bool:
         """
@@ -191,9 +196,9 @@ class PostgreSQLDatabase:
                 '''
                 
                 if limit:
-                    query += f' LIMIT {limit}'
-                
-                cursor.execute(query)
+                    cursor.execute(query + " LIMIT %s", (int(limit),))
+                else:
+                    cursor.execute(query)
                 results = cursor.fetchall()
                 
                 cars = []
@@ -348,7 +353,11 @@ class PostgreSQLDatabase:
                 values = []
                 
                 for key, value in filters.items():
-                    conditions.append(f"data->>'{key}' = %s")
+                    skey = str(key or "").strip()
+                    if not self._SAFE_JSON_KEY.match(skey):
+                        raise ValueError(f"unsafe json key for filter: {skey!r}")
+                    conditions.append("data ->> %s = %s")
+                    values.append(skey)
                     values.append(str(value))
                 
                 where_clause = " AND ".join(conditions) if conditions else "TRUE"
@@ -361,8 +370,8 @@ class PostgreSQLDatabase:
                 '''
                 
                 if limit:
-                    query += f' LIMIT {limit}'
-                
+                    query += " LIMIT %s"
+                    values.append(int(limit))
                 cursor.execute(query, values)
                 results = cursor.fetchall()
                 
@@ -408,10 +417,14 @@ class PostgreSQLDatabase:
         with self.lock:
             with self._get_connection() as conn:
                 with conn.cursor() as cursor:
-                    cursor.execute('''
+                    cursor.execute(
+                        '''
                         DELETE FROM cars 
-                        WHERE is_active = FALSE AND updated_at < NOW() - INTERVAL '%s days'
-                    ''', (days_to_keep,))
+                        WHERE is_active = FALSE
+                          AND updated_at < NOW() - make_interval(days => %s)
+                        ''',
+                        (int(days_to_keep),),
+                    )
                     
                     deleted_count = cursor.rowcount
                     conn.commit()
@@ -474,7 +487,7 @@ def test_postgresql_database():
             port=5432,
             database="encar",
             user="postgres",
-            password="password"
+            password=os.environ.get("POSTGRES_PASSWORD", "")
         )
         
         # Тестовые данные

@@ -225,3 +225,61 @@ async def test_max_new_cap_requeues_without_save() -> None:
     client.fetch_vehicle_detail.assert_not_called()
     checkpoint.add_pending.assert_called_once()
     assert stats["processed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_detail_worker_flushes_buffer_with_bulk_save() -> None:
+    log = logging.getLogger("test_encar")
+    stats: dict[str, Any] = {
+        "processed": 0,
+        "saved": 0,
+        "detail_gone": 0,
+        "detail_fail": 0,
+        "parse_fail": 0,
+        "_save_baseline": None,
+    }
+    queue: asyncio.Queue = asyncio.Queue()
+
+    detail = {"vehicleNo": None, "advertisement": {}, "photos": [], "condition": {}}
+    client = MagicMock()
+    client.fetch_vehicle_detail = AsyncMock(return_value=(detail, 200, None))
+    client.fetch_record = AsyncMock(return_value=(None, 404, None))
+    client.fetch_diagnosis = AsyncMock(return_value=(None, 404, None))
+    client.fetch_inspection = AsyncMock(return_value=(None, 404, None))
+    client.fetch_sellingpoint = AsyncMock(return_value=(None, 404, None))
+    client.fetch_user = AsyncMock(return_value=(None, 404, None))
+
+    checkpoint = MagicMock()
+    checkpoint.is_collected = AsyncMock(return_value=False)
+    checkpoint.mark_collected = AsyncMock()
+    checkpoint.add_pending = AsyncMock()
+
+    saver = MagicMock()
+    saver.save_car = AsyncMock()
+    saver.bulk_save = AsyncMock(return_value=2)
+
+    parser = MagicMock()
+    parser.parse_inspection = MagicMock(return_value={})
+    parser.normalize_car = MagicMock(return_value={"data": {"title": "x"}, "meta": {}})
+
+    config = {
+        "http": {
+            "detail_wall_timeout_sec": 5,
+            "detail_extras_wall_timeout_sec": 5,
+            "parse_wall_timeout_sec": 5,
+        },
+        "batch": {"save_batch_size": 2, "save_flush_sec": 999},
+        "max_new_saves_per_run": 0,
+    }
+
+    await queue.put(("201", "for", {"Id": "201"}))
+    await queue.put(("202", "for", {"Id": "202"}))
+    await queue.put(None)
+
+    await detail_worker(0, client, checkpoint, saver, parser, config, queue, stats, log, max_cars=0, stats_lock=None)
+
+    assert stats["processed"] == 2
+    assert stats["saved"] == 2
+    saver.bulk_save.assert_awaited_once()
+    saver.save_car.assert_not_called()
+    assert checkpoint.mark_collected.await_count == 2

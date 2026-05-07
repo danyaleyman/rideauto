@@ -25,6 +25,19 @@ from postgresql_database import PostgreSQLDatabase
 logger = logging.getLogger(__name__)
 
 
+def _ensure_legacy_mode_enabled() -> None:
+    if str(os.environ.get("WRA_ENABLE_LEGACY_ORCHESTRATION", "")).strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        raise RuntimeError(
+            "auto_update.py is legacy wrapper. Use encar_daily_update.py / scraper_pipeline entrypoints, "
+            "or set WRA_ENABLE_LEGACY_ORCHESTRATION=1 for explicit legacy operation."
+        )
+
+
 def _apply_database_url_to_config(config: Dict) -> None:
     """Если задан DATABASE_URL — перекрываем db_config (один DSN для Docker/wra на VPS)."""
     raw = (os.environ.get("DATABASE_URL") or "").strip()
@@ -89,7 +102,7 @@ class AutoUpdateManager:
                 'port': 5432,
                 'database': 'encar',
                 'user': 'postgres',
-                'password': 'password'
+                'password': ''
             },
             'update_config': {
                 'max_workers': 5,
@@ -99,11 +112,11 @@ class AutoUpdateManager:
             'notification_config': {
                 'enabled': False,
                 'smtp': {
-                    'server': 'smtp.gmail.com',
+                    'server': '',
                     'port': 587,
-                    'username': 'your-email@gmail.com',
-                    'password': 'your-app-password',
-                    'to_email': 'admin@yourcompany.com'
+                    'username': '',
+                    'password': '',
+                    'to_email': ''
                 },
                 'send_on_success': True,
                 'send_on_error': True
@@ -119,6 +132,10 @@ class AutoUpdateManager:
         """Настраивает PostgreSQL базу данных"""
         try:
             db_cfg = self.config.get('db_config') or {}
+            if not str(db_cfg.get("password") or "").strip():
+                raise ValueError(
+                    "db_config.password is required; provide DATABASE_URL or explicit db_config credentials"
+                )
             self.db = PostgreSQLDatabase(**db_cfg)
             logger.info("PostgreSQL база данных подключена")
             return True
@@ -444,6 +461,7 @@ def main():
     """Основная функция для запуска из командной строки"""
     import argparse
 
+    _ensure_legacy_mode_enabled()
     _init_auto_update_logging()
 
     parser = argparse.ArgumentParser(description='Автоматическое обновление Encar')

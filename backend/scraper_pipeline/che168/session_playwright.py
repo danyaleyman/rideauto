@@ -12,6 +12,8 @@ import time
 import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
+from scraper_pipeline.che168.client import ensure_che168_deviceid
+
 CHE168_COOKIE_MARKERS = ("che168", "autohome", "autoimg")
 
 
@@ -90,6 +92,7 @@ def bootstrap_che168_browser_cookies_sync(
             "Нужен Playwright: pip install playwright && playwright install chromium"
         ) from e
 
+    ensure_che168_deviceid(config, log)
     ch = config.get("che168", {}) or {}
     start_url = str(ch.get("bootstrap_start_url", "https://global.che168.com/")).strip()
     dev = str(ch.get("deviceid", "")).strip()

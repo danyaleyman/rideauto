@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Локальный смоук Che168 API без PostgreSQL: N листингов → carinfo + spec + нормализация.
-Требуется che168.deviceid (YAML или CHE168_DEVICE_ID).
+Опционально: che168.deviceid / CHE168_DEVICE_ID; иначе сгенерируется случайный UUID.
 
   cd backend
   python scripts/che168_smoke_fetch.py --config ../che168_scraper.yaml --limit 5
@@ -48,9 +48,7 @@ async def _amain(args: argparse.Namespace) -> int:
     _dev = (os.environ.get("CHE168_DEVICE_ID") or os.environ.get("CHE168_DEVICEID") or "").strip()
     if _dev:
         config.setdefault("che168", {})["deviceid"] = _dev
-    if not str((config.get("che168") or {}).get("deviceid", "")).strip():
-        print("Задайте che168.deviceid в YAML или CHE168_DEVICE_ID", file=sys.stderr)
-        return 2
+    ensure_che168_deviceid(config, log)
 
     if args.bootstrap:
         try:

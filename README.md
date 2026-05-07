@@ -5,12 +5,54 @@
 - **Фронт (Next.js)**: папка `web/` — каталог и карточка; бэкенд — FastAPI + Meilisearch + Postgres (см. `docs/ARCHITECTURE.md`, `docker-compose.yml`).
 - **Backend**: папка `backend/` — FastAPI (`fastapi_app`), скрапер Encar, цепочка Китая Che168 (в разработке), синхронизация каталога в Postgres.
 
-## Быстрый старт (backend)
+## Production: one command deploy pipeline
+
+Основной production-путь (host + systemd + Postgres + Meilisearch) теперь запускается одной командой:
+
+```bash
+sudo chmod +x /opt/rideauto/deploy/scripts/run_full_deploy_pipeline.sh
+sudo bash /opt/rideauto/deploy/scripts/run_full_deploy_pipeline.sh
+```
+
+Что делает скрипт по шагам:
+
+1. `git pull` (через `deploy/scripts/rideauto_git_pull.sh`)
+2. обновляет/включает `rideauto-auto-update.*` (`deploy/scripts/rideauto_catalog_install.sh`)
+3. выставляет runtime permissions (`deploy/scripts/ensure_scraper_runtime_permissions.sh`)
+4. запускает один цикл daily (`deploy/scripts/run_encar_daily_once_prod.sh`)
+5. запускает `postgres_catalog_sync` (`deploy/scripts/run_postgres_catalog_sync_host.sh --no-meilisearch`)
+6. обновляет индекс Meilisearch (`deploy/scripts/run_meilisearch_sync_host.sh`)
+7. делает базовые health checks
+
+Опциональные флаги (если нужно пропустить этапы):
+
+```bash
+sudo bash /opt/rideauto/deploy/scripts/run_full_deploy_pipeline.sh \
+  --skip-git-pull --skip-daily --skip-postgres-sync --skip-meili-sync --skip-health-check
+```
+
+## Recommended manual sequence (if you do not use one-command pipeline)
+
+```bash
+# 1) install/refresh units
+sudo bash /opt/rideauto/deploy/scripts/rideauto_catalog_install.sh
+
+# 2) one daily cycle
+sudo -u rideauto /opt/rideauto/deploy/scripts/run_encar_daily_once_prod.sh
+
+# 3) sync postgres catalog
+sudo -u rideauto bash /opt/rideauto/deploy/scripts/run_postgres_catalog_sync_host.sh --no-meilisearch
+
+# 4) sync meilisearch index
+sudo bash /opt/rideauto/deploy/scripts/run_meilisearch_sync_host.sh
+```
+
+## Быстрый старт (backend, legacy/dev helper)
 
 ```bash
 pip install -r backend/requirements.txt
-python backend/run_system.py --setup
-python backend/run_system.py --daily
+WRA_ENABLE_LEGACY_ORCHESTRATION=1 python backend/run_system.py --setup
+WRA_ENABLE_LEGACY_ORCHESTRATION=1 python backend/run_system.py --daily
 ```
 
 Конфиг: `backend/config.json`

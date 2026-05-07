@@ -291,7 +291,7 @@ cd /opt/rideauto && .venv/bin/python scripts/warm_public_cache.py --base http://
 
 ## Наблюдаемость
 
-- Включите `WRA_PROMETHEUS_METRICS=1` в окружении API и снимайте `GET /api/metrics` (см. `deploy/env.rideauto.example`): счётчики запросов, средняя и **p95** латентность для групп `cars`, `facets`, `car`.
+- Включите `WRA_METRICS_ENABLED=1` в окружении API и снимайте `GET /metrics` (legacy alias: `/api/metrics`, legacy env: `WRA_PROMETHEUS_METRICS=1`; см. `deploy/env.rideauto.example`): счётчики запросов, средняя и **p95** латентность для групп `cars`, `facets`, `car`.
 - Алерты: рост `wra_http_request_duration_ms_p95{route_group="cars"}`, доля 429/503, **mtime** файлов в `/var/www/sitemap`, размер `encar_*.db` и `*-wal` на диске (`GET /api/health?deep=1`).
 
 ## Примечания

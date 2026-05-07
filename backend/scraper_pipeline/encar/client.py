@@ -5,11 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import time
 import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
 import aiohttp
 
+from scraper_pipeline.common.backoff import build_backoff_config
+from scraper_pipeline.common.proxy_pool import ProxyPool
 from scraper_pipeline.retry import BackoffConfig, sleep_backoff
 
 
@@ -63,10 +66,7 @@ class AsyncEncarClient:
         self.jitter_max = http.get("request_jitter_max", 0.5)
         retry = config.get("retry", {})
         self.max_attempts = retry.get("max_attempts", 5)
-        self._backoff = BackoffConfig(
-            base_sec=float(retry.get("backoff_base", 1)),
-            max_sec=float(retry.get("backoff_max", 60)),
-        )
+        self._backoff: BackoffConfig = build_backoff_config(config.get("retry", {}) or {}, retry)
         self.retry_statuses = set(retry.get("retry_statuses", [429, 500, 502, 503, 504]))
         self.user_agents = config.get("user_agents", [])
         if not self.user_agents:
@@ -74,16 +74,38 @@ class AsyncEncarClient:
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
             ]
         proxy_cfg = config.get("proxy", {})
-        self.proxies = proxy_cfg.get("urls", []) if proxy_cfg.get("enabled") else []
+        proxy_urls = [str(u).strip() for u in (proxy_cfg.get("urls") or []) if str(u).strip()] if proxy_cfg.get("enabled") else []
+        self.proxy_pool = ProxyPool(proxy_urls, rotation=str(proxy_cfg.get("rotation", "round_robin")))
         self._session: Optional[aiohttp.ClientSession] = None
-        self._proxy_index = 0
         self._ua_index = 0
+        self._metrics: Dict[str, int] = {
+            "requests_total": 0,
+            "requests_ok": 0,
+            "retries_total": 0,
+            "retry_status_429": 0,
+            "retry_status_407": 0,
+            "retry_status_5xx": 0,
+            "final_http_errors": 0,
+            "exceptions_timeout": 0,
+            "exceptions_client": 0,
+            "circuit_breaker_opened": 0,
+            "circuit_breaker_short_circuit": 0,
+        }
+        self._cb_fail_streak = 0
+        self._cb_open_until_mono = 0.0
+        self._cb_fail_streak_threshold = int(retry.get("circuit_breaker_fail_streak", 12) or 12)
+        self._cb_open_sec = float(retry.get("circuit_breaker_open_sec", 90) or 90)
+        raw_cb = retry.get("circuit_breaker_statuses", [407, 429, 500, 502, 503, 504])
+        self._cb_statuses: set[int] = set()
+        if isinstance(raw_cb, list):
+            for x in raw_cb:
+                try:
+                    self._cb_statuses.add(int(x))
+                except (TypeError, ValueError):
+                    continue
 
     def _next_proxy(self) -> Optional[str]:
-        if not self.proxies:
-            return None
-        self._proxy_index = (self._proxy_index + 1) % len(self.proxies)
-        return self.proxies[self._proxy_index]
+        return self.proxy_pool.next_url()
 
     def _next_ua(self) -> str:
         self._ua_index = (self._ua_index + 1) % len(self.user_agents)
@@ -92,6 +114,31 @@ class AsyncEncarClient:
     async def _jitter(self) -> None:
         delay = random.uniform(self.jitter_min, self.jitter_max)
         await asyncio.sleep(delay)
+
+    def snapshot_metrics(self) -> Dict[str, int]:
+        return dict(self._metrics)
+
+    def _metric_inc(self, key: str, by: int = 1) -> None:
+        self._metrics[key] = int(self._metrics.get(key, 0) or 0) + by
+
+    def _record_failure_for_circuit_breaker(self, status: int, err: Optional[str]) -> None:
+        status_i = int(status or 0)
+        if status_i and status_i not in self._cb_statuses:
+            return
+        self._cb_fail_streak += 1
+        if self._cb_fail_streak >= max(1, self._cb_fail_streak_threshold):
+            self._cb_open_until_mono = time.monotonic() + max(1.0, self._cb_open_sec)
+            self._cb_fail_streak = 0
+            self._metric_inc("circuit_breaker_opened")
+            self.log.warning(
+                "Encar circuit breaker: open %.0fs after failures (status=%s err=%s)",
+                self._cb_open_sec,
+                status_i,
+                (err or "")[:120],
+            )
+
+    def _record_success_for_circuit_breaker(self) -> None:
+        self._cb_fail_streak = 0
 
     async def __aenter__(self) -> "AsyncEncarClient":
         self._session = aiohttp.ClientSession(
@@ -116,6 +163,9 @@ class AsyncEncarClient:
     ) -> Tuple[Optional[dict], int, Optional[str]]:
         if not self._session:
             return None, 0, "no session"
+        if self._cb_open_until_mono > time.monotonic():
+            self._metric_inc("circuit_breaker_short_circuit")
+            return None, 0, "circuit_breaker_open"
         h = dict(headers or {})
         h.setdefault("User-Agent", self._next_ua())
         h.setdefault("Accept", "application/json, text/javascript, */*; q=0.01")
@@ -132,6 +182,7 @@ class AsyncEncarClient:
             c = float(http_cfg.get("timeout_connect", 10) or 10)
             hard = max(tot, sr) + c + 8.0
         for attempt in range(self.max_attempts):
+            self._metric_inc("requests_total")
             proxy = self._next_proxy()
             await self._jitter()
             try:
@@ -153,17 +204,35 @@ class AsyncEncarClient:
 
                 kind, payload, st, err, retry_after = await asyncio.wait_for(_one_attempt(), timeout=hard)
                 if kind == "retry":
+                    self._metric_inc("retries_total")
+                    if int(st or 0) == 429:
+                        self._metric_inc("retry_status_429")
+                    elif int(st or 0) == 407:
+                        self._metric_inc("retry_status_407")
+                    elif int(st or 0) >= 500:
+                        self._metric_inc("retry_status_5xx")
+                    self._record_failure_for_circuit_breaker(st, err)
                     last_error = err or ""
                     last_http_status = st
                     await sleep_backoff(self._backoff, attempt, retry_after)
                     continue
+                if int(st or 0) == 200 and payload is not None:
+                    self._metric_inc("requests_ok")
+                    self._record_success_for_circuit_breaker()
+                elif int(st or 0) >= 400:
+                    self._metric_inc("final_http_errors")
+                    self._record_failure_for_circuit_breaker(st, err)
                 return payload, st, err
             except asyncio.TimeoutError as e:
+                self._metric_inc("exceptions_timeout")
+                self._record_failure_for_circuit_breaker(0, str(e))
                 last_error = f"hard_deadline {hard:.0f}s ({e})"
                 await sleep_backoff(self._backoff, attempt)
             except asyncio.CancelledError:
                 raise
             except aiohttp.ClientError as e:
+                self._metric_inc("exceptions_client")
+                self._record_failure_for_circuit_breaker(0, str(e))
                 last_error = str(e)
                 await sleep_backoff(self._backoff, attempt)
         return None, last_http_status, last_error

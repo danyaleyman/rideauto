@@ -83,3 +83,73 @@ groups:
         annotations:
           summary: "Давно не отмечалось завершение wra_postgres_catalog_sync"
           description: "Если job не пишет метрики — отключите правило или задайте JOB_NAME."
+
+  - name: rideauto_che168_scraper
+    interval: 60s
+    rules:
+      - alert: RideautoChe168HttpErrorsHigh
+        expr: |
+          (
+            che168_http_final_http_errors_total
+            /
+            clamp_min(che168_http_requests_total, 1)
+          ) > 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Che168: высокая доля final HTTP errors"
+          description: "final_http_errors / requests_total > 15% за последние прогоны."
+
+      - alert: RideautoChe168CircuitBreakerActive
+        expr: increase(che168_http_circuit_breaker_opened_total[30m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Che168: circuit breaker открывался"
+          description: "Проверьте session/proxy/429-403 паттерн и доступ к globalapi.che168.com."
+
+      - alert: RideautoChe168DetailFailSpike
+        expr: che168_scraper_detail_fail_total > 50
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Che168: много detail_fail в прогоне"
+          description: "detail_fail_total > 50. Возможен бан/прокси-деградация/API drift."
+
+  - name: rideauto_encar_scraper
+    interval: 60s
+    rules:
+      - alert: RideautoEncarHttpErrorsHigh
+        expr: |
+          (
+            encar_http_final_http_errors_total
+            /
+            clamp_min(encar_http_requests_total, 1)
+          ) > 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Encar: высокая доля final HTTP errors"
+          description: "final_http_errors / requests_total > 15% за последние прогоны."
+
+      - alert: RideautoEncarCircuitBreakerActive
+        expr: increase(encar_http_circuit_breaker_opened_total[30m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Encar: circuit breaker открывался"
+          description: "Проверьте прокси/IP пулы и статус Encar API."
+
+      - alert: RideautoEncarDetailFailSpike
+        expr: encar_scraper_detail_fail_total > 50
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Encar: много detail_fail в прогоне"
+          description: "detail_fail_total > 50. Возможен бан/прокси-деградация/API drift."

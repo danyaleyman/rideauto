@@ -292,6 +292,7 @@ async def auth_magic_verify(
 
 
 @router.post("/auth/logout", response_model=AuthSimpleOkResponse)
+@router.post("/logout", response_model=AuthSimpleOkResponse)
 async def auth_logout(request: Request, response: Response) -> AuthSimpleOkResponse:
     settings = get_settings()
     token = (request.cookies.get(settings.auth_cookie_name) or "").strip()

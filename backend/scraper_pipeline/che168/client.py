@@ -5,12 +5,35 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import time
+import uuid
 from typing import Any, Dict, Optional, Tuple
 
 import aiohttp
 
+from scraper_pipeline.common.backoff import build_backoff_config
+from scraper_pipeline.common.proxy_pool import ProxyPool
 from scraper_pipeline.encar.client import _proxy_url_and_auth
 from scraper_pipeline.retry import BackoffConfig, sleep_backoff
+
+
+def ensure_che168_deviceid(config: dict, log: Optional[logging.Logger] = None) -> str:
+    """
+    Che168 API требует query deviceid. Если в конфиге пусто — подставляем случайный UUID v4
+    (без ручного CHE168_DEVICE_ID). Для долгоживущей сессии лучше зафиксировать значение в YAML.
+    """
+    ch = config.setdefault("che168", {})
+    cur = str(ch.get("deviceid", "") or "").strip()
+    if cur:
+        return cur
+    dev = str(uuid.uuid4())
+    ch["deviceid"] = dev
+    if log:
+        log.info(
+            "Che168: пустой che168.deviceid — сгенерирован случайный UUID "
+            "(для стабильной сессии задайте CHE168_DEVICE_ID или che168.deviceid в YAML)"
+        )
+    return dev
 
 
 class AsyncChe168Client:
@@ -23,6 +46,7 @@ class AsyncChe168Client:
     def __init__(self, config: dict, logger: logging.Logger):
         self.config = config
         self.log = logger
+        ensure_che168_deviceid(config, logger)
         ch = config.get("che168", {}) or {}
         http = config.get("http", {}) or {}
         self.base_url = str(ch.get("base_url", "https://globalapi.che168.com/api/v1")).rstrip("/")
@@ -46,30 +70,31 @@ class AsyncChe168Client:
             self._hard_deadline_per_attempt = None
         self.jitter_min = http.get("request_jitter_min", 0.1)
         self.jitter_max = http.get("request_jitter_max", 0.5)
-        retry = config.get("retry", {}) or {}
-        self.max_attempts = retry.get("max_attempts", 5)
-        self._backoff = BackoffConfig(
-            base_sec=float(retry.get("backoff_base", 1)),
-            max_sec=float(retry.get("backoff_max", 60)),
-        )
+        retry = ch.get("retry") if isinstance(ch.get("retry"), dict) else {}
+        if not retry:
+            retry = config.get("retry", {}) or {}
+        self.max_attempts = int(retry.get("max_attempts", 5) or 5)
+        self._backoff: BackoffConfig = build_backoff_config(config.get("retry", {}) or {}, retry)
         self.retry_statuses = set(retry.get("retry_statuses", [429, 500, 502, 503, 504]))
         self.user_agents = config.get("user_agents", [])
         if not self.user_agents:
             self.user_agents = [
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ]
-        proxy_cfg = config.get("proxy", {}) or {}
+        proxy_cfg = ch.get("proxy") if isinstance(ch.get("proxy"), dict) else {}
+        if not proxy_cfg:
+            proxy_cfg = config.get("proxy", {}) or {}
         sticky = str(ch.get("_session_proxy_url") or "").strip()
         if sticky:
             # Куки из Playwright получены на этом egress — ротация других прокси сбросит сессию.
-            self.proxies = [sticky]
+            self.proxy_pool = ProxyPool([sticky], rotation="round_robin")
             self.log.info("Che168 HTTP: зафиксирован 1 прокси (совпадает с браузерным bootstrap)")
         elif proxy_cfg.get("enabled"):
             urls = [str(u).strip() for u in (proxy_cfg.get("urls") or []) if str(u).strip()]
             # Сессия Che168 (sessionid/куки) привязана к IP — по умолчанию один sticky egress.
             sticky_session = proxy_cfg.get("sticky_session", True)
             if urls and sticky_session:
-                self.proxies = [urls[0]]
+                self.proxy_pool = ProxyPool([urls[0]], rotation="round_robin")
                 if len(urls) > 1:
                     self.log.warning(
                         "Che168 HTTP: proxy.sticky_session=true — используется только urls[0]; "
@@ -77,13 +102,39 @@ class AsyncChe168Client:
                         len(urls) - 1,
                     )
             else:
-                self.proxies = urls
+                self.proxy_pool = ProxyPool(urls, rotation=str(proxy_cfg.get("rotation", "round_robin")))
         else:
-            self.proxies = []
+            self.proxy_pool = ProxyPool([], rotation="round_robin")
         self._session: Optional[aiohttp.ClientSession] = None
         self._proxy_index = 0
         self._ua_index = 0
         self._last_rate_sleep_sec = 0.0
+        self._metrics: Dict[str, int] = {
+            "requests_total": 0,
+            "requests_ok": 0,
+            "retries_total": 0,
+            "retry_status_429": 0,
+            "retry_status_403": 0,
+            "retry_status_407": 0,
+            "retry_status_5xx": 0,
+            "final_http_errors": 0,
+            "exceptions_timeout": 0,
+            "exceptions_client": 0,
+            "circuit_breaker_opened": 0,
+            "circuit_breaker_short_circuit": 0,
+        }
+        self._cb_fail_streak = 0
+        self._cb_open_until_mono = 0.0
+        self._cb_fail_streak_threshold = int(ch.get("circuit_breaker_fail_streak", 12) or 12)
+        self._cb_open_sec = float(ch.get("circuit_breaker_open_sec", 90) or 90)
+        raw_cb = ch.get("circuit_breaker_statuses", [403, 407, 429, 500, 502, 503, 504])
+        self._cb_statuses: set[int] = set()
+        if isinstance(raw_cb, list):
+            for x in raw_cb:
+                try:
+                    self._cb_statuses.add(int(x))
+                except (TypeError, ValueError):
+                    continue
 
         self._initial_cookies = self._build_initial_cookies_dict(config)
 
@@ -113,24 +164,46 @@ class AsyncChe168Client:
         sticky = str((self.config.get("che168") or {}).get("_session_proxy_url") or "").strip()
         proxy_cfg = self.config.get("proxy", {}) or {}
         if sticky:
-            self.proxies = [sticky]
+            self.proxy_pool = ProxyPool([sticky], rotation="round_robin")
         elif proxy_cfg.get("enabled"):
             urls = [str(u).strip() for u in (proxy_cfg.get("urls") or []) if str(u).strip()]
             if urls and proxy_cfg.get("sticky_session", True):
-                self.proxies = [urls[0]]
+                self.proxy_pool = ProxyPool([urls[0]], rotation="round_robin")
             else:
-                self.proxies = urls
+                self.proxy_pool = ProxyPool(urls, rotation=str(proxy_cfg.get("rotation", "round_robin")))
         else:
-            self.proxies = []
+            self.proxy_pool = ProxyPool([], rotation="round_robin")
 
     def get_initial_cookie(self, name: str) -> Optional[str]:
         return self._initial_cookies.get(name)
 
+    def snapshot_metrics(self) -> Dict[str, int]:
+        return dict(self._metrics)
+
+    def _metric_inc(self, key: str, by: int = 1) -> None:
+        self._metrics[key] = int(self._metrics.get(key, 0) or 0) + by
+
+    def _record_failure_for_circuit_breaker(self, status: int, err: Optional[str]) -> None:
+        status_i = int(status or 0)
+        if status_i and status_i not in self._cb_statuses:
+            return
+        self._cb_fail_streak += 1
+        if self._cb_fail_streak >= max(1, self._cb_fail_streak_threshold):
+            self._cb_open_until_mono = time.monotonic() + max(1.0, self._cb_open_sec)
+            self._cb_fail_streak = 0
+            self._metric_inc("circuit_breaker_opened")
+            self.log.warning(
+                "Che168 circuit breaker: open %.0fs after failures (status=%s err=%s)",
+                self._cb_open_sec,
+                status_i,
+                (err or "")[:120],
+            )
+
+    def _record_success_for_circuit_breaker(self) -> None:
+        self._cb_fail_streak = 0
+
     def _next_proxy(self) -> Optional[str]:
-        if not self.proxies:
-            return None
-        self._proxy_index = (self._proxy_index + 1) % len(self.proxies)
-        return self.proxies[self._proxy_index]
+        return self.proxy_pool.next_url()
 
     def _next_ua(self) -> str:
         self._ua_index = (self._ua_index + 1) % len(self.user_agents)
@@ -194,6 +267,9 @@ class AsyncChe168Client:
     ) -> Tuple[Optional[Any], int, Optional[str]]:
         if not self._session:
             return None, 0, "no session"
+        if self._cb_open_until_mono > time.monotonic():
+            self._metric_inc("circuit_breaker_short_circuit")
+            return None, 0, "circuit_breaker_open"
         url = path if path.startswith("http") else f"{self.base_url}/{path.lstrip('/')}"
         qp = dict(self._common_params())
         if params:
@@ -218,6 +294,7 @@ class AsyncChe168Client:
             hard = max(tot, sr) + c + 8.0
 
         for attempt in range(self.max_attempts):
+            self._metric_inc("requests_total")
             proxy = self._next_proxy()
             await self._jitter()
             try:
@@ -249,17 +326,37 @@ class AsyncChe168Client:
 
                 kind, payload, st, err, retry_after = await asyncio.wait_for(_one_attempt(), timeout=hard)
                 if kind == "retry":
+                    self._metric_inc("retries_total")
+                    if int(st or 0) == 429:
+                        self._metric_inc("retry_status_429")
+                    elif int(st or 0) == 403:
+                        self._metric_inc("retry_status_403")
+                    elif int(st or 0) == 407:
+                        self._metric_inc("retry_status_407")
+                    elif int(st or 0) >= 500:
+                        self._metric_inc("retry_status_5xx")
+                    self._record_failure_for_circuit_breaker(st, err)
                     last_error = err or ""
                     last_http_status = st
                     await sleep_backoff(self._backoff, attempt, retry_after)
                     continue
+                if int(st or 0) == 200 and payload is not None:
+                    self._metric_inc("requests_ok")
+                    self._record_success_for_circuit_breaker()
+                elif int(st or 0) >= 400:
+                    self._metric_inc("final_http_errors")
+                    self._record_failure_for_circuit_breaker(st, err)
                 return payload, st, err
             except asyncio.TimeoutError as e:
+                self._metric_inc("exceptions_timeout")
+                self._record_failure_for_circuit_breaker(0, str(e))
                 last_error = f"hard_deadline {hard:.0f}s ({e})"
                 await sleep_backoff(self._backoff, attempt)
             except asyncio.CancelledError:
                 raise
             except aiohttp.ClientError as e:
+                self._metric_inc("exceptions_client")
+                self._record_failure_for_circuit_breaker(0, str(e))
                 last_error = str(e)
                 await sleep_backoff(self._backoff, attempt)
         return None, last_http_status, last_error

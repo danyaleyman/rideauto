@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from market_pricing_shared import (
@@ -36,6 +38,7 @@ VTB_BANK_TRANSFER_RATE = 0.02
 
 # Bump при изменении формул/констант China-калькулятора (метрики каталога, repair).
 CHINA_PRICING_RULES_VERSION = "2026.05.03"
+logger = logging.getLogger(__name__)
 
 
 def sync_china_pricing_clean_block(data: Dict[str, Any]) -> None:
@@ -100,6 +103,8 @@ class PriceCalculatorChina:
         fx: Optional[PricingFxRates] = None,
     ):
         self._fx = fx if fx is not None else PricingFxRates(config_path)
+        self._fx_cache: Dict[str, float] = {}
+        self._fx_cache_at: float = 0.0
 
     def _get_price_config(self) -> Dict:
         base = {
@@ -111,8 +116,28 @@ class PriceCalculatorChina:
             "excise_hp_tiers_rub_per_hp": [[hp, rate] for hp, rate in EXCISE_HP_TIERS_RUB_PER_HP],
         }
         pc = self._fx._price_cfg()
-        base.update(pc)
+        if isinstance(pc, dict):
+            base.update(pc)
+            china_cfg = pc.get("china")
+            if isinstance(china_cfg, dict):
+                base.update(china_cfg)
         return base
+
+    def _get_fx_rates_cached(self, cfg: Dict[str, Any]) -> Tuple[float, float]:
+        ttl_sec = max(5.0, float(cfg.get("cache_minutes", 5) or 5) * 60.0)
+        now = time.time()
+        if self._fx_cache and (now - self._fx_cache_at) < ttl_sec:
+            return float(self._fx_cache["cny_rub"]), float(self._fx_cache["eur_rub"])
+        try:
+            cny_rub = self._fx.get_cbr_cny_rub_safe()
+            eur_rub = self._fx.get_cbr_eur_rub_safe()
+        except Exception as e:
+            logger.warning("China pricing: FX fetch failed, fallback defaults used: %s", e)
+            cny_rub = float(self._fx_cache.get("cny_rub", 12.0) or 12.0)
+            eur_rub = float(self._fx_cache.get("eur_rub", 105.0) or 105.0)
+        self._fx_cache = {"cny_rub": float(cny_rub), "eur_rub": float(eur_rub)}
+        self._fx_cache_at = now
+        return float(cny_rub), float(eur_rub)
 
     def _commission_schedule_loaded(self, cfg: Dict[str, Any]) -> List[Tuple[float, float]]:
         return parse_commission_schedule_from_config(cfg.get("commission_car_tiers"))
@@ -128,8 +153,7 @@ class PriceCalculatorChina:
         if price_cny <= 0:
             raise ValueError("price_cny is missing or non-positive")
 
-        cny_rub = fx.get_cbr_cny_rub_safe()
-        eur_rub = fx.get_cbr_eur_rub_safe()
+        cny_rub, eur_rub = self._get_fx_rates_cached(cfg)
         car_value_rub = price_cny * cny_rub
         docs_delivery_rub = docs_delivery_cny * cny_rub
 

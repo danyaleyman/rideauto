@@ -28,6 +28,13 @@ class CarSaver(ABC):
     async def save_car(self, car: dict, car_id: str) -> None:
         raise NotImplementedError
 
+    async def bulk_save(self, records: list[tuple[dict, str]], batch_size: int = 1000) -> int:
+        n = 0
+        for car, car_id in records:
+            await self.save_car(car, car_id)
+            n += 1
+        return n
+
     async def count_saved(self) -> int:
         return 0
 
@@ -128,7 +135,7 @@ class PostgresCarSaver(CarSaver):
             except Exception:
                 continue
 
-    def _save_sync(self, car: dict, car_id: str) -> None:
+    def _upsert_one(self, cur: Any, car: dict, car_id: str) -> Any:
         import psycopg2.extras
 
         payload = dict(car)
@@ -141,55 +148,59 @@ class PostgresCarSaver(CarSaver):
         # Postgres cars.source NOT NULL; API/Meilisearch ждут «encar» для Кореи (см. fastapi_app).
         if not fields.get("source"):
             fields["source"] = "encar"
+        bid = get_or_create_brand(cur, self._brand_cache, fields["mark"])
+        mid = get_or_create_model(cur, self._model_cache, bid, fields["model"]) if bid else None
+        raw_adapted = psycopg2.extras.Json(encoded_raw) if encoded_raw else None
+        params = {
+            **fields,
+            "brand_id": bid,
+            "model_id": mid,
+            "data": psycopg2.extras.Json(payload),
+            "raw": raw_adapted,
+            "created_at": None,
+            "sync_clear_pricing_recompute_queue": False,
+        }
+        cur.execute(UPSERT_CAR_SQL, params)
+        row = cur.fetchone()
+        if not row:
+            return raw_obj
+        car_pk = int(row[0])
+        urls = extract_image_urls(payload)
+        cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
+        for i, url in enumerate(urls):
+            cur.execute(
+                """
+                INSERT INTO car_images (car_pk, url, sort_order, is_primary)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (car_pk, url) DO UPDATE SET
+                    sort_order = EXCLUDED.sort_order,
+                    is_primary = EXCLUDED.is_primary
+                """,
+                (car_pk, url, i, i == 0),
+            )
+        if str(car_id).lower().startswith("che168-"):
+            if str(os.environ.get("CHE168_CLUSTER_REGISTRY", "1")).strip().lower() not in (
+                "0",
+                "false",
+                "no",
+                "off",
+            ):
+                try:
+                    from scraper_pipeline.che168.cluster_registry import (
+                        apply_che168_cluster_registry,
+                    )
+
+                    d = payload.get("data")
+                    if isinstance(d, dict):
+                        apply_che168_cluster_registry(cur, car_id, d)
+                except Exception:
+                    pass
+        return raw_obj
+
+    def _save_sync(self, car: dict, car_id: str) -> None:
         with self._psycopg2.connect(self.dsn) as conn:
             with conn.cursor() as cur:
-                bid = get_or_create_brand(cur, self._brand_cache, fields["mark"])
-                mid = get_or_create_model(cur, self._model_cache, bid, fields["model"]) if bid else None
-                raw_adapted = psycopg2.extras.Json(encoded_raw) if encoded_raw else None
-                params = {
-                    **fields,
-                    "brand_id": bid,
-                    "model_id": mid,
-                    "data": psycopg2.extras.Json(payload),
-                    "raw": raw_adapted,
-                    "created_at": None,
-                    "sync_clear_pricing_recompute_queue": False,
-                }
-                cur.execute(UPSERT_CAR_SQL, params)
-                row = cur.fetchone()
-                if not row:
-                    return
-                car_pk = int(row[0])
-                urls = extract_image_urls(payload)
-                cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
-                for i, url in enumerate(urls):
-                    cur.execute(
-                        """
-                        INSERT INTO car_images (car_pk, url, sort_order, is_primary)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (car_pk, url) DO UPDATE SET
-                            sort_order = EXCLUDED.sort_order,
-                            is_primary = EXCLUDED.is_primary
-                        """,
-                        (car_pk, url, i, i == 0),
-                    )
-                if str(car_id).lower().startswith("che168-"):
-                    if str(os.environ.get("CHE168_CLUSTER_REGISTRY", "1")).strip().lower() not in (
-                        "0",
-                        "false",
-                        "no",
-                        "off",
-                    ):
-                        try:
-                            from scraper_pipeline.che168.cluster_registry import (
-                                apply_che168_cluster_registry,
-                            )
-
-                            d = payload.get("data")
-                            if isinstance(d, dict):
-                                apply_che168_cluster_registry(cur, car_id, d)
-                        except Exception:
-                            pass
+                raw_obj = self._upsert_one(cur, car, car_id)
             conn.commit()
         if raw_obj is not None:
             self._write_snapshot(car_id, raw_obj)
@@ -200,6 +211,36 @@ class PostgresCarSaver(CarSaver):
     async def save_car(self, car: dict, car_id: str) -> None:
         async with self._lock:
             await asyncio.to_thread(self._save_sync, car, car_id)
+
+    async def bulk_save(self, records: list[tuple[dict, str]], batch_size: int = 1000) -> int:
+        if not records:
+            return 0
+        bs = max(1, int(batch_size or 1000))
+        saved = 0
+        async with self._lock:
+            for i in range(0, len(records), bs):
+                chunk = records[i : i + bs]
+
+                def _save_chunk() -> int:
+                    written = 0
+                    snapshots: list[tuple[str, Any]] = []
+                    with self._psycopg2.connect(self.dsn) as conn:
+                        with conn.cursor() as cur:
+                            for car, car_id in chunk:
+                                raw_obj = self._upsert_one(cur, car, car_id)
+                                if raw_obj is not None:
+                                    snapshots.append((car_id, raw_obj))
+                                written += 1
+                        conn.commit()
+                    for snap_car_id, snap_raw in snapshots:
+                        self._write_snapshot(snap_car_id, snap_raw)
+                    return written
+
+                saved += await asyncio.to_thread(_save_chunk)
+                self._save_count += len(chunk)
+                if self._save_count % 250 == 0:
+                    self._cleanup_snapshots()
+        return saved
 
     async def count_saved(self) -> int:
         async with self._lock:

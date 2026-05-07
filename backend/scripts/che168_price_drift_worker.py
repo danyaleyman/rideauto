@@ -22,7 +22,7 @@ if str(_BACKEND_DIR) not in sys.path:
 from che168_scraper import setup_logging as che168_setup_logging  # noqa: E402
 from encar_scraper import load_config  # noqa: E402
 from pricechina import parse_price_cny  # noqa: E402
-from scraper_pipeline.che168.client import AsyncChe168Client  # noqa: E402
+from scraper_pipeline.che168.client import AsyncChe168Client, ensure_che168_deviceid  # noqa: E402
 from scraper_pipeline.che168.workers import che168_carinfo_body  # noqa: E402
 
 
@@ -181,6 +181,7 @@ async def amain() -> int:
     _dev = (os.environ.get("CHE168_DEVICE_ID") or os.environ.get("CHE168_DEVICEID") or "").strip()
     if _dev:
         config.setdefault("che168", {})["deviceid"] = _dev
+    ensure_che168_deviceid(config, log)
 
     dsn = _dsn(config)
     if not dsn:

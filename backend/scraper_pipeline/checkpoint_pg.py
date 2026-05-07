@@ -118,6 +118,7 @@ class Checkpoint:
             self._conn.commit()
             return ok
         except Exception:
+            _log_checkpoint.exception("Checkpoint.add_pending failed car_id=%s scope=%s", car_id, self.scope)
             return False
 
     def add_pending_batch(self, items: List[Tuple[str, str, Optional[dict]]]) -> int:

@@ -76,6 +76,44 @@ def test_parse_one_merges_list_images_when_carinfo_has_none():
     assert any("list.jpg" in u for u in imgs)
 
 
+def test_parse_one_collects_images_from_catepiclist():
+    car = parse_one_che168_car_sync(
+        external_id="555",
+        list_item={"id": 555, "brandname": "BMW", "modelname": "X3", "price": 200000},
+        carinfo={
+            "title": "Catepiclist gallery",
+            "price": 200000,
+            "catepiclist": [
+                {
+                    "title": "外观",
+                    "list": [
+                        "https://erscglobal2.autoimg.cn/escimg/auto/a.jpg.webp",
+                        "https://erscglobal2.autoimg.cn/escimg/auto/b.jpg.webp",
+                    ],
+                },
+                {
+                    "title": "内饰",
+                    "list": [
+                        "https://erscglobal2.autoimg.cn/escimg/auto/c.jpg.webp",
+                    ],
+                },
+            ],
+            # cover должен оставаться в начале (prepend_cover=True на первом источнике)
+            "picurl": "https://erscglobal2.autoimg.cn/escimg/auto/cover.jpg.webp",
+        },
+        specparam=None,
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    imgs = car["data"].get("images") or []
+    assert len(imgs) >= 4
+    assert imgs[0].endswith("cover.jpg.webp")
+    assert any(u.endswith("a.jpg.webp") for u in imgs)
+    assert any(u.endswith("c.jpg.webp") for u in imgs)
+
+
 def test_merge_carinfo_envelope_keeps_sibling_images():
     raw = {
         "returncode": 0,

@@ -14,6 +14,7 @@ The script `encar_scraper.py` is a scalable, resumable replacement for the small
 2. Copy `scraper_config.local.example.yaml` → `scraper_config.local.yaml`, set `storage.postgres.dsn` or rely on `DATABASE_URL`.
 3. From PowerShell: `.\backend\scripts\run_encar_local_daily.ps1` (sets `DATABASE_URL` to `127.0.0.1:5432` by default and runs `encar_daily_update.py --once`). Or from `backend/`: `set DATABASE_URL=postgresql://wra:wra@127.0.0.1:5432/wra` and `python encar_daily_update.py --once`.
 4. **Смоук (10 машин + один daily-цикл)** без прокси, малые лимиты: `scraper_config.smoke.yaml` (`extends: scraper_config.yaml`). На **Windows + Python 3.13+** к `127.0.0.1:5432` иногда даёт `UnicodeDecodeError` в psycopg2 — используйте контейнер API (Python 3.12): `.\backend\scripts\run_encar_smoke_docker.ps1` после `docker compose up -d postgres`.
+5. **Live smoke в GitHub Actions**: workflow `encar-smoke-monitoring` (manual + nightly) запускает `backend/scripts/encar_smoke_fetch.py`, проверяет что есть нормализованные карточки с фото и сохраняет JSON/summary в artifacts.
 
 ## Quick start
 

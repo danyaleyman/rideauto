@@ -68,3 +68,49 @@
 - Encar audit: `rideauto-encar-parser-audit.service` + `.timer`.
 
 Проверка таймеров: `systemctl list-timers 'rideauto-*'`.
+
+## 6. Che168 alert triage (Slack, без Telegram)
+
+Ниже — быстрый чеклист под алерты из `deploy/prometheus/alert_rules_rideauto.yml`:
+
+- **RideautoChe168HttpErrorsHigh**
+  - Проверить health API Che168 из хоста: `curl -sS 'https://globalapi.che168.com/api/v1/brand?_appid=global.m&deviceid=<id>&language=en' | head -c 300`
+  - Проверить прокси/egress (если используется): доступность URL и факт, что sticky IP не сменился.
+  - Проверить последние логи `che168_scraper` по `status 403/429/5xx`.
+
+- **RideautoChe168CircuitBreakerActive**
+  - Это признак серии ошибок; сначала проверить `sessionid` и bootstrap.
+  - Запустить быстрый smoke: `python backend/scripts/che168_smoke_fetch.py --config che168_scraper.yaml --limit 2 --detail-html --bootstrap`.
+  - Если smoke падает, временно снизить конкуренцию (`http.concurrency`) и проверить proxy route.
+
+- **RideautoChe168DetailFailSpike**
+  - Проверить долю `detail_fail` vs `processed` в логах прогона.
+  - Проверить, что `che168.fetch_detail_gallery_html` не упирается в бан detail page.
+  - Проверить `CHE168_DEVICE_ID`, cookie/session freshness и ошибки `session refresh`.
+
+Эскалация:
+- Если алерт держится >30 минут и smoke не проходит — приостановить массовый прогон Che168, оставить только smoke/diagnostics и зафиксировать артефакты (логи + output JSON).
+
+## 7. Encar alert triage (Slack, без Telegram)
+
+Ниже — быстрый чеклист под алерты из `deploy/prometheus/alert_rules_rideauto.yml`:
+
+- **RideautoEncarHttpErrorsHigh**
+  - Проверить доступность Encar API из хоста:
+    - `curl -sS 'https://api.encar.com/search/car/list/general?count=true&q=(And.Hidden.N._.CarType.N.)&sr=%7CModifiedDate%7C0%7C1' | head -c 300`
+  - Проверить прокси-пул (если используется): `ENCAR_PROXY_URLS`, факт ротации egress и ошибки `407/429/5xx` в логах.
+  - Проверить итоговые HTTP-метрики последнего прогона (`encar_http_*`) и корреляцию с `detail_fail`.
+
+- **RideautoEncarCircuitBreakerActive**
+  - Признак серийных сетевых/API ошибок — сначала проверить доступность прокси и стабильность upstream.
+  - Запустить быстрый smoke:
+    - `python backend/scripts/encar_smoke_fetch.py --config scraper_config.smoke.yaml --limit 2`
+  - Если smoke падает: временно снизить `http.concurrency`, проверить `retry.*`/proxy route и запустить smoke повторно.
+
+- **RideautoEncarDetailFailSpike**
+  - Проверить долю `detail_fail` vs `processed` и статусы endpoint-ов (`endpoint_*_fail`) в логах `encar_scraper`.
+  - Проверить таймауты (`detail_wall_timeout_sec`, `detail_extras_wall_timeout_sec`) и что нет массового `hard_deadline`.
+  - Проверить, что fallback-парсинг фото работает (в smoke у `status=ok` есть `image_count > 0`).
+
+Эскалация:
+- Если алерт держится >30 минут и smoke не проходит — приостановить массовый прогон Encar, оставить только smoke/diagnostics и зафиксировать артефакты (логи + output JSON).

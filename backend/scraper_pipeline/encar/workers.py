@@ -14,6 +14,7 @@ from parser_full import EncarFullParser
 from scraper_pipeline.checkpoint_pg import CheckpointAsync
 from scraper_pipeline.encar.client import AsyncEncarClient
 from scraper_pipeline.encar.parser import parse_one_car_async
+from scraper_pipeline.encar.runtime_stats import EncarStats
 from scraper_pipeline.encar.savers import CarSaver
 
 
@@ -298,6 +299,12 @@ async def detail_worker(
     stats_lock: Optional[asyncio.Lock] = None,
 ) -> None:
     sem = asyncio.Semaphore(1)
+    batch_cfg = _config.get("batch", {}) if isinstance(_config.get("batch"), dict) else {}
+    save_batch_size = max(1, int(batch_cfg.get("save_batch_size", 100)))
+    save_flush_sec = max(0.1, float(batch_cfg.get("save_flush_sec", 2.0)))
+    save_buffer: list[tuple[dict, str]] = []
+    queued_ids: list[str] = []
+    last_flush_ts = time.perf_counter()
     stats.setdefault("extras_timeout", 0)
     stats.setdefault("endpoint_record_ok", 0)
     stats.setdefault("endpoint_record_fail", 0)
@@ -309,14 +316,58 @@ async def detail_worker(
     stats.setdefault("endpoint_sellingpoint_fail", 0)
     stats.setdefault("endpoint_user_ok", 0)
     stats.setdefault("endpoint_user_fail", 0)
+    rt_stats = EncarStats(enabled=True)
+
+    def _sync_runtime_stats() -> None:
+        snap = rt_stats.snapshot()
+        for k, v in snap.items():
+            stats[k] = int(v)
+
+    async def _flush_save_buffer(force: bool = False) -> None:
+        nonlocal save_buffer, queued_ids, last_flush_ts
+        if not save_buffer:
+            return
+        now = time.perf_counter()
+        if not force and len(save_buffer) < save_batch_size and (now - last_flush_ts) < save_flush_sec:
+            return
+        records = save_buffer
+        ids = queued_ids
+        save_buffer = []
+        queued_ids = []
+        if len(records) == 1:
+            car, car_id = records[0]
+            await saver.save_car(car, car_id)
+            await checkpoint.mark_collected(car_id)
+            stats["saved"] += 1
+        else:
+            saved_n = await saver.bulk_save(records, batch_size=save_batch_size)
+            if saved_n <= 0:
+                saved_n = 0
+            saved_n = min(saved_n, len(records))
+            for car_id in ids[:saved_n]:
+                await checkpoint.mark_collected(car_id)
+            stats["saved"] += saved_n
+            if saved_n < len(records):
+                # Защита на случай частичного bulk_save: не теряем записи.
+                for car, car_id in records[saved_n:]:
+                    await saver.save_car(car, car_id)
+                    await checkpoint.mark_collected(car_id)
+                    stats["saved"] += 1
+        if stats["saved"] % 100 == 0:
+            log.info("Worker %s saved total=%s", worker_id, stats["saved"])
+        last_flush_ts = time.perf_counter()
+
     while True:
         try:
             item = await asyncio.wait_for(queue.get(), timeout=30.0)
         except asyncio.TimeoutError:
             if queue.empty():
+                await _flush_save_buffer(force=True)
                 break
+            await _flush_save_buffer(force=False)
             continue
         if item is None:
+            await _flush_save_buffer(force=True)
             break
         if len(item) == 3:
             car_id, car_type, item_from_list = item
@@ -496,21 +547,32 @@ async def detail_worker(
             queue.task_done()
             continue
         if car:
+            rt_stats.mark_parsed_ok()
+            data = car.get("data") if isinstance(car.get("data"), dict) else {}
+            if isinstance(user_info, dict) and user_info:
+                rt_stats.mark_with_user_info()
+            if isinstance(data, dict):
+                imgs = data.get("images")
+                img_count = len(imgs) if isinstance(imgs, list) else 0
+                if img_count > 0:
+                    quality = data.get("data_quality") if isinstance(data.get("data_quality"), dict) else {}
+                    reasons = quality.get("reasons") if isinstance(quality, dict) else []
+                    fallback = bool(isinstance(reasons, list) and "images_fallback_from_raw_sources" in reasons)
+                    rt_stats.mark_with_images(fallback=fallback)
+            _sync_runtime_stats()
             did_save = False
             if max_cars > 0 and stats_lock is not None:
                 async with stats_lock:
-                    if stats["saved"] < max_cars:
-                        await saver.save_car(car, car_id)
-                        await checkpoint.mark_collected(car_id)
-                        stats["saved"] += 1
+                    if (stats["saved"] + len(save_buffer)) < max_cars:
+                        save_buffer.append((car, car_id))
+                        queued_ids.append(car_id)
                         did_save = True
             else:
-                await saver.save_car(car, car_id)
-                await checkpoint.mark_collected(car_id)
-                stats["saved"] += 1
+                save_buffer.append((car, car_id))
+                queued_ids.append(car_id)
                 did_save = True
-            if did_save and stats["saved"] % 100 == 0:
-                log.info("Worker %s saved car_id=%s total=%s", worker_id, car_id, stats["saved"])
+            if did_save:
+                await _flush_save_buffer(force=False)
             if max_cars > 0 and not did_save:
                 stats["parse_fail"] += 1
         else:

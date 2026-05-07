@@ -1,5 +1,5 @@
 # Alertmanager. UI: http://127.0.0.1:9093
-# Токен и chat_id не в git — файлы на сервере, см. docs/MONITORING.md.
+# Slack webhook не в git — файл на сервере, см. docs/MONITORING.md.
 
 global:
   resolve_timeout: 5m
@@ -8,18 +8,17 @@ templates:
   - "/etc/alertmanager/templates/*.tmpl"
 
 route:
-  receiver: telegram
+  receiver: slack-webhook
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
 
 receivers:
-  - name: telegram
-    telegram_configs:
-      - bot_token_file: /etc/alertmanager/secrets/bot_token
-        chat_id_file: /etc/alertmanager/secrets/chat_id
+  - name: slack-webhook
+    slack_configs:
+      - api_url_file: /etc/alertmanager/secrets/slack_webhook
         send_resolved: true
-        parse_mode: HTML
-        message: '{{ template "telegram.ru.message" . }}'
+        title: '{{ template "slack.ru.title" . }}'
+        text: '{{ template "slack.ru.text" . }}'
 
 inhibit_rules: []

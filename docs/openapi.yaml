@@ -9,7 +9,8 @@ info:
     Курсорная пагинация: query `cursor` в `/api/cars` для сортировок date_*, year_*, mileage_*, price_high / price_low; см. `meta.next_cursor`.
     Без `cursor`: глубокий `page` ограничен для анонимов (`WRA_CATALOG_MAX_PAGE_OFFSET_ANON`, по умолчанию 80; `-1` = выкл.); при сессии Bearer — `WRA_CATALOG_MAX_PAGE_OFFSET_AUTH` (0 = без лимита).
     Кэш фасетов в воркере: `WRA_FACETS_CACHE_TTL` (сек, по умолчанию 300).
-    Метрики: `GET /api/metrics` при `WRA_PROMETHEUS_METRICS=1` (в т.ч. `wra_http_request_duration_ms_p95`).
+    Метрики: `GET /metrics` (legacy alias: `GET /api/metrics`) при `WRA_METRICS_ENABLED=1`
+    (legacy env alias: `WRA_PROMETHEUS_METRICS=1`).
 
 servers:
   - url: /
@@ -35,6 +36,18 @@ components:
           example: rate_limit
 
 paths:
+  /metrics:
+    get:
+      summary: Prometheus text exposition (канонический путь)
+      description: Доступно только при WRA_METRICS_ENABLED=1
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema: { type: string }
+        "404":
+          description: Метрики отключены
+
   /api/health:
     get:
       summary: Проверка живости
@@ -66,7 +79,7 @@ paths:
   /api/metrics:
     get:
       summary: Prometheus text exposition (выкл. по умолчанию)
-      description: Доступно только при WRA_PROMETHEUS_METRICS=1
+      description: Legacy alias для `/metrics`; доступно при WRA_METRICS_ENABLED=1
       responses:
         "200":
           content:

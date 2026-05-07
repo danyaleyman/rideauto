@@ -1,0 +1,107 @@
+name: encar-smoke-monitoring
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "How many listings to fetch"
+        type: number
+        default: 2
+  schedule:
+    - cron: "20 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-encar-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  encar-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      PYTHONUNBUFFERED: "1"
+      ENCAR_PROXY_URLS: ${{ secrets.ENCAR_PROXY_URLS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Prepare artifacts dir
+        run: mkdir -p ../artifacts
+
+      - name: Run Encar smoke fetch
+        run: |
+          LIM="${{ inputs.limit }}"
+          if [ -z "${LIM}" ]; then LIM=2; fi
+          python scripts/encar_smoke_fetch.py --config ../scraper_config.smoke.yaml --limit "${LIM}" \
+            > ../artifacts/encar_smoke_output.json 2> ../artifacts/encar_smoke_stderr.log
+
+      - name: Health check smoke output (fail-fast)
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("../artifacts/encar_smoke_output.json")
+          if not p.is_file():
+            raise SystemExit("Smoke output JSON file is missing")
+          raw = p.read_text(encoding="utf-8").strip()
+          if not raw:
+            raise SystemExit("Smoke output JSON is empty")
+          obj = json.loads(raw)
+          rows = obj if isinstance(obj, list) else obj.get("rows", [])
+          if not isinstance(rows, list) or not rows:
+            raise SystemExit("Smoke output has zero rows")
+          ok_rows = [r for r in rows if isinstance(r, dict) and r.get("status") == "ok"]
+          if not ok_rows:
+            raise SystemExit("Smoke output has zero normalized rows")
+          first = ok_rows[0]
+          img_n = int(first.get("image_count") or 0)
+          if img_n <= 0:
+            raise SystemExit("Smoke output first normalized row has no images")
+          print(f"OK rows={len(rows)} ok_rows={len(ok_rows)} first_image_count={img_n}")
+          PY
+
+      - name: Build GitHub summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("../artifacts/encar_smoke_output.json")
+          obj = json.loads(p.read_text(encoding="utf-8"))
+          rows = obj if isinstance(obj, list) else obj.get("rows", [])
+          ok_rows = [r for r in rows if isinstance(r, dict) and r.get("status") == "ok"]
+          first = ok_rows[0] if ok_rows else {}
+          lines = [
+            "## Encar smoke summary",
+            f"- rows: {len(rows)}",
+            f"- ok_rows: {len(ok_rows)}",
+            f"- first car_id: {first.get('car_id')}",
+            f"- first images: {first.get('image_count')}",
+            f"- first mark/model: {first.get('mark')} / {first.get('model')}",
+          ]
+          Path("../artifacts/encar_smoke_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+          cat ../artifacts/encar_smoke_summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encar-smoke-artifacts
+          path: |
+            artifacts/encar_smoke_output.json
+            artifacts/encar_smoke_stderr.log
+            artifacts/encar_smoke_summary.md
+          if-no-files-found: warn

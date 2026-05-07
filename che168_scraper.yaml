@@ -51,6 +51,21 @@ che168:
   language: en
   origin: https://global.che168.com
   referer: https://global.che168.com/
+  # Локальная секция retry (если не задана, используется корневой retry выше).
+  retry:
+    max_attempts: 5
+    backoff_base: 1.0
+    backoff_max: 30.0
+    jitter: true
+    jitter_min: 0.0
+    jitter_max: 0.5
+    retry_statuses: [403, 407, 429, 500, 502, 503, 504]
+  # Локальная секция proxy (если не задана, используется корневой proxy выше).
+  proxy:
+    enabled: false
+    urls: []
+    rotation: round_robin   # round_robin | random
+    sticky_session: true
   respect_rate_limit_headers: true
   rate_limit_sleep_cap_sec: 60
   # Если API отдаёт цену в «万元», включите true (иначе оставьте false и смотрите che168_price_raw).
@@ -116,6 +131,22 @@ che168:
   playwright_headless: true
   # Явный прокси для браузера; пусто = первый из proxy.urls при proxy.enabled
   bootstrap_proxy_url: ""
+  # Опционально: скачивание изображений в локальное хранилище (дополнительно к URL в data.images).
+  image_download:
+    enabled: false
+    root_dir: var/che168_images
+    max_parallel: 4
+    max_attempts: 3
+    timeout_total_sec: 25
+    retry_backoff_sec: 0.8
+    min_size_bytes: 256
+  # Batch flush в saver (bulk_save + mark_collected batched).
+  batch:
+    insert_size: 1000
+    flush_interval_sec: 5.0
+  monitoring:
+    enable_parser_stats: true
+    log_interval_sec: 60.0
   sessionid: ""
   cookies:
     is_overseas: "1"
@@ -129,6 +160,24 @@ listing_live_checker:
   idle_empty_sec: 45
   # Опционально: .prom для node_exporter (или env CHE168_LIVE_CHECKER_PROMETHEUS_TEXTFILE)
   prometheus_textfile_path: ""
+
+daily_update:
+  timezone: Asia/Yekaterinburg
+  run_at_hour: 1
+  run_at_minute: 30
+  new_list_pages_per_run: 10
+  new_cars_limit: 300
+  new_brand_sample: 25
+  sold_check_sample: 500
+  sold_check_retry_attempts: 3
+  sold_delete_batch_size: 50
+  sold_check_delay_min: 0.4
+  sold_check_delay_max: 1.2
+  advisory_lock_id: 4242
+  prometheus_textfile_path: ""
+  slack_webhook: ""
+  slack_bot_token: ""
+  slack_channel_id: ""
 
 max_cars: 0
 max_new_saves_per_run: 0

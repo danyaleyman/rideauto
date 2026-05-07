@@ -12,6 +12,7 @@ import os
 import signal
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -22,7 +23,7 @@ from encar_scraper import (
     load_config,
 )
 from scraper_pipeline.checkpoint_pg import CheckpointAsync
-from scraper_pipeline.che168.client import AsyncChe168Client
+from scraper_pipeline.che168.client import AsyncChe168Client, ensure_che168_deviceid
 from scraper_pipeline.che168.taxonomy_sync import (
     merge_che168_taxonomy_with_brand_api,
     sync_che168_series_taxonomy,
@@ -95,10 +96,14 @@ async def run_scraper(
     only_pending: bool = False,
 ) -> None:
     config = load_config(config_path)
+    run_id = time.strftime("ch168-%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
     _dev = (os.environ.get("CHE168_DEVICE_ID") or os.environ.get("CHE168_DEVICEID") or "").strip()
     if _dev:
         config.setdefault("che168", {})["deviceid"] = _dev
     log = setup_logging(config)
+    ensure_che168_deviceid(config, log)
+    ch_cfg = config.get("che168", {}) or {}
+    mon_cfg = ch_cfg.get("monitoring") if isinstance(ch_cfg.get("monitoring"), dict) else {}
     _bootstrap_env = str(os.environ.get("CHE168_PLAYWRIGHT_BOOTSTRAP", "")).strip().lower() in (
         "1",
         "true",
@@ -117,7 +122,7 @@ async def run_scraper(
                 e,
             )
             raise
-    log.info("Старт Che168 Global scraper%s", " (only-pending)" if only_pending else "")
+    log.info("Старт Che168 Global scraper%s run_id=%s", " (only-pending)" if only_pending else "", run_id)
 
     checkpoint_cfg = config.get("checkpoint", {}) or {}
     max_pending = int(checkpoint_cfg.get("max_pending_ids", 500000))
@@ -151,6 +156,8 @@ async def run_scraper(
     )
 
     stats: dict[str, Any] = {
+        "run_id": run_id,
+        "run_started_unixtime": int(time.time()),
         "list_pages": 0,
         "ids_discovered": 0,
         "ids_queued": 0,
@@ -239,18 +246,24 @@ async def run_scraper(
 
             async def log_stats():
                 first_wait = True
+                reports = 0
+                steady_interval = max(15.0, float(mon_cfg.get("log_interval_sec", 60.0) or 60.0))
                 while not refill_done:
-                    await asyncio.sleep(15 if first_wait else 60)
+                    await asyncio.sleep(15 if first_wait else steady_interval)
                     first_wait = False
+                    reports += 1
                     p = await checkpoint.pending_count()
                     elapsed_sec = time.time() - start_time
                     shape_n = len(stats.get("_che168_shape_samples") or ())
                     shape_warn = ""
                     if shape_n > 2:
                         shape_warn = f" che168_shape_variants={shape_n}"
+                    client_m = client.snapshot_metrics()
                     log.info(
-                        "Stats: elapsed_sec=%.0f processed=%s saved=%s detail_gone=%s detail_fail=%s "
-                        "parse_fail=%s session_refreshes=%s search_empty_breaks=%s pending=%s queue=%s%s",
+                        "Stats: run_id=%s elapsed_sec=%.0f processed=%s saved=%s detail_gone=%s detail_fail=%s "
+                        "parse_fail=%s session_refreshes=%s search_empty_breaks=%s pending=%s queue=%s "
+                        "http_ok=%s retries=%s final_http_err=%s cb_short=%s photos_ok=%s photos_fail=%s cars_with_spec=%s%s",
+                        run_id,
                         elapsed_sec,
                         stats["processed"],
                         stats["saved"],
@@ -261,8 +274,23 @@ async def run_scraper(
                         stats.get("che168_search_empty_breaks", 0),
                         p,
                         queue.qsize(),
+                        client_m.get("requests_ok", 0),
+                        client_m.get("retries_total", 0),
+                        client_m.get("final_http_errors", 0),
+                        client_m.get("circuit_breaker_short_circuit", 0),
+                        stats.get("photos_downloaded", 0),
+                        stats.get("photos_failed", 0),
+                        stats.get("cars_with_spec", 0),
                         shape_warn,
                     )
+                    if reports == 1 and stats["processed"] == 0 and stats["detail_fail"] == 0:
+                        _dw = float((config.get("http") or {}).get("detail_wall_timeout_sec", 90) or 90)
+                        log.info(
+                            "Stats: первый отчёт через 15s — processed=0 часто норма (воркеры в HTTP деталях; потолок одного деталя %.0fs). "
+                            "Если через ~%.0fs всё ещё 0 и без detail_fail — проверьте сеть/proxy/session.",
+                            _dw,
+                            _dw + 15,
+                        )
 
             stats_task = asyncio.create_task(log_stats())
 
@@ -358,6 +386,7 @@ async def run_scraper(
                 await refill_task
             except asyncio.CancelledError:
                 pass
+            stats["client_metrics"] = client.snapshot_metrics()
 
     finally:
         if int(config.get("max_new_saves_per_run", 0) or 0) > 0:
@@ -371,7 +400,8 @@ async def run_scraper(
 
     ep_summary = " ".join(f"{k}={v}" for k, v in sorted(stats.items()) if k.startswith("endpoint_"))
     log.info(
-        "Che168 scraper finished list_pages=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s brand_fetch_attempts=%s%s",
+        "Che168 scraper finished run_id=%s list_pages=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s brand_fetch_attempts=%s%s",
+        run_id,
         stats["list_pages"],
         stats["saved"],
         stats["detail_gone"],
@@ -380,6 +410,21 @@ async def run_scraper(
         stats.get("brand_fetch_attempts", 0),
         f" | {ep_summary}" if ep_summary else "",
     )
+    cm = stats.get("client_metrics") if isinstance(stats.get("client_metrics"), dict) else {}
+    if cm:
+        log.info(
+            "Che168 HTTP summary run_id=%s requests_total=%s ok=%s retries=%s final_http_err=%s timeout_exc=%s client_exc=%s cb_opened=%s cb_short=%s",
+            run_id,
+            cm.get("requests_total", 0),
+            cm.get("requests_ok", 0),
+            cm.get("retries_total", 0),
+            cm.get("final_http_errors", 0),
+            cm.get("exceptions_timeout", 0),
+            cm.get("exceptions_client", 0),
+            cm.get("circuit_breaker_opened", 0),
+            cm.get("circuit_breaker_short_circuit", 0),
+        )
+    stats["run_finished_unixtime"] = int(time.time())
 
     tp = (os.environ.get("CHE168_PROMETHEUS_TEXTFILE") or "").strip()
     if not tp:

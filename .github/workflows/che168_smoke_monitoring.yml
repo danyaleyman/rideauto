@@ -1,0 +1,123 @@
+name: che168-smoke-monitoring
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "How many listings to fetch"
+        type: number
+        default: 2
+      detail_html:
+        description: "Merge gallery from detail HTML"
+        type: boolean
+        default: true
+      bootstrap:
+        description: "Run Playwright bootstrap before smoke"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "35 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-che168-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  che168-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      PYTHONUNBUFFERED: "1"
+      CHE168_DEVICE_ID: ${{ secrets.CHE168_DEVICE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Prepare artifacts dir
+        run: mkdir -p ../artifacts
+
+      - name: Skip when CHE168_DEVICE_ID is missing
+        if: env.CHE168_DEVICE_ID == ''
+        run: |
+          echo "CHE168_DEVICE_ID secret is empty. Skipping live smoke check."
+          echo "## Che168 smoke skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Reason: \`CHE168_DEVICE_ID\` secret is not configured." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Che168 smoke fetch
+        if: env.CHE168_DEVICE_ID != ''
+        run: |
+          LIM="${{ inputs.limit }}"
+          if [ -z "${LIM}" ]; then LIM=2; fi
+          EXTRA=""
+          if [ "${{ inputs.detail_html }}" = "true" ]; then EXTRA="$EXTRA --detail-html"; fi
+          if [ "${{ inputs.bootstrap }}" = "true" ]; then EXTRA="$EXTRA --bootstrap"; fi
+          python scripts/che168_smoke_fetch.py --config ../che168_scraper.yaml --limit "${LIM}" ${EXTRA} \
+            > ../artifacts/che168_smoke_output.json 2> ../artifacts/che168_smoke_stderr.log
+
+      - name: Health check smoke output (fail-fast)
+        if: env.CHE168_DEVICE_ID != ''
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("../artifacts/che168_smoke_output.json")
+          if not p.is_file():
+            raise SystemExit("Smoke output JSON file is missing")
+          raw = p.read_text(encoding="utf-8").strip()
+          if not raw:
+            raise SystemExit("Smoke output JSON is empty")
+          obj = json.loads(raw)
+          rows = obj if isinstance(obj, list) else obj.get("rows", [])
+          if not isinstance(rows, list) or not rows:
+            raise SystemExit("Smoke output has zero rows")
+          first = rows[0] if isinstance(rows[0], dict) else {}
+          img_n = int(first.get("image_count_after_detail_html") or first.get("image_count") or 0)
+          if img_n <= 0:
+            raise SystemExit("Smoke output first row has no images")
+          print(f"OK rows={len(rows)} first_image_count={img_n}")
+          PY
+
+      - name: Build GitHub summary
+        if: env.CHE168_DEVICE_ID != ''
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("../artifacts/che168_smoke_output.json")
+          obj = json.loads(p.read_text(encoding="utf-8"))
+          rows = obj if isinstance(obj, list) else obj.get("rows", [])
+          first = rows[0] if rows and isinstance(rows[0], dict) else {}
+          lines = [
+            "## Che168 smoke summary",
+            f"- rows: {len(rows)}",
+            f"- first infoid: {first.get('infoid')}",
+            f"- first images: {first.get('image_count_after_detail_html') or first.get('image_count')}",
+            f"- first status: {first.get('status')}",
+          ]
+          Path("../artifacts/che168_smoke_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+          cat ../artifacts/che168_smoke_summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: che168-smoke-artifacts
+          path: |
+            artifacts/che168_smoke_output.json
+            artifacts/che168_smoke_stderr.log
+            artifacts/che168_smoke_summary.md
+          if-no-files-found: warn

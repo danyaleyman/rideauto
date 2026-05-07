@@ -74,6 +74,9 @@ retry:
   # Retry on these status codes
   # 407 = proxy auth / proxy error — повтор с другим URL из списка
   retry_statuses: [407, 429, 500, 502, 503, 504]
+  circuit_breaker_fail_streak: 12
+  circuit_breaker_open_sec: 90
+  circuit_breaker_statuses: [407, 429, 500, 502, 503, 504]
 
 proxy:
   # Включите прокси списком URL (или ENCAR_PROXY_URLS в /etc/default — см. deploy/env.rideauto.example).
@@ -100,6 +103,11 @@ max_cars: 0
 # Лимит НОВЫХ INSERT в cars за один запуск encar_scraper (0 = без лимита, полная докачка pending).
 max_new_saves_per_run: 0
 
+# Батч-запись в PostgreSQL из detail_worker (уменьшает commit overhead на больших докачках).
+batch:
+  save_batch_size: 100
+  save_flush_sec: 2.0
+
 # Параметры ежедневного цикла encar_daily_update.py (--once из systemd)
 daily_update:
   timezone: Asia/Yekaterinburg
@@ -109,6 +117,16 @@ daily_update:
   # 0 = без верхней границы на число новых id в pending за discover
   new_cars_limit: 0
   sold_check_sample: 2000
+  sold_check_retry_attempts: 3
+  sold_delete_batch_size: 50
+  # Advisory lock ID в PostgreSQL, чтобы daily_update не запускался параллельно.
+  advisory_lock_id: 42
+  # Опционально: textfile collector путь для метрик daily update.
+  prometheus_textfile_path: ""
+  # Опционально: Slack (иначе используются OPS_SLACK_* из env).
+  slack_webhook: ""
+  slack_bot_token: ""
+  slack_channel_id: ""
 
 # Checkpoint and state
 checkpoint:
@@ -134,4 +152,8 @@ logging:
   file: "logs/scraper.log"
   console: true
   format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+# Опционально: node_exporter textfile collector путь (*.prom) для метрик Encar scraper.
+# Также можно через ENCAR_PROMETHEUS_TEXTFILE.
+prometheus_textfile_path: ""
 

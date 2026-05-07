@@ -3,15 +3,71 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import re
 import time
 from functools import partial
 from typing import Any, Dict, Optional
 
+from encar_image_order import _sort_encar_image_url_list
 from parser_full import EncarFullParser
 
 log = logging.getLogger(__name__)
 RAW_ENVELOPE_VERSION = "encar.raw.v1"
+_URL_IN_TEXT = re.compile(r"https?://[^\s\"'<>|]+", re.I)
+
+
+def _is_likely_encar_photo_url(url: str) -> bool:
+    low = str(url or "").strip().lower()
+    if not low.startswith("http"):
+        return False
+    if "encar.com" in low or "imgcar." in low:
+        return True
+    return "carpicture/" in low and "ci." in low
+
+
+def _collect_fallback_image_urls(*sources: Any, max_urls: int = 36) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def _add(u: str) -> None:
+        u = str(u or "").strip()
+        if not u or u in seen or not _is_likely_encar_photo_url(u):
+            return
+        seen.add(u)
+        out.append(u)
+
+    def _walk(obj: Any, depth: int) -> None:
+        if depth > 18 or len(out) >= max_urls:
+            return
+        if isinstance(obj, dict):
+            for v in obj.values():
+                _walk(v, depth + 1)
+            return
+        if isinstance(obj, list):
+            for v in obj:
+                _walk(v, depth + 1)
+            return
+        if isinstance(obj, str):
+            s = obj.strip()
+            if not s:
+                return
+            if s.startswith("[") and ("http" in s):
+                try:
+                    parsed = json.loads(s)
+                except Exception:
+                    parsed = None
+                if isinstance(parsed, list):
+                    _walk(parsed, depth + 1)
+            for u in _URL_IN_TEXT.findall(s):
+                _add(u)
+
+    for src in sources:
+        _walk(src, 0)
+        if len(out) >= max_urls:
+            break
+    return _sort_encar_image_url_list(out)
 
 
 def _shape_hash(payload: Any) -> str:
@@ -96,6 +152,27 @@ def parse_one_car_sync(
         )
         normalized["id"] = car_id
         normalized["data"]["id"] = str(car_id)
+        data = normalized.get("data") if isinstance(normalized.get("data"), dict) else {}
+        raw_images = data.get("images") if isinstance(data, dict) else []
+        existing_images: list[str] = []
+        if isinstance(raw_images, list):
+            existing_images = [u for u in raw_images if isinstance(u, str) and u.strip()]
+        elif isinstance(raw_images, str):
+            try:
+                parsed = json.loads(raw_images)
+            except Exception:
+                parsed = None
+            if isinstance(parsed, list):
+                existing_images = [u for u in parsed if isinstance(u, str) and u.strip()]
+        if len(existing_images) <= 1:
+            fallback_urls = _collect_fallback_image_urls(item, detail, diagnosis, inspection, sellingpoint, record)
+            if len(fallback_urls) >= 2:
+                data["images"] = fallback_urls
+                quality = data.get("data_quality")
+                if isinstance(quality, dict):
+                    reasons = quality.setdefault("reasons", [])
+                    if isinstance(reasons, list) and "images_fallback_from_raw_sources" not in reasons:
+                        reasons.append("images_fallback_from_raw_sources")
         parser_schema_version = str((normalized.get("data") or {}).get("parser_schema_version") or "")
         raw_envelope = _build_raw_envelope(
             parser_schema_version=parser_schema_version,

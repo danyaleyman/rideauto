@@ -50,9 +50,52 @@ def write_che168_scraper_prometheus_textfile(path: str, stats: Dict[str, Any]) -
     lines.append("# TYPE che168_scraper_saved_total gauge")
     lines.append(f"che168_scraper_saved_total {int(stats.get('saved', 0) or 0)}")
 
+    lines.append("# HELP che168_scraper_processed_total Cars processed this run")
+    lines.append("# TYPE che168_scraper_processed_total gauge")
+    lines.append(f"che168_scraper_processed_total {int(stats.get('processed', 0) or 0)}")
+
+    lines.append("# HELP che168_scraper_detail_fail_total Detail fetch failures")
+    lines.append("# TYPE che168_scraper_detail_fail_total counter")
+    lines.append(f"che168_scraper_detail_fail_total {int(stats.get('detail_fail', 0) or 0)}")
+
+    lines.append("# HELP che168_scraper_parse_fail_total Parse failures")
+    lines.append("# TYPE che168_scraper_parse_fail_total counter")
+    lines.append(f"che168_scraper_parse_fail_total {int(stats.get('parse_fail', 0) or 0)}")
+
+    lines.append("# HELP che168_scraper_run_started_unixtime Run start time")
+    lines.append("# TYPE che168_scraper_run_started_unixtime gauge")
+    lines.append(f"che168_scraper_run_started_unixtime {int(stats.get('run_started_unixtime', 0) or 0)}")
+    lines.append("# HELP che168_scraper_run_finished_unixtime Run finish time")
+    lines.append("# TYPE che168_scraper_run_finished_unixtime gauge")
+    lines.append(f"che168_scraper_run_finished_unixtime {int(stats.get('run_finished_unixtime', 0) or 0)}")
+
     lines.append("# HELP che168_scraper_search_empty_breaks_total Empty carlist page breaks")
     lines.append("# TYPE che168_scraper_search_empty_breaks_total counter")
     lines.append(f"che168_scraper_search_empty_breaks_total {int(stats.get('che168_search_empty_breaks', 0) or 0)}")
+
+    cm = stats.get("client_metrics") if isinstance(stats.get("client_metrics"), dict) else {}
+    if cm:
+        for key in (
+            "requests_total",
+            "requests_ok",
+            "retries_total",
+            "final_http_errors",
+            "exceptions_timeout",
+            "exceptions_client",
+            "circuit_breaker_opened",
+            "circuit_breaker_short_circuit",
+            "retry_status_429",
+            "retry_status_403",
+            "retry_status_407",
+            "retry_status_5xx",
+        ):
+            val = int(cm.get(key, 0) or 0)
+            mname = f"che168_http_{key}_total"
+            if key in ("requests_total", "requests_ok"):
+                mname = f"che168_http_{key}"
+            lines.append(f"# HELP {mname} Che168 client metric {key}")
+            lines.append(f"# TYPE {mname} counter")
+            lines.append(f"{mname} {val}")
 
     lines.append("")
     out = Path(p)

@@ -21,6 +21,19 @@ from export_system import ExportSystem
 logger = logging.getLogger(__name__)
 
 
+def _ensure_legacy_mode_enabled() -> None:
+    if str(os.environ.get("WRA_ENABLE_LEGACY_ORCHESTRATION", "")).strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        raise RuntimeError(
+            "main_system.py is legacy. Use scraper_pipeline entrypoints or set "
+            "WRA_ENABLE_LEGACY_ORCHESTRATION=1 to run intentionally."
+        )
+
+
 class EncarSystem:
     """Основной класс системы парсинга Encar"""
     
@@ -250,6 +263,7 @@ class EncarSystem:
 
 def main():
     """Тестовая функция для проверки системы"""
+    _ensure_legacy_mode_enabled()
     print("🧪 Тестирование EncarSystem...")
     
     # Создаем систему

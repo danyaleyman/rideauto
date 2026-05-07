@@ -13,6 +13,19 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _ensure_legacy_mode_enabled() -> None:
+    if str(os.environ.get("WRA_ENABLE_LEGACY_ORCHESTRATION", "")).strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        raise RuntimeError(
+            "quick_start.py is legacy helper. Use deployment scripts/runbooks, "
+            "or set WRA_ENABLE_LEGACY_ORCHESTRATION=1 for explicit legacy setup."
+        )
+
+
 def check_requirements():
     """Проверка наличия необходимых компонентов"""
     print("🔍 Проверка требований...")
@@ -90,12 +103,14 @@ def create_database():
         cursor = conn.cursor()
         
         # Проверяем существование базы данных
-        cursor.execute(f"SELECT 1 FROM pg_database WHERE datname='{database}'")
+        cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (database,))
         exists = cursor.fetchone()
         
         if not exists:
             print(f"🗄️ Создание базы данных {database}...")
-            cursor.execute(f"CREATE DATABASE {database}")
+            from psycopg2 import sql
+
+            cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
             print(f"✅ База данных {database} создана")
         else:
             print(f"✅ База данных {database} уже существует")
@@ -124,11 +139,11 @@ def create_database():
             "notification_config": {
                 "enabled": False,
                 "smtp": {
-                    "server": "smtp.gmail.com",
+                    "server": "",
                     "port": 587,
-                    "username": "your-email@gmail.com",
-                    "password": "your-app-password",
-                    "to_email": "admin@yourcompany.com"
+                    "username": "",
+                    "password": "",
+                    "to_email": ""
                 },
                 "send_on_success": True,
                 "send_on_error": True
@@ -386,6 +401,7 @@ def show_help():
 
 def main():
     """Основная функция быстрого старта"""
+    _ensure_legacy_mode_enabled()
     print("🚀 Быстрый старт системы Encar с PostgreSQL")
     print("=" * 60)
     

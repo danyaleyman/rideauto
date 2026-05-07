@@ -167,3 +167,42 @@ def test_parse_one_car_sync_attaches_raw_envelope_and_integrity() -> None:
     assert isinstance(envelope["integrity"]["missing_sources"], list)
     assert "_raw" in out
     assert isinstance(data["data_quality"]["raw_quality_score"], int)
+
+
+def test_parse_one_car_sync_fallback_images_from_raw_sources() -> None:
+    parser = EncarFullParser()
+    detail = {
+        "spec": {},
+        "category": {},
+        "contact": {},
+        "manage": {},
+        "advertisement": {},
+        "options": {},
+        "photos": [],
+        "media": {
+            "gallery": [
+                "https://ci.encar.com/carpicture/carpicture01/pic1_003.jpg",
+                "https://ci.encar.com/carpicture/carpicture01/pic1_001.jpg",
+            ]
+        },
+    }
+    out = parse_one_car_sync(
+        parser=parser,
+        car_id="9011",
+        item={"Manufacturer": "Kia", "Model": "K5", "Year": 2021, "Id": "9011"},
+        detail=detail,
+        diagnosis={},
+        record={},
+        inspection={},
+        sellingpoint={},
+        user_info={},
+        source_meta=None,
+    )
+    assert out is not None
+    data = out["data"]
+    assert isinstance(data.get("images"), list)
+    assert len(data["images"]) >= 2
+    # Проверяем сортировку по последовательности кадра (_001 раньше _003).
+    assert data["images"][0].endswith("_001.jpg")
+    reasons = ((data.get("data_quality") or {}).get("reasons") or [])
+    assert "images_fallback_from_raw_sources" in reasons

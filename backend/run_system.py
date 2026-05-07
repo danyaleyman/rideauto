@@ -31,6 +31,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _ensure_legacy_mode_enabled() -> None:
+    if str(os.environ.get("WRA_ENABLE_LEGACY_ORCHESTRATION", "")).strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        raise RuntimeError(
+            "run_system.py is legacy. Use scheduled rideauto-* units and scraper entrypoints, "
+            "or set WRA_ENABLE_LEGACY_ORCHESTRATION=1 for explicit legacy run."
+        )
+
+
 class EncarSystemRunner:
     """Класс для управления запуском системы Encar"""
     
@@ -341,6 +354,7 @@ class EncarSystemRunner:
 
 def main():
     """Основная функция"""
+    _ensure_legacy_mode_enabled()
     parser = argparse.ArgumentParser(description='Универсальный запуск системы Encar Parser')
     parser.add_argument('--setup', action='store_true', help='Только настройка системы')
     parser.add_argument('--test', action='store_true', help='Только тестирование системы')

@@ -10,7 +10,7 @@
 curl -sS http://127.0.0.1:8080/metrics | head -30
 ```
 
-Должны быть строки с префиксом **`wra_`**. Если пусто или 404 — проверь **`WRA_METRICS_ENABLED=true`** и контейнер **`api`**.
+Должны быть строки с префиксом **`wra_`**. Если пусто или 404 — проверь **`WRA_METRICS_ENABLED=true`** (legacy: `WRA_PROMETHEUS_METRICS=1`) и контейнер **`api`**.
 
 ### Шаг 2 — подтянуть конфиг из репозитория
 
@@ -36,6 +36,7 @@ docker run -d --name prometheus --restart unless-stopped \
 ```
 
 Интерфейс: **`http://127.0.0.1:9090`** (с сервера или через SSH tunnel). **Не** открывай 9090 в интернет без auth.
+Быстрый путь “поднять всё с нуля” см. в `deploy/monitoring/README.md`.
 
 ### Шаг 4 — проверить, что цель UP
 
@@ -64,8 +65,8 @@ echo
 
 В репозитории:
 
-- **`deploy/monitoring/alert_rules.yml`** — алерты **5xx > 1%** (5m) и **target down**
-- **`deploy/monitoring/alertmanager.yml`** — маршрут в **Telegram** (токен и chat id — только в файлах на сервере)
+- **`deploy/prometheus/alert_rules_rideauto.yml`** — canonical alert rules (API + scraper/daily health)
+- **`deploy/monitoring/alertmanager.yml`** — маршрут в **Slack Incoming Webhook** (URL хранится только в секрете на сервере)
 
 Обнови код:
 
@@ -73,22 +74,15 @@ echo
 cd /opt/rideauto && git pull
 ```
 
-#### Telegram для Alertmanager
+#### Slack webhook для Alertmanager
 
-1. В Telegram: **@BotFather** → `/newbot` → сохрани **токен** бота.
-2. Напиши боту любое сообщение (или добавь бота в группу и отправь сообщение в группу).
-3. Узнай **chat_id**:
-   ```bash
-   curl -sS "https://api.telegram.org/bot<TOKEN>/getUpdates" | python3 -m json.tool
-   ```
-   В ответе смотри `message.chat.id` (для групп часто отрицательное число, например `-100…`).
-4. На сервере создай секреты (одна строка в файле, без лишних пробелов и переводов строки после числа по возможности):
+1. В Slack создайте Incoming Webhook для рабочего канала и скопируйте URL.
+2. На сервере создайте секрет (одна строка в файле):
    ```bash
    cd /opt/rideauto/deploy/monitoring/secrets
-   sudo cp bot_token.example bot_token
-   sudo cp chat_id.example chat_id
-   sudo nano bot_token chat_id   # подставь реальные значения
-   sudo chmod 644 bot_token chat_id
+   sudo cp slack_webhook.example slack_webhook
+   sudo nano slack_webhook   # вставь реальный webhook URL
+   sudo chmod 644 slack_webhook
    ```
 
    Образ **`prom/alertmanager`** работает **не от root**; при **`chmod 600`** и владельце **root** смонтированные файлы дают **`permission denied`** внутри контейнера. Поэтому на секретах нужно **`644`** (чтение для «остальных») либо **`chown`** под UID пользователя из `docker exec alertmanager id`.
@@ -101,8 +95,7 @@ docker run -d --name alertmanager --restart unless-stopped \
   --network host \
   -v /opt/rideauto/deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro \
   -v /opt/rideauto/deploy/monitoring/alertmanager_templates:/etc/alertmanager/templates:ro \
-  -v /opt/rideauto/deploy/monitoring/secrets/bot_token:/etc/alertmanager/secrets/bot_token:ro \
-  -v /opt/rideauto/deploy/monitoring/secrets/chat_id:/etc/alertmanager/secrets/chat_id:ro \
+  -v /opt/rideauto/deploy/monitoring/secrets/slack_webhook:/etc/alertmanager/secrets/slack_webhook:ro \
   prom/alertmanager:latest \
   --config.file=/etc/alertmanager/alertmanager.yml \
   --web.listen-address=127.0.0.1:9093
@@ -111,7 +104,7 @@ docker rm -f prometheus
 docker run -d --name prometheus --restart unless-stopped \
   --network host \
   -v /opt/rideauto/deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
-  -v /opt/rideauto/deploy/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro \
+  -v /opt/rideauto/deploy/prometheus/alert_rules_rideauto.yml:/etc/prometheus/alert_rules.yml:ro \
   prom/prometheus:latest \
   --config.file=/etc/prometheus/prometheus.yml \
   --web.listen-address=127.0.0.1:9090
@@ -119,11 +112,11 @@ docker run -d --name prometheus --restart unless-stopped \
 
 Проверка: **Prometheus** → **Alerts** (правила загружены); **Alertmanager** `http://127.0.0.1:9093` — вкладка **Alerts** после срабатывания.
 
-**Проверка Telegram:** временно останови **`api`** на пару минут или ослабь порог в **`alert_rules.yml`** — в чат должно прийти уведомление; после восстановления — сообщение о **resolved** (если включено `send_resolved`). После смены **`bot_token`** / **`chat_id`** пересоздай контейнер **`alertmanager`** с теми же volume.
+**Проверка Slack:** временно останови **`api`** на пару минут или ослабь порог в **`alert_rules_rideauto.yml`** — в канал должно прийти уведомление; после восстановления — сообщение о **resolved** (если включено `send_resolved`). После смены webhook URL пересоздай контейнер **`alertmanager`** с теми же volume.
 
 ### Дальше (следующие этапы)
 
-1. При необходимости — второй receiver (email / Slack) через `route` `continue` и отдельные `receiver`.
+1. При необходимости — второй receiver (email и т.п.) через `route` `continue` и отдельные `receiver`.
 2. **Копия бэкапов** с сервера (S3 / второй хост).
 3. **Тестовое восстановление** дампа на отдельной ВМ.
 

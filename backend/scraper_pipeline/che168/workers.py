@@ -16,6 +16,7 @@ from scraper_pipeline.che168.api_outcome import (
     che168_search_pagecount,
 )
 from scraper_pipeline.che168.client import AsyncChe168Client
+from scraper_pipeline.che168.image_downloader import AsyncImageDownloader
 from scraper_pipeline.che168.parser import (
     che168_collect_api_layer_photo_urls,
     che168_listing_numeric_id,
@@ -24,6 +25,7 @@ from scraper_pipeline.che168.parser import (
     merge_che168_image_url_lists,
     parse_one_che168_car_async,
 )
+from scraper_pipeline.che168.runtime_stats import Che168Stats
 from scraper_pipeline.encar.savers import CarSaver
 from scraper_pipeline.checkpoint_pg import CheckpointAsync
 
@@ -339,6 +341,15 @@ async def detail_worker_che168(
 ) -> None:
     sem = asyncio.Semaphore(1)
     ch = config.get("che168", {}) or {}
+    mon_cfg = ch.get("monitoring") if isinstance(ch.get("monitoring"), dict) else {}
+    batch_cfg = ch.get("batch") if isinstance(ch.get("batch"), dict) else {}
+    image_downloader = AsyncImageDownloader(config, log)
+    image_download_enabled = bool(((ch.get("image_download") or {}) if isinstance(ch.get("image_download"), dict) else {}).get("enabled", False))
+    rt_stats = Che168Stats(enabled=bool(mon_cfg.get("enable_parser_stats", True)))
+    batch_insert_size = max(1, int(batch_cfg.get("insert_size", 1000) or 1000))
+    batch_flush_interval_sec = float(batch_cfg.get("flush_interval_sec", 5.0) or 5.0)
+    save_buffer: List[Tuple[dict, str, str]] = []
+    last_flush_mono = time.monotonic()
     assume_wan = bool(ch.get("assume_price_in_wan_yuan", False))
     fetch_recommend = bool(ch.get("fetch_recommend", True))
     fetch_report = bool(ch.get("fetch_report_summary", True))
@@ -346,6 +357,22 @@ async def detail_worker_che168(
 
     def _ep(name: str, ok: bool) -> None:
         stats[f"endpoint_{name}_{'ok' if ok else 'fail'}"] = stats.get(f"endpoint_{name}_{'ok' if ok else 'fail'}", 0) + 1
+
+    async def _flush_save_buffer(force: bool = False) -> None:
+        nonlocal last_flush_mono
+        if max_cars > 0:
+            return
+        if not save_buffer:
+            return
+        if not force and len(save_buffer) < batch_insert_size and (time.monotonic() - last_flush_mono) < batch_flush_interval_sec:
+            return
+        payload = [(car, car_id) for car, car_id, _ext_id in save_buffer]
+        saved_n = await saver.bulk_save(payload, batch_size=batch_insert_size)
+        for _car, _car_id, ext_id in save_buffer:
+            await checkpoint.mark_collected(str(ext_id))
+        stats["saved"] += int(saved_n)
+        save_buffer.clear()
+        last_flush_mono = time.monotonic()
 
     while True:
         try:
@@ -355,6 +382,7 @@ async def detail_worker_che168(
                 break
             continue
         if item is None:
+            await _flush_save_buffer(force=True)
             break
         if len(item) >= 3:
             external_id, _car_type, item_from_list = item[0], item[1], item[2]
@@ -571,6 +599,28 @@ async def detail_worker_che168(
         if car:
             note_che168_parser_shape_samples(stats, (car.get("data") or {}).get("parser_shape_fingerprints"))
             _d = car.get("data") or {}
+            if image_download_enabled and isinstance(_d.get("images"), list) and _d.get("images"):
+                dl = await image_downloader.download_many(car_id=car_id, urls=_d.get("images") or [])
+                _d["image_assets"] = dl.get("assets") or []
+                _d["image_assets_status"] = {
+                    "enabled": bool(dl.get("enabled")),
+                    "attempted": int(dl.get("attempted", 0) or 0),
+                    "downloaded": int(dl.get("downloaded", 0) or 0),
+                    "duplicates": int(dl.get("duplicates", 0) or 0),
+                }
+                stats["image_download_attempted"] = stats.get("image_download_attempted", 0) + int(
+                    dl.get("attempted", 0) or 0
+                )
+                stats["image_downloaded"] = stats.get("image_downloaded", 0) + int(dl.get("downloaded", 0) or 0)
+                stats["image_download_duplicates"] = stats.get("image_download_duplicates", 0) + int(
+                    dl.get("duplicates", 0) or 0
+                )
+                rt_stats.add_photos(
+                    downloaded=int(dl.get("downloaded", 0) or 0),
+                    failed=max(0, int(dl.get("attempted", 0) or 0) - int(dl.get("downloaded", 0) or 0)),
+                )
+            if results.get("specparam") is not None:
+                rt_stats.mark_with_spec()
             _tel = _d.get("che168_cluster_telemetry") if isinstance(_d.get("che168_cluster_telemetry"), dict) else {}
             for _k, _v in _tel.items():
                 if isinstance(_v, int):
@@ -589,9 +639,8 @@ async def detail_worker_che168(
                         stats["saved"] += 1
                         did_save = True
             else:
-                await saver.save_car(car, car_id)
-                await checkpoint.mark_collected(str(external_id))
-                stats["saved"] += 1
+                save_buffer.append((car, car_id, str(external_id)))
+                await _flush_save_buffer(force=False)
                 did_save = True
             if did_save and stats["saved"] % 100 == 0:
                 log.info("Che168 worker %s saved total=%s", worker_id, stats["saved"])
@@ -600,4 +649,10 @@ async def detail_worker_che168(
         else:
             stats["parse_fail"] += 1
         stats["processed"] += 1
+        if rt_stats.enabled:
+            snap = rt_stats.snapshot()
+            stats["photos_downloaded"] = snap["photos_downloaded"]
+            stats["photos_failed"] = snap["photos_failed"]
+            stats["cars_with_spec"] = snap["cars_with_spec"]
         queue.task_done()
+    await _flush_save_buffer(force=True)

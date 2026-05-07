@@ -58,6 +58,23 @@ def test_load_config_without_local(tmp_path: Path) -> None:
     assert cfg["a"] == 1
 
 
+def test_load_config_merges_named_local_overlay(tmp_path: Path) -> None:
+    base = tmp_path / "che168_scraper.yaml"
+    base.write_text(
+        yaml.dump({"che168": {"deviceid": "", "language": "en"}}),
+        encoding="utf-8",
+    )
+    named = tmp_path / "che168_scraper.local.yaml"
+    named.write_text(
+        yaml.dump({"che168": {"deviceid": "dev-from-local", "origin": "https://example.test"}}),
+        encoding="utf-8",
+    )
+    cfg = load_config(str(base))
+    assert cfg["che168"]["deviceid"] == "dev-from-local"
+    assert cfg["che168"]["language"] == "en"
+    assert cfg["che168"]["origin"] == "https://example.test"
+
+
 def test_encar_proxy_urls_from_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     base = tmp_path / "scraper_config.yaml"
     base.write_text(
