@@ -213,6 +213,8 @@ daily_update:
   new_list_pages_per_run: 10
   new_cars_limit: 300
   new_brand_sample: 25
+  # Incremental daily mode: by default no segmentation (full crawler can use its own strategy).
+  use_segmentation: false
   # Если segmentation.enabled=true: сколько сегментов price×year пытаться на бренд за один daily run.
   # Ограничивает нагрузку daily-update (не делает мини-full-scan).
   new_discovery_segments_per_brand: 10

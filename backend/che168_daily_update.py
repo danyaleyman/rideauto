@@ -152,9 +152,10 @@ async def discover_new_cars(
     delay_max = float(du.get("new_check_delay_max", 1.2) or 1.2)
     max_brands = max(1, int(du.get("new_brand_sample", 25) or 25))
 
-    ch = config.get("che168", {}) if isinstance(config.get("che168"), dict) else {}
     seg_cfg = ch.get("segmentation") if isinstance(ch.get("segmentation"), dict) else {}
-    seg_enabled = bool(seg_cfg.get("enabled"))
+    # Daily discover is usually incremental and should stay lightweight by default.
+    # Enable segmentation explicitly in daily_update.use_segmentation if needed.
+    seg_enabled = bool(seg_cfg.get("enabled")) and bool(du.get("use_segmentation", False))
     segments = build_segments(seg_cfg) if seg_enabled else [{}]
     # Чтобы daily-update не стал "mini-full-scan": ограничим число сегментов на бренд.
     max_segments_per_brand_daily = int(du.get("new_discovery_segments_per_brand", 10) or 10)
@@ -162,6 +163,14 @@ async def discover_new_cars(
         segments = segments[:max_segments_per_brand_daily]
 
     total_added = 0
+    log.info(
+        "Che168 daily discover config: pages=%s page_size=%s max_brands=%s vehicle_list=%s segmentation=%s",
+        pages,
+        pagesize,
+        max_brands,
+        vehicle_list,
+        seg_enabled,
+    )
     brands_raw, st, err = await client.fetch_brands()
     if st != 200 or not brands_raw or not _returncode_ok(brands_raw):
         log.warning("Che168 daily discover: /brand failed status=%s err=%s", st, err)
