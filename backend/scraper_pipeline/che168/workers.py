@@ -829,8 +829,9 @@ async def detail_worker_che168(
         try:
             item = await asyncio.wait_for(queue.get(), timeout=30.0)
         except asyncio.TimeoutError:
-            if queue.empty():
-                break
+            # Important for long-running segmented crawl:
+            # queue may be temporarily empty between refill/listing waves.
+            # Exiting worker here can leave producer alive with no consumers.
             continue
         if item is None:
             await _flush_save_buffer(force=True)
