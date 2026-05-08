@@ -73,6 +73,51 @@ che168:
   search_pagesize: 20
   search_sort: 0
   vehicle_list: 0
+  # Segmentation: Che168 /search pageindex пагинация упирается в ~50-100 страниц.
+  # Чтобы вытащить весь каталог, дробим поиск на много маленьких сегментов.
+  search_pagination_mode: auto  # auto | pageindex | offset
+  segmentation:
+    enabled: true
+    strategy: "price_x_year"
+    segment_checkpoints: true
+
+    # Ценовые сегменты (в юанях)
+    price_segments:
+      - [0, 5000]
+      - [5000, 10000]
+      - [10000, 15000]
+      - [15000, 20000]
+      - [20000, 30000]
+      - [30000, 40000]
+      - [40000, 50000]
+      - [50000, 70000]
+      - [70000, 100000]
+      - [100000, 0] # 0 = без верхней границы
+
+    # Годовые сегменты
+    year_segments:
+      - [2000, 2005]
+      - [2006, 2010]
+      - [2011, 2013]
+      - [2014, 2016]
+      - [2017, 2019]
+      - [2020, 2021]
+      - [2022, 2023]
+      - [2024, 2025]
+
+    # Пробеговые сегменты (не используются при strategy=price_x_year, оставлено для расширения)
+    mileage_segments:
+      - [0, 30000]
+      - [30000, 60000]
+      - [60000, 100000]
+      - [100000, 150000]
+      - [150000, 0]
+
+    # Ограничение от слишком мелкой сегментации
+    max_segments_per_brand: 100
+
+    # Параллельность между сегментами
+    parallel_segments: 4
   # Пустой список = все бренды из GET /brand
   brand_ids: []
   list_brand_parallel: 2
@@ -168,6 +213,9 @@ daily_update:
   new_list_pages_per_run: 10
   new_cars_limit: 300
   new_brand_sample: 25
+  # Если segmentation.enabled=true: сколько сегментов price×year пытаться на бренд за один daily run.
+  # Ограничивает нагрузку daily-update (не делает мини-full-scan).
+  new_discovery_segments_per_brand: 10
   sold_check_sample: 500
   sold_check_retry_attempts: 3
   sold_delete_batch_size: 50

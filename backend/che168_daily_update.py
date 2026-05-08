@@ -22,6 +22,7 @@ from scraper_pipeline.che168.api_outcome import che168_carinfo_outcome
 from scraper_pipeline.che168.client import AsyncChe168Client, ensure_che168_deviceid
 from scraper_pipeline.che168.workers import (
     _returncode_ok,
+    build_segments,
     che168_brand_id,
     che168_brand_rows,
     che168_listing_numeric_id,
@@ -151,6 +152,15 @@ async def discover_new_cars(
     delay_max = float(du.get("new_check_delay_max", 1.2) or 1.2)
     max_brands = max(1, int(du.get("new_brand_sample", 25) or 25))
 
+    ch = config.get("che168", {}) if isinstance(config.get("che168"), dict) else {}
+    seg_cfg = ch.get("segmentation") if isinstance(ch.get("segmentation"), dict) else {}
+    seg_enabled = bool(seg_cfg.get("enabled"))
+    segments = build_segments(seg_cfg) if seg_enabled else [{}]
+    # Чтобы daily-update не стал "mini-full-scan": ограничим число сегментов на бренд.
+    max_segments_per_brand_daily = int(du.get("new_discovery_segments_per_brand", 10) or 10)
+    if max_segments_per_brand_daily > 0:
+        segments = segments[:max_segments_per_brand_daily]
+
     total_added = 0
     brands_raw, st, err = await client.fetch_brands()
     if st != 200 or not brands_raw or not _returncode_ok(brands_raw):
@@ -167,37 +177,75 @@ async def discover_new_cars(
     for brand_id in candidate_ids:
         if new_limit and total_added >= new_limit:
             break
-        for page in range(1, pages + 1):
+        for segment in segments:
             if new_limit and total_added >= new_limit:
                 break
-            data, status, err = await client.fetch_search(
-                brandid=int(brand_id),
-                pageindex=page,
-                pagesize=pagesize,
-                sort=sort,
-                vehicle_list=vehicle_list,
-            )
-            if status != 200 or not data or not _returncode_ok(data):
-                log.warning("Che168 daily discover: brand=%s page=%s status=%s err=%s", brand_id, page, status, err)
-                break
-            items = che168_search_items(data)
-            if not items:
-                break
-            to_add: list[tuple[str, str, Any]] = []
-            for item in items:
-                ext = che168_listing_numeric_id(item)
-                if not ext:
-                    continue
-                if await checkpoint.is_collected(ext):
-                    continue
-                to_add.append((ext, "che168", item))
-                if new_limit and (total_added + len(to_add)) >= new_limit:
+            segment_key = str(segment.get("key") or "default").strip()
+            ck_key = f"daily_brand_{brand_id}_segment_{segment_key}_page"
+            start_page = int(await checkpoint.get_last_offset(ck_key) or 1)
+            if start_page < 1:
+                start_page = 1
+
+            for page in range(start_page, start_page + pages):
+                if new_limit and total_added >= new_limit:
                     break
-            if to_add:
-                added = await checkpoint.add_pending_batch(to_add)
-                total_added += int(added)
-                log.info("Che168 daily discover brand=%s page=%s added=%s total=%s", brand_id, page, added, total_added)
-            await asyncio.sleep(random.uniform(delay_min, delay_max))
+
+                data, status, err = await client.fetch_search(
+                    brandid=int(brand_id),
+                    pageindex=page,
+                    pagesize=pagesize,
+                    sort=sort,
+                    vehicle_list=vehicle_list,
+                    price_min=segment.get("price_min"),
+                    price_max=segment.get("price_max"),
+                    year_min=segment.get("year_min"),
+                    year_max=segment.get("year_max"),
+                )
+                if status != 200 or not data or not _returncode_ok(data):
+                    log.warning(
+                        "Che168 daily discover: brand=%s seg=%s page=%s status=%s err=%s",
+                        brand_id,
+                        segment_key,
+                        page,
+                        status,
+                        err,
+                    )
+                    break
+                items = che168_search_items(data)
+                if not items:
+                    break
+                to_add: list[tuple[str, str, Any]] = []
+                for item in items:
+                    ext = che168_listing_numeric_id(item)
+                    if not ext:
+                        continue
+                    if await checkpoint.is_collected(ext):
+                        continue
+                    to_add.append((ext, "che168", item))
+                    if new_limit and (total_added + len(to_add)) >= new_limit:
+                        break
+                if to_add:
+                    added = await checkpoint.add_pending_batch(to_add)
+                    total_added += int(added)
+                    log.info(
+                        "Che168 daily discover brand=%s seg=%s page=%s added=%s total=%s",
+                        brand_id,
+                        segment_key,
+                        page,
+                        added,
+                        total_added,
+                    )
+                await checkpoint.set_last_offset(ck_key, page + 1)
+                await asyncio.sleep(random.uniform(delay_min, delay_max))
+
+    log.info(
+        "Che168 daily discover: seg_enabled=%s segments=%s max_segments_per_brand_daily=%s new_limit=%s total_added=%s",
+        seg_enabled,
+        len(segments),
+        max_segments_per_brand_daily,
+        new_limit,
+        total_added,
+    )
     return total_added
 
 

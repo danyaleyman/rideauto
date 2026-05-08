@@ -380,18 +380,84 @@ class AsyncChe168Client:
         pagesize: int,
         sort: int = 0,
         vehicle_list: int = 0,
+        # Optional search filters (API-dependent, but required for segmentation).
+        price_min: Optional[int] = None,
+        price_max: Optional[int] = None,
+        year_min: Optional[int] = None,
+        year_max: Optional[int] = None,
+        mileage_min: Optional[int] = None,
+        mileage_max: Optional[int] = None,
     ) -> Tuple[Optional[Any], int, Optional[str]]:
+        params: Dict[str, Any] = {
+            "brandid": brandid,
+            "pageindex": pageindex,
+            "pagesize": pagesize,
+            "sort": sort,
+            "vehicle_list": vehicle_list,
+        }
+
+        # Filters are added only when explicitly provided to avoid changing API defaults.
+        if price_min is not None:
+            params["price_min"] = price_min
+        if price_max is not None:
+            params["price_max"] = price_max
+        if year_min is not None:
+            params["year_min"] = year_min
+        if year_max is not None:
+            params["year_max"] = year_max
+        if mileage_min is not None:
+            params["mileage_min"] = mileage_min
+        if mileage_max is not None:
+            params["mileage_max"] = mileage_max
+
         return await self._request(
             "GET",
             "/search",
-            params={
-                "brandid": brandid,
-                "pageindex": pageindex,
-                "pagesize": pagesize,
-                "sort": sort,
-                "vehicle_list": vehicle_list,
-            },
+            params=params,
         )
+
+    async def fetch_search_with_offset(
+        self,
+        *,
+        brandid: int,
+        offset: int,
+        limit: int,
+        sort: int = 0,
+        vehicle_list: int = 0,
+        # Optional search filters.
+        price_min: Optional[int] = None,
+        price_max: Optional[int] = None,
+        year_min: Optional[int] = None,
+        year_max: Optional[int] = None,
+        mileage_min: Optional[int] = None,
+        mileage_max: Optional[int] = None,
+    ) -> Tuple[Optional[Any], int, Optional[str]]:
+        """
+        Fallback pagination: some APIs accept offset/limit instead of pageindex/pagesize.
+
+        If the endpoint doesn't support these params, you'll get empty results / non-200 responses.
+        """
+        params: Dict[str, Any] = {
+            "brandid": brandid,
+            "offset": offset,
+            "limit": limit,
+            "sort": sort,
+            "vehicle_list": vehicle_list,
+        }
+        if price_min is not None:
+            params["price_min"] = price_min
+        if price_max is not None:
+            params["price_max"] = price_max
+        if year_min is not None:
+            params["year_min"] = year_min
+        if year_max is not None:
+            params["year_max"] = year_max
+        if mileage_min is not None:
+            params["mileage_min"] = mileage_min
+        if mileage_max is not None:
+            params["mileage_max"] = mileage_max
+
+        return await self._request("GET", "/search", params=params)
 
     async def fetch_carinfo(self, infoid: int | str) -> Tuple[Optional[Any], int, Optional[str]]:
         return await self._request("GET", f"/carinfo/{infoid}")

@@ -103,6 +103,14 @@ async def run_scraper(
     log = setup_logging(config)
     ensure_che168_deviceid(config, log)
     ch_cfg = config.get("che168", {}) or {}
+    seg_cfg = ch_cfg.get("segmentation") if isinstance(ch_cfg.get("segmentation"), dict) else {}
+    if seg_cfg:
+        log.info(
+            "Che168 segmentation: enabled=%s strategy=%s parallel_segments=%s",
+            seg_cfg.get("enabled"),
+            seg_cfg.get("strategy"),
+            seg_cfg.get("parallel_segments"),
+        )
     mon_cfg = ch_cfg.get("monitoring") if isinstance(ch_cfg.get("monitoring"), dict) else {}
     _bootstrap_env = str(os.environ.get("CHE168_PLAYWRIGHT_BOOTSTRAP", "")).strip().lower() in (
         "1",
