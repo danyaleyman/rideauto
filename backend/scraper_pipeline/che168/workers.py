@@ -324,7 +324,7 @@ async def list_producer_che168(
     http_cfg = config.get("http", {}) or {}
     pagesize = int(ch.get("search_pagesize", http_cfg.get("list_page_size", 20)))
     sort = int(ch.get("search_sort", 0))
-    vehicle_list = int(ch.get("vehicle_list", 0))
+    vehicle_list = int(ch.get("vehicle_list", 1))
     delay_min = float(http_cfg.get("list_page_delay_min", 0.4))
     delay_max = float(http_cfg.get("list_page_delay_max", 1.2))
     stall_limit = int(http_cfg.get("list_stall_pages_limit", 40))

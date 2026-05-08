@@ -147,7 +147,7 @@ async def discover_new_cars(
     new_limit = int(du.get("new_cars_limit", 0) or 0)
     pagesize = int(ch.get("search_pagesize", 20) or 20)
     sort = int(ch.get("search_sort", 0) or 0)
-    vehicle_list = int(ch.get("vehicle_list", 0) or 0)
+    vehicle_list = int(ch.get("vehicle_list", 1) or 1)
     delay_min = float(du.get("new_check_delay_min", 0.4) or 0.4)
     delay_max = float(du.get("new_check_delay_max", 1.2) or 1.2)
     max_brands = max(1, int(du.get("new_brand_sample", 25) or 25))

@@ -46,7 +46,7 @@ storage:
 
 che168:
   base_url: https://globalapi.che168.com/api/v1
-  app_id: global.m
+  app_id: global.pc
   deviceid: ""
   language: en
   origin: https://global.che168.com
@@ -72,12 +72,12 @@ che168:
   assume_price_in_wan_yuan: false
   search_pagesize: 20
   search_sort: 0
-  vehicle_list: 0
+  vehicle_list: 1
   # Segmentation: Che168 /search pageindex пагинация упирается в ~50-100 страниц.
   # Чтобы вытащить весь каталог, дробим поиск на много маленьких сегментов.
   search_pagination_mode: auto  # auto | pageindex | offset
   segmentation:
-    enabled: true
+    enabled: false
     strategy: "price_x_year"
     segment_checkpoints: true
 

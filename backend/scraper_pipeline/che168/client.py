@@ -50,7 +50,7 @@ class AsyncChe168Client:
         ch = config.get("che168", {}) or {}
         http = config.get("http", {}) or {}
         self.base_url = str(ch.get("base_url", "https://globalapi.che168.com/api/v1")).rstrip("/")
-        self._appid = str(ch.get("app_id", "global.m"))
+        self._appid = str(ch.get("app_id", "global.pc"))
         self._deviceid = str(ch.get("deviceid", "") or "").strip()
         self._language = str(ch.get("language", "en"))
         self._origin = str(ch.get("origin", "https://global.che168.com")).rstrip("/")
@@ -379,7 +379,7 @@ class AsyncChe168Client:
         pageindex: int,
         pagesize: int,
         sort: int = 0,
-        vehicle_list: int = 0,
+        vehicle_list: int = 1,
         # Optional search filters (API-dependent, but required for segmentation).
         price_min: Optional[int] = None,
         price_max: Optional[int] = None,
@@ -423,7 +423,7 @@ class AsyncChe168Client:
         offset: int,
         limit: int,
         sort: int = 0,
-        vehicle_list: int = 0,
+        vehicle_list: int = 1,
         # Optional search filters.
         price_min: Optional[int] = None,
         price_max: Optional[int] = None,
