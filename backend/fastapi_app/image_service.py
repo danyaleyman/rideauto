@@ -58,6 +58,23 @@ def parse_allowed_hosts(raw: str) -> FrozenSet[str]:
     return frozenset(parts)
 
 
+def host_matches_allowed(host: str, allowed: FrozenSet[str]) -> bool:
+    """
+    Allow exact hostnames plus wildcard rules ``*.example.com`` (also allows apex ``example.com``).
+    """
+    h = (host or "").lower()
+    if not h:
+        return False
+    if h in allowed:
+        return True
+    for rule in allowed:
+        if rule.startswith("*."):
+            base = rule[2:]
+            if base and (h == base or h.endswith("." + base)):
+                return True
+    return False
+
+
 def normalize_image_id(image_id: str) -> str:
     s = (image_id or "").strip().lower()
     if s.endswith(".webp"):
@@ -81,7 +98,7 @@ def _validate_source_url(url: str, allowed: FrozenSet[str]) -> str:
     if scheme not in ("https", "http"):
         raise ImageNotAllowedError("only http(s) URLs")
     host = (p.hostname or "").lower()
-    if not host or host not in allowed:
+    if not host or not host_matches_allowed(host, allowed):
         raise ImageNotAllowedError(f"host not allowed: {host!r}")
     if "/../" in p.path or p.path.startswith("//"):
         raise ImageNotAllowedError("invalid path")
@@ -180,6 +197,7 @@ async def ensure_cached_webp(
     redis=None,
     redis_ttl_sec: int = 604800,
     referer_for_encar: Optional[str] = None,
+    referer_for_che168: Optional[str] = None,
 ) -> Path:
     if size not in _SIZE_MAX:
         raise ImageServiceError("invalid size")
@@ -194,10 +212,19 @@ async def ensure_cached_webp(
         raise ImageDigestMismatchError("src does not match image id")
 
     extra_headers: dict[str, str] = {}
-    if referer_for_encar:
-        hn = (urlparse(canon).hostname or "").lower()
-        if hn.endswith("encar.com"):
-            extra_headers["Referer"] = referer_for_encar
+    hn = (urlparse(canon).hostname or "").lower()
+    if referer_for_encar and hn.endswith("encar.com"):
+        extra_headers["Referer"] = referer_for_encar
+    elif referer_for_che168 and (
+        hn.endswith(".autoimg.cn")
+        or hn == "autoimg.cn"
+        or hn.endswith(".che168.com")
+        or hn == "che168.com"
+        or "byteimg" in hn
+        or "bytecdn" in hn
+        or "dcarimg" in hn
+    ):
+        extra_headers["Referer"] = referer_for_che168
 
     raw = await _fetch_bytes(
         canon,

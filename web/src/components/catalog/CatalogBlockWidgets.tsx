@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useProxiedCatalogThumbUrls } from "@/lib/catalog-image-proxy";
 import { useEffect, useState } from "react";
 import { ChevronsUpDown, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -134,18 +135,19 @@ export function CatalogCardImage({
   eager: boolean;
   sold?: boolean;
 }) {
+  const displayImages = useProxiedCatalogThumbUrls(images);
   const [idx, setIdx] = useState(0);
-  const canCycle = images.length > 1;
+  const canCycle = displayImages.length > 1;
 
   useEffect(() => {
     setIdx(0);
   }, [images]);
 
-  const src = images[idx] ?? images[0] ?? "";
+  const src = displayImages[idx] ?? displayImages[0] ?? "";
   if (!src) {
     return (
       <div className="flex size-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
-        Нет фото
+        {images.length ? "Загрузка фото…" : "Нет фото"}
       </div>
     );
   }

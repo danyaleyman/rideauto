@@ -1,5 +1,4 @@
-﻿import Image from "next/image";
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchCar, fetchSimilar } from "@/lib/api";
@@ -8,6 +7,7 @@ import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
 import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
 import type { SlimCar } from "@/lib/types";
 import CarPhotoGallery from "@/components/car/CarPhotoGallery";
+import { ProxiedListingImage } from "@/components/car/ProxiedListingImage";
 import { CarDetailAccordions } from "@/components/car/CarDetailAccordions";
 import { CarPurchaseSidebar } from "@/components/car/CarPurchaseSidebar";
 import { CarHeroMeta } from "@/components/car/CarHeroMeta";
@@ -279,16 +279,13 @@ export default async function CarPage({ params }: PageProps) {
                   >
                     <div className="relative overflow-hidden bg-muted">
                       {img ? (
-                        <Image
+                        <ProxiedListingImage
                           src={img}
                           alt={car.title || car.id}
                           width={640}
                           height={320}
                           sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 28vw, (min-width: 640px) 44vw, 96vw"
                           className="h-44 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                          loading="lazy"
-                          decoding="async"
-                          unoptimized
                         />
                       ) : (
                         <div className="flex h-44 items-center justify-center text-sm text-muted-foreground">

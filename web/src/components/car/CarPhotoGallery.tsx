@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useProxiedCarGalleryUrls } from "@/lib/catalog-image-proxy";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import {
@@ -51,6 +52,8 @@ export default function CarPhotoGallery({
     return out;
   }, [rawImages]);
 
+  const { thumbUrls, mediumUrls } = useProxiedCarGalleryUrls(images);
+
   const n = images.length;
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -58,7 +61,7 @@ export default function CarPhotoGallery({
   const thumbBtnRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const safeActive = n ? Math.min(active, n - 1) : 0;
-  const current = images[safeActive] ?? "";
+  const current = mediumUrls[safeActive] ?? "";
 
   const openLightbox = useCallback((idx: number) => {
     if (!n) return;
@@ -221,7 +224,7 @@ export default function CarPhotoGallery({
             <div className="flex min-h-0 min-w-0 flex-col bg-transparent lg:h-full">
               <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-1 py-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-2 lg:overflow-hidden lg:px-0 lg:py-0">
                 {sideSlots.map((idx, slotI) => {
-                  const src = images[idx];
+                  const src = thumbUrls[idx] ?? "";
                   const isLastSlot = slotI === sideSlots.length - 1;
                   const showMore = isLastSlot && moreCount > 0;
                   return (
@@ -313,7 +316,7 @@ export default function CarPhotoGallery({
 
             <div className="relative flex max-h-[calc(100dvh-11rem)] w-full max-w-[min(1400px,96vw)] items-center justify-center">
               <Image
-                src={images[lightboxIdx] ?? current}
+                src={mediumUrls[lightboxIdx] ?? current}
                 alt={`${title} — ${lightboxIdx + 1} из ${n}`}
                 width={1800}
                 height={1200}
@@ -364,9 +367,9 @@ export default function CarPhotoGallery({
               </div>
 
               <div className="flex max-w-full gap-2 overflow-x-auto py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                {images.map((src, i) => (
+                {thumbUrls.map((src, i) => (
                   <button
-                    key={`${src}-${i}`}
+                    key={`${images[i]}-${i}`}
                     ref={(el) => {
                       thumbBtnRefs.current[i] = el;
                     }}

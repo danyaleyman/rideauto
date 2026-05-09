@@ -84,8 +84,12 @@ class Settings(BaseSettings):
         description="Каталог WebP-кэша (относительно cwd или абсолютный путь)",
     )
     image_allowed_hosts: str = Field(
-        default="ci.encar.com,imgcar.encar.com,fem.encar.com,www.encar.com",
-        description="Список разрешённых хостов для src=, через запятую",
+        default=(
+            "ci.encar.com,imgcar.encar.com,fem.encar.com,www.encar.com,"
+            "*.autoimg.cn,*.che168.com,che168.com,global.che168.com,www.che168.com,"
+            "*.byteimg.com,*.bytecdn.com,*.dcarimg.com"
+        ),
+        description="Список разрешённых хостов для src= (через запятую; *.example.com — поддомены и apex)",
     )
     image_fetch_timeout_sec: float = Field(default=30.0, ge=1.0, le=120.0)
     image_max_fetch_bytes: int = Field(
@@ -102,6 +106,10 @@ class Settings(BaseSettings):
     image_encar_referer: str = Field(
         default="https://www.encar.com/",
         description="Referer для запросов к хостам *.encar.com",
+    )
+    image_che168_referer: str = Field(
+        default="https://global.che168.com/",
+        description="Referer для Che168 CDN (autoimg.cn, byteimg и т.д.)",
     )
     image_response_cache_control: str = Field(
         default="public, max-age=604800, stale-while-revalidate=86400, immutable",

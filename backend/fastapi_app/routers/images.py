@@ -60,6 +60,7 @@ async def optimized_image(
             redis=redis,
             redis_ttl_sec=settings.image_src_redis_ttl_sec,
             referer_for_encar=(settings.image_encar_referer or "").strip() or None,
+            referer_for_che168=(settings.image_che168_referer or "").strip() or None,
         )
     except ImageSourceMissingError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
