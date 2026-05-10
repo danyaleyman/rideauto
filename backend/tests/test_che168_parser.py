@@ -26,6 +26,15 @@ def test_normalize_price_cny_heuristic_small_float():
     assert v == 128000.0
 
 
+def test_normalize_price_cny_embedded_wan_in_context():
+    v = normalize_price_cny(
+        1,
+        assume_wan_yuan=False,
+        price_context="标价 117.35 万",
+    )
+    assert v == 1_173_500.0
+
+
 def test_parse_one_che168_minimal():
     car = parse_one_che168_car_sync(
         external_id="58097503",

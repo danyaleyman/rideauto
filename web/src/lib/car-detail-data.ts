@@ -63,6 +63,10 @@ function cleanupChinaNamePart(v: string, role: "mark" | "model" | "generation"):
   }
   if (role === "generation") {
     s = s.replace(/^\d+\s+/, "").trim();
+    s = s.replace(/\b\d{2,3}\s*TSI\b/gi, " ").trim();
+    s = s.replace(/\bDSG\b/gi, " ").trim();
+    s = s.replace(/\bCVT\b/gi, " ").trim();
+    s = s.replace(/\s+/g, " ").trim();
   }
   return s;
 }
@@ -379,6 +383,15 @@ export function buildNormalizedCarTitle(
     sourceS === "china" ||
     [markS, modelS, genS].some((x) => CJK_RE.test(x) || CHINA_HINT_RE.test(x));
   if (!chinaLike) return joinUniqueSpecs(markS, modelS, genS);
+  if (markS && modelS) {
+    const mk = markS.toLowerCase().trim();
+    const mo = modelS.toLowerCase().trim();
+    if (mo === mk || mo.startsWith(`${mk} `) || mo.startsWith(`${mk}·`)) {
+      const mModel = cleanupChinaNamePart(modelS, "model");
+      const mGen = cleanupChinaNamePart(genS, "generation");
+      return joinUniqueSpecs(mModel || modelS, mGen || genS);
+    }
+  }
   const m1 = cleanupChinaNamePart(markS, "mark");
   const m2 = cleanupChinaNamePart(modelS, "model");
   const m3 = cleanupChinaNamePart(genS, "generation");

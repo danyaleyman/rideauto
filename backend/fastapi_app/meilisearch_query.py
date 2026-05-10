@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import re
 from typing import Dict, FrozenSet, List, Optional, Sequence
 
 from fastapi_app.facet_normalize import expand_filter_values, merge_facet_distribution_rows
@@ -58,13 +59,26 @@ def _shift_ym(ym: int, delta_months: int) -> int:
     return (ordinal // 12) * 100 + (ordinal % 12) + 1
 
 
+_YEAR_TOKEN_RE = re.compile(r"\b(19|20)\d{2}\b")
+
+
 def _parse_year(raw: Optional[str]) -> Optional[int]:
+    if raw is None:
+        return None
+    s = str(raw).strip().replace("\u00a0", " ")
+    m = _YEAR_TOKEN_RE.search(s)
+    if m:
+        y = int(m.group(0))
+        if 1900 <= y <= 2100:
+            return y
     n = _parse_range_number(raw, as_float=False)
     if n is None:
         return None
     y = int(n)
     if 1900 <= y <= 2100:
         return y
+    if 190001 <= y <= 210012:
+        return y // 100
     return None
 
 

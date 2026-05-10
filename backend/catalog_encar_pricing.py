@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Literal
 
+from catalog_pg_core import _displacement_cc_with_label
+
 EncarPricingTier = Literal["full_customs", "korea_land_only", "price_on_request"]
 
 # Увеличивайте при изменении правил tier/калькулятора, чтобы repair и метрики отличали «старое».
@@ -42,6 +44,18 @@ def encar_effective_payload_for_tier(data: Dict[str, Any]) -> Dict[str, Any]:
         dcc = spec.get("displacement_cc")
         if dcc not in (None, ""):
             out["displacement_cc"] = dcc
+    if not out.get("displacement_cc"):
+        for cand in (
+            out.get("displacement_cc"),
+            spec.get("displacement_cc"),
+            out.get("displacement"),
+            spec.get("displacement"),
+            out.get("engine_volume"),
+        ):
+            cc, _ = _displacement_cc_with_label(cand)
+            if cc:
+                out["displacement_cc"] = cc
+                break
     if not out.get("engine_type") and spec.get("engine_type"):
         out["engine_type"] = spec.get("engine_type")
     if (
@@ -53,6 +67,12 @@ def encar_effective_payload_for_tier(data: Dict[str, Any]) -> Dict[str, Any]:
         sp = spec.get("power_hp")
         if sp not in (None, ""):
             out["power_hp"] = sp
+    if out.get("power_hp") in (None, ""):
+        for alt in ("outputHorsepower", "horsepower", "hp"):
+            ph = out.get(alt)
+            if ph not in (None, ""):
+                out["power_hp"] = ph
+                break
     return out
 
 

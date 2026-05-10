@@ -5,7 +5,9 @@ import re
 from typing import Any, Dict
 
 from clean_mode import clean_read_enabled_for_key
-from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
+from catalog_media_order import catalog_data_is_encar, order_image_urls_for_catalog
+from encar_mapping_lookup import encar_mapping_en_for
+from encar_image_order import _sort_h_images_list_entries
 from fastapi_app.config import get_settings
 from fastapi_app.schemas.catalog_contract import validate_slim_catalog_item_v1
 from localization.term_localizer import facet_canonical_english
@@ -301,20 +303,31 @@ def _cleanup_china_model_name(name: str) -> str:
     m = re.search(r"\b20\d{2}\b", s)
     if m and m.start() > 0:
         s = s[: m.start()].strip()
+    s = re.sub(r"\b\d{2,3}\s*TSI\b", " ", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bDSG\b", " ", s, flags=re.IGNORECASE)
+    s = re.sub(r"\bCVT\b", " ", s, flags=re.IGNORECASE)
     s = " ".join(re.sub(r"[\u4e00-\u9fff\uac00-\ud7af]+", " ", s).split())
-    return s
+    return s.strip()
 
 
 def _car_title(data: Dict[str, Any]) -> str:
+    src_low = (data.get("source") or "").strip().lower()
+    encar_title = src_low in ("", "encar")
+
     def _pick(en_key: str, raw_key: str, domain: str) -> str:
         t = (data.get(en_key) or "").strip()
         if t:
             return t
         raw = data.get(raw_key)
+        raw_s = (raw or "").strip() if isinstance(raw, str) else ""
+        if encar_title and raw_s:
+            mapped = encar_mapping_en_for(domain, raw_s)
+            if mapped:
+                return mapped
         c = facet_canonical_english(raw, domain).strip()
         if c:
             return c
-        return (raw or "").strip() if isinstance(raw, str) else ""
+        return raw_s
 
     mark = _pick("mark_en", "mark", "mark")
     model = _pick("model_en", "model", "model")
@@ -324,12 +337,22 @@ def _car_title(data: Dict[str, Any]) -> str:
         if mark and model and model.lower().startswith(mark.lower()):
             return model
         return " ".join([x for x in [mark, model] if x]).strip()
+
+    def _generation_line(raw: Any, domain: str) -> str:
+        raw_s = (raw or "").strip() if isinstance(raw, str) else ""
+        if encar_title and raw_s:
+            mapped = encar_mapping_en_for(domain, raw_s)
+            if mapped:
+                return mapped
+        c = facet_canonical_english(raw, domain).strip()
+        return c or raw_s
+
     generation = (
         (data.get("generation_en") or "").strip()
-        or facet_canonical_english(data.get("generation"), "generation").strip()
+        or _generation_line(data.get("generation"), "generation")
         or (data.get("generation") or "").strip()
         or (data.get("configuration_en") or "").strip()
-        or facet_canonical_english(data.get("configuration"), "configuration").strip()
+        or _generation_line(data.get("configuration"), "configuration")
         or (data.get("configuration") or "").strip()
     )
     return " ".join([x for x in [mark, model, generation] if x]).strip()
@@ -354,7 +377,8 @@ def _trim_slim_list_field(slim_data: Dict[str, Any], key: str, max_items: int) -
     if not isinstance(parsed, list) or not parsed:
         return
     if key == "images":
-        parsed = _sort_encar_image_url_list(_coerce_catalog_images_to_urls(parsed))
+        urls = _coerce_catalog_images_to_urls(parsed)
+        parsed = order_image_urls_for_catalog(urls, encar=catalog_data_is_encar(slim_data))
     elif key == "h_images":
         parsed = _sort_h_images_list_entries([x for x in parsed if isinstance(x, dict)])
     if len(parsed) > max_items:

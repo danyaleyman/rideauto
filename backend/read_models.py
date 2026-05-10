@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from catalog_pg_core import _displacement_cc_with_label
 from clean_mode import legacy_fallbacks_enabled
 
 _VALID_TIERS = frozenset({"full_customs", "korea_land_only", "price_on_request"})
@@ -97,6 +98,22 @@ def _normalize_power_hp_value(v: Any) -> int | None:
         return None
 
 
+def _resolve_displacement_cc(spec: Dict[str, Any], data: Dict[str, Any]) -> int | None:
+    candidates = [
+        _pick(spec, "displacement_cc", data, "displacement_cc"),
+        _pick(spec, "displacement_cc", data, "displacement"),
+        _pick(spec, "displacement_cc", data, "engine_volume"),
+        data.get("che168_displacement_label"),
+    ]
+    for c in candidates:
+        if c in (None, ""):
+            continue
+        cc, _ = _displacement_cc_with_label(c)
+        if cc is not None and cc > 0:
+            return int(cc)
+    return None
+
+
 def _resolve_power_hp(spec: Dict[str, Any], data: Dict[str, Any]) -> int | None:
     raw = _pick(spec, "power_hp", data, "power_hp")
     if raw in (None, ""):
@@ -153,6 +170,9 @@ def build_catalog_read_model(data: Dict[str, Any], *, use_clean: bool) -> Dict[s
         "trim_name": _safe_text(_pick(identity, "trim_name", data, "trim_name")),
         "model_group": _safe_text(_pick(identity, "model_group_encar", data, "modelGroupName")),
         "year": _pick(identity, "year", data, "year"),
+        "yearMonth": _pick(identity, "year_month", data, "yearMonth")
+        or data.get("year_month"),
+        "displacement_cc": _resolve_displacement_cc(spec, data),
         "engine_type": _safe_text(_pick(spec, "engine_type", data, "engine_type")),
         "transmission_type": _safe_text(_pick(spec, "transmission_type", data, "transmission_type")),
         "drive_type": _safe_text(_pick(spec, "drive_type", data, "drive_type")),

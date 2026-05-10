@@ -811,14 +811,32 @@ def _safe_float(v: Any) -> Optional[float]:
         return None
 
 
+_WAN_IN_TEXT_RE = re.compile(r"([\d.,]+)\s*万")
+
+
 def normalize_price_cny_detailed(
-    raw: Any, *, assume_wan_yuan: bool
+    raw: Any, *, assume_wan_yuan: bool, price_context: str = ""
 ) -> tuple[Optional[float], Dict[str, Any]]:
     """
     Возвращает (цена в CNY, метаданные интерпретации для аудита и Meili).
     rule: config_assume_wan_yuan | heuristic_small_decimal_wan | heuristic_small_integer_wan | raw_cny_integer | none
     """
     meta: Dict[str, Any] = {"che168_price_raw_input": raw, "che168_price_cny_rule": "none"}
+    ctx = " ".join(
+        str(x).strip()
+        for x in (price_context, raw if isinstance(raw, str) else "")
+        if x is not None and str(x).strip()
+    )
+    if ctx and not assume_wan_yuan:
+        mwan = _WAN_IN_TEXT_RE.search(ctx.replace("，", ","))
+        if mwan:
+            try:
+                wan = float(mwan.group(1).replace(",", "."))
+                if 0 < wan < 5000:
+                    meta["che168_price_cny_rule"] = "text_embedded_wan"
+                    return round(wan * 10_000.0, 2), meta
+            except ValueError:
+                pass
     v = _safe_float(raw)
     if v is None or v <= 0:
         return None, meta
@@ -835,8 +853,8 @@ def normalize_price_cny_detailed(
     return round(v, 2), meta
 
 
-def normalize_price_cny(raw: Any, *, assume_wan_yuan: bool) -> Optional[float]:
-    p, _ = normalize_price_cny_detailed(raw, assume_wan_yuan=assume_wan_yuan)
+def normalize_price_cny(raw: Any, *, assume_wan_yuan: bool, price_context: str = "") -> Optional[float]:
+    p, _ = normalize_price_cny_detailed(raw, assume_wan_yuan=assume_wan_yuan, price_context=price_context)
     return p
 
 
@@ -1190,7 +1208,16 @@ def parse_one_che168_car_sync(
     mark, model, title = _brand_model_title(ci, li)
     mark_c, model_c, tax_meta = _resolve_mark_model_canonical(mark, model, taxonomy, ci, li)
     raw_price = ci.get("price") if ci.get("price") not in (None, "") else li.get("price")
-    price_cny, price_meta = normalize_price_cny_detailed(raw_price, assume_wan_yuan=assume_price_wan_yuan)
+    price_ctx = " ".join(
+        str(x).strip()
+        for x in (title, ci.get("subtitle"), li.get("subtitle"), ci.get("name"), li.get("name"))
+        if x is not None and str(x).strip()
+    )
+    price_cny, price_meta = normalize_price_cny_detailed(
+        raw_price,
+        assume_wan_yuan=assume_price_wan_yuan,
+        price_context=price_ctx,
+    )
 
     spec_raw = _unwrap_layer(specparam) if isinstance(specparam, dict) else {}
     spec_hints = _spec_fields(spec_raw)

@@ -35,6 +35,7 @@
     "color": "white",
     "customs_included": true,
     "damaged_parts_count": null,
+    "displacement_cc": null,
     "drive_type": "",
     "engine_type": "gasoline",
     "generation": "1.6 Turbo",
@@ -50,7 +51,8 @@
     "reserved_placeholder": false,
     "transmission_type": "automatic",
     "trim_name": "",
-    "year": "202108.0"
+    "year": "202108.0",
+    "yearMonth": null
   },
   "title": "Kia K5 1.6 Turbo",
   "year_num": 2021

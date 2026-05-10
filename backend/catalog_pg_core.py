@@ -39,6 +39,17 @@ def _safe_int(v: Any) -> Optional[int]:
         return None
 
 
+def normalize_calendar_year_value(val: Optional[int]) -> Optional[int]:
+    """Год регистрации для колонки cars.year / фильтров: только YYYY или YYYYMM→YYYY."""
+    if val is None or val <= 0:
+        return None
+    if 1900 <= val <= 2100:
+        return val
+    if 190001 <= val <= 210012:
+        return val // 100
+    return None
+
+
 def _safe_float(v: Any) -> Optional[float]:
     try:
         if v is None or v == "":
@@ -106,12 +117,12 @@ def normalized_source(data: Dict[str, Any]) -> Optional[str]:
 
 
 def year_from_data(data: Dict[str, Any]) -> Optional[int]:
-    y = _safe_int(data.get("year"))
+    y = normalize_calendar_year_value(_safe_int(data.get("year")))
     if y:
         return y
     ym = _optional_str(data.get("yearMonth")) or _optional_str(data.get("year_month"))
     if ym and len(ym) >= 4 and ym[:4].isdigit():
-        return int(ym[:4])
+        return normalize_calendar_year_value(int(ym[:4]))
     return None
 
 
@@ -294,7 +305,8 @@ def row_to_car_fields(
         "displacement_label": displacement_label,
         "price_rub": _listing_denormalized_price_rub(pricing, d),
         "mileage_km": _safe_int(spec.get("mileage_km")) or _safe_int(d.get("km_age")),
-        "year": _safe_int(identity.get("year")) or year_from_data(d),
+        "year": normalize_calendar_year_value(_safe_int(identity.get("year")))
+        or year_from_data(d),
         "year_month": year_month_ordinal(d),
         "insurance_cases": ins_n_safe,
         "insurance_payout_krw": ins_krw_safe,

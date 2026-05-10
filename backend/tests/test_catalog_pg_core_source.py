@@ -121,3 +121,10 @@ def test_row_to_car_fields_legacy_when_clean_mode_off(monkeypatch: pytest.Monkey
     assert f["mark"] == "legacy-mark"
     assert f["model"] == "legacy-model"
     assert f["price_rub"] == 1111.0
+
+
+def test_row_to_car_fields_normalizes_yyyymm_year_to_calendar(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
+    payload = {"data": {"mark": "Kia", "model": "Rio", "year": 202103}}
+    f = row_to_car_fields("encar-y1", payload)
+    assert f["year"] == 2021

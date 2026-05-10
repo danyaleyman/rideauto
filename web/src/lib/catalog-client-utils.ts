@@ -133,6 +133,32 @@ export function carPassabilityStatus(data: Record<string, unknown>): Passability
   return "old";
 }
 
+function parseDisplacementCcLoose(v: unknown): number | null {
+  const s = asStr(v);
+  if (!s) return null;
+  const cc = /(\d{3,5})\s*(?:cc|см3|см³)/i.exec(s);
+  if (cc) return Number(cc[1]);
+  const liters = /(\d(?:[.,]\d)?)\s*(?:t|l)\b/i.exec(s);
+  if (liters) {
+    const n = Number(liters[1].replace(",", "."));
+    if (Number.isFinite(n) && n > 0) return Math.round(n * 1000);
+  }
+  const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
+  if (!Number.isFinite(plain) || plain <= 0 || plain > 10000) return null;
+  return plain;
+}
+
+export function catalogCardDisplacementCc(data: Record<string, unknown>): number | null {
+  const ccRaw =
+    data.displacement_cc ??
+    data.displacement ??
+    data.engine_volume ??
+    data.engine_displacement ??
+    data.displacement_ml;
+  const ccNum = typeof ccRaw === "number" ? Math.trunc(ccRaw) : parseDisplacementCcLoose(ccRaw);
+  return Number.isFinite(ccNum) && ccNum > 0 ? ccNum : null;
+}
+
 export function formatDisplacementLiters(cc: number): string {
   const liters = cc / 1000;
   const rounded = Math.round(liters * 10) / 10;
@@ -172,20 +198,6 @@ export function catalogCardAttributeChips(
     const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
     return Number.isFinite(plain) && plain > 0 ? plain : null;
   };
-  const parseCc = (v: unknown): number | null => {
-    const s = asStr(v);
-    if (!s) return null;
-    const cc = /(\d{3,5})\s*(?:cc|см3|см³)/i.exec(s);
-    if (cc) return Number(cc[1]);
-    const liters = /(\d(?:[.,]\d)?)\s*(?:t|l)\b/i.exec(s);
-    if (liters) {
-      const n = Number(liters[1].replace(",", "."));
-      if (Number.isFinite(n) && n > 0) return Math.round(n * 1000);
-    }
-    const plain = Number.parseInt(s.replace(/[^\d]/g, ""), 10);
-    if (!Number.isFinite(plain) || plain <= 0 || plain > 10000) return null;
-    return plain;
-  };
   const chips: { key: string; label: string; Icon: LucideIcon }[] = [];
   const ym = formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year);
   if (ym) chips.push({ key: "ym", label: ym, Icon: CalendarDays });
@@ -208,14 +220,7 @@ export function catalogCardAttributeChips(
   if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
   const normalizedFuelLower = (fuelLabel || "").toLowerCase();
   const isElectricFuel = normalizedFuelLower.startsWith("электро");
-  const ccRaw =
-    data.displacement_cc ??
-    data.displacement ??
-    data.engine_volume ??
-    data.engine_displacement ??
-    data.displacement_ml;
-  const ccNum = typeof ccRaw === "number" ? Math.trunc(ccRaw) : parseCc(ccRaw);
-  const ccValue = Number.isFinite(ccNum) ? ccNum : null;
+  const ccValue = catalogCardDisplacementCc(data);
   if (!isElectricFuel && ccValue !== null && ccValue > 0) {
     chips.push({ key: "cc", label: formatDisplacementLiters(ccValue), Icon: Settings2 });
   }
@@ -231,11 +236,17 @@ export function catalogCardAttributeChips(
 export function cardOverlayBadges(
   data: Record<string, unknown>,
   yearNum?: number | null,
-  market: Market = "korea",
+  _market: Market = "korea",
 ): string[] {
   const out: string[] = [];
   if (yearNum && Number.isFinite(yearNum)) out.push(String(Math.trunc(yearNum)));
-  if (market === "china") return out.slice(0, 1);
+  const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
+  const fuelLabel = normalizeFuelLabel(fuel);
+  const isElectricFuel = (fuelLabel || "").toLowerCase().startsWith("электро");
+  const ccVal = catalogCardDisplacementCc(data);
+  if (!isElectricFuel && ccVal !== null && ccVal > 0) {
+    out.push(formatDisplacementLiters(ccVal));
+  }
   return out.slice(0, 4);
 }
 

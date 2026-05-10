@@ -37,7 +37,7 @@ CHINA_BROKER_RUB = 86_100
 VTB_BANK_TRANSFER_RATE = 0.02
 
 # Bump при изменении формул/констант China-калькулятора (метрики каталога, repair).
-CHINA_PRICING_RULES_VERSION = "2026.05.03"
+CHINA_PRICING_RULES_VERSION = "2026.05.10"
 logger = logging.getLogger(__name__)
 
 
@@ -88,6 +88,13 @@ def parse_price_cny(car_data: Dict[str, Any]) -> float:
     s = str(raw).strip().replace(" ", "").replace(",", "")
     if not s:
         return 0.0
+    if "万" in s:
+        s2 = s.replace("万", "").replace("，", ",")
+        try:
+            v = float(s2)
+            return v * 10_000.0 if v > 0 else 0.0
+        except ValueError:
+            return 0.0
     try:
         v = float(s)
         return v if v > 0 else 0.0

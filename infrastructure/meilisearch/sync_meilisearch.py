@@ -156,12 +156,14 @@ def _parse_int_km(v: Any) -> Optional[int]:
 
 
 def _year_for_document(row: Dict[str, Any]) -> Optional[int]:
-    """Год в индексе: колонка cars.year или из year_month (YYYYMM), иначе None."""
+    """Год в индексе: только календарный YYYY (из колонки year или year_month YYYYMM)."""
     if row.get("year") is not None and str(row.get("year")).strip() != "":
         try:
             y = int(row["year"])
-            if y > 0:
+            if 1900 <= y <= 2100:
                 return y
+            if 190001 <= y <= 210012:
+                return y // 100
         except (TypeError, ValueError):
             pass
     ym = row.get("year_month")

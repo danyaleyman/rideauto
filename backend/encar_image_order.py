@@ -27,6 +27,42 @@ def _sort_encar_image_url_list(urls: List[str]) -> List[str]:
     return sorted((u for u in urls if isinstance(u, str)), key=lambda u: (_encar_image_url_seq(u), u))
 
 
+def _h_image_semantic_bucket(h: dict) -> int:
+    """
+    Грубая группа для Encar h_images: сначала экстерьер, затем прочие кадры, интерьер, диагностика/хвост.
+    0=exterior 1=unknown 2=interior 3=diagnosis
+    """
+    t = f"{(h or {}).get('type') or ''} {(h or {}).get('desc') or ''}".lower()
+    ty = str((h or {}).get("type") or "").strip().upper()
+    if ty == "DIAG2" or "diag2" in t or "underbody" in t or "하부" in t:
+        return 3
+    interior_markers = (
+        "interior",
+        "inside",
+        "cabin",
+        "내장",
+        "실내",
+        "内饰",
+        "내부",
+        "in_room",
+    )
+    if any(m in t for m in interior_markers):
+        return 2
+    exterior_markers = (
+        "exterior",
+        "outside",
+        "외관",
+        "전면",
+        "측면",
+        "후면",
+        "外观",
+        "out_side",
+    )
+    if any(m in t for m in exterior_markers):
+        return 0
+    return 1
+
+
 def _sort_h_images_list_entries(items: List[dict]) -> List[dict]:
     def seq(h: dict) -> int:
         path = str((h or {}).get("path") or "")
@@ -43,4 +79,7 @@ def _sort_h_images_list_entries(items: List[dict]) -> List[dict]:
             return int(c.strip(), 10)
         return 10**9
 
-    return sorted((x for x in items if isinstance(x, dict)), key=lambda h: (seq(h), str(h.get("path") or "")))
+    return sorted(
+        (x for x in items if isinstance(x, dict)),
+        key=lambda h: (_h_image_semantic_bucket(h), seq(h), str(h.get("path") or "")),
+    )

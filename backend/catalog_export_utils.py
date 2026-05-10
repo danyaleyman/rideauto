@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 from typing import Any, Iterator
 
-from encar_image_order import _sort_encar_image_url_list, _sort_h_images_list_entries
+from catalog_media_order import normalize_images_field_in_data
+from encar_image_order import _sort_h_images_list_entries
 
 
 def fill_power_from_external(data: dict) -> None:
@@ -71,18 +72,7 @@ def normalize_car_media_fields(car: dict) -> None:
     data = car.get("data")
     if not isinstance(data, dict):
         return
-    raw_im = data.get("images")
-    if isinstance(raw_im, str):
-        try:
-            arr = json.loads(raw_im)
-        except Exception:
-            arr = None
-        if isinstance(arr, list):
-            s = _sort_encar_image_url_list([x for x in arr if isinstance(x, str)])
-            data["images"] = json.dumps(s, ensure_ascii=False)
-    elif isinstance(raw_im, list):
-        s = _sort_encar_image_url_list([x for x in raw_im if isinstance(x, str)])
-        data["images"] = s
+    normalize_images_field_in_data(data)
     raw_h = data.get("h_images")
     if isinstance(raw_h, str):
         try:
