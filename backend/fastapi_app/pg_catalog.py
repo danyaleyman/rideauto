@@ -55,6 +55,27 @@ _SELECT_CAR_ROWS = """
     WHERE car_id = ANY($1::text[])
 """
 
+_SELECT_CAR_BY_ID_ROW = """
+    SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
+           dedupe_canonical_car_id
+    FROM cars
+    WHERE car_id = $1
+    LIMIT 1
+"""
+
+# Отдельно от поиска по car_id: OR по выражениям JSON ломает использование индекса car_id и на большой
+# таблице даёт seq scan до таймаута asyncpg (см. /api/car/{ref}).
+_SELECT_CAR_BY_JSON_REF = """
+    SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
+           dedupe_canonical_car_id
+    FROM cars
+    WHERE (data->>'id') = $1
+       OR (data->'data'->>'inner_id') = $1
+       OR (data->>'inner_id') = $1
+    ORDER BY id DESC
+    LIMIT 1
+"""
+
 
 async def _load_cars_closure(pool: asyncpg.Pool, seeds: List[str]) -> Tuple[Dict[str, asyncpg.Record], Dict[str, Optional[str]]]:
     """Загружает строки cars, следуя dedupe_canonical_car_id, пока не соберутся все узлы цепочки."""
@@ -109,20 +130,9 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
     if not ref or not ref.strip():
         return None
     q = ref.strip()
-    row = await pool.fetchrow(
-        """
-        SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
-               dedupe_canonical_car_id
-        FROM cars
-        WHERE car_id = $1
-           OR (data->>'id') = $1
-           OR (data->'data'->>'inner_id') = $1
-           OR (data->>'inner_id') = $1
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        q,
-    )
+    row = await pool.fetchrow(_SELECT_CAR_BY_ID_ROW, q)
+    if not row:
+        row = await pool.fetchrow(_SELECT_CAR_BY_JSON_REF, q)
     if not row:
         return None
 
