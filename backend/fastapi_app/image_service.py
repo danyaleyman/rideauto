@@ -89,6 +89,34 @@ def validate_digest(digest: str) -> str:
     return d
 
 
+def _upstream_body_kind(data: bytes) -> str:
+    """Грубая классификация тела ответа для диагностики (без полного парсинга)."""
+    if not data:
+        return "empty"
+    head = data.lstrip()[:800]
+    hl = head.lower()
+    if hl.startswith(b"<!doctype") or hl.startswith(b"<html") or hl.startswith(b"<head"):
+        return "html"
+    if head.startswith(b"<") or head.startswith(b"{"):
+        return "text_or_markup"
+    d = data
+    if len(d) >= 3 and d[:3] == b"\xff\xd8\xff":
+        return "jpeg"
+    if len(d) >= 8 and d[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if len(d) >= 6 and d[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if len(d) >= 12 and d[:4] == b"RIFF" and d[8:12] == b"WEBP":
+        return "webp"
+    if len(d) >= 2 and d[:2] == b"BM":
+        return "bmp"
+    if len(d) >= 12 and d[4:8] == b"ftyp":
+        return "isobmff"
+    if len(data) < 24:
+        return "too_short"
+    return "unknown"
+
+
 def _validate_source_url(url: str, allowed: FrozenSet[str]) -> str:
     u = (url or "").strip()
     if not u:
@@ -105,13 +133,58 @@ def _validate_source_url(url: str, allowed: FrozenSet[str]) -> str:
     return u
 
 
-def _resize_to_webp(image_bytes: bytes, max_side: int, *, quality: int = 82) -> bytes:
-    from PIL import Image
+def _resize_to_webp(
+    image_bytes: bytes,
+    max_side: int,
+    *,
+    quality: int = 82,
+    content_type: Optional[str] = None,
+    digest_prefix: str = "",
+) -> bytes:
+    from PIL import Image, ImageFile
+
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+    ct = (content_type or "").split(";")[0].strip().lower()
+    if ct and any(
+        x in ct
+        for x in (
+            "text/html",
+            "application/json",
+            "text/json",
+            "text/plain",
+            "application/xml",
+            "text/xml",
+        )
+    ):
+        raise ImageServiceError("upstream Content-Type is not an image")
+
+    kind = _upstream_body_kind(image_bytes)
+    if kind in ("html", "text_or_markup"):
+        raise ImageServiceError("upstream returned HTML/JSON instead of image (hotlink or error page)")
+    if kind == "empty":
+        raise ImageServiceError("empty image response from upstream")
+    if kind == "too_short":
+        raise ImageServiceError("image response too short")
 
     try:
         im = Image.open(io.BytesIO(image_bytes))
+        im.load()
     except Exception as e:
-        raise ImageServiceError("unrecognized image format") from e
+        hint = kind if kind != "unknown" else "unknown_bytes"
+        _log.warning(
+            "pillow open failed digest=%s kind=%s ct=%r bytes=%s err=%s",
+            digest_prefix[:12] if digest_prefix else "?",
+            hint,
+            ct or None,
+            len(image_bytes),
+            e,
+        )
+        if kind == "isobmff":
+            raise ImageServiceError(
+                "image format not supported (AVIF/HEIC); upstream returned ISO BMFF container"
+            ) from e
+        raise ImageServiceError("unrecognized or corrupt image (not JPEG/PNG/WebP/GIF)") from e
     if im.mode in ("RGBA", "P"):
         im = im.convert("RGBA")
     else:
@@ -132,10 +205,11 @@ async def _fetch_bytes(
     timeout_sec: float,
     max_bytes: int,
     headers: Optional[dict[str, str]] = None,
-) -> bytes:
+) -> tuple[bytes, Optional[str]]:
     hdrs = {
         "User-Agent": "ProdEncar-ImageProxy/1.0",
-        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        # Без приоритета image/avif: иначе часть CDN отдаёт AVIF, а Pillow без плагина не открывает.
+        "Accept": "image/webp,image/apng,image/jpeg,image/png,image/*,*/*;q=0.8",
     }
     if headers:
         hdrs.update(headers)
@@ -148,6 +222,7 @@ async def _fetch_bytes(
         ) as client:
             async with client.stream("GET", url, headers=hdrs) as r:
                 r.raise_for_status()
+                ctype = (r.headers.get("content-type") or "").split(";")[0].strip().lower() or None
                 total = 0
                 chunks: list[bytes] = []
                 async for chunk in r.aiter_bytes():
@@ -155,7 +230,7 @@ async def _fetch_bytes(
                     if total > max_bytes:
                         raise ImageFetchError("image too large")
                     chunks.append(chunk)
-                return b"".join(chunks)
+                return b"".join(chunks), ctype
     except httpx.HTTPError as e:
         raise ImageFetchError(str(e)) from e
 
@@ -226,7 +301,7 @@ async def ensure_cached_webp(
     ):
         extra_headers["Referer"] = referer_for_che168
 
-    raw = await _fetch_bytes(
+    raw, upstream_ct = await _fetch_bytes(
         canon,
         timeout_sec=fetch_timeout,
         max_bytes=max_bytes,
@@ -234,7 +309,12 @@ async def ensure_cached_webp(
     )
 
     def _build() -> bytes:
-        return _resize_to_webp(raw, _SIZE_MAX[size])
+        return _resize_to_webp(
+            raw,
+            _SIZE_MAX[size],
+            content_type=upstream_ct,
+            digest_prefix=digest,
+        )
 
     webp_bytes = await asyncio.to_thread(_build)
 
