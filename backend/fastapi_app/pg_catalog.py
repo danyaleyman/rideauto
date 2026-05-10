@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 import asyncpg
 
 from catalog_dedupe import terminal_car_id_for_dedupe_map
+
+_log = logging.getLogger(__name__)
+
+# Источники, выведенные из каталога: при отсутствии строки по car_id не ходим в JSON-fallback (seq scan / таймаут).
+DEPRECATED_SOURCES: Tuple[str, ...] = ("dongchedi",)
 
 
 def _merge_catalog_timestamps(obj: Dict[str, Any], row: Any) -> None:
@@ -170,6 +176,11 @@ async def fetch_cars_by_ids(pool: asyncpg.Pool, car_ids: List[str]) -> Dict[str,
     return out
 
 
+def _is_deprecated_prefixed_ref(q: str) -> bool:
+    ql = q.lower()
+    return any(ql.startswith(f"{src}-") for src in DEPRECATED_SOURCES)
+
+
 async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, Any]]:
     """Поиск по car_id или inner_id в JSON (как _car_row_by_any_id); дубли → каноническая карточка."""
     if not ref or not ref.strip():
@@ -177,6 +188,10 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
     q = ref.strip()
     row = await pool.fetchrow(_SELECT_CAR_BY_ANY_CAR_ID, _car_id_lookup_candidates(q))
     if not row:
+        # Мёртвые ссылки deprecated-* без car_id: JSON-fallback сканирует таблицу до command_timeout.
+        if _is_deprecated_prefixed_ref(q):
+            _log.debug("fetch_car_any_id: skip JSON fallback for deprecated source ref=%r", q)
+            return None
         row = await _fetch_row_by_json_ref_fields(pool, q)
     if not row:
         return None
