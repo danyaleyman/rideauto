@@ -189,6 +189,7 @@ export default async function CarPage({ params }: PageProps) {
         {imgs.length ? (
           <MotionFadeUp delay={0.04}>
             <CarPhotoGallery
+              key={carId}
               images={imgs}
               title={title}
               sourceKey={typeof d.source === "string" ? d.source : null}

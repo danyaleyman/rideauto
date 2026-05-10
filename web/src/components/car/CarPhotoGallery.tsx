@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProxiedCarGalleryUrls } from "@/lib/catalog-image-proxy";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
@@ -110,7 +110,9 @@ export default function CarPhotoGallery({
     el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   }, [lightboxOpen, lightboxIdx]);
 
-  if (!n || !current) return null;
+  if (!n) return null;
+
+  const lightboxMainSrc = mediumUrls[lightboxIdx] ?? "";
 
   const badgeVariant = carSourceBadgeVariant(sourceKey);
   const showSourceBadge = badgeVariant === "encar" || badgeVariant === "china";
@@ -145,16 +147,23 @@ export default function CarPhotoGallery({
             tabIndex={0}
             aria-label="Открыть галерею фото"
           >
-            <Image
-              src={current}
-              alt={`${title} — фото ${safeActive + 1}`}
-              fill
-              sizes="(min-width: 1536px) 900px, (min-width: 1280px) 75vw, (min-width: 1024px) 72vw, 100vw"
-              className="object-cover object-center"
-              priority
-              fetchPriority="high"
-              unoptimized
-            />
+            {current ? (
+              <Image
+                src={current}
+                alt={`${title} — фото ${safeActive + 1}`}
+                fill
+                sizes="(min-width: 1536px) 900px, (min-width: 1280px) 75vw, (min-width: 1024px) 72vw, 100vw"
+                className="object-cover object-center"
+                priority
+                fetchPriority="high"
+                unoptimized
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center bg-muted">
+                <Loader2 className="size-10 animate-spin text-muted-foreground" aria-hidden />
+                <span className="sr-only">Загрузка фото…</span>
+              </div>
+            )}
             {availability === "sold" ? (
               <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/58 px-4">
                 <p className="text-center text-base font-semibold leading-snug text-white drop-shadow-md sm:text-lg">
@@ -250,15 +259,19 @@ export default function CarPhotoGallery({
                           : `Показать фото ${idx + 1}`
                       }
                     >
-                      <Image
-                        src={src}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1024px) 200px, 28vw"
-                        className="object-cover"
-                        loading="lazy"
-                        unoptimized
-                      />
+                      {src ? (
+                        <Image
+                          src={src}
+                          alt=""
+                          fill
+                          sizes="(min-width: 1024px) 200px, 28vw"
+                          className="object-cover"
+                          loading="lazy"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="size-full animate-pulse bg-muted/90" aria-hidden />
+                      )}
                       {showMore ? (
                         <span className="absolute inset-0 flex items-center justify-center bg-black/65 px-1 text-center text-[10px] font-semibold leading-tight text-white sm:text-xs">
                           +{moreCount} фото
@@ -315,14 +328,21 @@ export default function CarPhotoGallery({
             ) : null}
 
             <div className="relative flex max-h-[calc(100dvh-11rem)] w-full max-w-[min(1400px,96vw)] items-center justify-center">
-              <Image
-                src={mediumUrls[lightboxIdx] ?? current}
-                alt={`${title} — ${lightboxIdx + 1} из ${n}`}
-                width={1800}
-                height={1200}
-                className="max-h-[calc(100dvh-11rem)] w-auto max-w-full object-contain"
-                unoptimized
-              />
+              {lightboxMainSrc ? (
+                <Image
+                  src={lightboxMainSrc}
+                  alt={`${title} — ${lightboxIdx + 1} из ${n}`}
+                  width={1800}
+                  height={1200}
+                  className="max-h-[calc(100dvh-11rem)] w-auto max-w-full object-contain"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex min-h-[40vh] items-center justify-center">
+                  <Loader2 className="size-12 animate-spin text-white/70" aria-hidden />
+                  <span className="sr-only">Загрузка фото…</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -382,7 +402,11 @@ export default function CarPhotoGallery({
                     aria-label={`Фото ${i + 1}`}
                     aria-current={i === lightboxIdx ? "true" : undefined}
                   >
-                    <Image src={src} alt="" fill className="object-cover" sizes="96px" unoptimized />
+                    {src ? (
+                      <Image src={src} alt="" fill className="object-cover" sizes="96px" unoptimized />
+                    ) : (
+                      <div className="size-full animate-pulse bg-white/10" aria-hidden />
+                    )}
                   </button>
                 ))}
               </div>

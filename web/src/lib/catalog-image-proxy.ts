@@ -32,15 +32,26 @@ export async function catalogImageProxyUrl(url: string, size: GalleryImageSize):
   return `/api/images/${digest}?size=${size}&src=${encodeURIComponent(raw)}`;
 }
 
+function thumbPlaceholderRow(list: string[]): string[] {
+  return list.map((u) => (catalogImageNeedsProxy(u) ? "" : u));
+}
+
 export function useProxiedCatalogThumbUrls(urls: string[]): string[] {
-  const [out, setOut] = useState(urls);
+  const [out, setOut] = useState(() => thumbPlaceholderRow(urls));
   const urlsRef = useRef(urls);
   urlsRef.current = urls;
   const key = urls.join("\n");
   useEffect(() => {
     const list = urlsRef.current;
-    setOut(list);
-    if (!list.length || !list.some(catalogImageNeedsProxy)) return;
+    if (!list.length) {
+      setOut([]);
+      return;
+    }
+    if (!list.some(catalogImageNeedsProxy)) {
+      setOut(list);
+      return;
+    }
+    setOut(thumbPlaceholderRow(list));
     let cancelled = false;
     void (async () => {
       const next = await Promise.all(
@@ -71,7 +82,7 @@ export function useBatchProxiedCatalogThumbUrls(
 
   const baseMap = useMemo(() => {
     const m = new Map<string, string[]>();
-    for (const r of rows) m.set(r.key, [...r.urls]);
+    for (const r of rows) m.set(r.key, thumbPlaceholderRow([...r.urls]));
     return m;
   }, [rows]);
 
@@ -119,16 +130,27 @@ export function useBatchProxiedCatalogThumbUrls(
 }
 
 export function useProxiedCarGalleryUrls(urls: string[]): { thumbUrls: string[]; mediumUrls: string[] } {
-  const [thumbUrls, setThumbUrls] = useState(urls);
-  const [mediumUrls, setMediumUrls] = useState(urls);
+  const galleryPlaceholder = (list: string[]) => list.map((u) => (catalogImageNeedsProxy(u) ? "" : u));
+  const [thumbUrls, setThumbUrls] = useState(() => galleryPlaceholder(urls));
+  const [mediumUrls, setMediumUrls] = useState(() => galleryPlaceholder(urls));
   const urlsRef = useRef(urls);
   urlsRef.current = urls;
   const key = urls.join("\n");
   useEffect(() => {
     const list = urlsRef.current;
-    setThumbUrls(list);
-    setMediumUrls(list);
-    if (!list.length || !list.some(catalogImageNeedsProxy)) return;
+    if (!list.length) {
+      setThumbUrls([]);
+      setMediumUrls([]);
+      return;
+    }
+    if (!list.some(catalogImageNeedsProxy)) {
+      setThumbUrls(list);
+      setMediumUrls(list);
+      return;
+    }
+    const pending = galleryPlaceholder(list);
+    setThumbUrls(pending);
+    setMediumUrls(pending);
     let cancelled = false;
     void (async () => {
       const t = await Promise.all(
