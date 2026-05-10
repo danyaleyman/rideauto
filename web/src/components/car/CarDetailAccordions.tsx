@@ -12,19 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import {
   asStr,
   cleanScalarText,
-  diagnosisStatusTone,
   buildNormalizedCarTitle,
   formatHumanDate,
   formatInspectionListItem,
   formatKm,
-  formatKrw,
   normalizeFuelLabel,
-  formatRubFromUnknown,
   formatRegYearMonth,
   getPath,
   joinUniqueSpecs,
   prettifyDataKey,
-  toneClass,
   translateKoToRuText,
 } from "@/lib/car-detail-data";
 import {
@@ -380,10 +376,14 @@ function BodyConditionSection({
     [outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems],
   );
 
-  const tabs = [
-    { key: "external" as const, title: "Внешние элементы", rows: groups.external },
-    { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
-  ];
+  const tabs = useMemo(
+    () =>
+      [
+        { key: "external" as const, title: "Внешние элементы", rows: groups.external },
+        { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
+      ] as const,
+    [groups.external, groups.internal],
+  );
   const [activeTab, setActiveTab] = useState<"external" | "internal">("external");
   useEffect(() => {
     if (!tabs.length) return;
@@ -439,7 +439,6 @@ function BodyConditionSection({
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={activeTab}
-          layout
           initial={reduceMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
@@ -704,7 +703,6 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={insuranceTab}
-              layout
               initial={reduceMotion ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
@@ -821,15 +819,17 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     }
     return buckets;
   }, [allLabels]);
-  const groupMetaBase = [
-    { key: "assist", title: "Ассистенты" },
-    { key: "interior", title: "Интерьер и экстерьер" },
-    { key: "safety", title: "Безопасность" },
-    { key: "comfort", title: "Комфорт" },
-    { key: "media", title: "Мультимедиа" },
-    { key: "other", title: "Прочее" },
-  ] as const satisfies ReadonlyArray<{ key: OptGroupKey; title: string }>;
-  const groupMeta = groupMetaBase.filter((g) => grouped[g.key].length > 0);
+  const groupMeta = useMemo(() => {
+    const base: ReadonlyArray<{ key: OptGroupKey; title: string }> = [
+      { key: "assist", title: "Ассистенты" },
+      { key: "interior", title: "Интерьер и экстерьер" },
+      { key: "safety", title: "Безопасность" },
+      { key: "comfort", title: "Комфорт" },
+      { key: "media", title: "Мультимедиа" },
+      { key: "other", title: "Прочее" },
+    ];
+    return base.filter((g) => grouped[g.key].length > 0);
+  }, [grouped]);
   const [activeGroup, setActiveGroup] = useState<OptGroupKey>("assist");
   useEffect(() => {
     if (!groupMeta.length) return;
@@ -862,7 +862,6 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={activeGroup}
-              layout
               initial={reduceMotion ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
@@ -895,6 +894,34 @@ function normalizeDiagValue(raw: string): string {
   const t = raw.trim().toLowerCase();
   if (t === "нет") return "В норме";
   return raw;
+}
+
+function jsonForDiagPreview(v: object): string {
+  try {
+    const s = JSON.stringify(v);
+    if (s.length <= 8000) return s;
+    return `${s.slice(0, 8000)}…`;
+  } catch {
+    return "";
+  }
+}
+
+function toStructuredDiagRows(obj: Record<string, unknown> | undefined): Array<{ label: string; value: string }> {
+  if (!obj) return [];
+  return Object.entries(obj)
+    .map(([k, v]) => {
+      const base = asStr(v)
+        ? translateKoToRuText(asStr(v)!)
+        : typeof v === "object" && v !== null
+          ? translateKoToRuText(jsonForDiagPreview(v as object))
+          : "";
+      const cleaned = cleanScalarText(base);
+      if (!cleaned) return null;
+      const ruLabel = normalizeDiagLabel(translateKoToRuText(prettifyDataKey(k)));
+      const ruValue = normalizeDiagValue(translateKoToRuText(cleaned));
+      return { label: ruLabel, value: ruValue };
+    })
+    .filter((x): x is { label: string; value: string } => Boolean(x));
 }
 
 export function CarDetailAccordions({
@@ -1018,31 +1045,18 @@ export function CarDetailAccordions({
       : undefined;
 
   const defaultOpen = ["general"];
+  const [openSections, setOpenSections] = useState<string[]>(defaultOpen);
 
-  const toStructuredRows = (obj: Record<string, unknown> | undefined): Array<{ label: string; value: string }> => {
-    if (!obj) return [];
-    return Object.entries(obj)
-      .map(([k, v]) => {
-        const base = asStr(v)
-          ? translateKoToRuText(asStr(v)!)
-          : typeof v === "object"
-            ? translateKoToRuText(JSON.stringify(v))
-            : "";
-        const cleaned = cleanScalarText(base);
-        if (!cleaned) return null;
-        const ruLabel = normalizeDiagLabel(translateKoToRuText(prettifyDataKey(k)));
-        const ruValue = normalizeDiagValue(translateKoToRuText(cleaned));
-        return { label: ruLabel, value: ruValue };
-      })
-      .filter((x): x is { label: string; value: string } => Boolean(x));
-  };
-
-  const diagSections = [
-    { key: "engine", label: "Двигатель", rows: toStructuredRows(engineTransmission) },
-    { key: "chassis", label: "Ходовая и тормоза", rows: toStructuredRows(chassis) },
-    { key: "electrical", label: "Электрика", rows: toStructuredRows(electrical) },
-    { key: "additional", label: "Дополнительно", rows: toStructuredRows(additional) },
-  ].filter((x) => x.rows.length > 0);
+  const diagSections = useMemo(
+    () =>
+      [
+        { key: "engine", label: "Двигатель", rows: toStructuredDiagRows(engineTransmission) },
+        { key: "chassis", label: "Ходовая и тормоза", rows: toStructuredDiagRows(chassis) },
+        { key: "electrical", label: "Электрика", rows: toStructuredDiagRows(electrical) },
+        { key: "additional", label: "Дополнительно", rows: toStructuredDiagRows(additional) },
+      ].filter((x) => x.rows.length > 0),
+    [engineTransmission, chassis, electrical, additional],
+  );
   const [activeDiagTab, setActiveDiagTab] = useState<string>(diagSections[0]?.key ?? "engine");
   const activeDiag = diagSections.find((x) => x.key === activeDiagTab) ?? diagSections[0];
   useEffect(() => {
@@ -1055,7 +1069,8 @@ export function CarDetailAccordions({
   return (
     <Accordion
       type="multiple"
-      defaultValue={defaultOpen}
+      value={openSections}
+      onValueChange={setOpenSections}
       className="mt-6 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.07] sm:rounded-3xl"
     >
       <AccordionItem value="general" className="first:rounded-t-3xl">
@@ -1072,7 +1087,7 @@ export function CarDetailAccordions({
           Комплектация
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
-          <EquipmentSection d={data} extra={extra} />
+          {openSections.includes("equipment") ? <EquipmentSection d={data} extra={extra} /> : null}
         </AccordionContent>
       </AccordionItem>
 
@@ -1081,18 +1096,20 @@ export function CarDetailAccordions({
           Состояние кузова
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
-          <div className="space-y-4">
-            <BodyConditionSection
-              outers={outers}
-              bodyPanels={bodyPanels}
-              bodyChanged={bodyChanged}
-              paintPartTypes={paintPartTypes}
-              seriousTypes={seriousTypes}
-              diagnosisItems={diagnosisItems}
-              accident={accident}
-              simpleRepair={simpleRepair}
-            />
-          </div>
+          {openSections.includes("body") ? (
+            <div className="space-y-4">
+              <BodyConditionSection
+                outers={outers}
+                bodyPanels={bodyPanels}
+                bodyChanged={bodyChanged}
+                paintPartTypes={paintPartTypes}
+                seriousTypes={seriousTypes}
+                diagnosisItems={diagnosisItems}
+                accident={accident}
+                simpleRepair={simpleRepair}
+              />
+            </div>
+          ) : null}
         </AccordionContent>
       </AccordionItem>
 
@@ -1101,52 +1118,53 @@ export function CarDetailAccordions({
           Диагностика и техсостояние
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
-          <div className="space-y-5">
-            {diagSections.length > 0 ? (
-              <div className="space-y-3">
-                <div className={SWITCH_BAR_CLASS}>
-                  {diagSections.map((section) => (
-                    <button
-                      key={section.key}
-                      type="button"
-                      onClick={() => setActiveDiagTab(section.key)}
-                      className={`${SWITCH_BUTTON_CLASS} ${
-                        activeDiag?.key === section.key
-                          ? "bg-background shadow-sm text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {section.label}
-                    </button>
-                  ))}
+          {openSections.includes("diagnosis") ? (
+            <div className="space-y-5">
+              {diagSections.length > 0 ? (
+                <div className="space-y-3">
+                  <div className={SWITCH_BAR_CLASS}>
+                    {diagSections.map((section) => (
+                      <button
+                        key={section.key}
+                        type="button"
+                        onClick={() => setActiveDiagTab(section.key)}
+                        className={`${SWITCH_BUTTON_CLASS} ${
+                          activeDiag?.key === section.key
+                            ? "bg-background shadow-sm text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {section.label}
+                      </button>
+                    ))}
+                  </div>
+                  <AnimatePresence mode="wait" initial={false}>
+                    {activeDiag ? (
+                      <motion.div
+                        key={activeDiag.key}
+                        initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+                        className="overflow-hidden"
+                      >
+                        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                          {activeDiag.rows.map((row) => (
+                            <li key={`${activeDiag.key}-${row.label}`} className="rounded-lg border border-border/45 bg-background px-2.5 py-2">
+                              <p className="text-xs text-muted-foreground">{row.label}</p>
+                              <p className="mt-1 text-sm font-medium">{row.value}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
-                <AnimatePresence mode="wait" initial={false}>
-                  {activeDiag ? (
-                    <motion.div
-                      key={activeDiag.key}
-                      layout
-                      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
-                      transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
-                      className="overflow-hidden"
-                    >
-                      <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                        {activeDiag.rows.map((row) => (
-                          <li key={`${activeDiag.key}-${row.label}`} className="rounded-lg border border-border/45 bg-background px-2.5 py-2">
-                            <p className="text-xs text-muted-foreground">{row.label}</p>
-                            <p className="mt-1 text-sm font-medium">{row.value}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Подробная карта диагностики в источнике недоступна. Показываем подтвержденные данные из отчета.</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Подробная карта диагностики в источнике недоступна. Показываем подтвержденные данные из отчета.</p>
+              )}
+            </div>
+          ) : null}
         </AccordionContent>
       </AccordionItem>
 
@@ -1155,11 +1173,13 @@ export function CarDetailAccordions({
           Страховые случаи и история
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
-          {recordOpen && Object.keys(recordOpen).length > 0 ? (
-            <RecordOpenSection ro={recordOpen} />
-          ) : (
-            <p className="text-sm text-muted-foreground">Страховая история в источнике не опубликована. По запросу менеджер уточнит данные у продавца.</p>
-          )}
+          {openSections.includes("insurance") ? (
+            recordOpen && Object.keys(recordOpen).length > 0 ? (
+              <RecordOpenSection ro={recordOpen} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Страховая история в источнике не опубликована. По запросу менеджер уточнит данные у продавца.</p>
+            )
+          ) : null}
         </AccordionContent>
       </AccordionItem>
 

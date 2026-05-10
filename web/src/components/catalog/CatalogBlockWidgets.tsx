@@ -126,16 +126,20 @@ export function ListRowSkeleton() {
 
 export function CatalogCardImage({
   images,
+  displayImages: displayImagesProp,
   alt,
   eager,
   sold,
 }: {
   images: string[];
+  /** Если задано (например батч из родителя), не вызываем отдельный прокси-хук на карточку. */
+  displayImages?: string[];
   alt: string;
   eager: boolean;
   sold?: boolean;
 }) {
-  const displayImages = useProxiedCatalogThumbUrls(images);
+  const hooked = useProxiedCatalogThumbUrls(displayImagesProp != null ? [] : images);
+  const displayImages = displayImagesProp ?? hooked;
   const [idx, setIdx] = useState(0);
   const canCycle = displayImages.length > 1;
 

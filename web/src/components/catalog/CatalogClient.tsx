@@ -41,6 +41,7 @@ import { fetchCatalogDailyAdditions, fetchFacetsClient, fetchSearchClient } from
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
 import { isCatalogDiagEnabled, sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
+import { useBatchProxiedCatalogThumbUrls } from "@/lib/catalog-image-proxy";
 import { dedupeSlimCarsByVin } from "@/lib/catalog-vin-dedupe";
 import {
   buildNormalizedCarTitle,
@@ -450,6 +451,12 @@ export function CatalogClient({
 
   /** Один автомобиль может иметь несколько объявлений с разными id — склеиваем по VIN на текущей странице выдачи. */
   const catalogCarsDisplay = useMemo(() => dedupeSlimCarsByVin(search.result), [search.result]);
+
+  const catalogGridThumbRows = useMemo(
+    () => catalogCarsDisplay.map((car) => ({ key: car.id, urls: previewImageUrls(car) })),
+    [catalogCarsDisplay],
+  );
+  const proxiedCatalogThumbsByCar = useBatchProxiedCatalogThumbUrls(catalogGridThumbRows);
 
   const facetLabelByValue = useMemo(() => {
     const f = facets ?? {
@@ -1059,7 +1066,7 @@ export function CatalogClient({
             key={key}
           >
             {catalogCarsDisplay.map((car, idx) => {
-              const preview = previewImageUrls(car);
+              const preview = catalogGridThumbRows[idx]?.urls ?? previewImageUrls(car);
               const cardDataRaw = (car.data ?? {}) as Record<string, unknown>;
               const carObj = car as unknown as Record<string, unknown>;
               const rawReadModel = carObj.read_model;
@@ -1251,6 +1258,7 @@ export function CatalogClient({
                       <div className="relative size-full">
                         <CatalogCardImage
                           images={preview}
+                          displayImages={proxiedCatalogThumbsByCar.get(car.id) ?? preview}
                           alt={normalizedTitle}
                           eager={idx < 4}
                           sold={listingUnavailable}
