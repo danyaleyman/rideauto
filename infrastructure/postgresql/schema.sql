@@ -146,6 +146,14 @@ CREATE INDEX IF NOT EXISTS idx_cars_che168_listing_checker
 
 CREATE INDEX IF NOT EXISTS idx_cars_data_gin ON cars USING GIN (data);
 
+-- JSON path lookups for /api/car when car_id does not match URL (see pg_catalog.fetch_car_any_id)
+CREATE INDEX IF NOT EXISTS idx_cars_data_json_text_id
+    ON cars ((data->>'id'), id DESC);
+CREATE INDEX IF NOT EXISTS idx_cars_data_json_inner_id
+    ON cars ((data->>'inner_id'), id DESC);
+CREATE INDEX IF NOT EXISTS idx_cars_data_json_nested_inner_id
+    ON cars ((data->'data'->>'inner_id'), id DESC);
+
 CREATE INDEX IF NOT EXISTS idx_cars_dedupe_canonical_target
     ON cars (dedupe_canonical_car_id)
     WHERE dedupe_canonical_car_id IS NOT NULL;

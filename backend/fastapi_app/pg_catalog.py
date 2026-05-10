@@ -55,26 +55,71 @@ _SELECT_CAR_ROWS = """
     WHERE car_id = ANY($1::text[])
 """
 
-_SELECT_CAR_BY_ID_ROW = """
-    SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
-           dedupe_canonical_car_id
-    FROM cars
-    WHERE car_id = $1
-    LIMIT 1
+_SELECT_CAR_COLS = """
+    car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
+    dedupe_canonical_car_id
 """
 
-# Отдельно от поиска по car_id: OR по выражениям JSON ломает использование индекса car_id и на большой
-# таблице даёт seq scan до таймаута asyncpg (см. /api/car/{ref}).
-_SELECT_CAR_BY_JSON_REF = """
-    SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
-           dedupe_canonical_car_id
+# Несколько вариантов car_id за один проход по уникальному индексу (голый inner_id в URL vs encar-… в БД).
+_SELECT_CAR_BY_ANY_CAR_ID = f"""
+    SELECT {_SELECT_CAR_COLS.strip()}
     FROM cars
-    WHERE (data->>'id') = $1
-       OR (data->'data'->>'inner_id') = $1
-       OR (data->>'inner_id') = $1
+    WHERE car_id = ANY($1::text[])
     ORDER BY id DESC
     LIMIT 1
 """
+
+# По одному предикату на запрос — планировщик может использовать btree-индексы на выражениях
+# (миграция idx_cars_data_json_*). OR в одном запросе на большой таблице даёт seq scan до таймаута.
+_SELECT_CAR_BY_DATA_ID = f"""
+    SELECT {_SELECT_CAR_COLS.strip()}
+    FROM cars
+    WHERE (data->>'id') = $1
+    ORDER BY id DESC
+    LIMIT 1
+"""
+_SELECT_CAR_BY_INNER_ID = f"""
+    SELECT {_SELECT_CAR_COLS.strip()}
+    FROM cars
+    WHERE (data->>'inner_id') = $1
+    ORDER BY id DESC
+    LIMIT 1
+"""
+_SELECT_CAR_BY_NESTED_INNER_ID = f"""
+    SELECT {_SELECT_CAR_COLS.strip()}
+    FROM cars
+    WHERE (data->'data'->>'inner_id') = $1
+    ORDER BY id DESC
+    LIMIT 1
+"""
+
+
+def _car_id_lookup_candidates(ref: str) -> List[str]:
+    q = (ref or "").strip()
+    if not q:
+        return []
+    out: List[str] = []
+    seen: set[str] = set()
+
+    def add(x: str) -> None:
+        if x and x not in seen:
+            seen.add(x)
+            out.append(x)
+
+    add(q)
+    # Поиск/карточка часто отдают голый числовой id (Encar), в БД — encar-41730887 и т.п.
+    if q.isdigit():
+        for prefix in ("encar", "che168", "dongchedi"):
+            add(f"{prefix}-{q}")
+    return out
+
+
+async def _fetch_row_by_json_ref_fields(pool: asyncpg.Pool, ref: str) -> Optional[asyncpg.Record]:
+    for sql in (_SELECT_CAR_BY_DATA_ID, _SELECT_CAR_BY_INNER_ID, _SELECT_CAR_BY_NESTED_INNER_ID):
+        row = await pool.fetchrow(sql, ref)
+        if row is not None:
+            return row
+    return None
 
 
 async def _load_cars_closure(pool: asyncpg.Pool, seeds: List[str]) -> Tuple[Dict[str, asyncpg.Record], Dict[str, Optional[str]]]:
@@ -130,9 +175,9 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
     if not ref or not ref.strip():
         return None
     q = ref.strip()
-    row = await pool.fetchrow(_SELECT_CAR_BY_ID_ROW, q)
+    row = await pool.fetchrow(_SELECT_CAR_BY_ANY_CAR_ID, _car_id_lookup_candidates(q))
     if not row:
-        row = await pool.fetchrow(_SELECT_CAR_BY_JSON_REF, q)
+        row = await _fetch_row_by_json_ref_fields(pool, q)
     if not row:
         return None
 
