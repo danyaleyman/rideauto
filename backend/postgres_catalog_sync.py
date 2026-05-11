@@ -7,8 +7,8 @@
 
 Опционально: статический дамп `web/public/cars.json` (+ chunks в `web/public/data/`), см. --write-static-json.
 
-Память: дедуп по listing key всё ещё держит JSON всех уникальных объявлений в RAM; пик снижается
-флагом --process-batch-size (обработка «сборка + цены + upsert» порциями, без второго гигантского списка).
+Память: дедуп хранит только (cars.id, car_id) на уникальный listing key; полный JSON подгружается
+батчами. Порция обработки — --process-batch-size (сборка + цены + upsert).
 """
 from __future__ import annotations
 
@@ -127,6 +127,25 @@ def _tree_for_pg_jsonb(value: Any) -> Any:
         return str(x)
 
     return _walk(value)
+
+
+def _coerce_pg_jsonb_dict(value: Any) -> Optional[dict]:
+    """Разбор JSONB/JSON в dict для ячеек cars.data (и аналогов)."""
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, (bytes, memoryview)):
+        try:
+            value = json.loads(bytes(value).decode("utf-8"))
+        except Exception:
+            return None
+    elif isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+    return value if isinstance(value, dict) else None
 
 
 def _dsn_from_config(config: dict) -> str:
@@ -318,44 +337,30 @@ def run_sync(
                 ORDER BY id ASC
                 """
             )
-            best: Dict[str, Tuple[int, str, Any, Any, Any, bool]] = {}
+            # Только id победившей строки: не копируем JSON всех карточек в RAM (иначе OOM на ~300k+).
+            best: Dict[str, Tuple[int, str]] = {}
             while True:
                 chunk = cur.fetchmany(500)
                 if not chunk:
                     break
                 for row in chunk:
-                    pg_id, car_id, data, raw, source_internal_id, needs_rq = row
-                    if data is None:
+                    pg_id, car_id, data, _raw, _source_internal_id, _needs_rq = row
+                    data_dict = _coerce_pg_jsonb_dict(data)
+                    if data_dict is None:
                         continue
-                    if isinstance(data, (bytes, memoryview)):
-                        try:
-                            data = json.loads(bytes(data).decode("utf-8"))
-                        except Exception:
-                            continue
-                    elif isinstance(data, str):
-                        try:
-                            data = json.loads(data)
-                        except json.JSONDecodeError:
-                            continue
-                    if not isinstance(data, dict):
-                        continue
-                    lk = listing_key_for_export(str(car_id), data)
+                    lk = listing_key_for_export(str(car_id), data_dict)
                     prev = best.get(lk)
                     if prev is None or int(pg_id) > int(prev[0]):
-                        best[lk] = (int(pg_id), str(car_id), data, raw, source_internal_id, bool(needs_rq))
+                        best[lk] = (int(pg_id), str(car_id))
 
-        ordered: List[Tuple[int, str, dict, Any, Any, bool]] = sorted(
-            ((int(t[0]), str(t[1]), t[2], t[3], t[4], bool(t[5])) for t in best.values()),
-            key=lambda x: x[0],
-        )
+        ordered: List[Tuple[int, str]] = sorted(best.values(), key=lambda x: x[0])
         del best
         n_total = len(ordered)
         print(f"Postgres catalog: unique listings={n_total} (from rows, deduped)", file=sys.stderr)
 
         proc_batch = max(1, int(process_batch_size))
         print(
-            f"Processing in memory batches of {proc_batch} (build + prices + upsert); "
-            f"dedupe index still holds all payloads (~{n_total} listings).",
+            f"Loading + processing batches of {proc_batch} rows (fetch JSONB by id, then prices + upsert).",
             file=sys.stderr,
         )
 
@@ -494,7 +499,39 @@ def run_sync(
         pending = 0
         for batch_lo in range(0, n_total, proc_batch):
             batch_hi = min(batch_lo + proc_batch, n_total)
-            slice_tuples = ordered[batch_lo:batch_hi]
+            id_slice = ordered[batch_lo:batch_hi]
+            batch_pg_ids = [p[0] for p in id_slice]
+            rows_by_pg: Dict[int, Tuple[str, dict, Any, Any, bool]] = {}
+            with conn.cursor() as bcur:
+                bcur.execute(
+                    """
+                    SELECT id, car_id, data, raw, source_internal_id, needs_pricing_recompute
+                    FROM cars
+                    WHERE id = ANY(%s)
+                    """,
+                    (batch_pg_ids,),
+                )
+                for brow in bcur.fetchall():
+                    b_pg_id, b_car_id, b_data, b_raw, b_src_id, b_needs = brow
+                    b_payload = _coerce_pg_jsonb_dict(b_data)
+                    if b_payload is None:
+                        continue
+                    rows_by_pg[int(b_pg_id)] = (
+                        str(b_car_id),
+                        b_payload,
+                        b_raw,
+                        b_src_id,
+                        bool(b_needs),
+                    )
+
+            slice_tuples: List[Tuple[int, str, dict, Any, Any, bool]] = []
+            for pg_id, _car_id_hint in id_slice:
+                rec = rows_by_pg.get(int(pg_id))
+                if rec is None:
+                    print(f"Warning: batch fetch missed cars.id={pg_id}, skip", file=sys.stderr)
+                    continue
+                car_id, payload, raw, source_internal_id, nr_flag = rec
+                slice_tuples.append((int(pg_id), car_id, payload, raw, source_internal_id, nr_flag))
 
             cars_out: List[dict] = []
             for _pg_id, car_id, payload, _raw, _sql_id, nr_flag in slice_tuples:
@@ -604,6 +641,8 @@ def run_sync(
             del cars_out
             del slice_tuples
             del meta_by_car_id
+            del rows_by_pg
+            del id_slice
 
             bidx = batch_lo // proc_batch
             if (bidx + 1) % 20 == 0 or batch_hi >= n_total:
