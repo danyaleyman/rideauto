@@ -140,13 +140,19 @@ def china_has_buyer_price(data: Optional[Dict[str, Any]]) -> bool:
 def china_has_source_price(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
-    p = data.get("price_cny")
-    try:
-        if p is not None and float(p) > 0:
-            return True
-    except (TypeError, ValueError):
-        pass
-    return False
+    # Та же нормализация, что в pricechina.parse_price_cny (строки с 万, запятыми и т.д.).
+    # Ленивый импорт: pricechina тянет этот модуль на уровне пакета.
+    from pricechina import parse_price_cny
+
+    if parse_price_cny(data) > 0:
+        return True
+    src = str(data.get("source") or "").strip().lower()
+    if src not in ("che168", "china"):
+        return False
+    alt = data.get("price")
+    if alt is None or alt == "":
+        return False
+    return parse_price_cny({"price_cny": alt}) > 0
 
 
 def clear_estimated_price_fields(data: Dict[str, Any]) -> None:

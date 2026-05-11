@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import asyncpg
 
 from catalog_dedupe import terminal_car_id_for_dedupe_map
+from catalog_pg_core import normalize_calendar_year_value
 
 _log = logging.getLogger(__name__)
 
@@ -29,6 +30,39 @@ def _merge_catalog_timestamps(obj: Dict[str, Any], row: Any) -> None:
             pass
 
 
+def _scalar_year_missing(v: Any) -> bool:
+    return v is None or v == "" or v == 0
+
+
+def _merge_denormalized_year_from_row(obj: Dict[str, Any], row: asyncpg.Record) -> None:
+    """Подмешивает cars.year / cars.year_month, если в JSON их нет (чипы и slim.year_num)."""
+    row_y = row.get("year")
+    row_ym = row.get("year_month")
+    if row_y is None and row_ym is None:
+        return
+    inner = obj.get("data")
+    target: Dict[str, Any] = inner if isinstance(inner, dict) else obj
+    if row_y is not None and _scalar_year_missing(target.get("year")):
+        try:
+            iy = int(row_y)
+        except (TypeError, ValueError):
+            iy = None
+        cy = normalize_calendar_year_value(iy) if iy is not None else None
+        if cy is not None:
+            target["year"] = cy
+    if row_ym is not None and _scalar_year_missing(target.get("yearMonth")) and _scalar_year_missing(
+        target.get("year_month")
+    ):
+        try:
+            iym = int(row_ym)
+        except (TypeError, ValueError):
+            iym = None
+        if iym is not None and 190_001 <= iym <= 210_012:
+            mo = iym % 100
+            if 1 <= mo <= 12:
+                target["yearMonth"] = str(iym)
+
+
 def _row_to_car_obj(row: asyncpg.Record) -> Optional[Dict[str, Any]]:
     cid = str(row["car_id"])
     data = row["data"]
@@ -43,6 +77,7 @@ def _row_to_car_obj(row: asyncpg.Record) -> Optional[Dict[str, Any]]:
         return None
     obj = dict(data)
     obj["id"] = cid
+    _merge_denormalized_year_from_row(obj, row)
     return obj
 
 
@@ -56,14 +91,14 @@ def _apply_row_flags(obj: Dict[str, Any], row: asyncpg.Record) -> None:
 
 _SELECT_CAR_ROWS = """
     SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
-           dedupe_canonical_car_id
+           dedupe_canonical_car_id, year, year_month
     FROM cars
     WHERE car_id = ANY($1::text[])
 """
 
 _SELECT_CAR_COLS = """
     car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
-    dedupe_canonical_car_id
+    dedupe_canonical_car_id, year, year_month
 """
 
 # Несколько вариантов car_id за один проход по уникальному индексу (голый inner_id в URL vs encar-… в БД).
@@ -208,7 +243,7 @@ async def fetch_car_any_id(pool: asyncpg.Pool, ref: str) -> Optional[Dict[str, A
         nxt_row = await pool.fetchrow(
             """
             SELECT car_id, data, created_at, updated_at, encar_listing_sold, che168_listing_sold,
-                   dedupe_canonical_car_id
+                   dedupe_canonical_car_id, year, year_month
             FROM cars
             WHERE car_id = $1
             LIMIT 1

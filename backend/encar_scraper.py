@@ -599,6 +599,9 @@ def _run_postgres_catalog_sync(config_path: str, config: dict[str, Any], log: lo
     ]
     if os.environ.get("WRITE_STATIC_CATALOG", "").strip().lower() in ("1", "true", "yes", "on"):
         cmd.extend(["--write-static-json", "--static-gzip", "--static-chunk-size", "5000"])
+    pbs = (os.environ.get("PG_CATALOG_PROCESS_BATCH_SIZE") or "").strip()
+    if pbs.isdigit() and int(pbs) >= 1:
+        cmd.extend(["--process-batch-size", str(int(pbs))])
     if os.environ.get("WRA_LEARN_ENGINE_MAP", "").strip().lower() in ("1", "true", "yes", "on"):
         cmd.append("--learn-engine-map")
     try:

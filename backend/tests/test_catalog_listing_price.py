@@ -171,3 +171,7 @@ def test_china_has_buyer_price():
 def test_china_has_source_price():
     assert china_has_source_price({"price_cny": 50000}) is True
     assert china_has_source_price({"price_cny": "0"}) is False
+    assert china_has_source_price({"price_cny": "100,000"}) is True
+    assert china_has_source_price({"price_cny": "12.5万"}) is True
+    assert china_has_source_price({"source": "che168", "price": 250_000, "price_cny": None}) is True
+    assert china_has_source_price({"source": "encar", "price": 250_000}) is False

@@ -6,6 +6,9 @@
 но upsert в Postgres через общую SQL-логику ingestion.
 
 Опционально: статический дамп `web/public/cars.json` (+ chunks в `web/public/data/`), см. --write-static-json.
+
+Память: дедуп по listing key всё ещё держит JSON всех уникальных объявлений в RAM; пик снижается
+флагом --process-batch-size (обработка «сборка + цены + upsert» порциями, без второго гигантского списка).
 """
 from __future__ import annotations
 
@@ -274,6 +277,8 @@ def run_sync(
     no_prices: bool = False,
     no_power_lookup: bool = False,
     batch_commit: int = 200,
+    process_batch_size: int = 500,
+    max_static_listings: int = 25_000,
     write_static_json: bool = False,
     static_gzip: bool = False,
     static_chunk_size: int = 0,
@@ -303,6 +308,7 @@ def run_sync(
     brand_cache: Dict[str, int] = {}
     model_cache: Dict[Tuple[int, str], int] = {}
 
+    static_sink: Optional[List[dict]] = None
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -342,29 +348,29 @@ def run_sync(
             ((int(t[0]), str(t[1]), t[2], t[3], t[4], bool(t[5])) for t in best.values()),
             key=lambda x: x[0],
         )
-        print(f"Postgres catalog: unique listings={len(ordered)} (from rows, deduped)", file=sys.stderr)
+        del best
+        n_total = len(ordered)
+        print(f"Postgres catalog: unique listings={n_total} (from rows, deduped)", file=sys.stderr)
 
-        cars_out: List[dict] = []
-        for _pg_id, car_id, payload, _raw, _sql_id, nr_flag in ordered:
-            car = dict(payload)
-            car["id"] = car_id
-            car["_pg_needs_pricing_recompute"] = bool(nr_flag)
-            if isinstance(car.get("data"), dict):
-                car["data"]["id"] = str(car_id)
-                normalize_car_media_fields(car)
-                if not no_power_lookup and not _uses_china_pipeline_pricing(car):
-                    fill_power_from_external(car["data"])
-                if _uses_china_pipeline_pricing(car):
-                    localize_china_data(car["data"], localizer)
-                else:
-                    localize_car_data(car["data"], localizer)
-                    # HP lookup runs again after EN/RU normalization: engine_map tends to match English marks
-                    # better than Korean-only strings passed on the first pass (before localize).
-                    if not no_power_lookup:
-                        fill_power_from_external(car["data"])
-            cars_out.append(car)
+        proc_batch = max(1, int(process_batch_size))
+        print(
+            f"Processing in memory batches of {proc_batch} (build + prices + upsert); "
+            f"dedupe index still holds all payloads (~{n_total} listings).",
+            file=sys.stderr,
+        )
 
-        if not no_prices and cars_out:
+        if write_static_json:
+            if max_static_listings > 0 and n_total > max_static_listings:
+                print(
+                    f"Warning: --write-static-json skipped: {n_total} listings > max_static_listings={max_static_listings} "
+                    f"(would duplicate full catalog in RAM). Use --max-static-listings 0 to force (OOM risk) or export separately.",
+                    file=sys.stderr,
+                )
+            else:
+                static_sink = []
+
+        calc_korea = calc_china = None
+        if not no_prices:
             try:
                 from market_pricing_shared import PricingFxRates
                 from pricechina import PriceCalculatorChina
@@ -377,199 +383,242 @@ def run_sync(
                 fx = PricingFxRates(config_path=str(cfg_path))
                 calc_korea = PriceCalculatorKorea(fx=fx)
                 calc_china = PriceCalculatorChina(fx=fx)
-                price_ok = price_failed = price_ok_china = price_skipped_china = 0
-                price_skipped_no_list = price_skipped_encar_on_request = 0
-                price_ok_land_only_encar = 0
-                for i, car in enumerate(cars_out):
-                    data = car.get("data")
-                    if data is None:
-                        data = car
-                    if not isinstance(data, dict):
-                        continue
-
-                    if _uses_china_pipeline_pricing(car):
-                        if not china_has_source_price(data):
-                            price_skipped_china += 1
-                            data["price_on_request"] = True
-                            data["pricing_tier"] = "price_on_request"
-                            clear_estimated_price_fields(data)
-                            data.pop("price_calc_failed", None)
-                            sync_china_pricing_clean_block(data)
-                        else:
-                            try:
-                                calc_china.update_china_car_with_prices(data)
-                                data.pop("price_on_request", None)
-                                data.pop("price_calc_failed", None)
-                                data["pricing_tier"] = "full_customs"
-                                sync_china_pricing_clean_block(data)
-                                price_ok += 1
-                                price_ok_china += 1
-                            except Exception as e:
-                                price_failed += 1
-                                if i == 0:
-                                    print(f"Warning: china price calc failed for first car: {e}", file=sys.stderr)
-                                data["price_on_request"] = True
-                                data["pricing_tier"] = "price_on_request"
-                                data["price_calc_failed"] = True
-                                clear_estimated_price_fields(data)
-                                sync_china_pricing_clean_block(data)
-                        if car.get("data") is not data:
-                            car["data"] = data
-                        continue
-
-                    if not encar_has_list_price(data):
-                        price_skipped_no_list += 1
-                        data["price_on_request"] = True
-                        if encar_reserved_placeholder_price(data):
-                            data["encar_listing_reserved"] = True
-                        else:
-                            data.pop("encar_listing_reserved", None)
-                        clear_estimated_price_fields(data)
-                        if car.get("data") is not data:
-                            car["data"] = data
-                        continue
-
-                    tier = encar_tier_for_pricing_snapshot(data)
-
-                    data.pop("catalog_price_hp_unknown", None)
-
-                    if tier == "price_on_request":
-                        price_skipped_encar_on_request += 1
-                        data["pricing_tier"] = tier
-                        data["price_on_request"] = True
-                        clear_estimated_price_fields(data)
-                        sync_pricing_clean_block(data)
-                        if car.get("data") is not data:
-                            car["data"] = data
-                        continue
-
-                    data.pop("price_on_request", None)
-                    try:
-                        if tier == "full_customs":
-                            calc_korea.update_car_with_prices(data)
-                        elif tier == "korea_land_only":
-                            calc_korea.update_car_with_prices_land_only(data)
-                            price_ok_land_only_encar += 1
-                        else:
-                            raise RuntimeError(f"unexpected encar tier: {tier!r}")
-                        data["pricing_tier"] = tier
-                        sync_pricing_clean_block(data)
-                        if car.get("data") is not data:
-                            car["data"] = data
-                        if isinstance(data, dict):
-                            data.pop("price_calc_failed", None)
-                        price_ok += 1
-                    except Exception as e:
-                        price_failed += 1
-                        if isinstance(data, dict):
-                            clear_estimated_price_fields(data)
-                            data["pricing_tier"] = "price_on_request"
-                            data["price_on_request"] = True
-                            sync_pricing_clean_block(data)
-                        if i == 0:
-                            print(f"Warning: price calc failed for first car: {e}", file=sys.stderr)
-                        if isinstance(data, dict):
-                            data["price_calc_failed"] = True
-                        if car.get("data") is not data:
-                            car["data"] = data
-                print(
-                    f"Price calc summary: ok={price_ok} failed={price_failed} "
-                    f"ok_china={price_ok_china} skipped_china_no_price={price_skipped_china} "
-                    f"skipped_no_list_price={price_skipped_no_list} "
-                    f"skipped_encar_on_request={price_skipped_encar_on_request} "
-                    f"ok_encar_land_only_excl_rf_customs={price_ok_land_only_encar} "
-                    f"total={len(cars_out)}",
-                    file=sys.stderr,
-                )
             except ImportError as e:
                 print(f"Warning: price module not found, skip prices: {e}", file=sys.stderr)
 
-        meta_by_car_id: Dict[str, Tuple[Any, Any]] = {
-            str(t[1]): (t[3], t[4]) for t in ordered
-        }
-        pending = 0
-        with conn.cursor() as cur:
+        price_ok = price_failed = price_ok_china = price_skipped_china = 0
+        price_skipped_no_list = price_skipped_encar_on_request = 0
+        price_ok_land_only_encar = 0
+        global_idx = 0
+
+        def _apply_prices_to_batch(cars_out: List[dict]) -> None:
+            nonlocal price_ok, price_failed, price_ok_china, price_skipped_china
+            nonlocal price_skipped_no_list, price_skipped_encar_on_request, price_ok_land_only_encar, global_idx
+            if no_prices or not cars_out or calc_korea is None or calc_china is None:
+                return
             for car in cars_out:
-                cid = car.get("id")
-                if not cid:
+                i = global_idx
+                global_idx += 1
+                data = car.get("data")
+                if data is None:
+                    data = car
+                if not isinstance(data, dict):
                     continue
-                raw_obj, source_internal_id = meta_by_car_id.get(str(cid), (None, None))
-                if isinstance(raw_obj, (bytes, memoryview)):
-                    try:
-                        raw_obj = json.loads(bytes(raw_obj).decode("utf-8"))
-                    except Exception:
-                        raw_obj = None
-                elif isinstance(raw_obj, str):
-                    try:
-                        raw_obj = json.loads(raw_obj)
-                    except json.JSONDecodeError:
-                        raw_obj = {"_raw_text": raw_obj}
-                raw_adapted = psycopg2.extras.Json(raw_obj) if isinstance(raw_obj, dict) else None
-                # `car` may embed a full `_raw` tree under the JSONB `data` column (duplicating `cars.raw`)
-                # and in edge cases that tree can contain shared/cyclic dict references, which breaks
-                # stdlib JSON encoding for psycopg2.extras.Json. Keep raw in `cars.raw` only.
-                if isinstance(car, dict):
-                    car.pop("_raw", None)
-                    inner = car.get("data")
-                    if isinstance(inner, dict):
-                        inner.pop("_raw", None)
-                if not no_prices:
-                    car["_catalog_needs_pricing_recompute"] = False
-                else:
-                    car["_catalog_needs_pricing_recompute"] = bool(car.get("_pg_needs_pricing_recompute", False))
-                fields = row_to_car_fields(
-                    str(cid),
-                    car,
-                    source_internal_id=source_internal_id if source_internal_id is not None else None,
-                )
-                car.pop("_catalog_needs_pricing_recompute", None)
-                car.pop("_pg_needs_pricing_recompute", None)
-                bid = get_or_create_brand(cur, brand_cache, fields["mark"])
-                mid = get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
-                params = {
-                    **fields,
-                    "brand_id": bid,
-                    "model_id": mid,
-                    "data": psycopg2.extras.Json(_tree_for_pg_jsonb(car)),
-                    "raw": raw_adapted,
-                    "created_at": None,
-                    "sync_clear_pricing_recompute_queue": not no_prices,
-                }
-                cur.execute(UPSERT_CAR_SQL, params)
-                row = cur.fetchone()
-                if not row:
+
+                if _uses_china_pipeline_pricing(car):
+                    if not china_has_source_price(data):
+                        price_skipped_china += 1
+                        data["price_on_request"] = True
+                        data["pricing_tier"] = "price_on_request"
+                        clear_estimated_price_fields(data)
+                        data.pop("price_calc_failed", None)
+                        sync_china_pricing_clean_block(data)
+                    else:
+                        try:
+                            calc_china.update_china_car_with_prices(data)
+                            data.pop("price_on_request", None)
+                            data.pop("price_calc_failed", None)
+                            data["pricing_tier"] = "full_customs"
+                            sync_china_pricing_clean_block(data)
+                            price_ok += 1
+                            price_ok_china += 1
+                        except Exception as e:
+                            price_failed += 1
+                            if i == 0:
+                                print(f"Warning: china price calc failed for first car: {e}", file=sys.stderr)
+                            data["price_on_request"] = True
+                            data["pricing_tier"] = "price_on_request"
+                            data["price_calc_failed"] = True
+                            clear_estimated_price_fields(data)
+                            sync_china_pricing_clean_block(data)
+                    if car.get("data") is not data:
+                        car["data"] = data
                     continue
-                car_pk = int(row[0])
-                d = car.get("data") if isinstance(car.get("data"), dict) else {}
-                if isinstance(d, dict) and d.get("encar_listing_sold") is True:
-                    cur.execute(
-                        """
-                        UPDATE cars
-                        SET encar_listing_sold = true,
-                            encar_listing_checked_at = now()
-                        WHERE id = %s
-                        """,
-                        (car_pk,),
+
+                if not encar_has_list_price(data):
+                    price_skipped_no_list += 1
+                    data["price_on_request"] = True
+                    if encar_reserved_placeholder_price(data):
+                        data["encar_listing_reserved"] = True
+                    else:
+                        data.pop("encar_listing_reserved", None)
+                    clear_estimated_price_fields(data)
+                    if car.get("data") is not data:
+                        car["data"] = data
+                    continue
+
+                tier = encar_tier_for_pricing_snapshot(data)
+
+                data.pop("catalog_price_hp_unknown", None)
+
+                if tier == "price_on_request":
+                    price_skipped_encar_on_request += 1
+                    data["pricing_tier"] = tier
+                    data["price_on_request"] = True
+                    clear_estimated_price_fields(data)
+                    sync_pricing_clean_block(data)
+                    if car.get("data") is not data:
+                        car["data"] = data
+                    continue
+
+                data.pop("price_on_request", None)
+                try:
+                    if tier == "full_customs":
+                        calc_korea.update_car_with_prices(data)
+                    elif tier == "korea_land_only":
+                        calc_korea.update_car_with_prices_land_only(data)
+                        price_ok_land_only_encar += 1
+                    else:
+                        raise RuntimeError(f"unexpected encar tier: {tier!r}")
+                    data["pricing_tier"] = tier
+                    sync_pricing_clean_block(data)
+                    if car.get("data") is not data:
+                        car["data"] = data
+                    if isinstance(data, dict):
+                        data.pop("price_calc_failed", None)
+                    price_ok += 1
+                except Exception as e:
+                    price_failed += 1
+                    if isinstance(data, dict):
+                        clear_estimated_price_fields(data)
+                        data["pricing_tier"] = "price_on_request"
+                        data["price_on_request"] = True
+                        sync_pricing_clean_block(data)
+                    if i == 0:
+                        print(f"Warning: price calc failed for first car: {e}", file=sys.stderr)
+                    if isinstance(data, dict):
+                        data["price_calc_failed"] = True
+                    if car.get("data") is not data:
+                        car["data"] = data
+
+        pending = 0
+        for batch_lo in range(0, n_total, proc_batch):
+            batch_hi = min(batch_lo + proc_batch, n_total)
+            slice_tuples = ordered[batch_lo:batch_hi]
+
+            cars_out: List[dict] = []
+            for _pg_id, car_id, payload, _raw, _sql_id, nr_flag in slice_tuples:
+                car = dict(payload)
+                car["id"] = car_id
+                car["_pg_needs_pricing_recompute"] = bool(nr_flag)
+                if isinstance(car.get("data"), dict):
+                    car["data"]["id"] = str(car_id)
+                    normalize_car_media_fields(car)
+                    if not no_power_lookup and not _uses_china_pipeline_pricing(car):
+                        fill_power_from_external(car["data"])
+                    if _uses_china_pipeline_pricing(car):
+                        localize_china_data(car["data"], localizer)
+                    else:
+                        localize_car_data(car["data"], localizer)
+                        if not no_power_lookup:
+                            fill_power_from_external(car["data"])
+                cars_out.append(car)
+
+            _apply_prices_to_batch(cars_out)
+
+            meta_by_car_id = {str(t[1]): (t[3], t[4]) for t in slice_tuples}
+            with conn.cursor() as cur:
+                for car in cars_out:
+                    cid = car.get("id")
+                    if not cid:
+                        continue
+                    raw_obj, source_internal_id = meta_by_car_id.get(str(cid), (None, None))
+                    if isinstance(raw_obj, (bytes, memoryview)):
+                        try:
+                            raw_obj = json.loads(bytes(raw_obj).decode("utf-8"))
+                        except Exception:
+                            raw_obj = None
+                    elif isinstance(raw_obj, str):
+                        try:
+                            raw_obj = json.loads(raw_obj)
+                        except json.JSONDecodeError:
+                            raw_obj = {"_raw_text": raw_obj}
+                    raw_adapted = psycopg2.extras.Json(raw_obj) if isinstance(raw_obj, dict) else None
+                    if isinstance(car, dict):
+                        car.pop("_raw", None)
+                        inner = car.get("data")
+                        if isinstance(inner, dict):
+                            inner.pop("_raw", None)
+                    if not no_prices:
+                        car["_catalog_needs_pricing_recompute"] = False
+                    else:
+                        car["_catalog_needs_pricing_recompute"] = bool(car.get("_pg_needs_pricing_recompute", False))
+                    fields = row_to_car_fields(
+                        str(cid),
+                        car,
+                        source_internal_id=source_internal_id if source_internal_id is not None else None,
                     )
-                urls = extract_image_urls(car)
-                cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
-                for i, url in enumerate(urls):
-                    cur.execute(
-                        """
-                        INSERT INTO car_images (car_pk, url, sort_order, is_primary)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (car_pk, url) DO UPDATE SET
-                            sort_order = EXCLUDED.sort_order,
-                            is_primary = EXCLUDED.is_primary
-                        """,
-                        (car_pk, url, i, i == 0),
-                    )
-                pending += 1
-                if pending >= max(1, batch_commit):
+                    car.pop("_catalog_needs_pricing_recompute", None)
+                    car.pop("_pg_needs_pricing_recompute", None)
+                    bid = get_or_create_brand(cur, brand_cache, fields["mark"])
+                    mid = get_or_create_model(cur, model_cache, bid, fields["model"]) if bid else None
+                    params = {
+                        **fields,
+                        "brand_id": bid,
+                        "model_id": mid,
+                        "data": psycopg2.extras.Json(_tree_for_pg_jsonb(car)),
+                        "raw": raw_adapted,
+                        "created_at": None,
+                        "sync_clear_pricing_recompute_queue": not no_prices,
+                    }
+                    cur.execute(UPSERT_CAR_SQL, params)
+                    row = cur.fetchone()
+                    if not row:
+                        continue
+                    car_pk = int(row[0])
+                    d = car.get("data") if isinstance(car.get("data"), dict) else {}
+                    if isinstance(d, dict) and d.get("encar_listing_sold") is True:
+                        cur.execute(
+                            """
+                            UPDATE cars
+                            SET encar_listing_sold = true,
+                                encar_listing_checked_at = now()
+                            WHERE id = %s
+                            """,
+                            (car_pk,),
+                        )
+                    urls = extract_image_urls(car)
+                    cur.execute("DELETE FROM car_images WHERE car_pk = %s", (car_pk,))
+                    for i, url in enumerate(urls):
+                        cur.execute(
+                            """
+                            INSERT INTO car_images (car_pk, url, sort_order, is_primary)
+                            VALUES (%s, %s, %s, %s)
+                            ON CONFLICT (car_pk, url) DO UPDATE SET
+                                sort_order = EXCLUDED.sort_order,
+                                is_primary = EXCLUDED.is_primary
+                            """,
+                            (car_pk, url, i, i == 0),
+                        )
+                    pending += 1
+                    if pending >= max(1, batch_commit):
+                        conn.commit()
+                        pending = 0
+                if pending:
                     conn.commit()
                     pending = 0
-            if pending:
-                conn.commit()
+
+            if static_sink is not None:
+                static_sink.extend(cars_out)
+
+            del cars_out
+            del slice_tuples
+            del meta_by_car_id
+
+            bidx = batch_lo // proc_batch
+            if (bidx + 1) % 20 == 0 or batch_hi >= n_total:
+                print(f"  … processed {batch_hi}/{n_total} listings", file=sys.stderr)
+
+        if not no_prices and (calc_korea is not None or calc_china is not None):
+            print(
+                f"Price calc summary: ok={price_ok} failed={price_failed} "
+                f"ok_china={price_ok_china} skipped_china_no_price={price_skipped_china} "
+                f"skipped_no_list_price={price_skipped_no_list} "
+                f"skipped_encar_on_request={price_skipped_encar_on_request} "
+                f"ok_encar_land_only_excl_rf_customs={price_ok_land_only_encar} "
+                f"total={n_total}",
+                file=sys.stderr,
+            )
         try:
             with conn.cursor() as mcur:
                 mcur.execute("SELECT COUNT(*) FROM cars WHERE needs_pricing_recompute IS TRUE")
@@ -606,7 +655,7 @@ def run_sync(
             )
         except Exception as e:
             print(f"Warning: pricing observability query failed: {e}", file=sys.stderr)
-        print(f"Postgres upsert + images: {len(cars_out)} listings", file=sys.stderr)
+        print(f"Postgres upsert + images: {n_total} listings", file=sys.stderr)
     finally:
         try:
             localizer.close()
@@ -626,9 +675,9 @@ def run_sync(
         file=sys.stderr,
     )
 
-    if write_static_json:
+    if write_static_json and static_sink is not None:
         _write_static_catalog(
-            cars_out,
+            static_sink,
             gzip_enabled=static_gzip,
             chunk_size=max(0, static_chunk_size),
         )
@@ -647,6 +696,18 @@ def main() -> int:
     p.add_argument("--no-prices", action="store_true")
     p.add_argument("--no-power-lookup", action="store_true")
     p.add_argument("--batch-commit", type=int, default=200)
+    p.add_argument(
+        "--process-batch-size",
+        type=int,
+        default=500,
+        help="Сколько объявлений одновременно: сборка + расчёт цен + upsert (снижает пик RAM; дедуп по-прежнему держит весь каталог в памяти).",
+    )
+    p.add_argument(
+        "--max-static-listings",
+        type=int,
+        default=25_000,
+        help="При --write-static-json не копировать весь каталог в RAM, если объявлений больше этого числа. 0 = без лимита (риск OOM на больших БД).",
+    )
     p.add_argument(
         "--write-static-json",
         action="store_true",
@@ -684,6 +745,8 @@ def main() -> int:
         no_prices=args.no_prices,
         no_power_lookup=args.no_power_lookup,
         batch_commit=max(1, args.batch_commit),
+        process_batch_size=max(1, args.process_batch_size),
+        max_static_listings=max(0, args.max_static_listings),
         write_static_json=static_export,
         static_gzip=args.static_gzip,
         static_chunk_size=max(0, args.static_chunk_size),

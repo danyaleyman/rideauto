@@ -178,18 +178,24 @@ export function formatDisplacementLiters(cc: number): string {
   return `${shown} ${word}`;
 }
 
+/** Год выпуска/регистрации из полей карточки (число или строка с YYYY). */
+export function parseListingCalendarYear(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) {
+    const y = Math.trunc(v);
+    if (y >= 1980 && y <= 2100) return y;
+  }
+  const s = asStr(v);
+  if (!s) return null;
+  const m = /(19|20)\d{2}/.exec(s);
+  if (!m) return null;
+  const y = Number(m[0]);
+  return Number.isFinite(y) && y >= 1980 && y <= 2035 ? y : null;
+}
+
 export function catalogCardAttributeChips(
   data: Record<string, unknown>,
   yearNum?: number | null,
 ): { key: string; label: string; Icon: LucideIcon }[] {
-  const parseYear = (v: unknown): number | null => {
-    const s = asStr(v);
-    if (!s) return null;
-    const m = /(19|20)\d{2}/.exec(s);
-    if (!m) return null;
-    const y = Number(m[0]);
-    return Number.isFinite(y) && y >= 1980 && y <= 2035 ? y : null;
-  };
   const parseHp = (v: unknown): number | null => {
     const s = asStr(v);
     if (!s) return null;
@@ -205,10 +211,10 @@ export function catalogCardAttributeChips(
     chips.push({ key: "y", label: String(Math.round(yearNum)), Icon: CalendarDays });
   } else {
     const yearFromData =
-      parseYear(data.year) ??
-      parseYear(data.modelyear) ??
-      parseYear(data.year_name) ??
-      parseYear(data.first_registration_at);
+      parseListingCalendarYear(data.year) ??
+      parseListingCalendarYear(data.modelyear) ??
+      parseListingCalendarYear(data.year_name) ??
+      parseListingCalendarYear(data.first_registration_at);
     if (yearFromData) {
       chips.push({ key: "y", label: String(yearFromData), Icon: CalendarDays });
     }
@@ -239,7 +245,13 @@ export function cardOverlayBadges(
   _market: Market = "korea",
 ): string[] {
   const out: string[] = [];
-  if (yearNum && Number.isFinite(yearNum)) out.push(String(Math.trunc(yearNum)));
+  const yOverlay =
+    yearNum != null && Number.isFinite(yearNum) && yearNum > 0
+      ? Math.trunc(yearNum)
+      : parseListingCalendarYear(data.year) ??
+        parseListingCalendarYear(data.modelyear) ??
+        parseListingCalendarYear(data.year_name);
+  if (yOverlay != null && yOverlay > 0) out.push(String(yOverlay));
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
   const fuelLabel = normalizeFuelLabel(fuel);
   const isElectricFuel = (fuelLabel || "").toLowerCase().startsWith("электро");
