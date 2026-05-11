@@ -1,6 +1,7 @@
 import pytest
 
 from scraper_pipeline.che168.parser import (
+    _extract_real_options,
     che168_listing_numeric_id,
     extract_gallery_urls_from_detail_html,
     merge_che168_api_carinfo_envelope,
@@ -24,6 +25,32 @@ def test_normalize_price_cny_wan():
 def test_normalize_price_cny_heuristic_small_float():
     v = normalize_price_cny(12.8, assume_wan_yuan=False)
     assert v == 128000.0
+
+
+def test_extract_real_options_skips_basic_specs_paramtypeitems():
+    spec = {
+        "result": {
+            "paramtypeitems": [
+                {
+                    "name": "Basic specifications",
+                    "paramitems": [
+                        {"name": "Engine displacement", "value": "3.0T"},
+                        {"name": "Max Power (hp)", "value": "340"},
+                        {"name": "Drive mode", "value": "RWD"},
+                    ],
+                },
+                {
+                    "name": "Comfort",
+                    "paramitems": [{"name": "Heated steering wheel", "value": "Yes"}],
+                },
+            ]
+        }
+    }
+    out = _extract_real_options(spec)
+    assert "Подогрев руля" in out
+    assert "Engine displacement" not in out
+    assert "3.0T" not in out
+    assert "RWD" not in out
 
 
 def test_normalize_price_cny_embedded_wan_in_context():
@@ -61,6 +88,7 @@ def test_parse_one_che168_minimal():
     assert d["vin"] == "WBA12345678901234"
     assert d["images"][0].endswith(".webp")
     assert "Sunroof" in (d.get("che168_recommended_options") or [])
+    assert "Sunroof" in (d.get("options_real") or [])
     assert d.get("clean_schema_version") == "che168.clean.v1"
     assert isinstance(d.get("identity_clean"), dict)
     assert d.get("che168_price_cny_rule") == "raw_cny_integer"

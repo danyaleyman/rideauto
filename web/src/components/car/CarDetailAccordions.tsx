@@ -727,7 +727,9 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
   const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
-  const chinaRecommendedRaw = parseJson(d.che168_recommended_options ?? d.che168_options_enriched);
+  const chinaRecommendedRaw = parseJson(
+    d.options_real ?? d.che168_recommended_options ?? d.che168_options_enriched,
+  );
   const chinaRecommendedFallback = useMemo(() => collectChinaHighlightLabels(d), [d]);
   const chinaRecommended = useMemo(() => {
     if (!Array.isArray(chinaRecommendedRaw)) return chinaRecommendedFallback;

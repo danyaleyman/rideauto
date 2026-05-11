@@ -69,7 +69,7 @@ che168:
   respect_rate_limit_headers: true
   rate_limit_sleep_cap_sec: 60
   # Если API отдаёт цену в «万元», включите true (иначе оставьте false и смотрите che168_price_raw).
-  assume_price_in_wan_yuan: false
+  assume_price_in_wan_yuan: true
   search_pagesize: 20
   search_sort: 0
   vehicle_list: 1

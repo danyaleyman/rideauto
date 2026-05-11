@@ -895,7 +895,7 @@ def _year_from(carinfo: dict, list_item: dict) -> Optional[int]:
     cands.extend(_nested_dict_candidates(carinfo))
     cands.extend(_nested_dict_candidates(list_item))
     for src in cands:
-        for key in ("year", "modelyear", "modelYear", "regyear", "registeryear"):
+        for key in ("year", "modelyear", "modelYear", "regyear", "registeryear", "yearname"):
             y = _safe_int(src.get(key))
             if y and 1980 <= y <= 2035:
                 return y
@@ -932,50 +932,290 @@ def _brand_model_title(carinfo: dict, list_item: dict) -> tuple[Optional[str], O
 
 
 def _flatten_specconfig_options(specconfig: Any) -> List[str]:
+    """Рекурсивно извлекает человекочитаемые названия опций (не configid / сырые числовые id)."""
     if specconfig is None:
         return []
     out: List[str] = []
     seen: set[str] = set()
 
-    def _push(v: Any) -> None:
-        if v is None:
+    def _push_label(s: str) -> None:
+        t = s.strip()
+        if not t or t.isdigit():
             return
-        s = str(v).strip()
-        if not s:
-            return
-        if s not in seen:
-            seen.add(s)
-            out.append(s)
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
 
     def _walk(node: Any) -> None:
         if isinstance(node, str):
-            _push(node)
+            _push_label(node)
             return
         if isinstance(node, list):
-            for x in node:
-                _walk(x)
+            for item in node:
+                _walk(item)
             return
         if not isinstance(node, dict):
             return
 
-        has_children = any(isinstance(v, (list, dict)) for v in node.values())
-        if not has_children:
-            # Leaf option entry: prefer human-readable name/value tokens.
-            _push(
-                node.get("name")
-                or node.get("itemname")
-                or node.get("title")
-                or node.get("configName")
-                or node.get("optionName")
-                or node.get("optionname")
-            )
-            _push(node.get("value") or node.get("dispvalue") or node.get("subvalue") or node.get("text") or node.get("optionValue"))
+        name = (
+            node.get("name")
+            or node.get("itemname")
+            or node.get("title")
+            or node.get("configName")
+            or node.get("optionName")
+            or node.get("optionname")
+        )
+        if isinstance(name, str) and name.strip():
+            _push_label(name)
         for v in node.values():
-            if isinstance(v, (list, dict)):
-                _walk(v)
+            _walk(v)
 
     _walk(specconfig)
     return out
+
+
+# Частые подписи опций Che168 (EN) → RU для карточки «Комплектация».
+CHE168_OPTION_MAP_RU: Dict[str, str] = {
+    "Adaptive M Suspension": "Адаптивная M-подвеска",
+    "M Sport Brakes": "M Sport тормоза",
+    "Harman Kardon sound system": "Аудиосистема Harman Kardon",
+    "Head-up display": "Проекционный дисплей",
+    "Wireless charging": "Беспроводная зарядка",
+    "Parking Assistant Plus": "Park Assistant Plus",
+    "Heated steering wheel": "Подогрев руля",
+    "Lumbar support": "Поясничная поддержка",
+    "Adaptive cruise control": "Адаптивный круиз-контроль",
+    "Surround view camera": "Камера 360°",
+    "Panoramic sunroof": "Панорамная крыша",
+    "Leather upholstery": "Кожаный салон",
+    "Heated seats": "Подогрев сидений",
+    "Ventilated seats": "Вентиляция сидений",
+    "Massage seats": "Массаж сидений",
+    "Keyless entry": "Бесключевой доступ",
+    "Electric tailgate": "Электропривод багажника",
+    "Blind spot monitoring": "Контроль слепых зон",
+    "Lane keep assist": "Удержание в полосе",
+    "Traffic sign recognition": "Распознавание знаков",
+}
+
+
+def _map_che168_option_label_ru(label: str) -> str:
+    raw = label.strip()
+    if not raw:
+        return raw
+    if raw in CHE168_OPTION_MAP_RU:
+        return CHE168_OPTION_MAP_RU[raw]
+    low = raw.lower()
+    for en, ru in CHE168_OPTION_MAP_RU.items():
+        if en.lower() == low:
+            return ru
+    return raw
+
+
+_CHE168_TECH_CATEGORY_SNIPPETS: tuple[str, ...] = (
+    "basic specification",
+    "basic parameters",
+    "main specification",
+    "vehicle specifications",
+    "body structure",
+    "body dimensions",
+    "dimensions and weight",
+    "dimensions & weight",
+    "fuel consumption",
+    "engine specification",
+    "motor specification",
+    "power and torque",
+    "power performance",
+    "emission",
+    "wheel & tire",
+    "wheels and tires",
+    "基本参数",
+    "主要参数",
+    "主要规格",
+    "车身尺寸",
+    "车身参数",
+    "发动机",
+    "变速箱",
+    "油耗",
+    "整备质量",
+    "动力",
+)
+
+
+def _che168_is_technical_spec_category(cat: str) -> bool:
+    s = cat.strip().lower()
+    if not s:
+        return True
+    return any(sn in s for sn in _CHE168_TECH_CATEGORY_SNIPPETS)
+
+
+_CHE168_SPEC_LINE_NOISE_RES: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^\d+\.\d+\s*T\b", re.I),
+    re.compile(r"\b\d{2,4}\s*hp\b", re.I),
+    re.compile(r"\b\d{2,4}\s*(?:hp|ps)\b", re.I),
+    re.compile(r"^\d+\s*[-\s]*speed\b", re.I),
+    re.compile(r"\b(?:front|rear|all)[-\s]?wheel\s+drive\b", re.I),
+    re.compile(r"^\s*(?:FWD|RWD|AWD|4WD|2WD)\s*$", re.I),
+    re.compile(r"^\s*(?:automatic|manual|dct|cvt)\s*$", re.I),
+    re.compile(r"^\s*[LIV]\d{1,2}\s*$", re.I),
+    re.compile(r"^\s*\d{3,4}\s*cc\s*$", re.I),
+    re.compile(r"^\s*\d+(?:\.\d+)?\s*L\s*$", re.I),
+)
+
+
+def _che168_is_spec_line_noise(label: str) -> bool:
+    t = label.strip()
+    if not t or t.isdigit():
+        return True
+    low = t.lower()
+    for rx in _CHE168_SPEC_LINE_NOISE_RES:
+        if rx.search(t):
+            return True
+    noise_tokens = (
+        "displacement",
+        "transmission",
+        "gearbox",
+        "drive mode",
+        "drive type",
+        "engine displacement",
+        "max power",
+        "max torque",
+        "fuel type",
+        "energy type",
+        "body structure",
+        "length",
+        "width",
+        "height",
+        "wheelbase",
+        "curb weight",
+    )
+    if low in noise_tokens or (len(low) <= 3 and low in ("at", "mt", "dct", "cvt")):
+        return True
+    return False
+
+
+_CHE168_TECH_PARAM_LABEL_FRAGMENTS: tuple[str, ...] = (
+    "engine displacement",
+    "max power",
+    "max torque",
+    "fuel consumption",
+    "electric range",
+    "wheelbase",
+    "curb weight",
+    "overall length",
+    "overall width",
+    "overall height",
+    "body structure",
+    "drive type",
+    "drive mode",
+    "transmission type",
+    "发动机排量",
+    "最大功率",
+    "最大扭矩",
+    "变速箱",
+    "驱动方式",
+    "车身结构",
+)
+
+
+def _che168_is_technical_param_label(name: str) -> bool:
+    low = name.strip().lower()
+    if not low:
+        return True
+    if any(f in low for f in _CHE168_TECH_PARAM_LABEL_FRAGMENTS):
+        return True
+    # Короткие заголовки строки параметров в блоке «основные характеристики» (не длинные маркетинговые названия).
+    if len(low) <= 24 and low in (
+        "transmission",
+        "gearbox",
+        "drive mode",
+        "drive type",
+        "engine",
+        "fuel type",
+        "energy type",
+        "displacement",
+    ):
+        return True
+    return False
+
+
+def _che168_collect_from_paramtypeitems(node: Any, acc: List[str]) -> None:
+    """Извлекает названия опций из блоков paramtypeitems (категории с теххарактеристиками пропускаются)."""
+    if isinstance(node, dict):
+        pti = node.get("paramtypeitems")
+        if isinstance(pti, list):
+            for type_item in pti:
+                if not isinstance(type_item, dict):
+                    continue
+                cat = str(type_item.get("name") or "").strip()
+                if _che168_is_technical_spec_category(cat):
+                    continue
+                for pi in type_item.get("paramitems") or []:
+                    if not isinstance(pi, dict):
+                        continue
+                    n = pi.get("name")
+                    if not isinstance(n, str) or not n.strip():
+                        continue
+                    ns = n.strip()
+                    if _che168_is_spec_line_noise(ns) or _che168_is_technical_param_label(ns):
+                        continue
+                    acc.append(ns)
+                for vi in type_item.get("valueitems") or []:
+                    if not isinstance(vi, dict):
+                        continue
+                    vn = vi.get("name") or vi.get("itemname") or vi.get("title")
+                    if not isinstance(vn, str) or not vn.strip():
+                        continue
+                    vns = vn.strip()
+                    if _che168_is_spec_line_noise(vns) or _che168_is_technical_param_label(vns):
+                        continue
+                    acc.append(vns)
+        for v in node.values():
+            _che168_collect_from_paramtypeitems(v, acc)
+    elif isinstance(node, list):
+        for x in node:
+            _che168_collect_from_paramtypeitems(x, acc)
+
+
+def _dedupe_str_list_preserve_order(items: List[str]) -> List[str]:
+    seen: set[str] = set()
+    out: List[str] = []
+    for x in items:
+        t = x.strip()
+        if not t:
+            continue
+        k = t.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(t)
+    return out
+
+
+def _extract_real_options(specconfig: Any) -> List[str]:
+    """
+    Опции комплектации из /specconfig: приоритет paramtypeitems (без категорий теххарактеристик),
+    иначе плоский список без «двигатель / КПП / привод» и шумовых строк.
+    """
+    if specconfig is None:
+        return []
+    acc: List[str] = []
+    _che168_collect_from_paramtypeitems(specconfig, acc)
+    raw = _dedupe_str_list_preserve_order(acc)
+    if not raw:
+        flat = _flatten_specconfig_options(specconfig)
+        raw = [
+            x
+            for x in flat
+            if not _che168_is_spec_line_noise(x) and not _che168_is_technical_param_label(x)
+        ]
+        raw = _dedupe_str_list_preserve_order(raw)
+    return [_map_che168_option_label_ru(x) for x in raw]
+
+
+def extract_che168_options_real_from_specconfig(specconfig: Any) -> List[str]:
+    """Публичная обёртка для бэкфилла и скриптов."""
+    return list(_extract_real_options(specconfig))
 
 
 def _power_hp_from_hints(spec_hints: Dict[str, Any]) -> Optional[int]:
@@ -1221,7 +1461,7 @@ def parse_one_che168_car_sync(
 
     spec_raw = _unwrap_layer(specparam) if isinstance(specparam, dict) else {}
     spec_hints = _spec_fields(spec_raw)
-    opts = _flatten_specconfig_options(specconfig)
+    opts_real = _extract_real_options(specconfig)
     opts_enriched = _flatten_specconfig_enriched(specconfig)
 
     displacement_label = None
@@ -1253,6 +1493,22 @@ def parse_one_che168_car_sync(
             images = merged_im
     vin = _vin_from_sources(ci, li)
     yr = _year_from(ci, li)
+    _cands_yr = _nested_dict_candidates(ci) + _nested_dict_candidates(li)
+    yearname_s: Optional[str] = None
+    regdate_s: Optional[str] = None
+    for _src in _cands_yr:
+        if yearname_s is None:
+            yn = _src.get("yearname")
+            if yn is not None and str(yn).strip():
+                yearname_s = str(yn).strip()
+        if regdate_s is None:
+            for rk in ("regdate", "regDate", "registrationdate", "registrationDate"):
+                rv = _src.get(rk)
+                if rv is not None and str(rv).strip():
+                    regdate_s = str(rv).strip()
+                    break
+        if yearname_s and regdate_s:
+            break
     km_v = _mileage_km(ci, li)
     trim, trim_src = _pick_first_non_empty_with_source(
         [("carinfo", c) for c in _nested_dict_candidates(ci)] + [("list_item", c) for c in _nested_dict_candidates(li)],
@@ -1273,6 +1529,8 @@ def parse_one_che168_car_sync(
         "model": model,
         "title": title,
         "year": yr,
+        "yearname": yearname_s,
+        "regdate": regdate_s,
         "km_age": km_v,
         "price_cny": price_cny,
         "price_on_request": bool(price_cny is None or price_cny <= 0),
@@ -1288,7 +1546,8 @@ def parse_one_che168_car_sync(
         "power_hp": p_hp,
         "displacement_cc": disp_cc,
         "che168_params_raw": spec_raw if spec_raw else None,
-        "che168_recommended_options": opts or None,
+        "options_real": opts_real or None,
+        "che168_recommended_options": opts_real or None,
         "che168_options_enriched": opts_enriched if opts_enriched else None,
         "che168_displacement_label": displacement_label,
         "che168_dealer": dealer_flat if dealer_flat else None,
@@ -1361,7 +1620,7 @@ def parse_one_che168_car_sync(
 
     n_img = len(images)
     n_spec_keys = len(spec_raw) if spec_raw else 0
-    n_opt = len(opts) if opts else 0
+    n_opt = len(opts_real) if opts_real else 0
     completeness = {
         "has_vin": bool(vin),
         "image_count": n_img,

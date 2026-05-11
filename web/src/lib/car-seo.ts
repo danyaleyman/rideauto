@@ -40,7 +40,11 @@ export function pickCarData(raw: Record<string, unknown>): Record<string, unknow
       power_hp: data.power_hp ?? readModel.power_hp ?? readModel.hp,
       displacement_cc: data.displacement_cc ?? readModel.displacement_cc,
       che168_recommended_options:
-        data.che168_recommended_options ?? readModel.che168_recommended_options ?? raw.che168_recommended_options,
+        data.options_real ??
+        data.che168_recommended_options ??
+        readModel.che168_recommended_options ??
+        raw.options_real ??
+        raw.che168_recommended_options,
       che168_options_enriched:
         data.che168_options_enriched ?? readModel.che168_options_enriched ?? raw.che168_options_enriched,
       configuration: data.configuration ?? readModel.trim_name,
