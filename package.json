@@ -3,7 +3,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
     "@lhci/cli": "^0.14.0",
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.60.0"
   },
   "scripts": {
     "generate:seo-landings": "node scripts/generate-seo-landings.mjs",
