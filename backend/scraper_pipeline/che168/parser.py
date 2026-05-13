@@ -1233,6 +1233,24 @@ def _power_hp_from_hints(spec_hints: Dict[str, Any]) -> Optional[int]:
     return _safe_int(s)
 
 
+def _extract_power_from_engine_text(engine_text: str) -> Optional[int]:
+    """Извлекает мощность из строки engine, например '1.4T 150HP L4' → 150."""
+    if not engine_text:
+        return None
+    s = str(engine_text).strip()
+    if not s:
+        return None
+    # Учитываем: 150HP / 150 hp / 150 л.с. / 150马力
+    match = re.search(r"(\d{2,4})\s*(?:HP|hp|л\.?с\.?|马力)", s)
+    if match:
+        try:
+            v = int(match.group(1))
+            return v if 40 <= v <= 2000 else None
+        except ValueError:
+            return None
+    return None
+
+
 def _displacement_cc_from_value(v: Any) -> Optional[int]:
     if v is None:
         return None
@@ -1475,7 +1493,9 @@ def parse_one_che168_car_sync(
     disp_cc = _displacement_cc_from_spec(spec_raw) if spec_raw else None
     if disp_cc is None and spec_hints.get("displacement") is not None:
         disp_cc = _displacement_cc_from_value(spec_hints.get("displacement"))
-    p_hp = _power_hp_from_hints(spec_hints)
+    engine_text = ci.get("engine") or ""
+    p_from_engine = _extract_power_from_engine_text(str(engine_text)) if engine_text else None
+    p_hp = p_from_engine if p_from_engine is not None else _power_hp_from_hints(spec_hints)
 
     geo = _extract_geo(ci, li, session_cookie_hints)
     dt_fields = _extract_datetimes(ci, li)

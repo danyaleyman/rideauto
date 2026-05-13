@@ -2,6 +2,7 @@ import pytest
 
 from scraper_pipeline.che168.parser import (
     _extract_real_options,
+    _extract_power_from_engine_text,
     che168_listing_numeric_id,
     extract_gallery_urls_from_detail_html,
     merge_che168_api_carinfo_envelope,
@@ -96,6 +97,34 @@ def test_parse_one_che168_minimal():
     assert not (d.get("data_quality") or {}).get("contract_violations")
     assert d.get("raw_envelope", {}).get("raw_schema_version") == "che168.raw.v1"
     assert car.get("_raw", {}).get("sources", {}).get("list_item") == {"id": 58097503, "brandname": "BMW", "modelname": "320i", "price": 258000}
+
+
+def test_extract_power_from_engine_text():
+    assert _extract_power_from_engine_text("1.4T 150HP L4") == 150
+    assert _extract_power_from_engine_text("2.0T 252 hp L4") == 252
+    assert _extract_power_from_engine_text("нет мощности") is None
+
+
+def test_parse_one_uses_engine_power_first():
+    car = parse_one_che168_car_sync(
+        external_id="58097504",
+        list_item={"id": 58097504, "brandname": "BMW", "modelname": "320i", "price": 258000},
+        carinfo={
+            "title": "BMW 320i",
+            "price": 258000,
+            "engine": "1.4T 150HP L4",
+            "images": ["https://erscglobal2.autoimg.cn/escimg/auto/x.jpg.webp"],
+            "vin": "WBA12345678901234",
+            "specid": 46482,
+        },
+        specparam={"displacement": "2.0T", "gearbox": "AT", "fueltype": "Gasoline"},
+        specconfig={"list": [{"name": "Sunroof"}]},
+        recommend=None,
+        report_summary=None,
+        assume_price_wan_yuan=False,
+    )
+    assert car is not None
+    assert car["data"].get("power_hp") == 150
 
 
 def test_parse_one_merges_list_images_when_carinfo_has_none():
