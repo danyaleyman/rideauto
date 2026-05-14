@@ -19,10 +19,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** Подборочное фото для героя (Unsplash, разрешено в `next.config` remotePatterns). */
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1600&q=80";
+const HERO_IMAGE = "/assets/landing-main-page.png";
 
-const VIDEO_REPORTS_URL = "https://disk.yandex.ru/d/RYB3Xyk8sNQUZQ";
+const VIDEO_REPORTS_URL = "/assets/Check-preview.png";
 const TELEGRAM_URL = "https://t.me/nikits15";
 
 function SectionHeading({
@@ -131,30 +130,31 @@ export function HomeLanding() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-muted/35 via-background to-background pb-12 pt-2 sm:pt-4">
       <div className="relative mx-auto min-w-0 max-w-[1440px] px-3 sm:px-6 lg:px-10">
-        {/* Hero */}
+        {/* Hero — без обводки, с большой картинкой */}
         <MotionFadeUp>
-          <section className="relative overflow-hidden rounded-3xl border border-border/50 bg-card/60 shadow-sm ring-1 ring-elevated-ring backdrop-blur-sm">
-            <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-center lg:gap-10 lg:p-10 xl:p-12">
+          <section className="relative overflow-hidden">
+            <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center lg:gap-10 lg:p-10 xl:p-12">
+              {/* Левая часть с текстом */}
               <div className="relative z-10 min-w-0">
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary sm:text-sm">
-                  World Ride Auto
+                  Ride Auto
                 </p>
                 <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                   Автомобиль из Азии под ключ
                 </h1>
                 <p className="mt-3 text-pretty text-lg text-muted-foreground sm:text-xl">
-                  Корея, Китай и Япония — подбор, проверка и доставка во Владивосток
+                  Китай, Корея и Япония — подбор, проверка и доставка
                 </p>
                 <p className="mt-4 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  Подбираем и везём автомобили с площадок и аукционов. Сопровождаем от заявки до таможни и
-                  вручения: прозрачные этапы и понятная коммуникация.
+                  Подбираем и экспортируем автомобили с дилерских площадок и аукционов.
+                  Работаем без посредников, сопровождаем от поиска до таможни и доставки.
                 </p>
                 <div className="mt-7 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <Button className="w-full rounded-2xl sm:w-auto" size="lg" asChild>
-                    <Link href="/catalog">Открыть каталог</Link>
+                    <Link href="/catalog">Посмотреть каталог</Link>
                   </Button>
                   <Button variant="outline" className="w-full rounded-2xl sm:w-auto" size="lg" asChild>
-                    <Link href="/contacts">Консультация</Link>
+                    <Link href="/contacts">Получить консультацию</Link>
                   </Button>
                   <Button variant="secondary" className="w-full rounded-2xl sm:w-auto" size="lg" asChild>
                     <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">
@@ -164,21 +164,18 @@ export function HomeLanding() {
                 </div>
               </div>
 
+              {/* Правая часть — большая картинка */}
               <div className="relative mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-lg ring-1 ring-black/5 sm:aspect-[16/11] lg:aspect-[5/4]">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-lg sm:aspect-[16/11] lg:aspect-[5/4]">
                   <Image
                     src={HERO_IMAGE}
-                    alt="Подобранный автомобиль — иллюстрация раздела"
+                    alt="Автомобиль — иллюстрация раздела"
                     fill
                     priority
                     className="object-cover"
                     sizes="(max-width: 1024px) 100vw, 50vw"
                   />
                 </div>
-                <div
-                  className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-primary/5 via-transparent to-chart-2/10 blur-2xl"
-                  aria-hidden
-                />
               </div>
             </div>
           </section>
@@ -188,7 +185,7 @@ export function HomeLanding() {
         <MotionFadeUp delay={0.06} className="mt-6 sm:mt-8">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
             <FeatureTile icon={Car} title="Выбрать авто в каталоге">
-              <p>Фильтры по рынку, цене и характеристикам — Корея и Китай в одном интерфейсе.</p>
+              <p>Фильтры по рынку, цене и характеристикам — Китай и Корея в одном интерфейсе.</p>
             </FeatureTile>
             <FeatureTile icon={Video} title="Видеоотчёты осмотра">
               <p className="mb-3">Фото и видео с площадки, чтобы принять решение дистанционно.</p>
@@ -202,8 +199,8 @@ export function HomeLanding() {
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </a>
             </FeatureTile>
-            <FeatureTile icon={Globe2} title="Доставка и логистика">
-              <p>Ориентируемся на ваш маршрут и сроки; подскажем по этапам оформления.</p>
+            <FeatureTile icon={Globe2} title="Доставка в любую страну">
+              <p>Экспортируем в Россию, Беларусь, Киргизию, ОАЭ, Казахстан — привезём и в вашу страну.</p>
             </FeatureTile>
             <FeatureTile icon={Sparkles} title="Работаем с 2021 года">
               <p>Опыт подбора из Азии и сопровождения сделок — без лишних посредников.</p>
@@ -214,8 +211,8 @@ export function HomeLanding() {
         {/* Условия сотрудничества */}
         <MotionFadeUp delay={0.08} className="mt-14 sm:mt-20">
           <SectionHeading
-            title="Комфортные условия сотрудничества"
-            subtitle="Договор, контроль по пути и понятные опции хранения — всё фиксируем письменно."
+            title="Предоставляем комфортные условия сотрудничества"
+            subtitle="Работаем по договору"
           />
           <MotionStagger className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
             <MotionStaggerItem>
@@ -226,16 +223,9 @@ export function HomeLanding() {
                 <div className="flex flex-1 flex-col p-5">
                   <h3 className="text-lg font-semibold text-foreground">Работаем по договору</h3>
                   <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                    Закрепляем условия оферты и реквизиты, описание автомобиля и обязанности сторон — без
-                    «устных договорённостей».
+                    Мы заключаем юридический договор, выставляем официальный платёжный документ,
+                    в котором прописываем ваши паспортные данные, данные автомобиля и данные компании-экспортёра.
                   </p>
-                  <Link
-                    href="/contacts"
-                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    Запросить образец
-                    <ArrowRight className="h-4 w-4" aria-hidden />
-                  </Link>
                 </div>
               </article>
             </MotionStaggerItem>
@@ -245,10 +235,10 @@ export function HomeLanding() {
                   <MapPin className="h-14 w-14 text-chart-2" aria-hidden />
                 </div>
                 <div className="flex flex-1 flex-col p-5">
-                  <h3 className="text-lg font-semibold text-foreground">Контроль перемещения</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Отслеживаем перемещение автомобиля</h3>
                   <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                    По согласованию подключаем трекинг и статусы по ключевым точкам маршрута — меньше
-                    неопределённости.
+                    Оснащаем каждый автомобиль GPS трекером, чтобы отслеживать его перемещение
+                    и присылаем гео-позицию по запросу.
                   </p>
                 </div>
               </article>
@@ -259,10 +249,13 @@ export function HomeLanding() {
                   <Warehouse className="h-14 w-14 text-chart-1" aria-hidden />
                 </div>
                 <div className="flex flex-1 flex-col p-5">
-                  <h3 className="text-lg font-semibold text-foreground">Хранение в Южной Корее</h3>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Предоставляем бесплатную парковку в Южной Корее
+                  </h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    Можно выкупить авто заранее и оставить на стоянке до выгодного окна по утильсбору или
-                    ставке — отправим, когда будете готовы.
+                    Вы можете приобрести автомобиль не дожидаясь, когда его можно будет привезти
+                    по низкой таможенной ставке. Выкупите сейчас и оставьте на хранение до
+                    достижения проходного возраста (3–5 лет). Мы отправим авто, как только оно станет проходным.
                   </p>
                 </div>
               </article>
@@ -279,11 +272,11 @@ export function HomeLanding() {
                 Сопровождение сделки
               </div>
               <h3 className="mt-4 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                Курируем автомобиль до вручения
+                Курируем автомобиль до получения
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Личный менеджер на связи на всех этапах: от подбора и проверки до логистики и вопросов по
-                документам.
+                Ваш личный менеджер остаётся на связи до получения вами автомобиля.
+                Отвечает на все вопросы, при необходимости, даже ночью.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <Button asChild size="lg" className="rounded-2xl">
@@ -304,22 +297,24 @@ export function HomeLanding() {
         <MotionFadeUp delay={0.06} className="mt-14 sm:mt-20">
           <div className="border-t border-border/60 pt-12 sm:pt-16">
             <h3 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-              Подробные видеообзоры и отчёты
+              Предоставляем подробные видеообзоры и отчёты
             </h3>
             <p className="mt-3 max-w-3xl text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Осмотр выполняет специалист: кузов и салон, узлы и агрегаты, ходовая часть. Дефекты фиксируем на
-              фото и видео — вы получаете материалы для решения о покупке до оплаты.
+              Осмотром автомобиля занимается специалист с подтверждённой квалификацией. Он проверяет
+              экстерьер и интерьер автомобиля на наличие сколов, царапин, вмятин и других дефектов.
+              Проверяем двигатель, выхлопную систему и подвеску. Все дефекты и повреждения фиксируем
+              на фото и видео. Высылаем вам подробный фото-видео отчёт для принятия решения о покупке.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3 sm:gap-5">
               <VideoThumbCard
                 href={VIDEO_REPORTS_URL}
-                label="Архив видеоотчётов"
+                label="Видео-отчёт Volvo"
                 thumbSrc="https://images.unsplash.com/photo-1619405399517-d7fce0f13302?auto=format&fit=crop&w=800&q=80"
                 thumbAlt="Интерьер автомобиля — превью видеоотчёта"
               />
               <VideoThumbCard
                 href={VIDEO_REPORTS_URL}
-                label="Примеры осмотра кузова"
+                label="Видео-отчёт Kia"
                 thumbSrc="https://images.unsplash.com/photo-1486262715619-067b786738f6?auto=format&fit=crop&w=800&q=80"
                 thumbAlt="Кузов автомобиля — превью видеоотчёта"
               />
@@ -342,10 +337,6 @@ export function HomeLanding() {
           <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/catalog">
             Каталог
           </Link>
-          . SEO-страницы по маркам Кореи — в{" "}
-          <code className="break-all rounded-md bg-muted px-1.5 py-0.5 text-xs text-foreground">
-            /seo/korea/…
-          </code>
           .
         </p>
       </div>
