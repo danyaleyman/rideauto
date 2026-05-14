@@ -51,6 +51,7 @@ import {
   trimFacetLabelMinusGeneration,
 } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
+import { displayColorRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru";
 import { LocaleSwitchLinks } from "@/components/LocaleSwitchLinks";
 import { reportClientError } from "@/lib/observability";
 import { useLocaleContext } from "@/components/LocaleProvider";
@@ -483,7 +484,16 @@ export function CatalogClient({
       ...f.colors,
     ];
     for (const row of allRows) {
-      const label = row.value && f.fuels.some((x) => x.value === row.value) ? normalizeFuelLabel(facetRowLabel(row)) ?? facetRowLabel(row) : facetRowLabel(row);
+      const rawLabel = facetRowLabel(row);
+      const val = row.value;
+      let label = rawLabel;
+      if (val && f.fuels.some((x) => x.value === val)) {
+        label = normalizeFuelLabel(rawLabel) ?? rawLabel;
+      } else if (val && f.transmissions.some((x) => x.value === val)) {
+        label = displayTransmissionRu(rawLabel) ?? rawLabel;
+      } else if (val && f.colors.some((x) => x.value === val)) {
+        label = displayColorRu(rawLabel) ?? rawLabel;
+      }
       map.set(row.value, label);
     }
     return map;
@@ -493,7 +503,9 @@ export function CatalogClient({
   const popularColorRows = useMemo(() => {
     const colorFacets = facets?.colors;
     if (!colorFacets?.length) return [];
-    const grouped = groupFacetRows(colorFacets);
+    const grouped = groupFacetRows(colorFacets, {
+      labelFormatter: (row) => displayColorRu(facetRowLabel(row)) ?? facetRowLabel(row),
+    });
     return [...grouped].sort((a, b) => b.count - a.count).slice(0, 4);
   }, [facets?.colors]);
 
@@ -883,6 +895,9 @@ export function CatalogClient({
                         rows={facets.transmissions}
                         selected={new Set(state.trans)}
                         onToggle={(v) => toggle("trans", v)}
+                        labelFormatter={(row) =>
+                          displayTransmissionRu(facetRowLabel(row)) ?? facetRowLabel(row)
+                        }
                       />
                     </div>
                   ) : (
@@ -952,6 +967,9 @@ export function CatalogClient({
                         rows={facets.colors}
                         selected={new Set(state.color)}
                         onToggle={(v) => toggle("color", v)}
+                        labelFormatter={(row) =>
+                          displayColorRu(facetRowLabel(row)) ?? facetRowLabel(row)
+                        }
                       />
                     </>
                   ) : (

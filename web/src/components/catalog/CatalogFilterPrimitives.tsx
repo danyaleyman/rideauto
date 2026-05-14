@@ -128,16 +128,18 @@ export function ColorFacetDialog({
   selected,
   onToggle,
   disabled,
+  labelFormatter,
 }: {
   label: string;
   rows: FacetRow[];
   selected: Set<string>;
   onToggle: (values: string[]) => void;
   disabled?: boolean;
+  labelFormatter?: (row: FacetRow) => string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const groupedRows = useMemo(() => groupFacetRows(rows), [rows]);
+  const groupedRows = useMemo(() => groupFacetRows(rows, { labelFormatter }), [rows, labelFormatter]);
   const filtered = useMemo(
     () =>
       !q.trim()

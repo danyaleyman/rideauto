@@ -156,7 +156,7 @@ export function catalogCardDisplacementCc(data: Record<string, unknown>): number
     data.engine_displacement ??
     data.displacement_ml;
   const ccNum = typeof ccRaw === "number" ? Math.trunc(ccRaw) : parseDisplacementCcLoose(ccRaw);
-  return Number.isFinite(ccNum) && ccNum > 0 ? ccNum : null;
+  return ccNum != null && Number.isFinite(ccNum) && ccNum > 0 ? ccNum : null;
 }
 
 export function formatDisplacementLiters(cc: number): string {

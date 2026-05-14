@@ -28,6 +28,7 @@ import {
   displayEncarStandardOption,
 } from "@/lib/encar-options-display";
 import { formatPriceLabel } from "@/lib/format-price";
+import { displayColorRu, displayDriveTypeRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru";
 
 const SWITCH_BAR_CLASS = "inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1.5";
 const SWITCH_BUTTON_CLASS =
@@ -969,15 +970,24 @@ export function CarDetailAccordions({
       return hp ? `${hp} л.с.` : null;
     })();
   const transmissionRaw =
+    normalizeSpecValue(data.transmission_type_ru) ??
     normalizeSpecValue(data.transmission_type) ??
     normalizeSpecValue((data as Record<string, unknown>).gearbox) ??
     normalizeSpecValue((data as Record<string, unknown>).transmission);
-  const transmission =
-    transmissionRaw && /^\d{1,2}$/.test(transmissionRaw) ? `${transmissionRaw}-ст.` : transmissionRaw;
-  const drive =
+  const transmission = (() => {
+    if (!transmissionRaw) return null;
+    if (/[а-яёА-ЯЁ]/.test(transmissionRaw)) return transmissionRaw;
+    const mapped = displayTransmissionRu(transmissionRaw);
+    if (mapped && mapped !== transmissionRaw) return mapped;
+    if (/^\d{1,2}$/.test(transmissionRaw)) return `${transmissionRaw}-ст.`;
+    return mapped ?? transmissionRaw;
+  })();
+  const driveRaw =
+    normalizeSpecValue(data.drive_type_ru) ??
     normalizeSpecValue(data.drive_type) ??
     normalizeSpecValue((data as Record<string, unknown>).drivemode) ??
     normalizeSpecValue((data as Record<string, unknown>).drivingmode);
+  const drive = driveRaw ? displayDriveTypeRu(driveRaw) ?? driveRaw : null;
   const displacementText =
     normalizeSpecValue((data as Record<string, unknown>).displacement) ??
     ((): string | null => {
@@ -1001,7 +1011,15 @@ export function CarDetailAccordions({
       joinUniqueSpecs(data.mark, data.model, data.generation),
   );
   push("Год / месяц", formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year));
-  push("Цвет", asStr(data.color));
+  push(
+    "Цвет",
+    (() => {
+      const cr = asStr(data.color_ru);
+      if (cr) return cr;
+      const c = asStr(data.color);
+      return c ? displayColorRu(c) ?? c : null;
+    })(),
+  );
   push("Пробег", mileage);
   push("VIN", vin);
   push(

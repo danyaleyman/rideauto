@@ -1251,6 +1251,98 @@ def _extract_power_from_engine_text(engine_text: str) -> Optional[int]:
     return None
 
 
+# Числовые коды КПП в ответах Che168 → человекочитаемая строка
+_CHE168_TRANSMISSION_CODE_MAP: Dict[str, str] = {
+    "1": "Manual",
+    "2": "Automatic",
+    "3": "CVT",
+    "4": "DCT",
+    "5": "AMT",
+    "6": "6-speed",
+    "7": "7-speed",
+    "8": "8-speed",
+    "9": "9-speed",
+}
+
+
+def _normalize_che168_transmission(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    if s in _CHE168_TRANSMISSION_CODE_MAP:
+        return _CHE168_TRANSMISSION_CODE_MAP[s]
+    return s
+
+
+# Подстроки привода (нижний регистр) → канон FWD/RWD/AWD (длинные фразы раньше коротких токенов)
+_CHE168_DRIVE_CANON_RULES: Tuple[Tuple[str, str], ...] = tuple(
+    sorted(
+        (
+            ("rear-wheel drive", "RWD"),
+            ("rear wheel drive", "RWD"),
+            ("front-wheel drive", "FWD"),
+            ("front wheel drive", "FWD"),
+            ("four-wheel drive", "AWD"),
+            ("all-wheel drive", "AWD"),
+            ("part-time four-wheel drive", "AWD"),
+            ("4wd", "AWD"),
+            ("awd", "AWD"),
+            ("fwd", "FWD"),
+            ("rwd", "RWD"),
+        ),
+        key=lambda x: len(x[0]),
+        reverse=True,
+    )
+)
+
+
+def _normalize_che168_drive(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    low = s.lower()
+    up = s.upper().replace(" ", "")
+    if up in ("FWD", "RWD", "AWD", "4WD"):
+        return "AWD" if up == "4WD" else up
+    for needle, canon in _CHE168_DRIVE_CANON_RULES:
+        if needle in low:
+            return canon
+    return s
+
+
+def _che168_drive_raw_candidate(spec_hints: Dict[str, Any], ci: dict, li: dict) -> Any:
+    v = spec_hints.get("drivemode")
+    if v is not None and str(v).strip():
+        return v
+    for src in _nested_dict_candidates(ci) + _nested_dict_candidates(li):
+        if not isinstance(src, dict):
+            continue
+        for k in ("drivingmode", "driveMode", "drivemode", "driveType", "drive", "drivetype"):
+            x = src.get(k)
+            if x is not None and str(x).strip():
+                return x
+    return None
+
+
+def _year_from_yearname(yearname_s: Optional[str], yr: Optional[int]) -> Optional[int]:
+    if yr is not None:
+        return yr
+    if not yearname_s or len(str(yearname_s).strip()) < 4:
+        return None
+    head = str(yearname_s).strip()[:4]
+    if not head.isdigit():
+        return None
+    try:
+        y = int(head)
+    except ValueError:
+        return None
+    return y if 1980 <= y <= 2035 else None
+
+
 def _displacement_cc_from_value(v: Any) -> Optional[int]:
     if v is None:
         return None
@@ -1306,7 +1398,8 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
     field_targets = (
         ("displacement", ("displacement", "displacementml", "displacementMl", "liter", "enginecc")),
         ("gearbox", ("gearbox", "transmission", "transmissiontype", "gearBoxType")),
-        ("fueltype", ("fueltype", "fuelType", "engine", "fuel", "engineType")),
+        # Не маппим ключ `engine` на fueltype: в carinfo `engine` — строка мотора («1.4T 150HP L4»).
+        ("fueltype", ("fueltype", "fuelType", "fuel", "engineType")),
         ("drivemode", ("drivemode", "driveType", "drive", "drivetype")),
         ("bodytype", ("bodytype", "bodyType", "level", "bodyStyle", "carBodyType")),
         ("color", ("color", "bodycolor", "exteriorColor")),
@@ -1345,7 +1438,6 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
             "fuel",
             "fueltype",
             "energytype",
-            "engine",
             "enginetype",
             "燃料形式",
             "发动机类型",
@@ -1493,8 +1585,8 @@ def parse_one_che168_car_sync(
     disp_cc = _displacement_cc_from_spec(spec_raw) if spec_raw else None
     if disp_cc is None and spec_hints.get("displacement") is not None:
         disp_cc = _displacement_cc_from_value(spec_hints.get("displacement"))
-    engine_text = ci.get("engine") or ""
-    p_from_engine = _extract_power_from_engine_text(str(engine_text)) if engine_text else None
+    engine_display = str(ci.get("engine")).strip() if ci.get("engine") not in (None, "") else ""
+    p_from_engine = _extract_power_from_engine_text(engine_display) if engine_display else None
     p_hp = p_from_engine if p_from_engine is not None else _power_hp_from_hints(spec_hints)
 
     geo = _extract_geo(ci, li, session_cookie_hints)
@@ -1529,6 +1621,10 @@ def parse_one_che168_car_sync(
                     break
         if yearname_s and regdate_s:
             break
+    yr_out = _year_from_yearname(yearname_s, yr)
+    transmission_norm = _normalize_che168_transmission(spec_hints.get("gearbox"))
+    drive_raw = _che168_drive_raw_candidate(spec_hints, ci, li)
+    drive_norm = _normalize_che168_drive(drive_raw)
     km_v = _mileage_km(ci, li)
     trim, trim_src = _pick_first_non_empty_with_source(
         [("carinfo", c) for c in _nested_dict_candidates(ci)] + [("list_item", c) for c in _nested_dict_candidates(li)],
@@ -1548,7 +1644,7 @@ def parse_one_che168_car_sync(
         "mark": mark,
         "model": model,
         "title": title,
-        "year": yr,
+        "year": yr_out,
         "yearname": yearname_s,
         "regdate": regdate_s,
         "km_age": km_v,
@@ -1561,8 +1657,8 @@ def parse_one_che168_car_sync(
         "color": color_value,
         "body_type": spec_hints.get("bodytype"),
         "engine_type": spec_hints.get("fueltype"),
-        "transmission_type": spec_hints.get("gearbox"),
-        "drive_type": spec_hints.get("drivemode"),
+        "transmission_type": transmission_norm,
+        "drive_type": drive_norm,
         "power_hp": p_hp,
         "displacement_cc": disp_cc,
         "che168_params_raw": spec_raw if spec_raw else None,
@@ -1588,6 +1684,9 @@ def parse_one_che168_car_sync(
     if similar_raw and len(similar_dedup) < len(similar_raw):
         data["che168_similar_duplicates_removed"] = len(similar_raw) - len(similar_dedup)
 
+    if engine_display:
+        data["engine"] = engine_display
+
     lc = listing_cluster if isinstance(listing_cluster, dict) else {}
     if lc.get("enabled", True) is not False and recommend:
         cal = resolve_cluster_calibration(lc)
@@ -1598,7 +1697,7 @@ def parse_one_che168_car_sync(
             vin=vin,
             mark=mark,
             model=model,
-            year=yr,
+            year=yr_out,
             price_cny=price_cny,
             km=km_v,
             recommend_items=rec_items,

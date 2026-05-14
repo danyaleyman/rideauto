@@ -3,6 +3,9 @@ import pytest
 from scraper_pipeline.che168.parser import (
     _extract_real_options,
     _extract_power_from_engine_text,
+    _normalize_che168_drive,
+    _normalize_che168_transmission,
+    _year_from_yearname,
     che168_listing_numeric_id,
     extract_gallery_urls_from_detail_html,
     merge_che168_api_carinfo_envelope,
@@ -105,6 +108,23 @@ def test_extract_power_from_engine_text():
     assert _extract_power_from_engine_text("нет мощности") is None
 
 
+def test_normalize_transmission_codes():
+    assert _normalize_che168_transmission("7") == "7-speed"
+    assert _normalize_che168_transmission("6") == "6-speed"
+    assert _normalize_che168_transmission("1-speed DHT") == "1-speed DHT"
+
+
+def test_normalize_drive_canonical():
+    assert _normalize_che168_drive("Front-Wheel Drive (FWD)") == "FWD"
+    assert _normalize_che168_drive("Rear-Wheel Drive") == "RWD"
+    assert _normalize_che168_drive("前置四驱") == "前置四驱"
+
+
+def test_year_from_yearname_fallback():
+    assert _year_from_yearname("2022.06", None) == 2022
+    assert _year_from_yearname(None, 2019) == 2019
+
+
 def test_parse_one_uses_engine_power_first():
     car = parse_one_che168_car_sync(
         external_id="58097504",
@@ -125,6 +145,42 @@ def test_parse_one_uses_engine_power_first():
     )
     assert car is not None
     assert car["data"].get("power_hp") == 150
+    assert car["data"].get("engine") == "1.4T 150HP L4"
+
+
+def test_parse_one_year_from_yearname_when_year_missing():
+    car = parse_one_che168_car_sync(
+        external_id="58097505",
+        list_item={"id": 58097505, "brandname": "Test", "price": 200000},
+        carinfo={
+            "title": "Test",
+            "price": 200000,
+            "brandname": "Test",
+            "yearname": "2022.06",
+            "specid": 1,
+        },
+        specparam=None,
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    assert car["data"].get("year") == 2022
+    assert car["data"].get("yearname") == "2022.06"
+
+
+def test_parse_one_gearbox_numeric_code_normalized():
+    car = parse_one_che168_car_sync(
+        external_id="58097506",
+        list_item={"id": 58097506, "brandname": "VW", "price": 180000},
+        carinfo={"title": "VW", "price": 180000, "brandname": "VW", "specid": 2},
+        specparam={"result": {"gearbox": "7"}},
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    assert car["data"].get("transmission_type") == "7-speed"
 
 
 def test_parse_one_merges_list_images_when_carinfo_has_none():
@@ -443,7 +499,7 @@ def test_parse_one_extracts_english_paramtypeitems_format():
     assert d.get("displacement_cc") == 1500
     assert d.get("engine_type") == "Plug-in Hybrid"
     assert d.get("transmission_type") == "1-speed DHT"
-    assert d.get("drive_type") == "Front-Wheel Drive (FWD)"
+    assert d.get("drive_type") == "FWD"
     assert d.get("body_type") == "SUV"
     opts = d.get("che168_recommended_options") or []
     assert "ABS" in opts
