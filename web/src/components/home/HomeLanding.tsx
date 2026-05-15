@@ -17,54 +17,60 @@ const HERO_IMAGE = "/assets/landing-main-page.png";
 const TRUST = ["Китай", "Корея", "Япония", "Видеоосмотр", "Доставка", "Экспорт"];
 
 export function HomeLanding() {
-  const heroRef = useRef(null);
+  const containerRef = useRef(null);
 
   const { scrollYProgress, scrollY } = useScroll();
 
-  // smooth physics scroll (removes jitter)
-  const smoothProgress = useSpring(scrollYProgress, {
+  // smooth camera
+  const smooth = useSpring(scrollYProgress, {
     stiffness: 120,
-    damping: 25,
+    damping: 30,
   });
 
-  // cinematic camera system
-  const heroScale = useTransform(scrollY, [0, 800], [1.25, 1]);
-  const heroY = useTransform(scrollY, [0, 800], [0, 140]);
+  /**
+   * =========================
+   * CINEMATIC CAMERA SYSTEM
+   * =========================
+   */
 
-  const nextScale = useTransform(scrollY, [300, 900], [0.9, 1]);
+  // HERO: zoom in → settle
+  const heroScale = useTransform(scrollY, [0, 800], [1.25, 1]);
+  const heroY = useTransform(scrollY, [0, 800], [0, 120]);
+
+  // SCENE DEPTH SHIFT
+  const scene2Y = useTransform(scrollY, [400, 1200], [80, 0]);
+  const scene2Opacity = useTransform(scrollY, [300, 800], [0, 1]);
+
+  const scene3Scale = useTransform(scrollY, [800, 1500], [0.95, 1]);
+  const scene4Opacity = useTransform(scrollY, [1200, 1800], [0, 1]);
 
   return (
-    <div className="relative bg-background">
+    <div ref={containerRef} className="relative bg-background">
 
       {/* PROGRESS BAR */}
       <motion.div
-        style={{ scaleX: smoothProgress }}
+        style={{ scaleX: smooth }}
         className="fixed top-0 left-0 z-50 h-[2px] w-full origin-left bg-primary"
       />
 
       {/* ================= HERO (PINNED FEEL) ================= */}
-      <section className="relative min-h-[100vh] flex items-center overflow-hidden">
+      <section className="relative h-screen flex items-center overflow-hidden">
 
-        {/* cinematic background layers */}
+        {/* cinematic background */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-40 right-[-20%] h-[700px] w-[700px] rounded-full bg-primary/20 blur-[180px]" />
-          <div className="absolute bottom-[-30%] left-[-20%] h-[700px] w-[700px] rounded-full bg-blue-500/10 blur-[200px]" />
+          <div className="absolute -top-40 right-[-20%] h-[800px] w-[800px] rounded-full bg-primary/20 blur-[200px]" />
+          <div className="absolute bottom-[-30%] left-[-20%] h-[800px] w-[800px] rounded-full bg-blue-500/10 blur-[220px]" />
         </div>
 
-        <div className="mx-auto grid w-full max-w-7xl grid-cols-1 lg:grid-cols-2 items-center px-5 sm:px-6 gap-8">
+        <div className="mx-auto grid w-full max-w-7xl grid-cols-1 lg:grid-cols-2 items-center px-5 sm:px-6 gap-10">
 
-          {/* TEXT (tightened spacing FIX) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="relative z-20 max-w-xl"
-          >
-            <p className="text-xs tracking-[0.35em] uppercase text-muted-foreground">
+          {/* TEXT */}
+          <div className="relative z-20 max-w-xl">
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
               Ride Auto
             </p>
 
-            <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-semibold leading-[1.05]">
+            <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-semibold leading-[1.05]">
               Автомобили из Азии
             </h1>
 
@@ -78,11 +84,11 @@ export function HomeLanding() {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full px-8">
-                <Link href="/catalog">Смотреть каталог</Link>
+                <Link href="/catalog">Каталог</Link>
               </Button>
 
               <Button asChild size="lg" variant="secondary" className="rounded-full px-8">
-                <Link href="/contacts">Обсудить</Link>
+                <Link href="/contacts">Связаться</Link>
               </Button>
             </div>
 
@@ -91,15 +97,14 @@ export function HomeLanding() {
                 <span key={t}>{t}</span>
               ))}
             </div>
-          </motion.div>
+          </div>
 
-          {/* IMAGE (FIXED + +15% VISUAL BOOST) */}
+          {/* HERO CAR (cinematic camera) */}
           <motion.div
-            ref={heroRef}
             style={{ scale: heroScale, y: heroY }}
             className="relative flex justify-center lg:justify-end"
           >
-            <div className="absolute inset-0 scale-125 bg-primary/10 blur-[160px]" />
+            <div className="absolute inset-0 scale-125 bg-primary/10 blur-[180px]" />
 
             <Image
               src={HERO_IMAGE}
@@ -109,9 +114,9 @@ export function HomeLanding() {
               priority
               className="
                 w-full
-                max-w-[1100px] lg:max-w-[1350px]
+                max-w-[1200px] lg:max-w-[1400px]
                 object-contain
-                drop-shadow-[0_100px_220px_rgba(0,0,0,0.35)]
+                drop-shadow-[0_120px_240px_rgba(0,0,0,0.35)]
               "
             />
           </motion.div>
@@ -119,20 +124,17 @@ export function HomeLanding() {
         </div>
       </section>
 
-      {/* ================= SCENE 2 (tight spacing FIX) ================= */}
-      <section className="py-20 sm:py-28 px-5 sm:px-6">
+      {/* ================= SCENE 2 (fade in layer) ================= */}
+      <section className="min-h-screen flex items-center px-5 sm:px-6">
         <motion.div
-          style={{ scale: nextScale }}
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
+          style={{ opacity: scene2Opacity, y: scene2Y }}
           className="mx-auto max-w-4xl text-center"
         >
           <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
             Контроль качества
           </p>
 
-          <h2 className="mt-5 text-3xl sm:text-5xl font-semibold leading-tight">
+          <h2 className="mt-5 text-3xl sm:text-5xl font-semibold">
             Вы принимаете решение
             только после проверки
           </h2>
@@ -141,19 +143,19 @@ export function HomeLanding() {
             Фото, видео и техническая диагностика автомобиля до покупки.
           </p>
 
-          <Link
-            href="/reports"
-            className="mt-6 inline-flex text-primary hover:underline"
-          >
-            Примеры отчётов
+          <Link href="/reports" className="mt-6 inline-block text-primary">
+            Примеры отчётов →
           </Link>
         </motion.div>
       </section>
 
-      {/* ================= SCENE 3 ================= */}
-      <section className="py-20 sm:py-28 px-5 sm:px-6">
-        <div className="mx-auto max-w-6xl">
-          <div className="overflow-hidden rounded-3xl border shadow-xl bg-muted">
+      {/* ================= SCENE 3 (parallax card) ================= */}
+      <section className="min-h-screen flex items-center px-5 sm:px-6">
+        <motion.div
+          style={{ scale: scene3Scale }}
+          className="mx-auto max-w-6xl w-full"
+        >
+          <div className="overflow-hidden rounded-[40px] border shadow-xl bg-muted">
             <Image
               src="https://images.unsplash.com/photo-1619405399517-d7fce0f13302?auto=format&fit=crop&w=1800&q=80"
               alt="Inspection"
@@ -162,17 +164,20 @@ export function HomeLanding() {
               className="object-cover hover:scale-[1.03] transition-transform duration-700"
             />
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* ================= SCENE 4 (compact FIX) ================= */}
-      <section className="py-20 sm:py-28 px-5 sm:px-6">
-        <div className="mx-auto max-w-6xl">
+      {/* ================= SCENE 4 (fade up) ================= */}
+      <section className="min-h-screen flex items-center px-5 sm:px-6">
+        <motion.div
+          style={{ opacity: scene4Opacity }}
+          className="mx-auto max-w-6xl"
+        >
           <h2 className="text-3xl sm:text-5xl font-semibold">
             Как проходит покупка
           </h2>
 
-          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ["01", "Подбор", "Ищем авто под запрос"],
               ["02", "Проверка", "Видео и диагностика"],
@@ -186,12 +191,13 @@ export function HomeLanding() {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* ================= CTA (FIXED THEME BUG) ================= */}
-      <section className="relative py-20 sm:py-28 px-5 sm:px-6">
-        {/* hard contrast layer FIX */}
+      {/* ================= CTA (FIXED + NO THEME BUG) ================= */}
+      <section className="relative min-h-screen flex items-center px-5 sm:px-6">
+
+        {/* hard contrast layer */}
         <div className="absolute inset-0 bg-black dark:bg-primary" />
 
         <div className="relative mx-auto max-w-3xl text-center text-white">
@@ -200,7 +206,7 @@ export function HomeLanding() {
             который вам подходит
           </h2>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Button asChild size="lg" className="rounded-full bg-white text-black">
               <Link href="/catalog">Подобрать авто</Link>
             </Button>
@@ -212,6 +218,7 @@ export function HomeLanding() {
             </Button>
           </div>
         </div>
+
       </section>
 
     </div>
