@@ -4,7 +4,6 @@ import {
   motion,
   useScroll,
   useTransform,
-  useSpring,
 } from "framer-motion";
 
 import Image from "next/image";
@@ -22,43 +21,59 @@ export function HomeLanding() {
   const { scrollYProgress } = useScroll({ container: containerRef });
 
   /**
-   * 🎬 CINEMATIC ENGINE (no floating UX)
+   * 🎬 CLEAN MOTION LAYER (NO SPRINGS)
    */
-  const progress = useSpring(scrollYProgress, {
-    stiffness: 160,
-    damping: 30,
-  });
-
-  const heroScale = useTransform(scrollYProgress, [0, 0.2], [1.12, 1]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.15], [1, 0.88]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.25], [1.1, 1]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.9]);
 
   return (
     <div className="bg-background text-foreground">
 
-      {/* PROGRESS */}
+      {/* PROGRESS BAR (clean, no spring jitter) */}
       <motion.div
-        style={{ scaleX: progress }}
+        style={{ scaleX: scrollYProgress }}
         className="fixed top-0 left-0 z-50 h-[2px] w-full origin-left bg-primary"
       />
 
+      {/* SINGLE SCROLL ENGINE */}
       <div
         ref={containerRef}
         className="
           h-screen overflow-y-scroll
-          snap-y snap-mandatory
+          snap-y snap-proximity
+          scroll-smooth
         "
       >
 
-        {/* ================= SCENE 1: HERO ================= */}
-        <section className="relative h-screen snap-start flex items-center">
+        {/* ================= HERO ================= */}
+        <section className="min-h-screen snap-start flex items-center">
 
-          {/* background discipline (NO glow chaos) */}
-          <div className="absolute inset-0 bg-background" />
+          <div className="mx-auto grid w-full max-w-7xl grid-cols-1 lg:grid-cols-2 items-center px-6 lg:px-12 gap-10">
 
-          <div className="mx-auto grid w-full max-w-7xl grid-cols-1 lg:grid-cols-2 items-center px-6 gap-10">
+            {/* IMAGE (mobile-first order enforced) */}
+            <motion.div
+              style={{ scale: heroScale, opacity: heroOpacity }}
+              className="
+                order-1 lg:order-2
+                flex justify-center lg:justify-end
+              "
+            >
+              <Image
+                src={HERO_IMAGE}
+                alt="car"
+                width={2400}
+                height={1600}
+                priority
+                className="
+                  w-[120%] lg:w-[150%]
+                  object-contain
+                  drop-shadow-[0_120px_240px_rgba(0,0,0,0.35)]
+                "
+              />
+            </motion.div>
 
-            {/* TEXT BLOCK */}
-            <div className="max-w-xl">
+            {/* TEXT */}
+            <div className="order-2 lg:order-1 max-w-xl">
 
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
                 Ride Auto
@@ -76,7 +91,7 @@ export function HomeLanding() {
                 Подбор, проверка и доставка автомобилей без посредников
               </p>
 
-              <div className="mt-8 flex gap-3">
+              <div className="mt-8 flex gap-3 flex-wrap">
                 <Button asChild className="rounded-full px-8">
                   <Link href="/catalog">Каталог</Link>
                 </Button>
@@ -94,44 +109,26 @@ export function HomeLanding() {
 
             </div>
 
-            {/* HERO IMAGE (dominant but controlled) */}
-            <motion.div
-              style={{ scale: heroScale, opacity: heroOpacity }}
-              className="relative flex justify-end"
-            >
-              <Image
-                src={HERO_IMAGE}
-                alt="car"
-                width={2400}
-                height={1600}
-                priority
-                className="
-                  w-[125%] lg:w-[145%]
-                  object-contain
-                  drop-shadow-[0_120px_240px_rgba(0,0,0,0.35)]
-                "
-              />
-            </motion.div>
-
           </div>
+
         </section>
 
-        {/* ================= SCENE 2: PROOF ================= */}
-        <section className="h-screen snap-start flex items-center px-6 bg-muted/30">
+        {/* ================= PROOF ================= */}
+        <section className="min-h-screen snap-start flex items-center bg-muted/30">
 
-          <div className="mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
+          <div className="mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 items-center px-6">
 
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
                 Контроль качества
               </p>
 
-              <h2 className="mt-6 text-4xl lg:text-6xl font-semibold leading-tight">
+              <h2 className="mt-6 text-4xl lg:text-6xl font-semibold">
                 Проверка до покупки
               </h2>
 
               <p className="mt-6 text-muted-foreground">
-                Фото, видео и диагностика каждого автомобиля перед сделкой
+                Каждый автомобиль проходит фото, видео и технический аудит
               </p>
             </div>
 
@@ -149,10 +146,10 @@ export function HomeLanding() {
 
         </section>
 
-        {/* ================= SCENE 3: SOURCE ================= */}
-        <section className="h-screen snap-start flex items-center px-6">
+        {/* ================= SOURCE ================= */}
+        <section className="min-h-screen snap-start flex items-center">
 
-          <div className="mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
+          <div className="mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 items-center px-6">
 
             <div className="overflow-hidden rounded-3xl border">
               <Image
@@ -166,10 +163,10 @@ export function HomeLanding() {
 
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
-                Источник
+                Источник авто
               </p>
 
-              <h2 className="mt-6 text-4xl lg:text-6xl font-semibold leading-tight">
+              <h2 className="mt-6 text-4xl lg:text-6xl font-semibold">
                 Прямой доступ к аукционам
               </h2>
 
@@ -182,10 +179,10 @@ export function HomeLanding() {
 
         </section>
 
-        {/* ================= SCENE 4: PROCESS ================= */}
-        <section className="h-screen snap-start flex items-center px-6">
+        {/* ================= PROCESS ================= */}
+        <section className="min-h-screen snap-start flex items-center">
 
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-6xl px-6">
 
             <h2 className="text-4xl lg:text-6xl font-semibold">
               Процесс
@@ -209,17 +206,17 @@ export function HomeLanding() {
 
         </section>
 
-        {/* ================= SCENE 5: CTA ================= */}
-        <section className="h-screen snap-start flex items-center bg-black text-white">
+        {/* ================= CTA ================= */}
+        <section className="min-h-screen snap-start flex items-center bg-black text-white">
 
           <div className="mx-auto max-w-3xl text-center px-6">
 
-            <h2 className="text-4xl lg:text-6xl font-semibold leading-tight">
+            <h2 className="text-4xl lg:text-6xl font-semibold">
               Найдём автомобиль под вас
             </h2>
 
             <p className="mt-6 text-white/60">
-              Полный цикл под ключ — от поиска до доставки
+              Полный цикл под ключ — без посредников
             </p>
 
             <div className="mt-10 flex justify-center gap-3">
