@@ -14,21 +14,10 @@ const TRUST = ["Китай", "Корея", "Япония", "Видеоосмот
 export function HomeLanding() {
   const heroRef = useRef(null);
 
-  // GLOBAL scroll (без container — стабильнее)
   const { scrollYProgress, scrollY } = useScroll();
 
-  const heroY = useTransform(scrollY, [0, 600], [0, 120]);
-  const heroScale = useTransform(scrollY, [0, 600], [1.15, 1]);
-  const heroOpacity = useTransform(scrollY, [0, 400], [1, 0.85]);
-
-  const bounceAnimation = {
-    y: [0, -10, 0, -6, 0],
-    transition: {
-      duration: 2,
-      repeat: Infinity,
-      ease: "easeInOut" as const,
-    },
-  };
+  const heroY = useTransform(scrollY, [0, 600], [0, 100]);
+  const heroScale = useTransform(scrollY, [0, 600], [1.12, 1]);
 
   const scrollToNext = () => {
     const next = document.getElementById("scene-2");
@@ -44,38 +33,33 @@ export function HomeLanding() {
         className="fixed left-0 top-0 z-50 h-[2px] w-full origin-left bg-primary"
       />
 
-      {/* SCROLL INDICATOR */}
-      <motion.div
-        animate={bounceAnimation}
-        onClick={scrollToNext}
-        className="fixed bottom-6 left-1/2 z-40 hidden -translate-x-1/2 cursor-pointer rounded-full bg-background/80 p-2 backdrop-blur sm:block"
-      >
-        <ChevronDown className="h-6 w-6 text-foreground" />
-      </motion.div>
-
-      {/* ================= HERO ================= */}
-      <section className="relative flex min-h-screen items-center overflow-hidden px-4 sm:px-6">
+      {/* HERO */}
+      <section className="relative min-h-screen overflow-hidden px-5 sm:px-6 flex items-center">
 
         {/* BACKGROUND GLOW */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-40 right-[-10%] h-[600px] w-[600px] rounded-full bg-primary/20 blur-[160px]" />
-          <div className="absolute bottom-[-30%] left-[-10%] h-[600px] w-[600px] rounded-full bg-blue-500/10 blur-[180px]" />
+          <div className="absolute -top-40 right-[-20%] h-[600px] w-[600px] rounded-full bg-primary/20 blur-[160px]" />
+          <div className="absolute bottom-[-30%] left-[-20%] h-[600px] w-[600px] rounded-full bg-blue-500/10 blur-[180px]" />
         </div>
 
-        <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-2">
+        <div className="mx-auto grid w-full max-w-7xl grid-cols-1 lg:grid-cols-2 items-center gap-12">
 
           {/* TEXT */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="max-w-xl"
+            className="
+              max-w-xl
+              relative z-20
+              lg:pr-10
+            "
           >
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
               Ride Auto
             </p>
 
-            <h1 className="mt-6 text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-7xl">
+            <h1 className="mt-6 text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl xl:text-7xl">
               Автомобили из Азии
               <br />
               как новый стандарт
@@ -97,20 +81,25 @@ export function HomeLanding() {
 
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
               {TRUST.map((t) => (
-                <span key={t} className="transition-colors hover:text-foreground">
+                <span key={t} className="hover:text-foreground transition-colors">
                   {t}
                 </span>
               ))}
             </div>
           </motion.div>
 
-          {/* IMAGE (FIXED + BIGGER) */}
+          {/* IMAGE (FIXED LAYOUT — NEVER COVERS TEXT) */}
           <motion.div
             ref={heroRef}
-            style={{ y: heroY, scale: heroScale, opacity: heroOpacity }}
-            className="relative flex justify-center lg:justify-end"
+            style={{ y: heroY, scale: heroScale }}
+            className="
+              relative
+              flex justify-center lg:justify-end
+              z-10
+            "
           >
-            <div className="absolute inset-0 scale-125 bg-primary/10 blur-[160px]" />
+            {/* glow behind car */}
+            <div className="absolute inset-0 scale-125 bg-primary/10 blur-[140px]" />
 
             <Image
               src={HERO_IMAGE}
@@ -120,8 +109,10 @@ export function HomeLanding() {
               priority
               className="
                 relative z-10
-                w-[130%] sm:w-[120%] lg:w-[150%]
-                max-w-none
+                w-full
+                max-w-[900px]
+                lg:max-w-[1100px]
+                xl:max-w-[1200px]
                 object-contain
                 drop-shadow-[0_80px_180px_rgba(0,0,0,0.35)]
               "
@@ -134,12 +125,12 @@ export function HomeLanding() {
       {/* ================= SCENE 2 ================= */}
       <section
         id="scene-2"
-        className="flex min-h-screen items-center justify-center px-6"
+        className="flex min-h-screen items-center justify-center px-6 py-24"
       >
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
+          viewport={{ once: true, amount: 0.2 }}
           className="mx-auto max-w-4xl text-center"
         >
           <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
@@ -167,7 +158,7 @@ export function HomeLanding() {
       </section>
 
       {/* ================= SCENE 3 ================= */}
-      <section className="flex min-h-screen items-center px-6">
+      <section className="flex min-h-screen items-center px-6 py-24">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -187,7 +178,7 @@ export function HomeLanding() {
       </section>
 
       {/* ================= SCENE 4 ================= */}
-      <section className="flex min-h-screen items-center px-6">
+      <section className="flex min-h-screen items-center px-6 py-24">
         <div className="mx-auto w-full max-w-6xl">
           <motion.h2
             initial={{ opacity: 0, y: 30 }}
@@ -236,7 +227,7 @@ export function HomeLanding() {
             </Button>
 
             <Button asChild size="lg" variant="secondary" className="rounded-full">
-              <a href="https://t.me/nikits15" target="_blank">
+              <a href="https://t.me/nikits15" target="_blank" rel="noreferrer">
                 Telegram
               </a>
             </Button>
