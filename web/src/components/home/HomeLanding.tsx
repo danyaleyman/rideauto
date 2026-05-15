@@ -166,13 +166,13 @@ export function HomeLanding() {
 
               {/* Правая часть — большая картинка */}
               <div className="relative mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-lg sm:aspect-[16/11] lg:aspect-[5/4]">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl shadow-lg sm:aspect-[16/11] lg:aspect-[5/4]">
                   <Image
                     src={HERO_IMAGE}
                     alt="Автомобиль — иллюстрация раздела"
                     fill
                     priority
-                    className="object-cover"
+                    className="object-contain"
                     sizes="(max-width: 1024px) 100vw, 50vw"
                   />
                 </div>
