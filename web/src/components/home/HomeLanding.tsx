@@ -13,14 +13,33 @@ const TRUST = ["Китай", "Корея", "Япония", "Видеоосмот
 
 export function HomeLanding() {
   const heroRef = useRef(null);
-  const { scrollYProgress } = useScroll();
-  const { scrollY } = useScroll();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: containerRef });
+  const { scrollY } = useScroll({ container: containerRef });
   
-  // Прячем scrollbar
+  // Прячем scrollbar и настраиваем плавный скролл
   useEffect(() => {
     document.body.style.overflow = "hidden";
+    
+    // Плавный скролл для якорных ссылок
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      if (anchor?.hash && anchor.hash.startsWith('#')) {
+        e.preventDefault();
+        const element = document.querySelector(anchor.hash);
+        if (element && containerRef.current) {
+          const offset = element.getBoundingClientRect().top + containerRef.current.scrollTop;
+          containerRef.current.scrollTo({ top: offset, behavior: 'smooth' });
+        }
+      }
+    };
+    
+    document.addEventListener('click', handleAnchorClick);
+    
     return () => {
       document.body.style.overflow = "auto";
+      document.removeEventListener('click', handleAnchorClick);
     };
   }, []);
 
@@ -34,7 +53,17 @@ export function HomeLanding() {
     transition: {
       duration: 2,
       repeat: Infinity,
-      ease: "easeInOut"
+      ease: "easeInOut" as const
+    }
+  };
+
+  // Плавный скролл вниз
+  const scrollToNext = () => {
+    if (containerRef.current) {
+      const nextSection = containerRef.current.children[1] as HTMLElement;
+      if (nextSection) {
+        nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
   };
 
@@ -50,7 +79,7 @@ export function HomeLanding() {
       <motion.div
         animate={bounceAnimation}
         className="fixed bottom-8 left-1/2 z-40 hidden -translate-x-1/2 cursor-pointer rounded-full bg-background/80 p-2 backdrop-blur sm:block"
-        onClick={() => window.scrollBy({ top: window.innerHeight, behavior: "smooth" })}
+        onClick={scrollToNext}
       >
         <ChevronDown className="h-6 w-6 text-foreground" />
       </motion.div>
@@ -58,17 +87,24 @@ export function HomeLanding() {
       {/* Hide scrollbar */}
       <style jsx global>{`
         body {
-          overflow: hidden;
+          overflow: hidden !important;
         }
         ::-webkit-scrollbar {
-          display: none;
+          display: none !important;
         }
         * {
-          scrollbar-width: none;
+          scrollbar-width: none !important;
+        }
+        html {
+          scroll-behavior: smooth;
         }
       `}</style>
 
-      <div className="relative h-screen snap-y snap-mandatory overflow-y-scroll">
+      <div 
+        ref={containerRef}
+        className="relative h-screen snap-y snap-mandatory overflow-y-scroll scroll-smooth"
+        style={{ scrollBehavior: 'smooth' }}
+      >
 
         {/* ================= HERO (SCENE 1) ================= */}
         <section ref={heroRef} className="relative flex min-h-screen items-center snap-start overflow-hidden">
