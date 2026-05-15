@@ -1,218 +1,205 @@
+"use client";
+
+import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { useRef } from "react";
 
 const HERO_IMAGE = "/assets/landing-main-page.png";
 
-// TODO: replace with real assets (car showroom / hero cinematic)
-const TRUST_ITEMS = ["Китай", "Корея", "Япония", "Видеоосмотр", "Доставка под ключ", "Экспорт"];
+const TRUST = ["Китай", "Корея", "Япония", "Видеоосмотр", "Доставка", "Экспорт"];
 
 export function HomeLanding() {
+  const heroRef = useRef(null);
+  const { scrollYProgress } = useScroll();
+  const { scrollY } = useScroll();
+
+  const heroY = useTransform(scrollY, [0, 500], [0, 150]);
+  const heroScale = useTransform(scrollY, [0, 500], [1, 0.95]);
+  const heroOpacity = useTransform(scrollY, [0, 300], [1, 0.7]);
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div>
+      {/* PROGRESS BAR */}
+      <motion.div
+        style={{ scaleX: scrollYProgress }}
+        className="fixed left-0 top-0 z-50 h-[2px] w-full origin-left bg-primary"
+      />
 
-      {/* HERO (theme-aware: dark overlay but respects system theme base) */}
-      <section className="relative overflow-hidden bg-background text-foreground">
-        {/* cinematic glow */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-40 right-[-10%] h-[500px] w-[500px] rounded-full bg-primary/20 blur-[120px]" />
-          <div className="absolute bottom-[-20%] left-[-10%] h-[500px] w-[500px] rounded-full bg-blue-500/10 blur-[140px]" />
-        </div>
+      <div className="snap-y snap-mandatory overflow-y-scroll h-screen">
 
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-20 lg:grid-cols-[0.95fr_1.2fr] lg:py-28">
+        {/* ================= HERO (TESLA SCENE 1) ================= */}
+        <section ref={heroRef} className="relative flex min-h-screen items-center snap-start overflow-hidden">
 
-          {/* LEFT */}
-          <div className="relative z-10 max-w-xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              Ride Auto
-            </p>
-
-            <h1 className="mt-6 text-5xl font-semibold leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
-              Автомобили
-              <br />
-              из Азии —
-              <br />
-              без сложностей
-            </h1>
-
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground">
-              Подбор, проверка и доставка автомобилей из Кореи, Китая и Японии под ключ.
-            </p>
-
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="h-12 rounded-full px-8 text-base">
-                <Link href="/catalog">Каталог</Link>
-              </Button>
-
-              <Button asChild size="lg" variant="secondary" className="h-12 rounded-full px-8">
-                <Link href="/contacts">Консультация</Link>
-              </Button>
-            </div>
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-40 right-[-10%] h-[600px] w-[600px] rounded-full bg-primary/20 blur-[160px]" />
+            <div className="absolute bottom-[-30%] left-[-10%] h-[600px] w-[600px] rounded-full bg-blue-500/10 blur-[180px]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
           </div>
 
-          {/* RIGHT IMAGE */}
-          <div className="relative">
-            {/* glow behind image */}
-            <div className="absolute inset-0 scale-110 bg-primary/10 blur-[120px]" />
+          <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-16 px-6 lg:grid-cols-[1.05fr_1fr]">
 
-            {/* PLACEHOLDER NOTE: swap with cinematic car render (side/front angle) */}
-            <Image
-              src={HERO_IMAGE}
-              alt="Ride Auto Hero Car"
-              width={1400}
-              height={900}
-              priority
-              className="relative z-10 object-contain drop-shadow-[0_60px_140px_rgba(0,0,0,0.35)] transition-transform duration-700 hover:scale-[1.02]"
-            />
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="max-w-xl"
+            >
+              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+                Ride Auto
+              </p>
+
+              <h1 className="mt-6 text-5xl font-semibold tracking-tight leading-[0.95] sm:text-6xl lg:text-7xl">
+                Автомобили из Азии
+                <br />
+                как новый стандарт
+              </h1>
+
+              <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
+                Подбор, проверка и доставка автомобилей без посредников — прозрачный процесс от поиска до передачи.
+              </p>
+
+              <div className="mt-10 flex flex-wrap gap-3">
+                <Button asChild size="lg" className="h-12 rounded-full px-8">
+                  <Link href="/catalog">Смотреть каталог</Link>
+                </Button>
+
+                <Button asChild size="lg" variant="secondary" className="h-12 rounded-full px-8">
+                  <Link href="/contacts">Обсудить подбор</Link>
+                </Button>
+              </div>
+
+              <div className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                {TRUST.map((t) => (
+                  <span key={t}>{t}</span>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* PARALLAX IMAGE */}
+            <motion.div
+              style={{ y: heroY, scale: heroScale, opacity: heroOpacity }}
+              className="relative flex justify-center"
+            >
+              <div className="absolute inset-0 scale-110 bg-primary/10 blur-[160px]" />
+
+              <Image
+                src={HERO_IMAGE}
+                alt="Hero car"
+                width={1400}
+                height={900}
+                priority
+                className="relative z-10 object-contain drop-shadow-[0_80px_180px_rgba(0,0,0,0.4)]"
+              />
+            </motion.div>
+
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* TRUST STRIP */}
-      <section className="border-y border-border/60 bg-background/60 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6 py-6 text-sm text-muted-foreground">
-          {TRUST_ITEMS.map((item) => (
-            <span key={item} className="tracking-wide">
-              {item}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURE HERO BLOCK (editorial style, not card-based) */}
-      <section className="mx-auto max-w-6xl px-6 py-28 lg:py-40">
-        <div className="grid gap-14 lg:grid-cols-2 lg:items-center">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+        {/* ================= SCENE 2 ================= */}
+        <section className="flex min-h-screen items-center justify-center snap-start px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            className="mx-auto max-w-4xl text-center"
+          >
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
               Контроль качества
             </p>
 
-            <h2 className="mt-4 text-4xl font-semibold tracking-tight lg:text-5xl">
-              Вы видите автомобиль
+            <h2 className="mt-6 text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+              Вы принимаете решение
               <br />
-              до покупки
+              только после проверки
             </h2>
 
-            <p className="mt-6 text-lg text-muted-foreground">
-              Фото, видео и диагностика перед выкупом — дистанционное принятие решения.
+            <p className="mt-8 text-lg text-muted-foreground">
+              Фото, видео и техническая диагностика автомобиля до покупки.
             </p>
 
-            <div className="mt-8 text-sm text-primary">
-              <Link href="/reports" className="inline-flex items-center gap-2 hover:underline">
-                Примеры отчётов
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-
-          {/* PLACEHOLDER IMAGE */}
-          <div className="relative overflow-hidden rounded-[32px] border border-border/60 bg-muted">
-            <Image
-              src="https://images.unsplash.com/photo-1619405399517-d7fce0f13302?auto=format&fit=crop&w=1400&q=80"
-              alt="Car inspection"
-              width={1200}
-              height={900}
-              className="object-cover transition duration-700 hover:scale-[1.03]"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* PROCESS (minimal + premium spacing) */}
-      <section className="mx-auto max-w-6xl px-6 py-28 lg:py-40">
-        <h2 className="text-4xl font-semibold tracking-tight lg:text-5xl">
-          Как проходит покупка
-        </h2>
-
-        <div className="mt-16 grid gap-14 lg:grid-cols-4">
-          {[
-            ["01", "Подбор", "Находим авто под бюджет и запрос"],
-            ["02", "Проверка", "Видеоосмотр и диагностика"],
-            ["03", "Выкуп", "Оформление и экспорт"],
-            ["04", "Доставка", "Передача автомобиля клиенту"],
-          ].map(([n, t, d]) => (
-            <div key={n}>
-              <div className="text-6xl font-semibold tracking-tight text-muted-foreground/30">
-                {n}
-              </div>
-              <h3 className="mt-4 text-xl font-medium">{t}</h3>
-              <p className="mt-2 text-muted-foreground">{d}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* VIDEO (needs real thumbnails later) */}
-      <section className="mx-auto max-w-6xl px-6 py-28 lg:py-40">
-        <h2 className="text-4xl font-semibold">Видеоотчёты</h2>
-        <p className="mt-4 text-muted-foreground">
-          Полная проверка автомобиля перед покупкой
-        </p>
-
-        <div className="mt-10 grid gap-6 sm:grid-cols-3">
-          {[
-            ["Volvo XC90", "https://images.unsplash.com/photo-1619405399517-d7fce0f13302?auto=format&fit=crop&w=800&q=80"],
-            ["Kia Sorento", "https://images.unsplash.com/photo-1486262715619-067b786738f6?auto=format&fit=crop&w=800&q=80"],
-            ["Заказать осмотр", "/contacts"],
-          ].map(([t, img]) => (
-            <Link
-              key={t}
-              href="#"
-              className="group overflow-hidden rounded-[28px] border border-border/60 bg-card/40 transition hover:-translate-y-1 hover:shadow-2xl"
-            >
-              <div className="relative aspect-video bg-muted">
-                {img ? (
-                  <Image
-                    src={img as string}
-                    alt={t}
-                    fill
-                    className="object-cover transition duration-500 group-hover:scale-[1.04]"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-muted-foreground">
-                    Placeholder image
-                  </div>
-                )}
-
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition group-hover:opacity-100">
-                  <Play className="h-12 w-12 text-white" />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4">
-                <span className="font-medium">{t}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </div>
+            <Link href="/reports" className="mt-10 inline-flex items-center gap-2 text-primary hover:underline">
+              Примеры отчётов <ArrowRight className="h-4 w-4" />
             </Link>
-          ))}
-        </div>
-      </section>
+          </motion.div>
+        </section>
 
-      {/* CTA (theme-aware, no hard black dependency) */}
-      <section className="relative overflow-hidden bg-primary text-primary-foreground">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top,white,transparent_60%)]" />
+        {/* ================= SCENE 3 IMAGE ================= */}
+        <section className="flex min-h-screen items-center snap-start px-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1 }}
+            className="mx-auto w-full max-w-6xl"
+          >
+            <div className="relative overflow-hidden rounded-[40px] border border-border/60 bg-muted">
+              <Image
+                src="https://images.unsplash.com/photo-1619405399517-d7fce0f13302?auto=format&fit=crop&w=1800&q=80"
+                alt="Inspection"
+                width={1800}
+                height={1000}
+                className="object-cover"
+              />
+            </div>
+          </motion.div>
+        </section>
 
-        <div className="relative mx-auto max-w-3xl px-6 py-28 text-center lg:py-40">
-          <h2 className="text-4xl font-semibold leading-tight sm:text-5xl">
-            Найдём автомобиль,
-            <br />
-            который подойдёт вам
-          </h2>
+        {/* ================= SCENE 4 PROCESS ================= */}
+        <section className="flex min-h-screen items-center snap-start px-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <h2 className="text-4xl font-semibold tracking-tight lg:text-5xl">
+              Как проходит покупка
+            </h2>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <Button asChild size="lg" className="h-12 rounded-full px-8">
-              <Link href="/catalog">Подобрать авто</Link>
-            </Button>
-
-            <Button asChild size="lg" variant="secondary" className="h-12 rounded-full px-8">
-              <a href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">
-                Telegram
-              </a>
-            </Button>
+            <div className="mt-24 grid gap-20 lg:grid-cols-4">
+              {[
+                ["01", "Подбор", "Ищем автомобиль под запрос"],
+                ["02", "Проверка", "Видео и технический осмотр"],
+                ["03", "Выкуп", "Сделка и экспорт"],
+                ["04", "Доставка", "Передача клиенту"],
+              ].map(([n, t, d]) => (
+                <div key={n}>
+                  <div className="text-6xl font-semibold text-muted-foreground/20">{n}</div>
+                  <h3 className="mt-6 text-xl font-medium">{t}</h3>
+                  <p className="mt-3 text-muted-foreground">{d}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        {/* ================= SCENE 5 CTA ================= */}
+        <section className="flex min-h-screen items-center snap-start bg-primary px-6 text-primary-foreground">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mx-auto max-w-3xl text-center"
+          >
+            <h2 className="text-4xl font-semibold sm:text-5xl lg:text-6xl">
+              Найдём автомобиль
+              <br />
+              который вам подходит
+            </h2>
+
+            <div className="mt-12 flex flex-wrap justify-center gap-3">
+              <Button asChild size="lg" className="h-12 rounded-full px-8">
+                <Link href="/catalog">Подобрать авто</Link>
+              </Button>
+
+              <Button asChild size="lg" variant="secondary" className="h-12 rounded-full px-8">
+                <a href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">
+                  Telegram
+                </a>
+              </Button>
+            </div>
+          </motion.div>
+        </section>
+
+      </div>
     </div>
   );
 }
