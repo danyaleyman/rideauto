@@ -16,6 +16,12 @@ if [[ -f /etc/default/rideauto ]]; then
   source /etc/default/rideauto
   set +a
 fi
+if [[ -f "${ROOT}/.env" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "${ROOT}/.env"
+  set +a
+fi
 
 PG_DSN="${SYNC_PG_DSN:-${DATABASE_URL:-${WRA_PG_DSN:-}}}"
 if [[ -z "${DATABASE_URL// /}" ]] && [[ -n "${PG_DSN// /}" ]]; then
