@@ -138,8 +138,9 @@ def _extract_hp_and_conf(answer: str) -> Tuple[Optional[int], Optional[float]]:
 
 
 def _build_prompt(row: dict) -> str:
-    mc = str(row.get("motor_code_norm") or "").strip()
-    vp = str(row.get("vin_prefix") or "").strip()
+    # sqlite3.Row has no .get(); bracket access works for both Row and dict.
+    mc = str(row["motor_code_norm"] or "").strip()
+    vp = str(row["vin_prefix"] or "").strip()
     extra = ""
     if mc or vp:
         extra = f"motor_code_norm={mc or 'n/a'}\nvin_prefix (11 chars if known)={vp or 'n/a'}\n"
