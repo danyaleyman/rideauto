@@ -233,6 +233,7 @@ def _single_api_post_for_retry(
     timeout_sec: int,
     *,
     latencies_ms: Optional[list[float]] = None,
+    http_budget: Optional[dict[str, int]] = None,
 ) -> Tuple[Optional[int], Optional[float], str]:
     payload = {
         "model": model,
