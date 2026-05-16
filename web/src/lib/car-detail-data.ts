@@ -316,6 +316,13 @@ export function flatScalarRows(obj: unknown): [string, string][] {
 export function formatRegYearMonth(v: unknown): string | null {
   if (v == null || v === "") return null;
   const s = String(v).trim();
+  const ymDot = /^(\d{4})\.(\d{1,2})$/.exec(s);
+  if (ymDot) {
+    const month = Number(ymDot[2]);
+    if (month >= 1 && month <= 12) {
+      return `${ymDot[1].slice(2)}/${String(month).padStart(2, "0")}`;
+    }
+  }
   const iso = /^(\d{4})-(\d{2})(?:-\d{2})?/.exec(s);
   if (iso) return `${iso[1].slice(2)}/${iso[2]}`;
   const ymFlat = /^(\d{4})(\d{2})(?:\.0+)?$/.exec(s.replace(/\s/g, ""));
@@ -330,6 +337,18 @@ export function formatRegYearMonth(v: unknown): string | null {
     }
   }
   return null;
+}
+
+/** Год/месяц регистрации для карточки (Che168: yearname/regdate; Encar: yearMonth). */
+export function pickRegYearMonthDisplay(data: Record<string, unknown>): string | null {
+  return (
+    formatRegYearMonth(data.yearMonth) ??
+    formatRegYearMonth(data.yearname) ??
+    formatRegYearMonth(data.regdate) ??
+    formatRegYearMonth(data.year) ??
+    asStr(data.yearname) ??
+    asStr(data.year)
+  );
 }
 
 export function formatHumanDate(v: unknown): string | null {

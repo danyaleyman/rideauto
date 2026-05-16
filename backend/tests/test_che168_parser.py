@@ -11,6 +11,7 @@ from scraper_pipeline.che168.parser import (
     merge_che168_api_carinfo_envelope,
     merge_che168_image_url_lists,
     normalize_price_cny,
+    normalize_price_cny_detailed,
     parse_one_che168_car_sync,
 )
 
@@ -29,6 +30,14 @@ def test_normalize_price_cny_wan():
 def test_normalize_price_cny_heuristic_small_float():
     v = normalize_price_cny(12.8, assume_wan_yuan=False)
     assert v == 128000.0
+
+
+def test_normalize_price_cny_heuristic_medium_wan_x1000():
+    """Che168 Global: 10.77万 часто приходит как 10770 (万 * 1000)."""
+    p, meta = normalize_price_cny_detailed(10770, assume_wan_yuan=False)
+    assert p == 107700.0
+    assert meta["che168_price_cny_rule"] == "heuristic_medium_wan_x1000"
+    assert normalize_price_cny(258000, assume_wan_yuan=False) == 258000.0
 
 
 def test_extract_real_options_skips_basic_specs_paramtypeitems():

@@ -17,7 +17,7 @@ import {
   formatInspectionListItem,
   formatKm,
   normalizeFuelLabel,
-  formatRegYearMonth,
+  pickRegYearMonthDisplay,
   getPath,
   joinUniqueSpecs,
   prettifyDataKey,
@@ -1010,7 +1010,7 @@ export function CarDetailAccordions({
     ) ??
       joinUniqueSpecs(data.mark, data.model, data.generation),
   );
-  push("Год / месяц", formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year));
+  push("Год / месяц", pickRegYearMonthDisplay(data as Record<string, unknown>));
   push(
     "Цвет",
     (() => {

@@ -5,7 +5,7 @@ import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import {
   asStr,
   formatKm,
-  formatRegYearMonth,
+  pickRegYearMonthDisplay,
   normalizeCatalogDisplayLabel,
   normalizeFuelLabel,
 } from "@/lib/car-detail-data";
@@ -205,7 +205,7 @@ export function catalogCardAttributeChips(
     return Number.isFinite(plain) && plain > 0 ? plain : null;
   };
   const chips: { key: string; label: string; Icon: LucideIcon }[] = [];
-  const ym = formatRegYearMonth(data.yearMonth) ?? formatRegYearMonth(data.year);
+  const ym = pickRegYearMonthDisplay(data as Record<string, unknown>);
   if (ym) chips.push({ key: "ym", label: ym, Icon: CalendarDays });
   else if (yearNum != null && Number.isFinite(yearNum) && yearNum > 0) {
     chips.push({ key: "y", label: String(Math.round(yearNum)), Icon: CalendarDays });

@@ -819,7 +819,8 @@ def normalize_price_cny_detailed(
 ) -> tuple[Optional[float], Dict[str, Any]]:
     """
     Возвращает (цена в CNY, метаданные интерпретации для аудита и Meili).
-    rule: config_assume_wan_yuan | heuristic_small_decimal_wan | heuristic_small_integer_wan | raw_cny_integer | none
+    rule: config_assume_wan_yuan | heuristic_small_decimal_wan | heuristic_small_integer_wan |
+          heuristic_medium_wan_x1000 | text_embedded_wan | raw_cny_integer | none
     """
     meta: Dict[str, Any] = {"che168_price_raw_input": raw, "che168_price_cny_rule": "none"}
     ctx = " ".join(
@@ -849,6 +850,10 @@ def normalize_price_cny_detailed(
     if v < 500:
         meta["che168_price_cny_rule"] = "heuristic_small_integer_wan"
         return round(v * 10_000.0, 2), meta
+    # Che168 Global часто отдаёт 万元 как целое *1000 (10.77万 → 10770), не как 10.77.
+    if 1_000 <= v < 100_000 and not assume_wan_yuan:
+        meta["che168_price_cny_rule"] = "heuristic_medium_wan_x1000"
+        return round(v * 10.0, 2), meta
     meta["che168_price_cny_rule"] = "raw_cny_integer"
     return round(v, 2), meta
 

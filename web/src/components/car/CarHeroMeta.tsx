@@ -2,7 +2,7 @@ import { CalendarDays, Fuel, Gauge, IdCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
 import { CarPricingTierBadge } from "@/components/car/CarPricingTierBadge";
-import { asStr, formatKm, formatRegYearMonth, normalizeFuelLabel, translateKoToRuText } from "@/lib/car-detail-data";
+import { asStr, formatKm, normalizeFuelLabel, pickRegYearMonthDisplay, translateKoToRuText } from "@/lib/car-detail-data";
 import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
 import { extractPricingTier } from "@/lib/pricing-tier-ui";
 
@@ -49,11 +49,7 @@ export function CarHeroMeta({
     icon: typeof CalendarDays;
   };
   const chips: Chip[] = [];
-  const y =
-    formatRegYearMonth(data.yearMonth) ??
-    formatRegYearMonth(data.year) ??
-    asStr(data.yearMonth) ??
-    asStr(data.year);
+  const y = pickRegYearMonthDisplay(data);
   if (y) chips.push({ key: "y", label: y, variant: "secondary", icon: CalendarDays });
   const km = formatKm(data.km_age);
   if (km) chips.push({ key: "km", label: km, icon: Gauge });

@@ -23,6 +23,8 @@ export function pickCarData(raw: Record<string, unknown>): Record<string, unknow
         readModel.yearMonth ??
         readModel.year_month ??
         readModel.first_registration_at,
+      yearname: data.yearname ?? readModel.yearname,
+      regdate: data.regdate ?? readModel.regdate,
       km_age: data.km_age ?? readModel.mileage_km,
       engine_type: data.engine_type ?? readModel.engine_type,
       transmission_type:
