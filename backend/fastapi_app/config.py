@@ -7,6 +7,8 @@ from typing import Optional
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from scraper_pipeline.pg_dsn_resolve import rewrite_pg_dsn_for_compose_api
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -28,6 +30,11 @@ class Settings(BaseSettings):
     meilisearch_url: str = Field(default="http://127.0.0.1:7700")
     meilisearch_key: str = Field(default="")
     meilisearch_index: str = Field(default="cars")
+
+    @field_validator("pg_dsn", mode="after")
+    @classmethod
+    def _pg_dsn_for_runtime(cls, v: str) -> str:
+        return rewrite_pg_dsn_for_compose_api(v)
 
     @field_validator("meilisearch_key", mode="before")
     @classmethod

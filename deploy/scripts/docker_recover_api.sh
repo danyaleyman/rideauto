@@ -17,4 +17,5 @@ for i in $(seq 1 36); do
   sleep 5
 done
 echo "api still not healthy — check: docker compose logs api --tail=200"
+echo "If Connection refused to Postgres: in .env use WRA_PG_DSN=@postgres:5432 (not 127.0.0.1) for compose api."
 exit 1

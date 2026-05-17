@@ -7,6 +7,37 @@ import urllib.parse
 from typing import Any, Dict
 
 
+def rewrite_pg_dsn_for_compose_api(dsn: str) -> str:
+    """
+    Обратная операция к ``rewrite_postgres_hostname_for_host``: в контейнере ``api``
+    ``127.0.0.1`` / ``localhost`` из общего ``.env`` (для скриптов на хосте) → ``postgres``.
+
+    Активно только при ``WRA_PG_DSN_SKIP_HOST_REWRITE=1`` (см. docker-compose.yml).
+    """
+    if (os.environ.get("WRA_PG_DSN_SKIP_HOST_REWRITE") or "").strip().lower() not in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return dsn
+    s = (dsn or "").strip()
+    if not s:
+        return s
+    p = urllib.parse.urlsplit(s)
+    if not p.hostname or str(p.hostname).lower() not in ("127.0.0.1", "localhost"):
+        return s
+    port = p.port if p.port is not None else 5432
+    auth = ""
+    if p.username:
+        uq = urllib.parse.quote(p.username, safe="")
+        if p.password is not None:
+            uq += ":" + urllib.parse.quote(p.password, safe="")
+        auth = uq + "@"
+    netloc = f"{auth}postgres:{port}"
+    return urllib.parse.urlunsplit((p.scheme, netloc, p.path, p.query, p.fragment))
+
+
 def rewrite_postgres_hostname_for_host(dsn: str) -> str:
     """
     На VPS процесс идёт на хосте, а ``DATABASE_URL`` часто копируют из compose (``@postgres:5432``).
