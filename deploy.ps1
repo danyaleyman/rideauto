@@ -13,5 +13,5 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 git push server main
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-ssh rideauto "cd /opt/rideauto && git pull && docker compose build web && docker compose up -d --no-deps web"
+ssh rideauto "cd /opt/rideauto && bash deploy/scripts/server_compose_env_fix_and_deploy.sh"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
