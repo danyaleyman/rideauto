@@ -669,7 +669,7 @@ export function BuyCalculator() {
         ? finalHpEd || safeHpEd
         : engineType === "hybrid"
           ? finalHpIce + finalHpEd * 0.45
-          : finalHpSingle || finalHpIce;
+          : safeHpSingle || finalHpIce;
     const duty = getDuty(rub, eurRate, ageRange, safeVol, engineType, powerForExcise);
     const excise = engineType === "electric" ? exciseRub(powerForExcise) : 0;
     const vat = engineType === "electric" ? vatImportRub(rub, duty, excise) : 0;
