@@ -57,8 +57,52 @@ EXCISE_HP_TIERS_RUB_PER_HP: List[Tuple[float, float]] = [
     (500.0, 1771.0),
     (float("inf"), 1829.0),
 ]
-# НДС при импорте (база: таможенная стоимость + пошлина + акциз), ориентир для калькулятора физлица.
+# НДС при импорте (база: таможенная стоимость + пошлина + акциз).
 VAT_IMPORT_RATE = 0.20
+# СТП для EV (8703 80): адвалорная пошлина в составе совокупного платежа, ЕЭК №107 табл. 2 п. 4.
+EV_PHYS_STP_DUTY_ADVALOREM_RATE = 0.15
+
+# Утиль: ПП №1291 (ред. ПП №1713), индексация коэффициентов с 01.01.2026 (база 20 000 ₽).
+_UtilHpBand = Tuple[Tuple[float, float], ...]
+ICE_UTIL_POWER_COEFF_0_3: _UtilHpBand = (
+    (160.0, 40.04),
+    (190.0, 45.0),
+    (220.0, 47.64),
+    (250.0, 50.52),
+    (280.0, 57.12),
+    (310.0, 64.56),
+    (340.0, 72.96),
+    (float("inf"), 72.96),
+)
+ICE_UTIL_POWER_COEFF_OLDER: _UtilHpBand = (
+    (160.0, 70.44),
+    (190.0, 74.64),
+    (220.0, 79.2),
+    (250.0, 83.88),
+    (280.0, 91.92),
+    (310.0, 100.56),
+    (340.0, 110.16),
+    (float("inf"), 110.16),
+)
+EV_UTIL_POWER_COEFF_0_3: _UtilHpBand = (
+    (100.0, 49.56),
+    (130.0, 65.88),
+    (160.0, 78.0),
+    (190.0, 92.4),
+    (220.0, 109.68),
+    (250.0, 129.96),
+    (280.0, 153.96),
+    (float("inf"), 153.96),
+)
+EV_UTIL_POWER_COEFF_OLDER: _UtilHpBand = (
+    (100.0, 82.08),
+    (130.0, 95.64),
+    (160.0, 111.36),
+    (190.0, 129.72),
+    (220.0, 151.2),
+    (250.0, 176.16),
+    (float("inf"), 176.16),
+)
 
 
 def _util_age_band(age_years: int) -> str:
@@ -67,6 +111,24 @@ def _util_age_band(age_years: int) -> str:
     if age_years <= 5:
         return "3-5"
     return "5+"
+
+
+def _util_coeff_by_power(hp: float, bands: _UtilHpBand) -> float:
+    p = max(0.0, float(hp))
+    for cap, coeff in bands:
+        if p <= cap:
+            return float(coeff)
+    return float(bands[-1][1])
+
+
+def _util_ice_power_coeff(age: str, effective_hp: float) -> float:
+    bands = ICE_UTIL_POWER_COEFF_0_3 if age == "0-3" else ICE_UTIL_POWER_COEFF_OLDER
+    return _util_coeff_by_power(effective_hp, bands)
+
+
+def _util_ev_power_coeff(age: str, effective_hp: float) -> float:
+    bands = EV_UTIL_POWER_COEFF_0_3 if age == "0-3" else EV_UTIL_POWER_COEFF_OLDER
+    return _util_coeff_by_power(effective_hp, bands)
 
 
 def _effective_power_util(
@@ -107,35 +169,13 @@ def utilization_buy_page_rub(
         if is_loyal:
             return 3400.0 if age == "0-3" else 5200.0
 
-    if (eng_type == "electric" or (eng_type == "hybrid" and hybrid_type == "series")) and effective_power > 80:
-        coeff = 1.0
-        if age == "0-3":
-            if effective_power <= 100:
-                coeff = 65.88
-            elif effective_power <= 130:
-                coeff = 79.2
-            elif effective_power <= 160:
-                coeff = 93.6
-            else:
-                coeff = 110.4
-        elif age == "3-5":
-            if effective_power <= 100:
-                coeff = 151.2
-            elif effective_power <= 130:
-                coeff = 172.8
-            elif effective_power <= 160:
-                coeff = 201.6
-            else:
-                coeff = 240.0
-        else:
-            if effective_power <= 100:
-                coeff = 240.0
-            elif effective_power <= 130:
-                coeff = 280.0
-            elif effective_power <= 160:
-                coeff = 320.0
-            else:
-                coeff = 360.0
+    if eng_type == "electric" or (eng_type == "hybrid" and hybrid_type == "series"):
+        if effective_power > 80 or not is_personal:
+            coeff = _util_ev_power_coeff(age, effective_power)
+            return float(round(base * coeff))
+
+    if effective_power > 160:
+        coeff = _util_ice_power_coeff(age, effective_power)
         return float(round(base * coeff))
 
     power_kw = effective_power * 0.7355
@@ -310,7 +350,12 @@ def ice_engine_inputs(car_data: Dict[str, Any], fuel: str) -> Tuple[int, Optiona
 
 
 def parse_power_hp(car_data: Dict[str, Any]) -> Optional[float]:
-    p = car_data.get("power") or car_data.get("power_hp") or car_data.get("outputHorsepower")
+    p = (
+        car_data.get("power")
+        or car_data.get("power_hp")
+        or car_data.get("hp")
+        or car_data.get("outputHorsepower")
+    )
     if p is None:
         kw = car_data.get("power_kw")
         if kw is not None:
@@ -375,7 +420,7 @@ def duty_phys_person_rub(
     fuel: str,
 ) -> float:
     if fuel == "electric":
-        return 0.0
+        return float(round(max(0.0, car_value_rub) * EV_PHYS_STP_DUTY_ADVALOREM_RATE, 2))
 
     if engine_cc <= 0:
         logger.warning("Объём ДВС не задан для не-EV — условно 2000 см³")
@@ -493,6 +538,79 @@ def vat_import_rub(
         + max(0.0, float(excise_value_rub))
     )
     return float(round(base * VAT_IMPORT_RATE, 2))
+
+
+def _parse_excise_tiers(raw: Any) -> Optional[List[Tuple[float, float]]]:
+    if not isinstance(raw, list):
+        return None
+    parsed: List[Tuple[float, float]] = []
+    for item in raw:
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            continue
+        try:
+            parsed.append((float(item[0]), float(item[1])))
+        except (TypeError, ValueError):
+            continue
+    if not parsed:
+        return None
+    parsed.sort(key=lambda x: x[0])
+    return parsed
+
+
+def phys_person_import_charges(
+    *,
+    car_value_rub: float,
+    eur_rub: float,
+    engine_cc: int,
+    age_years: int,
+    fuel: str,
+    car_data: Optional[Dict[str, Any]] = None,
+    excise_hp_tiers: Optional[Any] = None,
+) -> Dict[str, float]:
+    """
+    Таможня РФ для физлица (личное пользование).
+    ДВС/гибрид: единая ставка (пошлина) + сбор + утиль; акциз/НДС отдельно не начисляются.
+    EV: СТП = пошлина 15% + акциз + НДС (ЕЭК №107, п. 4 табл. 2).
+    """
+    cd = car_data if isinstance(car_data, dict) else {}
+    tiers = _parse_excise_tiers(excise_hp_tiers)
+
+    _cc, power_ice = ice_engine_inputs(cd, fuel)
+    vol = int(engine_cc) if engine_cc > 0 else int(_cc)
+
+    fee = customs_fee(car_value_rub)
+    util = utilization_phys_person_rub(
+        engine_cc=vol,
+        age_years=age_years,
+        power_hp_ice=power_ice,
+        fuel=fuel,
+        car_data=cd,
+    )
+    duty = duty_phys_person_rub(
+        car_value_rub=car_value_rub,
+        eur_rub=eur_rub,
+        engine_cc=vol,
+        age_years=age_years,
+        fuel=fuel,
+    )
+
+    if fuel == "electric":
+        power_hp = parse_power_hp(cd)
+        excise = excise_rub(power_hp, tiers)
+        vat = vat_import_rub(car_value_rub, duty, excise, fuel=fuel, age_years=age_years)
+    else:
+        excise = 0.0
+        vat = 0.0
+
+    customs_total = fee + duty + excise + util + vat
+    return {
+        "customs_fee": fee,
+        "duty": duty,
+        "excise": excise,
+        "utilization": util,
+        "vat": vat,
+        "customs_total": customs_total,
+    }
 
 
 def _cbr_rub_per_one_foreign_unit(valute_entry: Any) -> Optional[float]:

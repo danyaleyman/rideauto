@@ -35,8 +35,8 @@ def test_china_price_calc_uses_required_static_costs():
     assert prices["vtb_bank_transfer_rub"] == 12_000.0
     assert prices["commission_rate_default"] == 0.0
     assert prices["commission"] == 150_000
-    assert prices["vehicle_sum"] == 1_638_224.0
-    assert prices["total_with_commission"] == 1_788_224.0
+    assert prices["vehicle_sum"] == 2_897_824.0
+    assert prices["total_with_commission"] == 3_047_824.0
     assert prices["total_with_commission"] > prices["vehicle_sum"]
 
 

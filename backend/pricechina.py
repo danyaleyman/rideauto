@@ -19,15 +19,10 @@ from market_pricing_shared import (
     age_years_car,
     classify_fuel,
     commission_rub_tiered,
-    customs_fee,
-    duty_phys_person_rub,
-    excise_rub,
     ice_engine_inputs,
     parse_commission_schedule_from_config,
-    parse_power_hp,
     parse_year,
-    utilization_phys_person_rub,
-    vat_import_rub,
+    phys_person_import_charges,
 )
 
 CHINA_DOCS_DELIVERY_CNY = 13_500
@@ -37,7 +32,7 @@ CHINA_BROKER_RUB = 86_100
 VTB_BANK_TRANSFER_RATE = 0.02
 
 # Bump при изменении формул/констант China-калькулятора (метрики каталога, repair).
-CHINA_PRICING_RULES_VERSION = "2026.05.10"
+CHINA_PRICING_RULES_VERSION = "2026.05.17"
 logger = logging.getLogger(__name__)
 
 
@@ -169,43 +164,21 @@ class PriceCalculatorChina:
         year = parse_year(car_data)
         age = age_years_car(year)
 
-        fee = customs_fee(car_value_rub)
-        duty = duty_phys_person_rub(
+        customs = phys_person_import_charges(
             car_value_rub=car_value_rub,
             eur_rub=eur_rub,
             engine_cc=engine_cc,
             age_years=age,
             fuel=fuel,
-        )
-        excise_tiers_cfg = cfg.get("excise_hp_tiers_rub_per_hp")
-        excise_tiers: Optional[List[Tuple[float, float]]] = None
-        if isinstance(excise_tiers_cfg, list):
-            parsed: List[Tuple[float, float]] = []
-            for item in excise_tiers_cfg:
-                if not isinstance(item, (list, tuple)) or len(item) != 2:
-                    continue
-                try:
-                    parsed.append((float(item[0]), float(item[1])))
-                except (TypeError, ValueError):
-                    continue
-            if parsed:
-                excise_tiers = sorted(parsed, key=lambda x: x[0])
-        power_for_excise = parse_power_hp(car_data)
-        if power_for_excise is None:
-            power_for_excise = power_ice
-        if fuel == "electric":
-            excise = 0.0
-        else:
-            excise = excise_rub(power_for_excise, excise_tiers)
-        util = utilization_phys_person_rub(
-            engine_cc=engine_cc,
-            age_years=age,
-            power_hp_ice=power_ice,
-            fuel=fuel,
             car_data=car_data,
+            excise_hp_tiers=cfg.get("excise_hp_tiers_rub_per_hp"),
         )
-        vat = vat_import_rub(car_value_rub, duty, excise, fuel=fuel, age_years=age)
-        customs_total = fee + duty + excise + util + vat
+        fee = customs["customs_fee"]
+        duty = customs["duty"]
+        excise = customs["excise"]
+        util = customs["utilization"]
+        vat = customs["vat"]
+        customs_total = customs["customs_total"]
 
         vtb_bank_transfer_rub = car_value_rub * VTB_BANK_TRANSFER_RATE
         vehicle_sum = (

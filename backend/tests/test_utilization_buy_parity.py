@@ -17,8 +17,8 @@ from market_pricing_shared import utilization_buy_page_rub, utilization_phys_per
         ("ICE 3-5 1-2L 180hp", "3-5", "petrol", "none", 1998, 180, 0, "personal", 1492800),
         ("ICE 5+ 1-2L 180hp", "5+", "petrol", "none", 1998, 180, 0, "personal", 1492800),
         ("Boundary DVS exactly 160hp stays loyal", "0-3", "petrol", "none", 1998, 160, 0, "personal", 3400),
-        ("Diesel 0-3 2-3L >160hp", "0-3", "diesel", "none", 2498, 190, 0, "personal", 2402400),
-        ("Petrol 0-3 2-3L >160hp", "0-3", "petrol", "none", 2498, 190, 0, "personal", 2364000),
+        ("Diesel 0-3 2-3L >160hp", "0-3", "diesel", "none", 2498, 190, 0, "personal", 900000),
+        ("Petrol 0-3 2-3L >160hp", "0-3", "petrol", "none", 2498, 190, 0, "personal", 900000),
     ],
 )
 def test_utilization_buy_page_matches_calculator(

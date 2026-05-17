@@ -78,8 +78,94 @@ function dutyRate(age: AgeRange, vol: number): number {
   return 0;
 }
 
-function getDuty(rub: number, eurRate: number, age: AgeRange, vol: number, engType: EngineType): number {
-  if (engType === "electric") return rub * 0.15;
+/** СТП для EV: адвалорная часть (ЕЭК №107, п. 4 табл. 2). */
+const EV_STP_DUTY_RATE = 0.15;
+
+const EXCISE_HP_TIERS: [number, number][] = [
+  [90, 0],
+  [150, 64],
+  [200, 613],
+  [300, 1004],
+  [400, 1711],
+  [500, 1771],
+  [Infinity, 1829],
+];
+
+function exciseRub(powerHp: number): number {
+  if (powerHp <= 0) return 0;
+  let total = 0;
+  let prev = 0;
+  for (const [cap, rate] of EXCISE_HP_TIERS) {
+    if (powerHp <= prev) break;
+    const hi = Math.min(powerHp, cap);
+    total += Math.max(0, hi - prev) * rate;
+    prev = cap;
+    if (hi >= powerHp) break;
+  }
+  return Math.round(total * 100) / 100;
+}
+
+function vatImportRub(carValue: number, duty: number, excise: number): number {
+  return Math.round((carValue + duty + excise) * 0.2 * 100) / 100;
+}
+
+function utilCoeffByPower(hp: number, bands: [number, number][]): number {
+  const p = Math.max(0, hp);
+  for (const [cap, coeff] of bands) {
+    if (p <= cap) return coeff;
+  }
+  return bands[bands.length - 1][1];
+}
+
+const ICE_UTIL_POWER_0_3: [number, number][] = [
+  [160, 40.04],
+  [190, 45.0],
+  [220, 47.64],
+  [250, 50.52],
+  [280, 57.12],
+  [310, 64.56],
+  [340, 72.96],
+  [Infinity, 72.96],
+];
+const ICE_UTIL_POWER_OLDER: [number, number][] = [
+  [160, 70.44],
+  [190, 74.64],
+  [220, 79.2],
+  [250, 83.88],
+  [280, 91.92],
+  [310, 100.56],
+  [340, 110.16],
+  [Infinity, 110.16],
+];
+const EV_UTIL_POWER_0_3: [number, number][] = [
+  [100, 49.56],
+  [130, 65.88],
+  [160, 78.0],
+  [190, 92.4],
+  [220, 109.68],
+  [250, 129.96],
+  [280, 153.96],
+  [Infinity, 153.96],
+];
+const EV_UTIL_POWER_OLDER: [number, number][] = [
+  [100, 82.08],
+  [130, 95.64],
+  [160, 111.36],
+  [190, 129.72],
+  [220, 151.2],
+  [250, 176.16],
+  [Infinity, 176.16],
+];
+
+function getDuty(
+  rub: number,
+  eurRate: number,
+  age: AgeRange,
+  vol: number,
+  engType: EngineType,
+  powerHp: number,
+): number {
+  if (engType === "electric") return Math.round(rub * EV_STP_DUTY_RATE * 100) / 100;
   if (age === "0-3") return dutyUnder3(rub, eurRate, vol);
   return dutyRate(age, vol) * vol * eurRate;
 }
@@ -125,28 +211,19 @@ function getUtil(
     }
   }
 
-  if ((engType === "electric" || (engType === "hybrid" && hybridType === "series")) && effectivePower > 80) {
-    let coeff = 1;
-    if (age === "0-3") {
-      if (effectivePower <= 100) coeff = 65.88;
-      else if (effectivePower <= 130) coeff = 79.2;
-      else if (effectivePower <= 160) coeff = 93.6;
-      else coeff = 110.4;
-    } else if (age === "3-5") {
-      if (effectivePower <= 100) coeff = 151.2;
-      else if (effectivePower <= 130) coeff = 172.8;
-      else if (effectivePower <= 160) coeff = 201.6;
-      else coeff = 240.0;
-    } else {
-      if (effectivePower <= 100) coeff = 240.0;
-      else if (effectivePower <= 130) coeff = 280.0;
-      else if (effectivePower <= 160) coeff = 320.0;
-      else coeff = 360.0;
+  if (engType === "electric" || (engType === "hybrid" && hybridType === "series")) {
+    if (effectivePower > 80 || !isPersonal) {
+      const bands = age === "0-3" ? EV_UTIL_POWER_0_3 : EV_UTIL_POWER_OLDER;
+      return Math.round(base * utilCoeffByPower(effectivePower, bands));
     }
-    return Math.round(base * coeff);
   }
 
-  // Для обычных ДВС и параллельных гибридов – шкала по объёму и мощности
+  if (effectivePower > 160) {
+    const bands = age === "0-3" ? ICE_UTIL_POWER_0_3 : ICE_UTIL_POWER_OLDER;
+    return Math.round(base * utilCoeffByPower(effectivePower, bands));
+  }
+
+  // ДВС / параллельный гибрид ≤160 л.с., коммерческий ввод — шкала по объёму и кВт
   const powerKw = effectivePower * 0.7355;
   let coeff = 1;
 
@@ -363,7 +440,7 @@ const UTIL_SELF_CHECK_CASES: UtilCase[] = [
     hpIce: 0,
     hpEd: 200, // 30-min = 90
     purpose: "personal",
-    expectedUtil: 1317600,
+    expectedUtil: 991200,
   },
   {
     name: "EV 3-5 30-min in 80-100hp",
@@ -374,7 +451,7 @@ const UTIL_SELF_CHECK_CASES: UtilCase[] = [
     hpIce: 0,
     hpEd: 200, // 30-min = 90
     purpose: "personal",
-    expectedUtil: 3024000,
+    expectedUtil: 1641600,
   },
   {
     name: "EV 5+ 30-min >160hp",
@@ -385,7 +462,7 @@ const UTIL_SELF_CHECK_CASES: UtilCase[] = [
     hpIce: 0,
     hpEd: 356, // 30-min = 160.2
     purpose: "personal",
-    expectedUtil: 7200000,
+    expectedUtil: 2594400,
   },
   {
     name: "Series hybrid behaves as EV",
@@ -396,7 +473,7 @@ const UTIL_SELF_CHECK_CASES: UtilCase[] = [
     hpIce: 160,
     hpEd: 200, // 30-min = 90
     purpose: "personal",
-    expectedUtil: 1317600,
+    expectedUtil: 991200,
   },
   {
     name: "Parallel hybrid uses ICE + 30-min ED",
@@ -481,9 +558,10 @@ function getCustomsFee(v: number): number {
   if (v <= 200000) return 1231;
   if (v <= 450000) return 2462;
   if (v <= 1200000) return 4924;
-  if (v <= 2700000) return 8541;
-  if (v <= 4200000) return 12000;
-  if (v <= 10000000) return 13541;
+  if (v <= 2700000) return 13541;
+  if (v <= 4200000) return 18465;
+  if (v <= 5500000) return 21344;
+  if (v <= 10000000) return 49240;
   return 73860;
 }
 
@@ -585,13 +663,22 @@ export function BuyCalculator() {
     }
 
     const rub = safePrice * rate;
-    const duty = getDuty(rub, eurRate, ageRange, safeVol, engineType);
+    const effectivePower = effectivePowerHp(engineType, hybridType, finalHpIce, finalHpEd);
+    const powerForExcise =
+      engineType === "electric"
+        ? finalHpEd || safeHpEd
+        : engineType === "hybrid"
+          ? finalHpIce + finalHpEd * 0.45
+          : finalHpSingle || finalHpIce;
+    const duty = getDuty(rub, eurRate, ageRange, safeVol, engineType, powerForExcise);
+    const excise = engineType === "electric" ? exciseRub(powerForExcise) : 0;
+    const vat = engineType === "electric" ? vatImportRub(rub, duty, excise) : 0;
     const util = getUtil(ageRange, engineType, hybridType, safeVol, finalHpIce, finalHpEd, purpose);
     const customsFee = getCustomsFee(rub);
-    const total = duty + util + customsFee;
+    const total = duty + excise + vat + util + customsFee;
     const hp30Min = finalHpEd * 0.45;
 
-    return { rate, eurRate, rub, duty, util, customsFee, total, hp30Min };
+    return { rate, eurRate, rub, duty, excise, vat, util, customsFee, total, hp30Min, effectivePower };
   }, [ageRange, calcNonce, cbrRates, currency, engineType, hpEd, hpIce, hpSingle, hybridType, price, purpose, volume]);
 
   return (
@@ -760,9 +847,21 @@ export function BuyCalculator() {
               <span>{money(result.rub)}</span>
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-              <span>Таможенная пошлина</span>
+              <span>{engineType === "electric" ? "Пошлина (часть СТП)" : "Таможенная пошлина"}</span>
               <span>{money(result.duty)}</span>
             </div>
+            {engineType === "electric" ? (
+              <>
+                <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
+                  <span>Акциз (СТП)</span>
+                  <span>{money(result.excise)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
+                  <span>НДС (СТП)</span>
+                  <span>{money(result.vat)}</span>
+                </div>
+              </>
+            ) : null}
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
               <span>Утилизационный сбор</span>
               <span>{money(result.util)}</span>
