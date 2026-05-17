@@ -5,11 +5,6 @@
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-  <url>
-    <loc>https://rideauto.ru/about.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
   <!-- WRA_SEO_KOREA_LANDINGS_BEGIN -->
   <url>
     <loc>https://rideauto.ru/seo/korea/audi/</loc>

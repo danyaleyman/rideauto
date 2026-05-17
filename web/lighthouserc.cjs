@@ -13,7 +13,6 @@ module.exports = {
       },
       url: [
         "http://127.0.0.1:3099/",
-        "http://127.0.0.1:3099/about",
         "http://127.0.0.1:3099/privacy",
         "http://127.0.0.1:3099/buy",
       ],

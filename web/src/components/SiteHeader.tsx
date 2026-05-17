@@ -70,7 +70,7 @@ export function SiteHeader() {
 
   const navLinks = (
     <>
-      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/about">
+      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/#company">
         О компании
       </Link>
       <Link className="text-primary font-medium" href="/catalog">
@@ -238,7 +238,7 @@ export function SiteHeader() {
                 <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
                   <Link
                     className="rounded-lg px-2 py-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                    href="/about"
+                    href="/#company"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     О компании

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   motion,
-  useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
   useSpring,
@@ -12,54 +11,39 @@ import {
   useScroll,
 } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { HOME_LANDING_MEDIA } from "@/lib/home-landing-media";
 import Image from "next/image";
 import Link from "next/link";
 
+const SURFACE =
+  "border-stone-900/10 bg-stone-900/[0.03] dark:border-white/[0.08] dark:bg-white/[0.03]";
+const MUTED = "text-stone-600/80 dark:text-stone-300/72";
+const HEADING = "text-stone-900 dark:text-stone-50";
+const ACCENT = "text-[#9a8458] dark:text-[#d6c6a0]";
+
 const LOGO = "WORLD RIDE AUTO";
-const TRUST_BRANDS = [
-  "USS",
-  "TAA",
-  "JU",
-  "AUCNET",
-  "Toyota",
-  "Lexus",
-  "BMW",
-  "Mercedes",
-  "Honda",
-  "Nissan",
-  "Hyundai",
-  "Kia",
-];
+const TELEGRAM_CHANNEL = "https://t.me/worldrideauto";
+
+const TRUST_BRANDS = ["Korea", "Japan", "China", "Auction", "Diagnostics", "Logistics", "Customs", "Handover"];
 const STATS = [
-  { label: "Авто доставлено", value: 1240 },
-  { label: "Средний срок", value: 11, suffix: " дней" },
-  { label: "Довольных клиентов", value: 980 },
-  { label: "Экономия vs рынок", value: 35, suffix: "%" },
+  { label: "направления", value: 3 },
+  { label: "точек контроля", value: 12, suffix: "+" },
+  { label: "этапа сделки", value: 4 },
+  { label: "сопровождение", value: 1, suffix: " менеджер" },
 ];
 
 const PROCESS_STEPS = [
-  ["01", "Подбор"],
-  ["02", "Проверка"],
-  ["03", "Выкуп"],
-  ["04", "Доставка"],
+  ["01", "Профиль", "Фиксируем бюджет, класс автомобиля и сценарий владения."],
+  ["02", "Отбор", "Сравниваем площадки Кореи, Японии и Китая, отсеивая слабые варианты."],
+  ["03", "Осмотр", "Фото, видео, подключаемая диагностика и проверка истории до покупки."],
+  ["04", "Сделка", "Выкуп, логистика, таможня, документы и передача автомобиля."],
 ] as const;
-
-function useIsTouchDevice() {
-  const [isTouch, setIsTouch] = useState(false);
-  useEffect(() => {
-    setIsTouch(
-      typeof window !== "undefined" &&
-        ("ontouchstart" in window || navigator.maxTouchPoints > 0),
-    );
-  }, []);
-  return isTouch;
-}
 
 function NoiseOverlay() {
   return (
-    <motion.div
+    <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-[60] opacity-[0.035]"
+      className="pointer-events-none fixed inset-0 z-[20] opacity-[0.045]"
       style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
       }}
@@ -67,90 +51,32 @@ function NoiseOverlay() {
   );
 }
 
-function CustomCursor() {
-  const reduceMotion = useReducedMotion();
-  const isTouch = useIsTouchDevice();
-  const cursorX = useMotionValue(-100);
-  const cursorY = useMotionValue(-100);
-  const springConfig = { damping: 25, stiffness: 700 };
-  const cursorXSpring = useSpring(cursorX, springConfig);
-  const cursorYSpring = useSpring(cursorY, springConfig);
-  const [isHovering, setIsHovering] = useState(false);
-
-  useEffect(() => {
-    if (isTouch || reduceMotion) return;
-    const move = (e: MouseEvent) => {
-      cursorX.set(e.clientX - 16);
-      cursorY.set(e.clientY - 16);
-    };
-    const over = (e: MouseEvent) =>
-      setIsHovering(
-        (e.target as HTMLElement)?.closest("a, button, [data-cursor-hover]") != null,
-      );
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseover", over, true);
-    return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseover", over, true);
-    };
-  }, [isTouch, reduceMotion, cursorX, cursorY]);
-
-  if (isTouch || reduceMotion) return null;
-
-  return (
-    <>
-      <motion.div
-        aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[80] h-8 w-8 rounded-full border border-white/40 mix-blend-difference"
-        style={{ x: cursorXSpring, y: cursorYSpring, scale: isHovering ? 2.5 : 1 }}
-      />
-      <motion.div
-        aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[79] h-2 w-2 rounded-full bg-white"
-        style={{ x: cursorX, y: cursorY }}
-      />
-    </>
-  );
-}
-
-function MagneticButton({
+function CinemaButton({
   children,
   className = "",
   href,
+  external,
 }: {
   children: ReactNode;
   className?: string;
   href: string;
+  external?: boolean;
 }) {
-  const ref = useRef<HTMLAnchorElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 300, damping: 20 });
-  const springY = useSpring(y, { stiffness: 300, damping: 20 });
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    x.set((e.clientX - rect.left - rect.width / 2) * 0.3);
-    y.set((e.clientY - rect.top - rect.height / 2) * 0.3);
-  };
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
   return (
-    <motion.div style={{ x: springX, y: springY }} className="inline-block">
-      <Button asChild className={className}>
-        <Link
-          ref={ref}
-          href={href}
-          data-cursor-hover
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-        >
-          {children}
-        </Link>
+    <motion.div
+      className="inline-flex"
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <Button asChild className={`h-12 rounded-full px-7 text-sm font-semibold ${className}`}>
+        {external ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            {children}
+          </a>
+        ) : (
+          <Link href={href}>{children}</Link>
+        )}
       </Button>
     </motion.div>
   );
@@ -183,16 +109,16 @@ function Marquee({ items, paused }: { items: string[]; paused?: boolean }) {
   return (
     <motion.div
       aria-hidden
-      className="overflow-hidden border-y border-white/10 bg-black/20 py-3 backdrop-blur-sm"
+      className={`overflow-hidden border-y py-3 backdrop-blur-sm ${SURFACE}`}
     >
       <motion.div
-        className="flex gap-12 whitespace-nowrap text-xs uppercase tracking-[0.2em] text-white/50"
+        className="flex gap-12 whitespace-nowrap text-xs uppercase tracking-[0.26em] text-stone-500/55 dark:text-stone-300/45"
         animate={paused ? undefined : { x: ["0%", "-50%"] }}
-        transition={paused ? undefined : { repeat: Infinity, duration: 30, ease: "linear" }}
+        transition={paused ? undefined : { repeat: Infinity, duration: 38, ease: "linear" }}
       >
         {[...items, ...items].map((item, i) => (
           <span key={`${item}-${i}`} className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/50" />
+            <span className="h-px w-6 bg-stone-900/15 dark:bg-stone-200/25" />
             {item}
           </span>
         ))}
@@ -205,22 +131,27 @@ function HeroMedia() {
   const reduceMotion = useReducedMotion();
   const [videoReady, setVideoReady] = useState(false);
   const showVideo = !reduceMotion;
+  const { poster, webm, mp4 } = HOME_LANDING_MEDIA.hero;
 
   return (
     <motion.div
-      className="relative h-full min-h-[280px] w-full sm:min-h-[360px] lg:min-h-[60vh]"
+      className={`relative h-full min-h-[360px] w-full overflow-hidden rounded-[2rem] border shadow-[0_40px_120px_rgba(15,15,15,0.14)] dark:shadow-[0_60px_180px_rgba(0,0,0,0.45)] sm:min-h-[460px] lg:min-h-[68vh] ${SURFACE} bg-[radial-gradient(circle_at_50%_20%,rgba(214,198,160,0.22),rgba(214,198,160,0)_34%),linear-gradient(145deg,rgba(255,255,255,0.85),rgba(246,242,234,0.92))] dark:bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.12),rgba(255,255,255,0)_34%),linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.015))]`}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
     >
+      <div className="absolute inset-x-6 top-6 z-10 flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-stone-300/50">
+        <span>Hero media slot</span>
+        <span>3D / animation ready</span>
+      </div>
       <Image
-        src="/assets/hero-poster.webp"
+        src={poster}
         alt=""
         width={1200}
         height={800}
         priority
         aria-hidden
-        className={`absolute inset-0 mx-auto h-full w-[115%] max-w-none object-contain drop-shadow-[0_120px_240px_rgba(0,0,0,0.35)] transition-opacity duration-700 sm:w-[120%] lg:w-[140%] ${
+        className={`absolute inset-0 mx-auto h-full w-[120%] max-w-none object-contain drop-shadow-[0_110px_180px_rgba(0,0,0,0.42)] transition-opacity duration-700 sm:w-[130%] lg:w-[145%] ${
           showVideo && videoReady ? "opacity-0" : "opacity-100"
         }`}
       />
@@ -232,91 +163,169 @@ function HeroMedia() {
           loop
           playsInline
           preload="metadata"
-          poster="/assets/hero-poster.webp"
+          poster={poster}
           className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ${
             videoReady ? "opacity-100" : "opacity-0"
           }`}
           onCanPlay={() => setVideoReady(true)}
         >
-          <source src="/assets/hero.webm" type="video/webm" />
-          <source src="/assets/hero.mp4" type="video/mp4" />
+          <source src={webm} type="video/webm" />
+          <source src={mp4} type="video/mp4" />
         </video>
       )}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,7,7,0.05),rgba(7,7,7,0.36)_72%,rgba(7,7,7,0.68))]" />
+      <div className="absolute bottom-6 left-6 right-6 z-10 flex flex-wrap items-end justify-between gap-4 border-t border-white/[0.08] pt-5">
+        <div>
+          <p className="text-xs uppercase tracking-[0.28em] text-stone-300/55">Next drop</p>
+          <p className="mt-1 max-w-sm text-sm text-stone-100/75">
+            Сюда встанет ваша финальная анимация и 3D-модель без изменения структуры hero.
+          </p>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-stone-200/70">
+          16:9 / alpha / loop
+        </span>
+      </div>
     </motion.div>
+  );
+}
+
+function SceneMediaCard({
+  eyebrow,
+  title,
+  description,
+  items,
+  mediaSrc,
+  mediaAlt,
+  align = "right",
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  items: string[];
+  mediaSrc?: string;
+  mediaAlt?: string;
+  align?: "left" | "right";
+}) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-120px" }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className={`grid gap-8 rounded-[2rem] border border-white/[0.08] bg-white/[0.035] p-4 shadow-[0_40px_130px_rgba(0,0,0,0.32)] backdrop-blur-sm lg:grid-cols-[1fr_0.9fr] lg:p-6 ${
+        align === "left" ? "lg:grid-cols-[0.9fr_1fr]" : ""
+      }`}
+    >
+      <div
+        className={`relative min-h-[280px] overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-[radial-gradient(circle_at_70%_20%,rgba(214,198,160,0.16),rgba(214,198,160,0)_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.015))] ${
+          align === "left" ? "lg:order-2" : ""
+        }`}
+      >
+        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.08),rgba(255,255,255,0)_38%),radial-gradient(circle_at_20%_80%,rgba(255,255,255,0.1),rgba(255,255,255,0)_28%)]" />
+        <div className="absolute left-5 top-5 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-stone-200/60">
+          Media slot
+        </div>
+        <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/[0.08] bg-black/30 p-4 backdrop-blur-md">
+          <p className="text-xs uppercase tracking-[0.24em] text-stone-300/50">Replace with render</p>
+          <p className="mt-2 text-sm text-stone-100/75">
+            Положите сюда рендер/видео осмотра, диагностики или логистики, когда материалы будут готовы.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-center px-2 py-4 lg:px-6">
+        <p className="text-xs uppercase tracking-[0.34em] text-[#d6c6a0]/75">{eyebrow}</p>
+        <h2 className="mt-4 max-w-xl text-3xl font-semibold tracking-[-0.04em] text-stone-50 sm:text-4xl lg:text-5xl">
+          {title}
+        </h2>
+        <p className="mt-5 max-w-xl text-base leading-7 text-stone-300/72 sm:text-lg">{description}</p>
+        <div className="mt-8 grid gap-3">
+          {items.map((item) => (
+            <div key={item} className="flex items-center gap-3 text-sm text-stone-200/76">
+              <span className="h-px w-8 bg-[#d6c6a0]/45" />
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.article>
   );
 }
 
 export function HomeLanding() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
-  const heroScale = useTransform(scrollYProgress, [0, 0.2], reduceMotion ? [1, 1] : [1.08, 1]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.15], [1, 0.9]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.2], reduceMotion ? [1, 1] : [1.03, 1]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.18], [1, 0.88]);
 
   return (
-    <div className="relative overflow-x-hidden bg-[#0a0a0c] text-white selection:bg-emerald-500/30">
-      <CustomCursor />
+    <motion.div className="relative isolate overflow-x-hidden bg-[#f6f2ea] text-stone-900 selection:bg-[#d6c6a0]/30 dark:bg-[#080806] dark:text-stone-50 dark:selection:bg-[#d6c6a0]/25">
       <NoiseOverlay />
 
       <motion.div
         style={{ scaleX: scrollYProgress }}
-        className="fixed top-0 left-0 z-50 h-px w-full origin-left bg-gradient-to-r from-emerald-400 to-cyan-300"
+        className="fixed left-0 top-0 z-50 h-px w-full origin-left bg-[#d6c6a0]/70"
         aria-hidden
       />
 
-      <section className="relative flex min-h-[calc(100vh-4rem)] items-center overflow-hidden pt-8 sm:pt-12 lg:min-h-screen lg:pt-0">
-        <motion.div
+      <section className="relative flex min-h-[calc(100vh-4rem)] items-center overflow-hidden py-12 sm:py-16 lg:min-h-screen lg:py-20">
+        <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-slate-900/50 via-[#0a0a0c] to-emerald-950/30"
+          className="absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(214,198,160,0.22),rgba(214,198,160,0)_30%),radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.65),rgba(255,255,255,0)_26%),linear-gradient(180deg,#faf7f0,#f6f2ea_52%,#efe9dd)] dark:bg-[radial-gradient(circle_at_72%_18%,rgba(214,198,160,0.16),rgba(214,198,160,0)_30%),radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.08),rgba(255,255,255,0)_26%),linear-gradient(180deg,#11100d,#080806_52%,#050504)]"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#f6f2ea] to-transparent dark:from-[#080806]"
         />
 
-        <motion.div className="relative z-10 mx-auto w-full max-w-7xl px-6">
-          <motion.div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        <motion.div className="relative z-10 mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10">
+          <motion.div className="grid items-center gap-10 lg:grid-cols-[0.88fr_1.12fr] lg:gap-14">
             <motion.div
               initial={reduceMotion ? false : { opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs tracking-[0.2em] text-emerald-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+              <div className={`inline-flex items-center gap-3 rounded-full border px-4 py-2 text-[11px] uppercase tracking-[0.28em] ${SURFACE} ${ACCENT}`}>
+                <span className="h-px w-8 bg-[#9a8458]/55 dark:bg-[#d6c6a0]/55" />
                 {LOGO}
               </div>
 
-              <h1 className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-7xl">
-                Автомобили из Азии
-                <span className="mt-2 block bg-gradient-to-r from-emerald-400 to-cyan-300 bg-clip-text text-transparent">
-                  как новый стандарт качества
-                </span>
+              <h1 className={`mt-7 max-w-4xl text-5xl font-semibold leading-[0.93] tracking-[-0.065em] sm:text-6xl lg:text-8xl ${HEADING}`}>
+                Автомобили из Азии как предмет точного выбора
               </h1>
 
-              <p className="mt-6 max-w-lg text-lg text-white/70">
-                Подбор, проверка и доставка автомобилей без посредников
+              <p className={`mt-7 max-w-xl text-lg leading-8 ${MUTED}`}>
+                Подбор, проверка, выкуп и доставка под ключ. Без визуального шума, без скрытых этапов, с понятной
+                картиной сделки до первого платежа.
               </p>
 
-              <div className="mt-10 flex flex-wrap gap-4">
-                <MagneticButton
+              <div className="mt-10 flex flex-wrap gap-3">
+                <CinemaButton
                   href="/catalog"
-                  className="h-12 rounded-full bg-white px-8 font-medium text-black hover:bg-white/90"
+                  className="bg-stone-50 text-stone-950 shadow-[0_20px_70px_rgba(255,255,255,0.12)] hover:bg-[#d6c6a0]"
                 >
                   Каталог
-                </MagneticButton>
-                <MagneticButton
-                  href="/contacts"
-                  className="h-12 rounded-full border border-white/20 px-8 font-medium hover:bg-white/10"
+                </CinemaButton>
+                <CinemaButton
+                  href={TELEGRAM_CHANNEL}
+                  external
+                  className={`border ${SURFACE} ${HEADING} hover:bg-stone-900/[0.04] dark:hover:bg-white/[0.08]`}
                 >
-                  Обсудить
-                </MagneticButton>
+                  Telegram-канал
+                </CinemaButton>
               </div>
 
               <motion.div
-                className="mt-10 flex flex-wrap gap-3"
+                className="mt-10 grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-3"
                 initial={reduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.35, duration: 0.6 }}
               >
-                {["Китай", "Корея", "Япония", "Видеоосмотр", "Доставка", "Экспорт"].map((badge) => (
+                {["Китай", "Корея", "Япония", "Видеоосмотр", "Диагностика", "Доставка"].map((badge) => (
                   <span
                     key={badge}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/70"
+                    className={`rounded-2xl border px-3 py-2 text-sm ${SURFACE} ${MUTED}`}
                   >
                     {badge}
                   </span>
@@ -333,8 +342,8 @@ export function HomeLanding() {
 
       <Marquee items={TRUST_BRANDS} paused={!!reduceMotion} />
 
-      <section className="bg-[#0f0f12] py-16 sm:py-20" aria-label="Статистика">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 lg:grid-cols-4">
+      <section className="relative py-16 sm:py-20" aria-label="Показатели сервиса">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-3 px-4 sm:px-6 lg:grid-cols-4 lg:px-10">
           {STATS.map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -342,142 +351,97 @@ export function HomeLanding() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="text-center"
+              className={`rounded-[1.5rem] border p-5 backdrop-blur-sm sm:p-6 ${SURFACE}`}
             >
-              <div className="text-3xl font-bold text-white lg:text-4xl">
+              <div className={`text-3xl font-semibold tracking-[-0.04em] lg:text-5xl ${HEADING}`}>
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
               </div>
-              <div className="mt-2 text-sm text-white/60">{stat.label}</div>
+              <div className={`mt-2 text-sm ${MUTED}`}>{stat.label}</div>
             </motion.div>
           ))}
         </div>
       </section>
 
-      <section className="py-20 sm:py-28">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 lg:grid-cols-2">
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-          >
-            <p className="text-xs uppercase tracking-[0.3em] text-emerald-400">Контроль качества</p>
-            <h2 className="mt-4 text-3xl font-bold sm:text-4xl lg:text-5xl">Проверка до покупки</h2>
-            <p className="mt-6 text-lg text-white/70">
-              Фото, видео и диагностика каждого автомобиля перед сделкой
-            </p>
-            <ul className="mt-6 space-y-3 text-white/70">
-              {["HD-фото 360°", "Видеоосмотр в реальном времени", "Технический аудит", "Проверка истории"].map(
-                (item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    {item}
-                  </li>
-                ),
-              )}
-            </ul>
-          </motion.div>
-
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="overflow-hidden rounded-3xl border border-white/10 bg-white/5"
-          >
-            <Image
-              src="https://images.unsplash.com/photo-1619405399517-d7fce0f13302?auto=format&fit=crop&w=1800&q=80"
-              alt="Осмотр автомобиля перед покупкой"
-              width={1800}
-              height={1000}
-              className="h-full w-full object-cover"
-            />
-          </motion.div>
+      <section id="company" className="py-16 sm:py-24">
+        <div className="mx-auto grid max-w-[1440px] gap-5 px-4 sm:px-6 lg:px-10">
+          <SceneMediaCard
+            eyebrow="Inspection"
+            title="Осмотр до покупки, а не после сюрпризов"
+            description="Материалы осмотра становятся частью решения: кузов, салон, документы, диагностический сканер и видеофиксация состояния."
+            items={["Фото и видео по чек-листу", "Подключаемая диагностика", "Проверка истории и документов"]}
+          />
+          <SceneMediaCard
+            eyebrow="Source"
+            title="Источник автомобиля виден до сделки"
+            description="Показываем, откуда берётся конкретный автомобиль, почему он проходит отбор и какие риски уже закрыты до выкупа."
+            items={["Аукционы и площадки Азии", "Сравнение альтернатив", "Понятная смета до оплаты"]}
+            align="left"
+          />
         </div>
       </section>
 
-      <section className="bg-[#0f0f12] py-20 sm:py-28">
-        <motion.div className="mx-auto grid max-w-7xl items-center gap-12 px-6 lg:grid-cols-2">
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="order-2 overflow-hidden rounded-3xl border border-white/10 lg:order-1"
-          >
-            <Image
-              src="https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=1800&q=80"
-              alt="Японский автомобильный аукцион"
-              width={1800}
-              height={1000}
-              className="h-full w-full object-cover"
-            />
-          </motion.div>
-
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="order-1 lg:order-2"
-          >
-            <p className="text-xs uppercase tracking-[0.3em] text-emerald-400">Источник авто</p>
-            <h2 className="mt-4 text-3xl font-bold sm:text-4xl lg:text-5xl">Прямой доступ к аукционам</h2>
-            <p className="mt-6 text-lg text-white/70">
-              Работаем без посредников и скрытых наценок — USS, TAA, AUCNET и площадки Кореи и Китая
-            </p>
-          </motion.div>
-        </motion.div>
-      </section>
-
-      <section className="py-20 sm:py-28" aria-label="Процесс">
-        <div className="mx-auto max-w-7xl px-6">
+      <section className="py-16 sm:py-24" aria-label="Процесс">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
           <motion.h2
-            className="text-3xl font-bold sm:text-4xl lg:text-5xl"
+            className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-stone-50 sm:text-5xl lg:text-6xl"
             initial={reduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            Процесс
+            Полный цикл без лишних декораций
           </motion.h2>
-          <div className="mt-12 grid grid-cols-2 gap-8 sm:gap-10 lg:grid-cols-4">
-            {PROCESS_STEPS.map(([n, t], i) => (
+          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {PROCESS_STEPS.map(([n, t, d], i) => (
               <motion.div
                 key={n}
                 initial={reduceMotion ? false : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
+                className="min-h-[220px] rounded-[1.5rem] border border-white/[0.08] bg-white/[0.03] p-5"
               >
-                <div className="text-4xl text-white/15 sm:text-5xl">{n}</div>
-                <div className="mt-3 text-lg font-medium sm:text-xl">{t}</div>
+                <div className="text-5xl font-semibold tracking-[-0.06em] text-white/12">{n}</div>
+                <div className="mt-10 text-xl font-semibold text-stone-50">{t}</div>
+                <p className="mt-3 text-sm leading-6 text-stone-300/62">{d}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-gradient-to-b from-[#0a0a0c] to-black py-24 sm:py-32">
+      <section className="relative overflow-hidden py-24 sm:py-32">
+        <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(214,198,160,0.13),rgba(214,198,160,0)_34%),linear-gradient(180deg,#080806,#030302)]" />
         <motion.div
-          className="mx-auto max-w-3xl px-6 text-center"
+          className="relative mx-auto max-w-4xl px-4 text-center sm:px-6"
           initial={reduceMotion ? false : { opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl font-bold sm:text-4xl lg:text-6xl">Найдём автомобиль под вас</h2>
-          <p className="mt-6 text-lg text-white/60">Полный цикл под ключ — без посредников</p>
+          <p className="text-xs uppercase tracking-[0.34em] text-[#d6c6a0]/70">Ready for media</p>
+          <h2 className="mt-5 text-4xl font-semibold leading-[0.98] tracking-[-0.06em] text-stone-50 sm:text-5xl lg:text-7xl">
+            Когда медиа будет готово, лендинг уже выдержит уровень
+          </h2>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-stone-300/68">
+            Hero, сцены осмотра и карточки процесса подготовлены так, чтобы заменить плейсхолдеры на ваши рендеры,
+            видео и 3D без перестройки страницы.
+          </p>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <MagneticButton
+            <CinemaButton
               href="/catalog"
-              className="h-12 rounded-full bg-white px-8 font-medium text-black hover:bg-white/90"
+              className="bg-stone-50 text-stone-950 hover:bg-[#d6c6a0]"
             >
               Подобрать авто
-            </MagneticButton>
-            <MagneticButton
-              href="https://t.me/nikits15"
-              className="h-12 rounded-full border border-white/20 bg-white/5 px-8 font-medium hover:bg-white/10"
+            </CinemaButton>
+            <CinemaButton
+              href={TELEGRAM_CHANNEL}
+              external
+              className="border border-white/[0.12] bg-white/[0.035] text-stone-100 hover:bg-white/[0.08]"
             >
-              Telegram
-            </MagneticButton>
+              Telegram-канал
+            </CinemaButton>
           </div>
         </motion.div>
       </section>
-    </div>
+    </motion.div>
   );
 }
