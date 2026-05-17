@@ -113,9 +113,10 @@ services:
           "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5).read()\"",
         ]
       interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 25s
+      timeout: 10s
+      retries: 12
+      # После полной пересборки asyncpg pool + Meili могут подниматься дольше 25s.
+      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
