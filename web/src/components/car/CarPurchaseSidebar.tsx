@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Copy, ExternalLink, Heart } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useFavorites } from "@/hooks/use-favorites";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
+import { buildPriceBreakdownRows } from "@/lib/car-price-breakdown";
 import { formatHumanDate } from "@/lib/car-detail-data";
 import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ type Props = {
   priceOnRequest?: boolean;
   availability?: CarListingAvailability;
   sourceUrl: string | null;
-  /** Сырые поля для модалки расчёта */
   priceWon: number | null;
   priceCny: number | null;
   sourceLabel: string | null;
@@ -40,17 +40,8 @@ type Props = {
   calcDetails?: Record<string, unknown> | null;
 };
 
-function slimForFavorite(
-  id: string,
-  title: string,
-  price: number | null,
-): SlimCar {
-  return {
-    id,
-    title,
-    price,
-    data: {},
-  };
+function slimForFavorite(id: string, title: string, price: number | null): SlimCar {
+  return { id, title, price, data: {} };
 }
 
 export function CarPurchaseSidebar({
@@ -73,73 +64,21 @@ export function CarPurchaseSidebar({
   const fav = authenticated && isFavorite(carId);
   const [copied, setCopied] = useState(false);
 
-  const breakdownRows: { label: string; value: string; note?: string; subRows?: { label: string; value: string }[] }[] = [];
-  const num = (v: unknown): number | null => {
-    if (v == null || v === "") return null;
-    const n = typeof v === "number" ? v : Number(String(v).replace(/\s/g, "").replace(",", "."));
-    if (!Number.isFinite(n)) return null;
-    return n;
-  };
   const listingUnavailable = availability === "sold" || availability === "reserved";
 
-  if (!listingUnavailable && !priceOnRequest && priceRub != null && !Number.isNaN(priceRub)) {
-    breakdownRows.push({
-      label: "Стоимость в России под ключ",
-      value: formatPriceLabel(priceRub),
-    });
-  }
-  if (priceWon != null && !Number.isNaN(priceWon)) {
-    const wonTotal = priceWon >= 100000 ? priceWon : priceWon * 10000;
-    breakdownRows.push({
-      label: "Цена в объявлении (воны)",
-      value: `${Math.round(wonTotal).toLocaleString("ru-RU")} ₩ (Вон)`,
-    });
-  }
-  if (priceCny != null && !Number.isNaN(priceCny)) {
-    breakdownRows.push({
-      label: "Цена в CNY (если применимо)",
-      value: `${Math.round(priceCny).toLocaleString("ru-RU")} CN¥`,
-    });
-  }
-  const duty = num(calcDetails?.duty_rub);
-  const customsFee = num(calcDetails?.customs_fee_rub);
-  const util = num(calcDetails?.util_rub);
-  const excise = num(calcDetails?.excise_rub);
-  const vat = num(calcDetails?.vat_rub);
-  const customsTotal = num(calcDetails?.customs_total_rub);
-  const freight = num(calcDetails?.freight_rub);
-  const docs = num(calcDetails?.documents_krw_rub) ?? num(calcDetails?.china_docs_delivery_rub);
-  const broker = num(calcDetails?.broker_rub);
-  const commission = num(calcDetails?.commission_rub);
-
-  breakdownRows.push({
-    label: "Таможенные расходы",
-    value: customsTotal != null ? formatPriceLabel(customsTotal) : "—",
-    subRows: [
-      { label: "Пошлина", value: duty != null ? formatPriceLabel(duty) : "—" },
-      { label: "Таможенный сбор", value: customsFee != null ? formatPriceLabel(customsFee) : "—" },
-      { label: "Утилизационный сбор", value: util != null ? formatPriceLabel(util) : "—" },
-      { label: "Акциз", value: excise != null ? formatPriceLabel(excise) : "—" },
-      { label: "НДС", value: vat != null ? formatPriceLabel(vat) : "—" },
-    ],
-  });
-  breakdownRows.push({
-    label: "Логистика и портовые расходы",
-    value: freight != null ? formatPriceLabel(freight) : "—",
-    subRows: [{ label: "Доставка / порт", value: freight != null ? formatPriceLabel(freight) : "—" }],
-  });
-  breakdownRows.push({
-    label: "Брокерская комиссия",
-    value: broker != null ? formatPriceLabel(broker) : "—",
-    subRows: [
-      { label: "Брокер", value: broker != null ? formatPriceLabel(broker) : "—" },
-      { label: "Комиссия", value: commission != null ? formatPriceLabel(commission) : "—" },
-    ],
-  });
-  breakdownRows.push({
-    label: "СБКТС / ЭПТС / регистрационные платежи",
-    value: docs != null ? formatPriceLabel(docs) : "—",
-  });
+  const breakdownRows = useMemo(
+    () =>
+      buildPriceBreakdownRows({
+        priceRub,
+        priceOnRequest,
+        priceWon,
+        priceCny,
+        carId,
+        calcDetails,
+        listingUnavailable,
+      }),
+    [priceRub, priceOnRequest, priceWon, priceCny, carId, calcDetails, listingUnavailable],
+  );
 
   const updatedLabel = formatHumanDate(sourceUpdatedAt);
   const createdLabel = formatHumanDate(catalogCreatedAt);
@@ -263,41 +202,50 @@ export function CarPurchaseSidebar({
               </Button>
             </motion.div>
           </DialogTrigger>
-          <DialogContent className="max-h-[min(90vh,40rem)] overflow-y-auto sm:max-w-lg" showCloseButton>
-            <DialogHeader>
+          <DialogContent
+            className="flex max-h-[min(92vh,44rem)] flex-col gap-4 overflow-hidden sm:max-h-none sm:max-w-lg sm:overflow-visible"
+            showCloseButton
+          >
+            <DialogHeader className="shrink-0">
               <DialogTitle>Состав цены</DialogTitle>
               <DialogDescription>
-                Расчет показывает полную структуру стоимости под ключ. Точные суммы сервисных и логистических статей
-                зависят от маршрута и фиксируются менеджером.
+                Структура оценки под ключ по данным каталога. Сервисные детали маршрута уточняет менеджер.
               </DialogDescription>
             </DialogHeader>
-            {breakdownRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Нет числовых данных для расчёта в объявлении.</p>
-            ) : (
-              <ul className="space-y-3 text-sm">
-                {breakdownRows.map((row) => (
-                  <li
-                    key={row.label}
-                    className="flex flex-col gap-0.5 rounded-xl border border-border/60 bg-muted/25 px-3 py-2"
-                  >
-                    <span className="text-muted-foreground">{row.label}</span>
-                    <span className="font-semibold tabular-nums text-foreground">{row.value}</span>
-                    {row.note ? <span className="text-xs text-muted-foreground">{row.note}</span> : null}
-                    {row.subRows && row.subRows.length > 0 ? (
-                      <ul className="mt-1 space-y-1.5 border-t border-border/50 pt-2">
-                        {row.subRows.map((sub) => (
-                          <li key={`${row.label}-${sub.label}`} className="flex items-center justify-between gap-3 text-xs">
-                            <span className="text-muted-foreground">{sub.label}</span>
-                            <span className="font-medium tabular-nums text-foreground">{sub.value}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="text-xs text-muted-foreground">Суммы формируются автоматически по данным калькулятора для конкретного авто.</p>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] sm:overflow-visible sm:[scrollbar-width:auto]">
+              {breakdownRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Нет данных для детализации — цена по запросу или объявление недоступно.</p>
+              ) : (
+                <ul className="space-y-3 text-sm">
+                  {breakdownRows.map((row) => (
+                    <li
+                      key={row.label}
+                      className="flex flex-col gap-0.5 rounded-xl border border-border/60 bg-muted/25 px-3 py-2"
+                    >
+                      <span className="text-muted-foreground">{row.label}</span>
+                      <span className="font-semibold tabular-nums text-foreground">{row.value}</span>
+                      {row.note ? <span className="text-xs text-muted-foreground">{row.note}</span> : null}
+                      {row.subRows && row.subRows.length > 0 ? (
+                        <ul className="mt-1 space-y-1.5 border-t border-border/50 pt-2">
+                          {row.subRows.map((sub) => (
+                            <li
+                              key={`${row.label}-${sub.label}`}
+                              className="flex items-center justify-between gap-3 text-xs"
+                            >
+                              <span className="text-muted-foreground">{sub.label}</span>
+                              <span className="font-medium tabular-nums text-foreground">{sub.value}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <p className="shrink-0 text-xs text-muted-foreground">
+              Суммы сформированы автоматически по калькулятору для этого объявления.
+            </p>
           </DialogContent>
         </Dialog>
       </div>

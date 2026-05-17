@@ -209,6 +209,7 @@ export default async function CarPage({ params }: PageProps) {
             data={d as Record<string, unknown>}
             sourceLabel={sourceLabelStr}
             availability={availability}
+            yearNum={typeof rawMap.year_num === "number" ? rawMap.year_num : null}
           />
         </MotionFadeUp>
 
