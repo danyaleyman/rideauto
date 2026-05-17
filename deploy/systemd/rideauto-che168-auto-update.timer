@@ -1,0 +1,11 @@
+[Unit]
+Description=Run RideAuto Che168 (China) daily update
+
+[Timer]
+# 02:00 Екатеринбург — после Encar (00:00), чтобы не конкурировать за Postgres/API
+OnCalendar=*-*-* 02:00:00 Asia/Yekaterinburg
+Persistent=true
+Unit=rideauto-che168-auto-update.service
+
+[Install]
+WantedBy=timers.target

@@ -35,6 +35,9 @@ echo "[5/6] Reload daemons"
 sudo systemctl daemon-reload
 sudo systemctl enable --now rideauto-api.service
 sudo systemctl enable --now rideauto-auto-update.timer
+sudo cp "${APP_DIR}/deploy/systemd/rideauto-che168-auto-update.service" /etc/systemd/system/
+sudo cp "${APP_DIR}/deploy/systemd/rideauto-che168-auto-update.timer" /etc/systemd/system/
+sudo systemctl enable --now rideauto-che168-auto-update.timer
 sudo systemctl enable --now rideauto-meilisearch-sync.timer
 sudo systemctl enable --now rideauto-subscriptions-notify.timer
 sudo systemctl reload nginx

@@ -20,9 +20,14 @@ systemctl disable encar-update.timer 2>/dev/null || true
 systemctl disable encar-update.service 2>/dev/null || true
 rm -f /etc/systemd/system/encar-update.timer /etc/systemd/system/encar-update.service
 
-echo "== install rideauto-auto-update =="
+echo "== install rideauto-auto-update (Encar / Korea) =="
 install -m 644 "${ROOT}/deploy/systemd/rideauto-auto-update.service" /etc/systemd/system/rideauto-auto-update.service
 install -m 644 "${ROOT}/deploy/systemd/rideauto-auto-update.timer" /etc/systemd/system/rideauto-auto-update.timer
+
+echo "== install rideauto-che168-auto-update (China) =="
+install -m 644 "${ROOT}/deploy/systemd/rideauto-che168-auto-update.service" /etc/systemd/system/rideauto-che168-auto-update.service
+install -m 644 "${ROOT}/deploy/systemd/rideauto-che168-auto-update.timer" /etc/systemd/system/rideauto-che168-auto-update.timer
+chmod +x "${ROOT}/deploy/scripts/run_che168_daily_once_screen.sh" 2>/dev/null || true
 
 chmod +x "${ROOT}/deploy/scripts/run_encar_daily_once_prod.sh" 2>/dev/null || true
 chmod +x "${ROOT}/deploy/scripts/encar_pull_kill_start.sh" 2>/dev/null || true
@@ -34,6 +39,10 @@ chmod +x "${ROOT}/deploy/scripts/rideauto_git_pull.sh" 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable rideauto-auto-update.timer
 systemctl start rideauto-auto-update.timer
+systemctl enable rideauto-che168-auto-update.timer
+systemctl start rideauto-che168-auto-update.timer
 
 echo "OK. Ночной Encar: rideauto-auto-update.timer → rideauto-auto-update.service"
 systemctl status rideauto-auto-update.timer --no-pager -l || true
+echo "OK. Ночной Che168: rideauto-che168-auto-update.timer → rideauto-che168-auto-update.service"
+systemctl status rideauto-che168-auto-update.timer --no-pager -l || true
