@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   motion,
@@ -40,6 +41,19 @@ const PROCESS_STEPS = [
   ["03", "Осмотр", "Фото, видео, подключаемая диагностика и проверка истории до покупки."],
   ["04", "Сделка", "Выкуп, логистика, таможня, документы и передача автомобиля."],
 ] as const;
+
+const MarketDirectionsCarousel = dynamic(
+  () =>
+    import("@/components/home/MarketDirectionsCarousel").then((m) => m.MarketDirectionsCarousel),
+  {
+    ssr: false,
+    loading: () => (
+      <section className="py-16 sm:py-24" aria-hidden>
+        <div className="mx-auto h-[480px] max-w-[1440px] animate-pulse rounded-2xl bg-muted/30 px-4 sm:px-6 lg:px-10" />
+      </section>
+    ),
+  },
+);
 
 const HERO_MEDIA_CLASS =
   "pointer-events-none mx-auto h-full w-full max-h-[min(52vh,420px)] object-contain object-center sm:max-h-[min(58vh,480px)] lg:max-h-[min(68vh,640px)]";
@@ -193,6 +207,8 @@ export function HomeLanding() {
           </motion.div>
         </div>
       </section>
+
+      <MarketDirectionsCarousel />
 
       <section className="border-y border-border bg-muted/25 py-14 sm:py-16" aria-label="О сервисе">
         <motion.div
