@@ -1,14 +1,8 @@
-/**
- * Пути медиа для главной. Положите файлы в `web/public/assets/landing/`
- * с этими именами — компоненты подхватят их без правки разметки.
- */
+/** Медиа hero на главной (`web/public/assets/`). */
 export const HOME_LANDING_MEDIA = {
   hero: {
-    poster: "/assets/hero-poster.webp",
-    webm: "/assets/hero.webm",
-    mp4: "/assets/hero.mp4",
-    /** Будущая 3D-модель (glb/draco), подключение в HeroMedia отдельным PR */
-    model: "/assets/landing/hero.glb",
+    fallback: "/assets/Image%20Fallback.png",
+    webm: "/assets/General.webm",
   },
   scenes: {
     inspection: "/assets/landing/scene-inspection.webp",
