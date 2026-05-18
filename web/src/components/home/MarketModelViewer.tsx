@@ -21,7 +21,7 @@ function MarketGlbModel({ url }: { url: string }) {
   }, [scene]);
 
   return (
-    <Bounds fit clip observe margin={1.2}>
+    <Bounds fit clip margin={1.2} maxDuration={0}>
       <Center>
         <primitive object={scene} />
       </Center>

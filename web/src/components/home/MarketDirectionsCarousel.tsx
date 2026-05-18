@@ -62,9 +62,9 @@ export function MarketDirectionsCarousel() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={market.id}
-                initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.98 }}
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduceMotion ? undefined : { opacity: 0 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
                 <MarketModelViewer modelUrl={market.modelUrl} />
