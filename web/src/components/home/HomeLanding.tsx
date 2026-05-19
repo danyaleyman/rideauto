@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
+import { useGLTF } from "@react-three/drei";
 import { motion, useReducedMotion, useScroll } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -18,9 +19,19 @@ const HANDOVER_URL =
 const linkClass =
   "font-medium text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground";
 
+const HERO_POSTER = HOME_LANDING_MEDIA.hero.image;
+
 const ModelMediaCascade = dynamic(
   () => import("@/components/home/ModelMediaCascade").then((m) => m.ModelMediaCascade),
-  { ssr: false },
+  {
+    ssr: false,
+    loading: () => (
+      <motion.div className="relative mx-auto w-full min-h-[min(56vw,320px)] h-[min(56vw,320px)] sm:min-h-[380px] sm:h-[380px] lg:min-h-[min(48vh,460px)] lg:h-[min(48vh,460px)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={HERO_POSTER} alt="" className="h-full w-full object-contain object-center" />
+      </motion.div>
+    ),
+  },
 );
 
 const MarketDirectionsCarousel = dynamic(
@@ -156,6 +167,10 @@ export function HomeLanding() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
 
+  useEffect(() => {
+    useGLTF.preload(HOME_LANDING_MEDIA.hero.model);
+  }, []);
+
   return (
     <div className="relative isolate overflow-x-hidden bg-background text-foreground">
       <motion.div
@@ -165,8 +180,9 @@ export function HomeLanding() {
       />
 
       <section className="relative flex min-h-[calc(100vh-4rem)] items-center overflow-hidden bg-background py-12 sm:py-16 lg:min-h-screen lg:py-20">
-        <div className="relative z-10 mx-auto grid w-full max-w-[1440px] items-center gap-10 px-4 sm:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:gap-14 lg:px-10">
+        <div className="relative z-10 mx-auto grid w-full max-w-[1440px] items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-12 lg:px-10">
           <motion.div
+            className="lg:py-4"
             initial={reduceMotion ? false : { opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
@@ -176,16 +192,16 @@ export function HomeLanding() {
               {LOGO}
             </div>
 
-            <h1 className="mt-7 max-w-4xl text-5xl font-semibold leading-[0.93] tracking-[-0.065em] text-foreground sm:text-6xl lg:text-8xl">
+            <h1 className="mt-6 max-w-xl text-[2rem] font-semibold leading-[1.08] tracking-[-0.04em] text-foreground sm:mt-7 sm:max-w-lg sm:text-4xl lg:text-[2.75rem] lg:leading-[1.06]">
               Автомобили из Азии как предмет точного выбора
             </h1>
 
-            <p className="mt-7 max-w-xl text-lg leading-8 text-muted-foreground">
+            <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
               Подбор, проверка, выкуп и доставка под ключ. Понятные этапы и прозрачная смета до первого
               платежа.
             </p>
 
-            <div className="mt-10 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap gap-3 sm:mt-9">
               <LandingButton href="/catalog" className="bg-foreground text-background hover:bg-foreground/90">
                 Каталог
               </LandingButton>
@@ -199,12 +215,12 @@ export function HomeLanding() {
             </div>
           </motion.div>
 
-          <div className="order-first lg:order-none">
-            <ModelMediaCascade media={HOME_LANDING_MEDIA.hero} autoRotate={false} />
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              <span className="hidden sm:inline">Перетащите, чтобы повернуть модель</span>
-              <span className="sm:hidden">Коснитесь и проведите, чтобы повернуть модель</span>
-            </p>
+          <div className="order-first w-full lg:order-none">
+            <ModelMediaCascade
+              media={HOME_LANDING_MEDIA.hero}
+              autoRotate={false}
+              priorityImage
+            />
           </div>
         </div>
       </section>

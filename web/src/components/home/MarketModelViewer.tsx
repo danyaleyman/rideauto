@@ -3,7 +3,7 @@
 import { HOME_LANDING_MEDIA } from "@/lib/home-landing-media";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useLayoutEffect } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Mesh } from "three";
 
 const CAMERA_3_4: [number, number, number] = [4.2, 1.35, 5.4];
@@ -22,6 +22,7 @@ function SceneLights() {
 
 function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
   const { scene } = useGLTF(url);
+  const loadedOnce = useRef(false);
 
   useLayoutEffect(() => {
     scene.traverse((obj) => {
@@ -31,7 +32,10 @@ function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
         mesh.receiveShadow = true;
       }
     });
-    onLoaded?.();
+    if (!loadedOnce.current) {
+      loadedOnce.current = true;
+      onLoaded?.();
+    }
   }, [scene, onLoaded]);
 
   return (
@@ -46,12 +50,23 @@ function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
 function Scene({
   modelUrl,
   autoRotate,
+  autoRotateDelayMs,
   onLoaded,
 }: {
   modelUrl: string;
   autoRotate: boolean;
+  autoRotateDelayMs: number;
   onLoaded?: () => void;
 }) {
+  const [rotateEnabled, setRotateEnabled] = useState(false);
+
+  useEffect(() => {
+    setRotateEnabled(false);
+    if (!autoRotate) return;
+    const id = window.setTimeout(() => setRotateEnabled(true), autoRotateDelayMs);
+    return () => window.clearTimeout(id);
+  }, [autoRotate, autoRotateDelayMs, modelUrl]);
+
   return (
     <>
       <SceneLights />
@@ -59,8 +74,10 @@ function Scene({
         <GlbModel url={modelUrl} onLoaded={onLoaded} />
       </Suspense>
       <OrbitControls
-        autoRotate={autoRotate}
-        autoRotateSpeed={0.85}
+        autoRotate={rotateEnabled}
+        autoRotateSpeed={0.55}
+        enableDamping
+        dampingFactor={0.08}
         enablePan={false}
         enableZoom={false}
         minPolarAngle={Math.PI / 4}
@@ -75,6 +92,8 @@ function Scene({
 export type MarketModelViewerProps = {
   modelUrl: string;
   autoRotate?: boolean;
+  autoRotateDelayMs?: number;
+  fill?: boolean;
   className?: string;
   onLoaded?: () => void;
   onContextLost?: () => void;
@@ -83,20 +102,33 @@ export type MarketModelViewerProps = {
 export function MarketModelViewer({
   modelUrl,
   autoRotate = false,
+  autoRotateDelayMs = 700,
+  fill = false,
   className = "",
   onLoaded,
   onContextLost,
 }: MarketModelViewerProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const sizeClass = fill
+    ? "absolute inset-0 h-full w-full"
+    : "relative h-[min(56vw,320px)] w-full sm:h-[380px] lg:h-[min(48vh,460px)]";
+
   return (
-    <div
-      className={`relative h-[min(56vw,360px)] w-full touch-none sm:h-[400px] lg:h-[min(52vh,480px)] ${className}`}
-      aria-hidden
-    >
+    <div className={`${sizeClass} touch-none ${className}`} aria-hidden>
       <Canvas
         className="!touch-none"
-        dpr={[1, 1.5]}
+        dpr={isMobile ? 1 : [1, 1.5]}
         gl={{
-          antialias: true,
+          antialias: !isMobile,
           alpha: true,
           powerPreference: "high-performance",
           toneMappingExposure: 1.25,
@@ -115,14 +147,15 @@ export function MarketModelViewer({
           );
         }}
       >
-        <Scene modelUrl={modelUrl} autoRotate={autoRotate} onLoaded={onLoaded} />
+        <Scene
+          modelUrl={modelUrl}
+          autoRotate={autoRotate}
+          autoRotateDelayMs={autoRotateDelayMs}
+          onLoaded={onLoaded}
+        />
       </Canvas>
     </div>
   );
 }
 
-const { hero, markets } = HOME_LANDING_MEDIA;
-useGLTF.preload(hero.model);
-useGLTF.preload(markets.korea.model);
-useGLTF.preload(markets.china.model);
-useGLTF.preload(markets.japan.model);
+useGLTF.preload(HOME_LANDING_MEDIA.hero.model);
