@@ -47,8 +47,9 @@ class ModelErrorBoundary extends Component<
   }
 }
 
-function resolveInitialTier(): Tier {
-  if (typeof window === "undefined") return "model";
+function resolveInitialTier(reduceMotion: boolean | null): Tier {
+  if (typeof window === "undefined") return "image";
+  if (reduceMotion) return "image";
   if (!canUseWebGL()) return "video";
   return "model";
 }
@@ -63,7 +64,8 @@ export function ModelMediaCascade({
   onSettled,
 }: ModelMediaCascadeProps) {
   const reduceMotion = useReducedMotion();
-  const [tier, setTier] = useState<Tier>("model");
+  const [clientReady, setClientReady] = useState(false);
+  const [tier, setTier] = useState<Tier>("image");
   const [modelReady, setModelReady] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
@@ -109,11 +111,17 @@ export function ModelMediaCascade({
   }, [clearTimers, onSettled]);
 
   useEffect(() => {
+    setClientReady(true);
+  }, []);
+
+  useEffect(() => {
     if (!showFallback || modelReady) return;
     onSettled?.();
   }, [showFallback, modelReady, onSettled]);
 
   useEffect(() => {
+    if (!clientReady) return;
+
     modelLoadedRef.current = false;
     setModelReady(false);
     setShowFallback(false);
@@ -121,11 +129,12 @@ export function ModelMediaCascade({
     setVideoFailed(false);
     clearTimers();
 
-    const next = resolveInitialTier();
+    const next = resolveInitialTier(reduceMotion);
     setTier(next);
 
     if (next !== "model") {
       setShowFallback(true);
+      onSettled?.();
       return;
     }
 
@@ -136,9 +145,9 @@ export function ModelMediaCascade({
     failTimerRef.current = window.setTimeout(failModel, fallbackDelayMs);
 
     return clearTimers;
-  }, [cascadeKey, failModel, clearTimers, fallbackDelayMs]);
+  }, [clientReady, cascadeKey, failModel, clearTimers, fallbackDelayMs, reduceMotion, onSettled]);
 
-  const showModel = tier === "model";
+  const showModel = clientReady && tier === "model";
   const showVideo = tier === "video" && !videoFailed;
   const showImage =
     tier === "image" ||

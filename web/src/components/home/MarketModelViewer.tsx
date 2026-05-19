@@ -144,19 +144,29 @@ export function MarketModelViewer({
   onLoaded,
   onFailed,
 }: MarketModelViewerProps) {
+  const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     const mq = window.matchMedia("(max-width: 767px)");
     const update = () => setIsMobile(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, []);
+  }, [mounted]);
 
   const sizeClass = fill
     ? "absolute inset-0 h-full w-full"
     : "relative h-[min(56vw,320px)] w-full sm:h-[380px] lg:h-[min(48vh,460px)]";
+
+  if (!mounted) {
+    return <div className={`${sizeClass} touch-none ${className}`} aria-hidden />;
+  }
 
   return (
     <div className={`${sizeClass} touch-none ${className}`} aria-hidden>

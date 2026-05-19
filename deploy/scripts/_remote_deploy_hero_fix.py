@@ -9,6 +9,7 @@ FILES = [
     "web/src/components/home/ModelMediaCascade.tsx",
     "web/src/components/home/MarketModelViewer.tsx",
     "web/src/components/home/HomeLanding.tsx",
+    "web/src/lib/preload-landing-models.ts",
 ]
 
 

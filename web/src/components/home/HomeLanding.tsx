@@ -2,9 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
-import { type ReactNode, useEffect, useState } from "react";
-import { useGLTF } from "@react-three/drei";
+import { type ReactNode, useState } from "react";
 import { motion, useReducedMotion, useScroll } from "framer-motion";
+import "@/lib/preload-landing-models";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -153,10 +153,6 @@ export function HomeLanding() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
   const [marketsMounted, setMarketsMounted] = useState(false);
-
-  useEffect(() => {
-    useGLTF.preload(HOME_LANDING_MEDIA.hero.model);
-  }, []);
 
   return (
     <div className="relative isolate overflow-x-hidden bg-background text-foreground">
