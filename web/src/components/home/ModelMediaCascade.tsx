@@ -6,7 +6,10 @@ import { canUseWebGL } from "@/lib/media-cascade-capabilities";
 import { motion, useReducedMotion } from "framer-motion";
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
-const DEFAULT_FALLBACK_DELAY_MS = 7_000;
+/** Таймаут загрузки GLB до перехода на video (не скрывает 3D раньше времени). */
+const MODEL_LOAD_TIMEOUT_MS = 15_000;
+/** Через сколько мс показать PNG под моделью, пока GLB ещё грузится. */
+const FALLBACK_HINT_DELAY_MS = 7_000;
 
 const FRAME_CLASS =
   "relative mx-auto w-full min-h-[min(56vw,320px)] h-[min(56vw,320px)] sm:min-h-[380px] sm:h-[380px] lg:min-h-[min(48vh,460px)] lg:h-[min(48vh,460px)]";
@@ -23,7 +26,6 @@ type ModelMediaCascadeProps = {
   className?: string;
   priorityImage?: boolean;
   fallbackDelayMs?: number;
-  /** Вызывается когда показана 3D-модель или включён fallback. */
   onSettled?: () => void;
 };
 
@@ -47,9 +49,8 @@ class ModelErrorBoundary extends Component<
   }
 }
 
-function resolveInitialTier(reduceMotion: boolean | null): Tier {
-  if (typeof window === "undefined") return "image";
-  if (reduceMotion) return "image";
+function initialTier(): Tier {
+  if (typeof window === "undefined") return "model";
   if (!canUseWebGL()) return "video";
   return "model";
 }
@@ -60,44 +61,41 @@ export function ModelMediaCascade({
   autoRotateDelayMs = 700,
   className = "",
   priorityImage = false,
-  fallbackDelayMs = DEFAULT_FALLBACK_DELAY_MS,
+  fallbackDelayMs = FALLBACK_HINT_DELAY_MS,
   onSettled,
 }: ModelMediaCascadeProps) {
   const reduceMotion = useReducedMotion();
-  const [clientReady, setClientReady] = useState(false);
-  const [tier, setTier] = useState<Tier>("image");
+  const [tier, setTier] = useState<Tier>("model");
   const [modelReady, setModelReady] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
+  const [showFallbackHint, setShowFallbackHint] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const fallbackTimerRef = useRef<number | null>(null);
-  const failTimerRef = useRef<number | null>(null);
+  const loadTimerRef = useRef<number | null>(null);
+  const hintTimerRef = useRef<number | null>(null);
   const modelLoadedRef = useRef(false);
   const cascadeKey = `${media.model}|${media.video}|${media.image}`;
 
   const clearTimers = useCallback(() => {
-    if (fallbackTimerRef.current !== null) {
-      window.clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
+    if (loadTimerRef.current !== null) {
+      window.clearTimeout(loadTimerRef.current);
+      loadTimerRef.current = null;
     }
-    if (failTimerRef.current !== null) {
-      window.clearTimeout(failTimerRef.current);
-      failTimerRef.current = null;
+    if (hintTimerRef.current !== null) {
+      window.clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = null;
     }
   }, []);
 
   const failModel = useCallback(() => {
+    if (modelLoadedRef.current) return;
     clearTimers();
-    modelLoadedRef.current = false;
     setModelReady(false);
-    setShowFallback(true);
     setTier((t) => (t === "model" ? "video" : t));
     onSettled?.();
   }, [clearTimers, onSettled]);
 
   const failVideo = useCallback(() => {
     setVideoFailed(true);
-    setShowFallback(true);
     setTier((t) => (t === "video" ? "image" : t));
     onSettled?.();
   }, [onSettled]);
@@ -105,53 +103,48 @@ export function ModelMediaCascade({
   const handleModelLoaded = useCallback(() => {
     modelLoadedRef.current = true;
     setModelReady(true);
-    setShowFallback(false);
+    setShowFallbackHint(false);
     clearTimers();
     onSettled?.();
   }, [clearTimers, onSettled]);
 
   useEffect(() => {
-    setClientReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!showFallback || modelReady) return;
-    onSettled?.();
-  }, [showFallback, modelReady, onSettled]);
-
-  useEffect(() => {
-    if (!clientReady) return;
-
     modelLoadedRef.current = false;
     setModelReady(false);
-    setShowFallback(false);
+    setShowFallbackHint(false);
     setVideoReady(false);
     setVideoFailed(false);
     clearTimers();
 
-    const next = resolveInitialTier(reduceMotion);
+    const next = initialTier();
     setTier(next);
 
     if (next !== "model") {
-      setShowFallback(true);
       onSettled?.();
       return;
     }
 
-    fallbackTimerRef.current = window.setTimeout(() => {
-      if (!modelLoadedRef.current) setShowFallback(true);
+    hintTimerRef.current = window.setTimeout(() => {
+      if (!modelLoadedRef.current) setShowFallbackHint(true);
     }, fallbackDelayMs);
 
-    failTimerRef.current = window.setTimeout(failModel, fallbackDelayMs);
+    loadTimerRef.current = window.setTimeout(failModel, MODEL_LOAD_TIMEOUT_MS);
 
     return clearTimers;
-  }, [clientReady, cascadeKey, failModel, clearTimers, fallbackDelayMs, reduceMotion, onSettled]);
+  }, [cascadeKey, failModel, clearTimers, fallbackDelayMs, onSettled]);
 
-  const showModel = clientReady && tier === "model";
+  useEffect(() => {
+    if (tier !== "model" && tier !== "video") return;
+    if (tier === "model" && !modelReady) return;
+    if (tier === "video" && !videoFailed && !videoReady) return;
+    onSettled?.();
+  }, [tier, modelReady, videoReady, videoFailed, onSettled]);
+
+  const showModel = tier === "model";
   const showVideo = tier === "video" && !videoFailed;
   const showImage =
     tier === "image" ||
-    (showFallback && !modelReady) ||
+    (showFallbackHint && !modelReady) ||
     (showVideo && !videoReady);
 
   return (

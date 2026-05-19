@@ -7,7 +7,8 @@ export type MediaCascade = {
 
 export const HOME_LANDING_MEDIA = {
   hero: {
-    model: "/assets/hero.glb",
+    // Временно: рабочая модель из карусели (вернуть hero.glb после проверки)
+    model: "/assets/2025_xiaomi_yu7.glb",
     video: "/assets/hero-fallback-animation.webm",
     image: "/assets/hero-fallback-image.png",
   },

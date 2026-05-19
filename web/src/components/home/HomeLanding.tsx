@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import { motion, useReducedMotion, useScroll } from "framer-motion";
 import "@/lib/preload-landing-models";
 import { ArrowRight } from "lucide-react";
@@ -152,8 +152,6 @@ function LandingButton({
 export function HomeLanding() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
-  const [marketsMounted, setMarketsMounted] = useState(false);
-
   return (
     <div className="relative isolate overflow-x-hidden bg-background text-foreground">
       <motion.div
@@ -204,13 +202,12 @@ export function HomeLanding() {
               autoRotate={false}
               priorityImage
               fallbackDelayMs={7000}
-              onSettled={() => setMarketsMounted(true)}
             />
           </div>
         </div>
       </section>
 
-      {marketsMounted ? <MarketDirectionsCarousel /> : null}
+      <MarketDirectionsCarousel />
 
       <section id="company" className="bg-background py-16 sm:py-24" aria-label="Процесс">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
