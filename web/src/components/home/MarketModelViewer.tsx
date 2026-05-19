@@ -3,7 +3,7 @@
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Group, Mesh } from "three";
+import { DoubleSide, type Group, type Material, type Mesh } from "three";
 
 const CAMERA_3_4: [number, number, number] = [4.2, 1.35, 5.4];
 const LOCK_DISTANCE = 5.8;
@@ -19,9 +19,41 @@ function SceneLights() {
   );
 }
 
+function normalizeMaterials(object: Group) {
+  object.traverse((obj) => {
+    const mesh = obj as Mesh;
+    if (!mesh.isMesh) return;
+
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      if (!material) continue;
+      const mat = material as Material & {
+        transmission?: number;
+        thickness?: number;
+        transparent?: boolean;
+        opacity?: number;
+        depthWrite?: boolean;
+      };
+      if (typeof mat.transmission === "number" && mat.transmission > 0) {
+        mat.transmission = 0;
+        mat.thickness = 0;
+        mat.transparent = false;
+        mat.opacity = 1;
+        mat.depthWrite = true;
+      }
+      mat.side = DoubleSide;
+      mat.needsUpdate = true;
+    }
+  });
+}
+
 function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
   const { scene } = useGLTF(url);
-  const model = useMemo(() => scene.clone(true), [scene]);
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    normalizeMaterials(clone);
+    return clone;
+  }, [scene]);
   const loadedOnce = useRef(false);
 
   useEffect(() => {
@@ -31,12 +63,7 @@ function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
   useLayoutEffect(() => {
     let meshCount = 0;
     model.traverse((obj) => {
-      const mesh = obj as Mesh;
-      if (mesh.isMesh) {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        meshCount += 1;
-      }
+      if ((obj as Mesh).isMesh) meshCount += 1;
     });
 
     if (meshCount === 0 || loadedOnce.current) return;
@@ -50,7 +77,7 @@ function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
   return (
     <Bounds fit clip margin={1.05} maxDuration={0}>
       <Center>
-        <primitive object={model as Group} />
+        <primitive object={model} />
       </Center>
     </Bounds>
   );
@@ -105,7 +132,7 @@ export type MarketModelViewerProps = {
   fill?: boolean;
   className?: string;
   onLoaded?: () => void;
-  onContextLost?: () => void;
+  onFailed?: () => void;
 };
 
 export function MarketModelViewer({
@@ -115,7 +142,7 @@ export function MarketModelViewer({
   fill = false,
   className = "",
   onLoaded,
-  onContextLost,
+  onFailed,
 }: MarketModelViewerProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -150,7 +177,7 @@ export function MarketModelViewer({
             "webglcontextlost",
             (event) => {
               event.preventDefault();
-              onContextLost?.();
+              onFailed?.();
             },
             { once: true },
           );

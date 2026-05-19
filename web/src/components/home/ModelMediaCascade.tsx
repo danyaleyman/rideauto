@@ -23,6 +23,8 @@ type ModelMediaCascadeProps = {
   className?: string;
   priorityImage?: boolean;
   fallbackDelayMs?: number;
+  /** Вызывается когда показана 3D-модель или включён fallback. */
+  onSettled?: () => void;
 };
 
 class ModelErrorBoundary extends Component<
@@ -58,6 +60,7 @@ export function ModelMediaCascade({
   className = "",
   priorityImage = false,
   fallbackDelayMs = DEFAULT_FALLBACK_DELAY_MS,
+  onSettled,
 }: ModelMediaCascadeProps) {
   const reduceMotion = useReducedMotion();
   const [tier, setTier] = useState<Tier>("model");
@@ -82,25 +85,33 @@ export function ModelMediaCascade({
   }, []);
 
   const failModel = useCallback(() => {
-    if (modelLoadedRef.current) return;
     clearTimers();
+    modelLoadedRef.current = false;
     setModelReady(false);
     setShowFallback(true);
     setTier((t) => (t === "model" ? "video" : t));
-  }, [clearTimers]);
+    onSettled?.();
+  }, [clearTimers, onSettled]);
 
   const failVideo = useCallback(() => {
     setVideoFailed(true);
     setShowFallback(true);
     setTier((t) => (t === "video" ? "image" : t));
-  }, []);
+    onSettled?.();
+  }, [onSettled]);
 
   const handleModelLoaded = useCallback(() => {
     modelLoadedRef.current = true;
     setModelReady(true);
     setShowFallback(false);
     clearTimers();
-  }, [clearTimers]);
+    onSettled?.();
+  }, [clearTimers, onSettled]);
+
+  useEffect(() => {
+    if (!showFallback || modelReady) return;
+    onSettled?.();
+  }, [showFallback, modelReady, onSettled]);
 
   useEffect(() => {
     modelLoadedRef.current = false;
@@ -181,7 +192,7 @@ export function ModelMediaCascade({
               autoRotateDelayMs={autoRotateDelayMs}
               fill
               onLoaded={handleModelLoaded}
-              onContextLost={failModel}
+              onFailed={failModel}
               className="z-[3]"
             />
           </ModelErrorBoundary>

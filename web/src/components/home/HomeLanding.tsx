@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useGLTF } from "@react-three/drei";
 import { motion, useReducedMotion, useScroll } from "framer-motion";
 import { ArrowRight } from "lucide-react";
@@ -152,6 +152,7 @@ function LandingButton({
 export function HomeLanding() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
+  const [marketsMounted, setMarketsMounted] = useState(false);
 
   useEffect(() => {
     useGLTF.preload(HOME_LANDING_MEDIA.hero.model);
@@ -207,12 +208,13 @@ export function HomeLanding() {
               autoRotate={false}
               priorityImage
               fallbackDelayMs={7000}
+              onSettled={() => setMarketsMounted(true)}
             />
           </div>
         </div>
       </section>
 
-      <MarketDirectionsCarousel />
+      {marketsMounted ? <MarketDirectionsCarousel /> : null}
 
       <section id="company" className="bg-background py-16 sm:py-24" aria-label="Процесс">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
