@@ -1,46 +1,27 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState, type ReactNode } from "react";
-import {
-  motion,
-  useReducedMotion,
-  useTransform,
-  useScroll,
-} from "framer-motion";
+import { type ReactNode } from "react";
+import { motion, useReducedMotion, useScroll } from "framer-motion";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { HOME_LANDING_MEDIA } from "@/lib/home-landing-media";
-import Image from "next/image";
-import Link from "next/link";
 
 const LOGO = "WORLD RIDE AUTO";
 const TELEGRAM_CHANNEL = "https://t.me/worldrideauto";
+const DOCS_URL = "https://disk.yandex.ru/d/WxPQ4fBr7k6e_Q";
+const INSPECTION_URL = "https://disk.yandex.ru/d/RYB3Xyk8sNQUZQ";
+const HANDOVER_URL =
+  "https://www.instagram.com/reel/DV6iYb2iJsf/?utm_source=ig_web_button_share_sheet&igsh=MzRlODBiNWFlZA==";
 
-const HIGHLIGHTS = [
-  {
-    title: "Корея, Япония, Китай",
-    body: "Подбор с аукционов и площадок под ваш бюджет и класс автомобиля.",
-  },
-  {
-    title: "Проверка до выкупа",
-    body: "Фото, видео, диагностика и история — решение принимается на фактах.",
-  },
-  {
-    title: "Сделка под ключ",
-    body: "Выкуп, логистика, таможня и документы в одной прозрачной смете.",
-  },
-  {
-    title: "Один менеджер",
-    body: "Сопровождение от заявки до передачи автомобиля без переключений между отделами.",
-  },
-] as const;
+const linkClass =
+  "font-medium text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground";
 
-const PROCESS_STEPS = [
-  ["01", "Профиль", "Фиксируем бюджет, класс автомобиля и сценарий владения."],
-  ["02", "Отбор", "Сравниваем площадки Кореи, Японии и Китая, отсеивая слабые варианты."],
-  ["03", "Осмотр", "Фото, видео, подключаемая диагностика и проверка истории до покупки."],
-  ["04", "Сделка", "Выкуп, логистика, таможня, документы и передача автомобиля."],
-] as const;
+const ModelMediaCascade = dynamic(
+  () => import("@/components/home/ModelMediaCascade").then((m) => m.ModelMediaCascade),
+  { ssr: false },
+);
 
 const MarketDirectionsCarousel = dynamic(
   () =>
@@ -48,15 +29,97 @@ const MarketDirectionsCarousel = dynamic(
   {
     ssr: false,
     loading: () => (
-      <section className="py-16 sm:py-24" aria-hidden>
-        <div className="mx-auto h-[480px] max-w-[1440px] animate-pulse rounded-2xl bg-muted/30 px-4 sm:px-6 lg:px-10" />
+      <section className="border-y border-border bg-muted/25 py-16 sm:py-24" aria-hidden>
+        <div className="mx-auto h-[480px] max-w-[1440px] animate-pulse px-4 sm:px-6 lg:px-10" />
       </section>
     ),
   },
 );
 
-const HERO_MEDIA_CLASS =
-  "pointer-events-none mx-auto h-full w-full max-h-[min(52vh,420px)] object-contain object-center sm:max-h-[min(58vh,480px)] lg:max-h-[min(68vh,640px)]";
+type ProcessStep = {
+  n: string;
+  title: string;
+  body: ReactNode;
+};
+
+const PROCESS_STEPS: ProcessStep[] = [
+  {
+    n: "01",
+    title: "Профиль",
+    body: (
+      <>
+        Фиксируем бюджет, класс автомобиля и сценарий владения. Подписываем{" "}
+        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          договор
+        </a>{" "}
+        и{" "}
+        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          смету
+        </a>
+        .
+      </>
+    ),
+  },
+  {
+    n: "02",
+    title: "Отбор",
+    body: "Сравниваем площадки Кореи, Японии и Китая, отсеивая слабые варианты.",
+  },
+  {
+    n: "03",
+    title: "Осмотр",
+    body: (
+      <>
+        Фото, видео, подключаемая диагностика и проверка истории до покупки.{" "}
+        <a
+          href={INSPECTION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${linkClass} mt-2 inline-flex items-center gap-1`}
+        >
+          Примеры осмотров
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      </>
+    ),
+  },
+  {
+    n: "04",
+    title: "Сделка",
+    body: "Выкуп, логистика, таможня, документы и логистика автомобиля.",
+  },
+  {
+    n: "05",
+    title: "Вручение",
+    body: (
+      <>
+        Передаём автомобиль и фиксируем результат сделки.{" "}
+        <a
+          href={HANDOVER_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${linkClass} mt-2 inline-flex items-center gap-1`}
+        >
+          Живой пример вручения
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      </>
+    ),
+  },
+  {
+    n: "06",
+    title: "Подробнее",
+    body: (
+      <Link
+        href="/buy"
+        className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+      >
+        Подробнее о процессе: сроки, платежи, документы
+        <ArrowRight className="h-4 w-4" aria-hidden />
+      </Link>
+    ),
+  },
+];
 
 function LandingButton({
   children,
@@ -89,72 +152,9 @@ function LandingButton({
   );
 }
 
-function useHeroVideoEnabled() {
-  const reduceMotion = useReducedMotion();
-  const [enabled, setEnabled] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const update = () => setEnabled(mq.matches && !reduceMotion);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, [reduceMotion]);
-
-  return enabled;
-}
-
-function HeroVisual() {
-  const videoEnabled = useHeroVideoEnabled();
-  const [videoReady, setVideoReady] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
-  const { fallback, webm } = HOME_LANDING_MEDIA.hero;
-  const showVideo = videoEnabled && !videoFailed;
-  const showFallbackImage = !showVideo || !videoReady;
-
-  return (
-    <motion.div className="relative w-full bg-transparent shadow-none">
-      <motion.div
-        className="relative mx-auto flex aspect-[4/3] w-full max-w-[min(100%,720px)] items-center justify-center bg-transparent sm:aspect-[16/10] lg:aspect-[16/9] lg:max-w-none"
-        aria-hidden
-      >
-        <Image
-          src={fallback}
-          alt=""
-          width={1400}
-          height={900}
-          priority
-          unoptimized
-          className={`${HERO_MEDIA_CLASS} transition-opacity duration-500 ${
-            showFallbackImage ? "relative z-[1] opacity-100" : "absolute inset-0 z-[1] opacity-0"
-          }`}
-        />
-        {showVideo && (
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            className={`absolute inset-0 z-[2] ${HERO_MEDIA_CLASS} transition-opacity duration-500 ${
-              videoReady ? "opacity-100" : "opacity-0"
-            }`}
-            onCanPlay={() => setVideoReady(true)}
-            onError={() => setVideoFailed(true)}
-          >
-            <source src={webm} type="video/webm" />
-          </video>
-        )}
-      </motion.div>
-    </motion.div>
-  );
-}
-
 export function HomeLanding() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
-  const heroScale = useTransform(scrollYProgress, [0, 0.2], reduceMotion ? [1, 1] : [1.02, 1]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.18], [1, 0.92]);
 
   return (
     <div className="relative isolate overflow-x-hidden bg-background text-foreground">
@@ -185,7 +185,7 @@ export function HomeLanding() {
               платежа.
             </p>
 
-            <motion.div className="mt-10 flex flex-wrap gap-3">
+            <div className="mt-10 flex flex-wrap gap-3">
               <LandingButton href="/catalog" className="bg-foreground text-background hover:bg-foreground/90">
                 Каталог
               </LandingButton>
@@ -196,54 +196,23 @@ export function HomeLanding() {
               >
                 Telegram-канал
               </LandingButton>
-            </motion.div>
+            </div>
           </motion.div>
 
-          <motion.div
-            style={{ scale: heroScale, opacity: heroOpacity }}
-            className="order-first bg-transparent shadow-none lg:order-none"
-          >
-            <HeroVisual />
-          </motion.div>
+          <div className="order-first lg:order-none">
+            <ModelMediaCascade media={HOME_LANDING_MEDIA.hero} autoRotate={false} />
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              <span className="hidden sm:inline">Перетащите, чтобы повернуть модель</span>
+              <span className="sm:hidden">Коснитесь и проведите, чтобы повернуть модель</span>
+            </p>
+          </div>
         </div>
       </section>
 
       <MarketDirectionsCarousel />
 
-      <section className="border-y border-border bg-muted/25 py-14 sm:py-16" aria-label="О сервисе">
-        <motion.div
-          id="company"
-          className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10"
-          initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5 }}
-        >
-          <p className="max-w-2xl text-sm uppercase tracking-[0.22em] text-muted-foreground">О компании</p>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-foreground sm:text-xl">
-            World Ride Auto — импорт автомобилей из Кореи, Японии и Китая с проверкой до выкупа и
-            сопровождением сделки до вручения.
-          </p>
-        </motion.div>
-        <div className="mx-auto mt-10 grid max-w-[1440px] gap-3 px-4 sm:mt-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-10">
-          {HIGHLIGHTS.map((item, i) => (
-            <motion.div
-              key={item.title}
-              initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.06 }}
-              className="rounded-2xl border border-border bg-card p-5 shadow-sm"
-            >
-              <h3 className="text-base font-semibold text-foreground">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.body}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      <section className="py-16 sm:py-24" aria-label="Процесс">
-        <motion.div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
+      <section id="company" className="bg-background py-16 sm:py-24" aria-label="Процесс">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
           <motion.h2
             className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-foreground sm:text-5xl lg:text-6xl"
             initial={reduceMotion ? false : { opacity: 0, y: 16 }}
@@ -252,28 +221,28 @@ export function HomeLanding() {
           >
             Полный цикл без лишних декораций
           </motion.h2>
-          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {PROCESS_STEPS.map(([n, t, d], i) => (
+          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {PROCESS_STEPS.map((step, i) => (
               <motion.div
-                key={n}
+                key={step.n}
                 initial={reduceMotion ? false : { opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.06 }}
+                transition={{ delay: i * 0.05 }}
                 className="min-h-[220px] rounded-2xl border border-border bg-card p-5 shadow-sm"
               >
                 <div className="text-5xl font-semibold tracking-[-0.06em] text-muted-foreground/30" aria-hidden>
-                  {n}
+                  {step.n}
                 </div>
-                <div className="mt-10 text-xl font-semibold text-foreground">{t}</div>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">{d}</p>
+                <div className="mt-10 text-xl font-semibold text-foreground">{step.title}</div>
+                <div className="mt-3 text-sm leading-6 text-muted-foreground">{step.body}</div>
               </motion.div>
             ))}
           </div>
-        </motion.div>
+        </div>
       </section>
 
-      <section className="border-t border-border bg-muted/30 py-20 sm:py-28">
+      <section className="border-t border-border bg-muted/25 py-20 sm:py-28">
         <motion.div
           className="mx-auto max-w-3xl px-4 text-center sm:px-6"
           initial={reduceMotion ? false : { opacity: 0, y: 16 }}

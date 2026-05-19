@@ -1,11 +1,15 @@
+import { HOME_LANDING_MEDIA, type MediaCascade } from "@/lib/home-landing-media";
+
 export type HomeMarketId = "korea" | "china" | "japan";
 
 export type HomeMarket = {
   id: HomeMarketId;
   country: string;
   modelLabel: string;
-  modelUrl: string;
+  media: MediaCascade;
   catalogHref: string;
+  catalogDisabled?: boolean;
+  catalogLabel?: string;
   points: string[];
 };
 
@@ -14,7 +18,7 @@ export const HOME_MARKETS: HomeMarket[] = [
     id: "korea",
     country: "Корея",
     modelLabel: "Hyundai Kona N Line",
-    modelUrl: "/assets/2025_hyundai_kona_n_line.glb",
+    media: HOME_LANDING_MEDIA.markets.korea,
     catalogHref: "/catalog?region=korea",
     points: [
       "Свежие комплектации и понятная история обслуживания",
@@ -26,7 +30,7 @@ export const HOME_MARKETS: HomeMarket[] = [
     id: "china",
     country: "Китай",
     modelLabel: "Xiaomi YU7",
-    modelUrl: "/assets/2025_xiaomi_yu7.glb",
+    media: HOME_LANDING_MEDIA.markets.china,
     catalogHref: "/catalog?region=china",
     points: [
       "Новые модели и богатые комплектации по цене",
@@ -38,8 +42,10 @@ export const HOME_MARKETS: HomeMarket[] = [
     id: "japan",
     country: "Япония",
     modelLabel: "Toyota Land Cruiser 250",
-    modelUrl: "/assets/2024_toyota_land_cruiser_250_first_edition.glb",
+    media: HOME_LANDING_MEDIA.markets.japan,
     catalogHref: "/catalog?region=japan",
+    catalogDisabled: true,
+    catalogLabel: "Каталог в разработке",
     points: [
       "Аукционы USS, TAA, ARAI — доступ к редким лотам",
       "Аккуратные пробеги и сильная ликвидность моделей",

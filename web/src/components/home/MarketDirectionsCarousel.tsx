@@ -1,6 +1,6 @@
 "use client";
 
-import { MarketModelViewer } from "@/components/home/MarketModelViewer";
+import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
 import { Button } from "@/components/ui/button";
 import { HOME_MARKETS } from "@/lib/home-markets";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -23,8 +23,10 @@ export function MarketDirectionsCarousel() {
   const goPrev = useCallback(() => goTo(index - 1), [goTo, index]);
   const goNext = useCallback(() => goTo(index + 1), [goTo, index]);
 
+  const catalogLabel = market.catalogLabel ?? `Каталог — ${market.country}`;
+
   return (
-    <section className="py-16 sm:py-24" aria-label="Наши направления">
+    <section className="border-y border-border bg-muted/25 py-16 sm:py-24" aria-label="Наши направления">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -57,7 +59,7 @@ export function MarketDirectionsCarousel() {
           </div>
         </div>
 
-        <div className="mt-10 grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+        <motion.div className="mt-10 grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
           <div className="relative bg-transparent">
             <AnimatePresence mode="wait">
               <motion.div
@@ -67,9 +69,11 @@ export function MarketDirectionsCarousel() {
                 exit={reduceMotion ? undefined : { opacity: 0 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
-                <MarketModelViewer modelUrl={market.modelUrl} />
+                <ModelMediaCascade media={market.media} autoRotate />
                 <p className="mt-3 text-center text-xs text-muted-foreground">
-                  {market.modelLabel} · перетащите, чтобы повернуть
+                  {market.modelLabel}
+                  <span className="hidden sm:inline"> · перетащите, чтобы повернуть</span>
+                  <span className="sm:hidden"> · коснитесь и проведите</span>
                 </p>
               </motion.div>
             </AnimatePresence>
@@ -107,14 +111,20 @@ export function MarketDirectionsCarousel() {
                   ))}
                 </ul>
                 <div className="mt-8">
-                  <Button asChild className="rounded-full">
-                    <Link href={market.catalogHref}>Каталог — {market.country}</Link>
-                  </Button>
+                  {market.catalogDisabled ? (
+                    <Button disabled className="rounded-full" type="button">
+                      {catalogLabel}
+                    </Button>
+                  ) : (
+                    <Button asChild className="rounded-full">
+                      <Link href={market.catalogHref}>{catalogLabel}</Link>
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             </AnimatePresence>
           </motion.div>
-        </div>
+        </motion.div>
 
         <div className="mt-8 flex justify-center gap-2" role="tablist" aria-label="Направления">
           {HOME_MARKETS.map((item, i) => (

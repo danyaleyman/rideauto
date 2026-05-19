@@ -1,13 +1,26 @@
 "use client";
 
-import { HOME_MARKETS } from "@/lib/home-markets";
+import { HOME_LANDING_MEDIA } from "@/lib/home-landing-media";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useReducedMotion } from "framer-motion";
 import { Suspense, useLayoutEffect } from "react";
 import type { Mesh } from "three";
 
-function MarketGlbModel({ url }: { url: string }) {
+const CAMERA_3_4: [number, number, number] = [4.2, 1.35, 5.4];
+const LOCK_DISTANCE = 5.8;
+
+function SceneLights() {
+  return (
+    <>
+      <ambientLight intensity={1.2} />
+      <directionalLight position={[5, 10, 7]} intensity={1.5} />
+      <directionalLight position={[-3, 5, 4]} intensity={0.8} color="#fff4e8" />
+      <directionalLight position={[0, 4, -6]} intensity={0.45} />
+    </>
+  );
+}
+
+function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
   const { scene } = useGLTF(url);
 
   useLayoutEffect(() => {
@@ -18,10 +31,11 @@ function MarketGlbModel({ url }: { url: string }) {
         mesh.receiveShadow = true;
       }
     });
-  }, [scene]);
+    onLoaded?.();
+  }, [scene, onLoaded]);
 
   return (
-    <Bounds fit clip margin={1.2} maxDuration={0}>
+    <Bounds fit clip margin={1.05} maxDuration={0}>
       <Center>
         <primitive object={scene} />
       </Center>
@@ -29,14 +43,20 @@ function MarketGlbModel({ url }: { url: string }) {
   );
 }
 
-function Scene({ modelUrl, autoRotate }: { modelUrl: string; autoRotate: boolean }) {
+function Scene({
+  modelUrl,
+  autoRotate,
+  onLoaded,
+}: {
+  modelUrl: string;
+  autoRotate: boolean;
+  onLoaded?: () => void;
+}) {
   return (
     <>
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[4, 6, 5]} intensity={1.1} />
-      <directionalLight position={[-3, 2, -4]} intensity={0.35} />
+      <SceneLights />
       <Suspense fallback={null}>
-        <MarketGlbModel key={modelUrl} url={modelUrl} />
+        <GlbModel url={modelUrl} onLoaded={onLoaded} />
       </Suspense>
       <OrbitControls
         autoRotate={autoRotate}
@@ -45,34 +65,64 @@ function Scene({ modelUrl, autoRotate }: { modelUrl: string; autoRotate: boolean
         enableZoom={false}
         minPolarAngle={Math.PI / 4}
         maxPolarAngle={Math.PI / 2.05}
-        minDistance={2.2}
-        maxDistance={6}
+        minDistance={LOCK_DISTANCE}
+        maxDistance={LOCK_DISTANCE}
       />
     </>
   );
 }
 
-export function MarketModelViewer({ modelUrl, className = "" }: { modelUrl: string; className?: string }) {
-  const reduceMotion = useReducedMotion();
+export type MarketModelViewerProps = {
+  modelUrl: string;
+  autoRotate?: boolean;
+  className?: string;
+  onLoaded?: () => void;
+  onContextLost?: () => void;
+};
 
+export function MarketModelViewer({
+  modelUrl,
+  autoRotate = false,
+  className = "",
+  onLoaded,
+  onContextLost,
+}: MarketModelViewerProps) {
   return (
     <div
-      className={`relative h-[min(52vw,320px)] w-full touch-none sm:h-[380px] lg:h-[440px] ${className}`}
+      className={`relative h-[min(56vw,360px)] w-full touch-none sm:h-[400px] lg:h-[min(52vh,480px)] ${className}`}
       aria-hidden
     >
       <Canvas
         className="!touch-none"
-        dpr={[1, 1.75]}
-        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-        camera={{ position: [2.8, 1.4, 4.2], fov: 42, near: 0.1, far: 100 }}
-        style={{ background: "transparent" }}
+        dpr={[1, 1.5]}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance",
+          toneMappingExposure: 1.25,
+        }}
+        camera={{ position: CAMERA_3_4, fov: 40, near: 0.1, far: 100 }}
+        style={{ background: "transparent", touchAction: "none" }}
+        onCreated={({ gl }) => {
+          gl.setClearColor(0x000000, 0);
+          gl.domElement.addEventListener(
+            "webglcontextlost",
+            (event) => {
+              event.preventDefault();
+              onContextLost?.();
+            },
+            { once: true },
+          );
+        }}
       >
-        <Scene modelUrl={modelUrl} autoRotate={!reduceMotion} />
+        <Scene modelUrl={modelUrl} autoRotate={autoRotate} onLoaded={onLoaded} />
       </Canvas>
     </div>
   );
 }
 
-for (const market of HOME_MARKETS) {
-  useGLTF.preload(market.modelUrl);
-}
+const { hero, markets } = HOME_LANDING_MEDIA;
+useGLTF.preload(hero.model);
+useGLTF.preload(markets.korea.model);
+useGLTF.preload(markets.china.model);
+useGLTF.preload(markets.japan.model);
