@@ -6,7 +6,8 @@ import { canUseWebGL } from "@/lib/media-cascade-capabilities";
 import { motion, useReducedMotion } from "framer-motion";
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
-const MODEL_LOAD_TIMEOUT_MS = 18_000;
+/** Сколько ждать 3D до показа fallback (мс). */
+const MODEL_FALLBACK_DELAY_MS = 8_000;
 
 const FRAME_CLASS =
   "relative mx-auto w-full min-h-[min(56vw,320px)] h-[min(56vw,320px)] sm:min-h-[380px] sm:h-[380px] lg:min-h-[min(48vh,460px)] lg:h-[min(48vh,460px)]";
@@ -22,6 +23,8 @@ type ModelMediaCascadeProps = {
   autoRotateDelayMs?: number;
   className?: string;
   priorityImage?: boolean;
+  /** Задержка fallback для hero (мс). По умолчанию 8 с. */
+  fallbackDelayMs?: number;
 };
 
 class ModelErrorBoundary extends Component<
@@ -56,29 +59,37 @@ export function ModelMediaCascade({
   autoRotateDelayMs = 700,
   className = "",
   priorityImage = false,
+  fallbackDelayMs = MODEL_FALLBACK_DELAY_MS,
 }: ModelMediaCascadeProps) {
   const reduceMotion = useReducedMotion();
   const [tier, setTier] = useState<Tier>("model");
   const [modelReady, setModelReady] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const loadTimerRef = useRef<number | null>(null);
+  const fallbackTimerRef = useRef<number | null>(null);
+  const failTimerRef = useRef<number | null>(null);
   const modelLoadedRef = useRef(false);
   const cascadeKey = `${media.model}|${media.video}|${media.image}`;
 
-  const clearLoadTimer = useCallback(() => {
-    if (loadTimerRef.current !== null) {
-      window.clearTimeout(loadTimerRef.current);
-      loadTimerRef.current = null;
+  const clearTimers = useCallback(() => {
+    if (fallbackTimerRef.current !== null) {
+      window.clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+    if (failTimerRef.current !== null) {
+      window.clearTimeout(failTimerRef.current);
+      failTimerRef.current = null;
     }
   }, []);
 
   const failModel = useCallback(() => {
     if (modelLoadedRef.current) return;
-    clearLoadTimer();
+    clearTimers();
     setModelReady(false);
+    setShowFallback(true);
     setTier((t) => (t === "model" ? "video" : t));
-  }, [clearLoadTimer]);
+  }, [clearTimers]);
 
   const failVideo = useCallback(() => {
     setVideoFailed(true);
@@ -88,29 +99,41 @@ export function ModelMediaCascade({
   const handleModelLoaded = useCallback(() => {
     modelLoadedRef.current = true;
     setModelReady(true);
-    clearLoadTimer();
-  }, [clearLoadTimer]);
+    setShowFallback(false);
+    clearTimers();
+  }, [clearTimers]);
 
   useEffect(() => {
     modelLoadedRef.current = false;
     setModelReady(false);
+    setShowFallback(false);
     setVideoReady(false);
     setVideoFailed(false);
-    clearLoadTimer();
+    clearTimers();
 
     const next = resolveInitialTier();
     setTier(next);
 
-    if (next !== "model") return;
+    if (next !== "model") {
+      setShowFallback(true);
+      return;
+    }
 
-    loadTimerRef.current = window.setTimeout(failModel, MODEL_LOAD_TIMEOUT_MS);
-    return clearLoadTimer;
-  }, [cascadeKey, failModel, clearLoadTimer]);
+    fallbackTimerRef.current = window.setTimeout(() => {
+      if (!modelLoadedRef.current) setShowFallback(true);
+    }, fallbackDelayMs);
+
+    failTimerRef.current = window.setTimeout(failModel, fallbackDelayMs);
+
+    return clearTimers;
+  }, [cascadeKey, failModel, clearTimers, fallbackDelayMs]);
 
   const showModel = tier === "model";
   const showVideo = tier === "video" && !videoFailed;
-  const showImageUnderlay =
-    tier === "image" || (showModel && !modelReady) || (showVideo && !videoReady);
+  const showImage =
+    tier === "image" ||
+    (showFallback && showModel && !modelReady) ||
+    (showVideo && !videoReady);
 
   return (
     <motion.div
@@ -126,8 +149,8 @@ export function ModelMediaCascade({
           alt=""
           decoding="async"
           fetchPriority={priorityImage ? "high" : "auto"}
-          className={`${MEDIA_CLASS} transition-opacity duration-500 ${
-            showImageUnderlay ? "z-[1] opacity-100" : "z-[1] opacity-0"
+          className={`${MEDIA_CLASS} transition-opacity duration-700 ${
+            showImage ? "z-[1] opacity-100" : "z-[1] opacity-0"
           }`}
         />
 
@@ -139,7 +162,7 @@ export function ModelMediaCascade({
             playsInline
             preload="auto"
             poster={media.image}
-            className={`${MEDIA_CLASS} z-[2] transition-opacity duration-500 ${
+            className={`${MEDIA_CLASS} z-[2] transition-opacity duration-700 ${
               videoReady ? "opacity-100" : "opacity-0"
             }`}
             onCanPlay={() => setVideoReady(true)}

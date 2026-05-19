@@ -34,7 +34,9 @@ function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
     });
     if (!loadedOnce.current) {
       loadedOnce.current = true;
-      onLoaded?.();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => onLoaded?.());
+      });
     }
   }, [scene, onLoaded]);
 
