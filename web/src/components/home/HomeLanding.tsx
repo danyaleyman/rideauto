@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { preloadHeroModel } from "@/lib/preload-hero-model";
+import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
 import { type ReactNode, useEffect } from "react";
+import { useGLTF } from "@react-three/drei";
 import { motion, useReducedMotion, useScroll } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -18,19 +19,6 @@ const HANDOVER_URL =
 
 const linkClass =
   "font-medium text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground";
-
-const ModelMediaCascade = dynamic(
-  () => import("@/components/home/ModelMediaCascade").then((m) => m.ModelMediaCascade),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="relative mx-auto w-full min-h-[min(56vw,320px)] h-[min(56vw,320px)] sm:min-h-[380px] sm:h-[380px] lg:min-h-[min(48vh,460px)] lg:h-[min(48vh,460px)]"
-        aria-hidden
-      />
-    ),
-  },
-);
 
 const MarketDirectionsCarousel = dynamic(
   () =>
@@ -166,7 +154,7 @@ export function HomeLanding() {
   const { scrollYProgress } = useScroll();
 
   useEffect(() => {
-    preloadHeroModel();
+    useGLTF.preload(HOME_LANDING_MEDIA.hero.model);
   }, []);
 
   return (
@@ -218,7 +206,7 @@ export function HomeLanding() {
               media={HOME_LANDING_MEDIA.hero}
               autoRotate={false}
               priorityImage
-              fallbackDelayMs={8000}
+              fallbackDelayMs={7000}
             />
           </div>
         </div>

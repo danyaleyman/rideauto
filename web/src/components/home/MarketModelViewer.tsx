@@ -1,10 +1,9 @@
 "use client";
 
-import { HOME_LANDING_MEDIA } from "@/lib/home-landing-media";
 import { Bounds, Center, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Mesh } from "three";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { Group, Mesh } from "three";
 
 const CAMERA_3_4: [number, number, number] = [4.2, 1.35, 5.4];
 const LOCK_DISTANCE = 5.8;
@@ -22,28 +21,36 @@ function SceneLights() {
 
 function GlbModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
   const { scene } = useGLTF(url);
+  const model = useMemo(() => scene.clone(true), [scene]);
   const loadedOnce = useRef(false);
 
+  useEffect(() => {
+    loadedOnce.current = false;
+  }, [url]);
+
   useLayoutEffect(() => {
-    scene.traverse((obj) => {
+    let meshCount = 0;
+    model.traverse((obj) => {
       const mesh = obj as Mesh;
       if (mesh.isMesh) {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        meshCount += 1;
       }
     });
-    if (!loadedOnce.current) {
-      loadedOnce.current = true;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => onLoaded?.());
-      });
-    }
-  }, [scene, onLoaded]);
+
+    if (meshCount === 0 || loadedOnce.current) return;
+
+    loadedOnce.current = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => onLoaded?.());
+    });
+  }, [model, onLoaded, url]);
 
   return (
     <Bounds fit clip margin={1.05} maxDuration={0}>
       <Center>
-        <primitive object={scene} />
+        <primitive object={model as Group} />
       </Center>
     </Bounds>
   );
@@ -73,7 +80,7 @@ function Scene({
     <>
       <SceneLights />
       <Suspense fallback={null}>
-        <GlbModel url={modelUrl} onLoaded={onLoaded} />
+        <GlbModel key={modelUrl} url={modelUrl} onLoaded={onLoaded} />
       </Suspense>
       <OrbitControls
         autoRotate={rotateEnabled}
@@ -159,5 +166,3 @@ export function MarketModelViewer({
     </div>
   );
 }
-
-useGLTF.preload(HOME_LANDING_MEDIA.hero.model);

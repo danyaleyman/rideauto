@@ -6,8 +6,7 @@ import { canUseWebGL } from "@/lib/media-cascade-capabilities";
 import { motion, useReducedMotion } from "framer-motion";
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
-/** Сколько ждать 3D до показа fallback (мс). */
-const MODEL_FALLBACK_DELAY_MS = 8_000;
+const DEFAULT_FALLBACK_DELAY_MS = 7_000;
 
 const FRAME_CLASS =
   "relative mx-auto w-full min-h-[min(56vw,320px)] h-[min(56vw,320px)] sm:min-h-[380px] sm:h-[380px] lg:min-h-[min(48vh,460px)] lg:h-[min(48vh,460px)]";
@@ -23,7 +22,6 @@ type ModelMediaCascadeProps = {
   autoRotateDelayMs?: number;
   className?: string;
   priorityImage?: boolean;
-  /** Задержка fallback для hero (мс). По умолчанию 8 с. */
   fallbackDelayMs?: number;
 };
 
@@ -59,7 +57,7 @@ export function ModelMediaCascade({
   autoRotateDelayMs = 700,
   className = "",
   priorityImage = false,
-  fallbackDelayMs = MODEL_FALLBACK_DELAY_MS,
+  fallbackDelayMs = DEFAULT_FALLBACK_DELAY_MS,
 }: ModelMediaCascadeProps) {
   const reduceMotion = useReducedMotion();
   const [tier, setTier] = useState<Tier>("model");
@@ -93,6 +91,7 @@ export function ModelMediaCascade({
 
   const failVideo = useCallback(() => {
     setVideoFailed(true);
+    setShowFallback(true);
     setTier((t) => (t === "video" ? "image" : t));
   }, []);
 
@@ -132,7 +131,7 @@ export function ModelMediaCascade({
   const showVideo = tier === "video" && !videoFailed;
   const showImage =
     tier === "image" ||
-    (showFallback && showModel && !modelReady) ||
+    (showFallback && !modelReady) ||
     (showVideo && !videoReady);
 
   return (
@@ -150,7 +149,7 @@ export function ModelMediaCascade({
           decoding="async"
           fetchPriority={priorityImage ? "high" : "auto"}
           className={`${MEDIA_CLASS} transition-opacity duration-700 ${
-            showImage ? "z-[1] opacity-100" : "z-[1] opacity-0"
+            showImage ? "z-[1] opacity-100" : "z-[1] opacity-0 pointer-events-none"
           }`}
         />
 
@@ -176,6 +175,7 @@ export function ModelMediaCascade({
         {showModel && (
           <ModelErrorBoundary key={cascadeKey} onError={failModel}>
             <MarketModelViewer
+              key={cascadeKey}
               modelUrl={media.model}
               autoRotate={autoRotate}
               autoRotateDelayMs={autoRotateDelayMs}
