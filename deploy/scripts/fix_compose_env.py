@@ -80,7 +80,7 @@ def main() -> int:
         print(f"Missing {ENV_PATH}", file=sys.stderr)
         return 1
 
-    backup = ENV_PATH.with_suffix(".env.bak")
+    backup = ENV_PATH.parent / ".env.bak"
     shutil.copy2(ENV_PATH, backup)
     print(f"Backup: {backup}")
 
