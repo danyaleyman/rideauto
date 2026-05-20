@@ -32,13 +32,15 @@ export function CarListingCommerceBadges({
   data,
   className,
   size = "default",
+  yearNum,
 }: {
   data: Record<string, unknown>;
   className?: string;
   size?: "default" | "compact";
+  yearNum?: number | null;
 }) {
   const tier = extractPricingTier(data);
-  const passability = carPassabilityStatus(data);
+  const passability = carPassabilityStatus(data, yearNum);
   const compact = size === "compact";
 
   if (!tier && !passability) return null;

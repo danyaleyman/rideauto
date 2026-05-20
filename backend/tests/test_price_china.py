@@ -55,6 +55,12 @@ def test_sync_china_pricing_clean_block_full_customs():
     assert pc["customs_included"] is True
 
 
+def test_parse_price_cny_sanity_cap_inflated():
+    from pricechina import parse_price_cny
+
+    assert parse_price_cny({"price_cny": 175_000_000}) == 175_000.0
+
+
 def test_sync_china_pricing_clean_block_price_on_request():
     d = {"source": "che168", "pricing_tier": "price_on_request", "price_on_request": True}
     sync_china_pricing_clean_block(d)

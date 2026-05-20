@@ -32,7 +32,7 @@ CHINA_BROKER_RUB = 86_100
 VTB_BANK_TRANSFER_RATE = 0.02
 
 # Bump при изменении формул/констант China-калькулятора (метрики каталога, repair).
-CHINA_PRICING_RULES_VERSION = "2026.05.17"
+CHINA_PRICING_RULES_VERSION = "2026.05.20"
 logger = logging.getLogger(__name__)
 
 
@@ -75,26 +75,55 @@ def china_json_suggests_pricing_resync(data: Dict[str, Any]) -> bool:
 
 
 def parse_price_cny(car_data: Dict[str, Any]) -> float:
+    from scraper_pipeline.che168.parser import apply_cny_sanity_cap, normalize_price_cny_detailed
+
     raw = car_data.get("price_cny")
-    if raw is None or raw == "":
-        return 0.0
-    if isinstance(raw, (int, float)):
-        return float(raw) if float(raw) > 0 else 0.0
-    s = str(raw).strip().replace(" ", "").replace(",", "")
-    if not s:
-        return 0.0
-    if "万" in s:
-        s2 = s.replace("万", "").replace("，", ",")
+    if raw is not None and raw != "":
+        if isinstance(raw, (int, float)):
+            v = float(raw)
+            if v > 0:
+                capped, _ = apply_cny_sanity_cap(v, {})
+                return float(capped)
+            return 0.0
+        s = str(raw).strip().replace(" ", "").replace(",", "")
+        if not s:
+            return 0.0
+        if "万" in s:
+            s2 = s.replace("万", "").replace("，", ",")
+            try:
+                v = float(s2)
+                if v > 0:
+                    capped, _ = apply_cny_sanity_cap(v * 10_000.0, {})
+                    return float(capped)
+                return 0.0
+            except ValueError:
+                return 0.0
         try:
-            v = float(s2)
-            return v * 10_000.0 if v > 0 else 0.0
+            v = float(s)
+            if v > 0:
+                capped, _ = apply_cny_sanity_cap(v, {})
+                return float(capped)
+            return 0.0
         except ValueError:
             return 0.0
-    try:
-        v = float(s)
-        return v if v > 0 else 0.0
-    except ValueError:
+
+    alt = car_data.get("price")
+    if alt is None or alt == "":
         return 0.0
+    ctx = " ".join(
+        str(x).strip()
+        for x in (
+            car_data.get("title"),
+            car_data.get("subtitle"),
+            car_data.get("name"),
+            car_data.get("che168_price_raw"),
+        )
+        if x is not None and str(x).strip()
+    )
+    price, _meta = normalize_price_cny_detailed(alt, assume_wan_yuan=False, price_context=ctx)
+    if price is not None and price > 0:
+        return float(price)
+    return 0.0
 
 
 class PriceCalculatorChina:

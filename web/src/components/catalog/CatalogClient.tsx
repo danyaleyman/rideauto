@@ -51,7 +51,7 @@ import {
   trimFacetLabelMinusGeneration,
 } from "@/lib/car-detail-data";
 import { formatCatalogCardPrice } from "@/lib/format-price";
-import { displayColorRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru";
+import { displayBodyTypeRu, displayColorRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru";
 import { LocaleSwitchLinks } from "@/components/LocaleSwitchLinks";
 import { reportClientError } from "@/lib/observability";
 import { useLocaleContext } from "@/components/LocaleProvider";
@@ -451,7 +451,18 @@ export function CatalogClient({
   const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
 
   /** Один автомобиль может иметь несколько объявлений с разными id — склеиваем по VIN на текущей странице выдачи. */
-  const catalogCarsDisplay = useMemo(() => dedupeSlimCarsByVin(search.result), [search.result]);
+  const catalogCarsDisplay = useMemo(() => {
+    const deduped = dedupeSlimCarsByVin(search.result);
+    return [...deduped].sort((a, b) => {
+      const ta = isCatalogListedToday(a.catalog_created_at) ? 1 : 0;
+      const tb = isCatalogListedToday(b.catalog_created_at) ? 1 : 0;
+      if (tb !== ta) return tb - ta;
+      const da = a.catalog_created_at ? Date.parse(a.catalog_created_at) : 0;
+      const db = b.catalog_created_at ? Date.parse(b.catalog_created_at) : 0;
+      if (Number.isFinite(db) && Number.isFinite(da) && db !== da) return db - da;
+      return 0;
+    });
+  }, [search.result]);
 
   const catalogGridThumbRows = useMemo(
     () => catalogCarsDisplay.map((car) => ({ key: car.id, urls: previewImageUrls(car) })),
@@ -486,15 +497,21 @@ export function CatalogClient({
     for (const row of allRows) {
       const rawLabel = facetRowLabel(row);
       const val = row.value;
-      let label = rawLabel;
+      let label = normalizeCatalogDisplayLabel(rawLabel) ?? rawLabel;
       if (val && f.fuels.some((x) => x.value === val)) {
         label = normalizeFuelLabel(rawLabel) ?? rawLabel;
+      } else if (val && f.bodies.some((x) => x.value === val)) {
+        label = displayBodyTypeRu(rawLabel) ?? rawLabel;
       } else if (val && f.transmissions.some((x) => x.value === val)) {
         label = displayTransmissionRu(rawLabel) ?? rawLabel;
       } else if (val && f.colors.some((x) => x.value === val)) {
         label = displayColorRu(rawLabel) ?? rawLabel;
       }
       map.set(row.value, label);
+      const aliases = Array.isArray(row.values) && row.values.length ? row.values : [row.value];
+      for (const alias of aliases) {
+        if (alias) map.set(alias, label);
+      }
     }
     return map;
   }, [facets]);
@@ -524,14 +541,22 @@ export function CatalogClient({
   );
 
   const activeChips = useMemo(() => {
-    const withLabel = (v: string, key?: keyof CatalogUrlState) =>
-      key === "fuel" ? normalizeFuelLabel(facetLabelByValue.get(v) ?? v) ?? (facetLabelByValue.get(v) ?? v) : facetLabelByValue.get(v) ?? v;
+    const chipDisplayKey = (shown: string) =>
+      (normalizeCatalogDisplayLabel(shown) ?? shown).trim().toLowerCase().replace(/\s+/g, " ");
+    const withLabel = (v: string, key?: keyof CatalogUrlState) => {
+      const raw = facetLabelByValue.get(v) ?? v;
+      if (key === "fuel") return normalizeFuelLabel(raw) ?? raw;
+      if (key === "body") return displayBodyTypeRu(raw) ?? raw;
+      if (key === "trans") return displayTransmissionRu(raw) ?? raw;
+      if (key === "color") return displayColorRu(raw) ?? raw;
+      return normalizeCatalogDisplayLabel(raw) ?? raw;
+    };
     const chips: Array<{ key: keyof CatalogUrlState; label: string; value?: string }> = [];
     const pushDedupByLabel = (key: keyof CatalogUrlState, prefix: string, values: string[]) => {
       const seen = new Set<string>();
       for (const raw of values) {
         const shown = withLabel(raw, key);
-        const marker = shown.toLowerCase();
+        const marker = chipDisplayKey(shown);
         if (seen.has(marker)) continue;
         seen.add(marker);
         chips.push({ key, label: `${prefix}: ${shown}`, value: raw });
@@ -542,10 +567,10 @@ export function CatalogClient({
     pushDedupByLabel("models", "Модель", state.models);
     pushDedupByLabel("generations", "Поколение", state.generations);
     pushDedupByLabel("trims", "Комплектация", state.trims);
-    state.body.forEach((v) => chips.push({ key: "body", label: `Кузов: ${withLabel(v)}`, value: v }));
+    state.body.forEach((v) => chips.push({ key: "body", label: `Кузов: ${withLabel(v, "body")}`, value: v }));
     state.fuel.forEach((v) => chips.push({ key: "fuel", label: `Топливо: ${withLabel(v, "fuel")}`, value: v }));
-    state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${withLabel(v)}`, value: v }));
-    state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${withLabel(v)}`, value: v }));
+    state.trans.forEach((v) => chips.push({ key: "trans", label: `КПП: ${withLabel(v, "trans")}`, value: v }));
+    state.color.forEach((v) => chips.push({ key: "color", label: `Цвет: ${withLabel(v, "color")}`, value: v }));
     if (state.drive_awd) chips.push({ key: "drive_awd", label: "Полный привод" });
     if (state.power_hp_le_160) chips.push({ key: "power_hp_le_160", label: "До 160 л.с." });
     if (state.passable_only) chips.push({ key: "passable_only", label: "Только проходные авто" });
@@ -876,6 +901,9 @@ export function CatalogClient({
                         rows={facets.bodies}
                         selected={new Set(state.body)}
                         onToggle={(v) => toggle("body", v)}
+                        labelFormatter={(row) =>
+                          displayBodyTypeRu(facetRowLabel(row)) ?? facetRowLabel(row)
+                        }
                       />
                       <FacetMultiDropdown
                         label="Топливо"
@@ -1114,11 +1142,9 @@ export function CatalogClient({
                 ) ||
                 normalizeCatalogDisplayLabel(car.title) ||
                 car.id;
-              const attrChips = catalogCardAttributeChips(
-                cardData,
-                car.year_num,
-              );
-              const passability = carPassabilityStatus(cardData);
+              const listedToday = isCatalogListedToday(car.catalog_created_at);
+              const attrChips = catalogCardAttributeChips(cardData, car.year_num);
+              const passability = carPassabilityStatus(cardData, car.year_num);
               const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
               const listingSold = Boolean(car.encar_listing_sold || car.che168_listing_sold);
               const listingReserved = !listingSold && Boolean(car.encar_listing_reserved);
@@ -1281,6 +1307,13 @@ export function CatalogClient({
                           eager={idx < 4}
                           sold={listingUnavailable}
                         />
+                        {listedToday ? (
+                          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start bg-gradient-to-b from-black/55 via-black/25 to-transparent px-2 pb-6 pt-2">
+                            <Badge className="rounded-md border border-white/15 bg-black/70 px-1.5 py-0 text-[10px] font-medium text-white shadow-sm sm:text-[11px]">
+                              Добавлено сегодня
+                            </Badge>
+                          </div>
+                        ) : null}
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-2 pb-2 pt-14">
                           <div className="flex flex-wrap items-center gap-1">
                             {overlayBadges.length ? (
@@ -1312,14 +1345,6 @@ export function CatalogClient({
                               </Badge>
                             ) : null}
                           </div>
-                          {isCatalogListedToday(car.catalog_created_at) ? (
-                            <span
-                              className="max-w-[min(100%,10.5rem)] shrink-0 truncate rounded-md bg-black/50 px-2 py-0.5 text-center text-[10px] font-medium leading-tight text-white shadow-md ring-1 ring-white/15 backdrop-blur-[2px] sm:max-w-[12rem] sm:py-1 sm:text-[11px]"
-                              title="Впервые попало в каталог за сегодня (по дате сервера, Екатеринбург)"
-                            >
-                              Добавлено сегодня
-                            </span>
-                          ) : null}
                         </div>
                       </div>
                     </Link>

@@ -54,3 +54,12 @@ def test_search_filter_full_customs_only_alias():
     filt = build_meilisearch_filter(q)
     assert filt is not None
     assert 'pricing_tier = "full_customs"' in filt
+
+
+def test_search_filter_passable_only_tight_age_window():
+    q = {"region": "korea", "source": "encar", "passable_only": "1"}
+    filt = build_meilisearch_filter(q)
+    assert filt is not None
+    assert "year_month >=" in filt
+    assert "year_month <=" in filt
+    assert "year >=" not in filt

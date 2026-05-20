@@ -812,6 +812,26 @@ def _safe_float(v: Any) -> Optional[float]:
 
 
 _WAN_IN_TEXT_RE = re.compile(r"([\d.,]+)\s*万")
+_MAX_SANE_CNY = 3_500_000.0
+_MIN_SANE_CNY = 3_000.0
+
+
+def apply_cny_sanity_cap(price: float, meta: Dict[str, Any]) -> tuple[float, Dict[str, Any]]:
+    """Снижает завышенные CNY (часто лишний ×1000 в сыром API) до диапазона б/у авто."""
+    if price <= _MAX_SANE_CNY:
+        return price, meta
+    for div, rule in (
+        (1000.0, "heuristic_overflow_div_1000"),
+        (100.0, "heuristic_overflow_div_100"),
+        (10.0, "heuristic_overflow_div_10"),
+    ):
+        scaled = round(price / div, 2)
+        if _MIN_SANE_CNY <= scaled <= _MAX_SANE_CNY:
+            out_meta = dict(meta)
+            out_meta["che168_price_cny_rule"] = rule
+            out_meta["che168_price_cny_unscaled"] = price
+            return scaled, out_meta
+    return price, meta
 
 
 def normalize_price_cny_detailed(
@@ -820,7 +840,8 @@ def normalize_price_cny_detailed(
     """
     Возвращает (цена в CNY, метаданные интерпретации для аудита и Meili).
     rule: config_assume_wan_yuan | heuristic_small_decimal_wan | heuristic_small_integer_wan |
-          heuristic_medium_wan_x1000 | text_embedded_wan | raw_cny_integer | none
+          heuristic_medium_wan_x1000 | text_embedded_wan | raw_cny_integer |
+          heuristic_overflow_div_* | none
     """
     meta: Dict[str, Any] = {"che168_price_raw_input": raw, "che168_price_cny_rule": "none"}
     ctx = " ".join(
@@ -828,34 +849,41 @@ def normalize_price_cny_detailed(
         for x in (price_context, raw if isinstance(raw, str) else "")
         if x is not None and str(x).strip()
     )
-    if ctx and not assume_wan_yuan:
+    v = _safe_float(raw)
+    # 万 в заголовке — только если числовая цена отсутствует или явно в «万»-шкале (<1000).
+    if ctx and not assume_wan_yuan and (v is None or v <= 0 or v < 1000):
         mwan = _WAN_IN_TEXT_RE.search(ctx.replace("，", ","))
         if mwan:
             try:
                 wan = float(mwan.group(1).replace(",", "."))
                 if 0 < wan < 5000:
                     meta["che168_price_cny_rule"] = "text_embedded_wan"
-                    return round(wan * 10_000.0, 2), meta
+                    price, meta = apply_cny_sanity_cap(round(wan * 10_000.0, 2), meta)
+                    return price, meta
             except ValueError:
                 pass
-    v = _safe_float(raw)
     if v is None or v <= 0:
         return None, meta
     if assume_wan_yuan:
         meta["che168_price_cny_rule"] = "config_assume_wan_yuan"
-        return round(v * 10_000.0, 2), meta
+        price, meta = apply_cny_sanity_cap(round(v * 10_000.0, 2), meta)
+        return price, meta
     if v < 1000 and abs(v - int(v)) > 1e-6:
         meta["che168_price_cny_rule"] = "heuristic_small_decimal_wan"
-        return round(v * 10_000.0, 2), meta
+        price, meta = apply_cny_sanity_cap(round(v * 10_000.0, 2), meta)
+        return price, meta
     if v < 500:
         meta["che168_price_cny_rule"] = "heuristic_small_integer_wan"
-        return round(v * 10_000.0, 2), meta
+        price, meta = apply_cny_sanity_cap(round(v * 10_000.0, 2), meta)
+        return price, meta
     # Che168 Global часто отдаёт 万元 как целое *1000 (10.77万 → 10770), не как 10.77.
     if 1_000 <= v < 100_000 and not assume_wan_yuan:
         meta["che168_price_cny_rule"] = "heuristic_medium_wan_x1000"
-        return round(v * 10.0, 2), meta
+        price, meta = apply_cny_sanity_cap(round(v * 10.0, 2), meta)
+        return price, meta
     meta["che168_price_cny_rule"] = "raw_cny_integer"
-    return round(v, 2), meta
+    price, meta = apply_cny_sanity_cap(round(v, 2), meta)
+    return price, meta
 
 
 def normalize_price_cny(raw: Any, *, assume_wan_yuan: bool, price_context: str = "") -> Optional[float]:
@@ -1008,12 +1036,22 @@ def _map_che168_option_label_ru(label: str) -> str:
     raw = label.strip()
     if not raw:
         return raw
+    if _che168_is_spec_line_noise(raw):
+        return ""
     if raw in CHE168_OPTION_MAP_RU:
         return CHE168_OPTION_MAP_RU[raw]
     low = raw.lower()
     for en, ru in CHE168_OPTION_MAP_RU.items():
         if en.lower() == low:
             return ru
+    try:
+        from localization.term_localizer import localize_china_option_label
+
+        hit = localize_china_option_label(raw, target_lang="ru")
+        if hit and hit.strip() and hit.strip() != raw.strip():
+            return hit.strip()
+    except Exception:
+        pass
     return raw
 
 
@@ -1065,6 +1103,14 @@ _CHE168_SPEC_LINE_NOISE_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"^\s*[LIV]\d{1,2}\s*$", re.I),
     re.compile(r"^\s*\d{3,4}\s*cc\s*$", re.I),
     re.compile(r"^\s*\d+(?:\.\d+)?\s*L\s*$", re.I),
+    re.compile(r"[●◆▪]", re.I),
+    re.compile(r"^\s*(?:front|rear|primary|secondary|color)\b.*[●\-/]", re.I),
+    re.compile(r"\b\d+\s+colors?\s*$", re.I),
+    re.compile(r"primary\s*●|secondary\s*●", re.I),
+    re.compile(r"^\s*(?:passive|active)\s+safety\s*$", re.I),
+    re.compile(r"^\s*(?:safety|comfort|exterior|interior|multimedia|seats|lights)\s*$", re.I),
+    re.compile(r"driver/passenger airbags", re.I),
+    re.compile(r"front\s*/\s*rear\s*-\s*$", re.I),
 )
 
 
@@ -1215,7 +1261,12 @@ def _extract_real_options(specconfig: Any) -> List[str]:
             if not _che168_is_spec_line_noise(x) and not _che168_is_technical_param_label(x)
         ]
         raw = _dedupe_str_list_preserve_order(raw)
-    return [_map_che168_option_label_ru(x) for x in raw]
+    out: List[str] = []
+    for x in raw:
+        mapped = _map_che168_option_label_ru(x)
+        if mapped:
+            out.append(mapped)
+    return out
 
 
 def extract_che168_options_real_from_specconfig(specconfig: Any) -> List[str]:

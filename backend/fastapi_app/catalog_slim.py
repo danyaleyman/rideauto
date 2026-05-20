@@ -456,7 +456,7 @@ def slim_catalog_car(car: Dict[str, Any], car_id: str) -> Dict[str, Any]:
         out["price_on_request"] = False
     else:
         out["price_on_request"] = implicit_por
-    ca = raw.get("_catalog_created_at")
+    ca = car.get("_catalog_created_at") or raw.get("_catalog_created_at")
     out["catalog_created_at"] = str(ca).strip() if isinstance(ca, str) and ca.strip() else None
     out["year_num"] = int(str(slim_data.get("year") or 0)[:4] or 0)
     if car.get("encar_listing_sold") is True:

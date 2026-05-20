@@ -40,6 +40,13 @@ def test_normalize_price_cny_heuristic_medium_wan_x1000():
     assert normalize_price_cny(258000, assume_wan_yuan=False) == 258000.0
 
 
+def test_normalize_price_cny_overflow_div_1000():
+    """Завышенные raw (×1000) приводятся к реалистичному диапазону б/у авто."""
+    p, meta = normalize_price_cny_detailed(175_000_000, assume_wan_yuan=False)
+    assert p == 175_000.0
+    assert meta["che168_price_cny_rule"] == "heuristic_overflow_div_1000"
+
+
 def test_extract_real_options_skips_basic_specs_paramtypeitems():
     spec = {
         "result": {
@@ -100,8 +107,8 @@ def test_parse_one_che168_minimal():
     assert d["mark"] == "BMW"
     assert d["vin"] == "WBA12345678901234"
     assert d["images"][0].endswith(".webp")
-    assert "Sunroof" in (d.get("che168_recommended_options") or [])
-    assert "Sunroof" in (d.get("options_real") or [])
+    assert "Люк" in (d.get("che168_recommended_options") or []) or "Sunroof" in (d.get("che168_recommended_options") or [])
+    assert "Люк" in (d.get("options_real") or []) or "Sunroof" in (d.get("options_real") or [])
     assert d.get("clean_schema_version") == "che168.clean.v1"
     assert isinstance(d.get("identity_clean"), dict)
     assert d.get("che168_price_cny_rule") == "raw_cny_integer"
@@ -513,7 +520,7 @@ def test_parse_one_extracts_english_paramtypeitems_format():
     opts = d.get("che168_recommended_options") or []
     assert "ABS" in opts
     assert "ESP" in opts
-    assert "Cruise control" in opts
+    assert any("круиз" in str(x).lower() for x in opts) or "Cruise control" in opts
 
 
 def test_taxonomy_aliases():

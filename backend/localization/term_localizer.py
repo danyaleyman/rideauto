@@ -774,3 +774,63 @@ def facet_canonical_english(text: object, domain: str) -> str:
         s = _romanize_zh(s)
     out = _cleanup_china_en_text(s, domain=domain)
     return out or s
+
+
+_CHINA_OPTION_EN_RU: Dict[str, str] = {
+    "abs": "ABS",
+    "esp": "ESP",
+    "esc": "ESC",
+    "airbags": "Подушки безопасности",
+    "airbag": "Подушка безопасности",
+    "climate control": "Климат-контроль",
+    "cruise control": "Круиз-контроль",
+    "adaptive cruise control": "Адаптивный круиз-контроль",
+    "heated steering wheel": "Подогрев руля",
+    "head-up display": "Проекционный дисплей",
+    "panoramic sunroof": "Панорамная крыша",
+    "sunroof": "Люк",
+    "electric sunroof": "Электролюк",
+    "leather seats": "Кожаный салон",
+    "leather upholstery": "Кожаный салон",
+    "heated seats": "Подогрев сидений",
+    "ventilated seats": "Вентиляция сидений",
+    "keyless entry": "Бесключевой доступ",
+    "keyless go": "Бесключевой доступ и запуск",
+    "blind spot monitoring": "Контроль слепых зон",
+    "lane keep assist": "Удержание в полосе",
+    "lane departure warning": "Предупреждение о смене полосы",
+    "parking assist": "Парковочный ассистент",
+    "rear view camera": "Камера заднего вида",
+    "surround view camera": "Камера 360°",
+    "wireless charging": "Беспроводная зарядка",
+    "navigation system": "Навигация",
+    "bluetooth": "Bluetooth",
+    "apple carplay": "Apple CarPlay",
+    "android auto": "Android Auto",
+}
+
+
+def localize_china_option_label(text: str, *, target_lang: str = "ru") -> Optional[str]:
+    """Перевод подписи опции Che168 (EN/ZH) в RU для блока «Комплектация»."""
+    if target_lang.lower() != "ru":
+        return None
+    s = _as_text(text)
+    if not s:
+        return None
+    if _RU_TERM_MAP.get(s):
+        return _RU_TERM_MAP[s]
+    low = s.lower()
+    if low in _CHINA_OPTION_EN_RU:
+        return _CHINA_OPTION_EN_RU[low]
+    for en, ru in _CHINA_OPTION_EN_RU.items():
+        if en in low:
+            return ru
+    if detect_lang(s) == "zh":
+        zh_hit = _RU_TERM_MAP.get(s)
+        if zh_hit:
+            return zh_hit
+    if _looks_english(s):
+        cleaned = _cleanup_china_en_text(s, domain="configuration")
+        if cleaned and cleaned != s:
+            return cleaned
+    return None

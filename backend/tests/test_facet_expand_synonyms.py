@@ -43,3 +43,57 @@ def test_merge_facets_hides_unmapped_korean_labels():
     assert "Бензин" in labels
     assert "수소연료" not in labels
 
+
+def test_merge_china_spec_drops_junk_and_localizes():
+    flat = {"region": "china", "source": "che168"}
+    bodies = merge_facet_distribution_rows(
+        "body_type",
+        [
+            {"value": "-", "count": 48},
+            {"value": "--", "count": 100},
+            {"value": "Passenger Vehicle", "count": 10},
+        ],
+        query_flat=flat,
+    )
+    labels = [str(x.get("label") or "") for x in bodies]
+    assert "-" not in labels
+    assert "--" not in labels
+    assert "Легковой автомобиль" in labels
+
+    fuels = merge_facet_distribution_rows(
+        "fuel",
+        [
+            {"value": "Gasoline", "count": 5},
+            {"value": "Pure Electric", "count": 3},
+            {"value": "-", "count": 1},
+        ],
+        query_flat=flat,
+    )
+    fuel_labels = [str(x.get("label") or "") for x in fuels]
+    assert "Бензин" in fuel_labels
+    assert "Электро" in fuel_labels
+    assert "-" not in fuel_labels
+
+    trans = merge_facet_distribution_rows(
+        "transmission",
+        [
+            {"value": "-", "count": 2},
+            {"value": "Automatic", "count": 4},
+            {"value": "6-speed", "count": 1},
+        ],
+        query_flat=flat,
+    )
+    trans_labels = [str(x.get("label") or "") for x in trans]
+    assert "Автомат" in trans_labels
+    assert "6-ступенчатая" in trans_labels
+    assert "-" not in trans_labels
+
+    colors = merge_facet_distribution_rows(
+        "color",
+        [{"value": "--", "count": 9}, {"value": "Black", "count": 2}],
+        query_flat=flat,
+    )
+    color_labels = [str(x.get("label") or "") for x in colors]
+    assert "Чёрный" in color_labels
+    assert "--" not in color_labels
+

@@ -27,6 +27,7 @@ import {
   collectSelectedEncarOptions,
   displayEncarStandardOption,
 } from "@/lib/encar-options-display";
+import { displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
 import { formatPriceLabel } from "@/lib/format-price";
 import { displayColorRu, displayDriveTypeRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru";
 
@@ -122,7 +123,11 @@ function isInternalBodyPart(part: string): boolean {
   const keys = [
     "pillar", "frame", "floor", "wheel housing", "member", "package tray", "대시", "필러", "플로어",
     "휠하우스", "사이드실", "주요골격", "트렁크 플로어", "루프", "лонжерон", "стойк", "порог",
+    "서포트", "support", "radiator", "радиатор", "패널 / 인사이드", "inside panel", "side member",
+    "package tray", "cross member", "dash panel", "wheelhouse", "sill panel",
   ];
+  const externalOnly = ["крыл", "fender", "휀더", "펜더", "двер", "door", "капот", "hood", "багажник", "trunk"];
+  if (externalOnly.some((k) => p.includes(k))) return false;
   return keys.some((k) => p.includes(k));
 }
 
@@ -135,6 +140,12 @@ function normalizeBodyPartName(partRaw: string): string {
     "리어 도어(우)": "Правая задняя дверь",
     "프론트 펜더(좌)": "Левое переднее крыло",
     "프론트 펜더(우)": "Правое переднее крыло",
+    "프론트 휀더(좌)": "Левое переднее крыло",
+    "프론트 휀더(우)": "Правое переднее крыло",
+    "리어 휀더(좌)": "Левое заднее крыло",
+    "리어 휀더(우)": "Правое заднее крыло",
+    "라디에이터 서포트(볼트체결부품)": "Крепление радиатора",
+    "라디에이터 서포트": "Крепление радиатора",
     "리어 펜더(좌)": "Левое заднее крыло",
     "리어 펜더(우)": "Правое заднее крыло",
     "쿼터 패널(좌)": "Левое заднее крыло",
@@ -255,26 +266,30 @@ function collectBodyRows({
           asStr(o.result) ??
           "Оригинал",
       );
-      if (part && status) rows.push({ part, status });
+      if (part && status) {
+        rows.push({ part, status, section: isInternalBodyPart(part) ? "internal" : "external" });
+      }
     }
   }
   if (bodyChanged && typeof bodyChanged === "object" && !Array.isArray(bodyChanged)) {
     for (const [k, v] of Object.entries(bodyChanged as Record<string, unknown>)) {
       const part = translateKoToRuText(k);
       const status = normalizeBodyStatus(asStr(v) ?? "Замена");
-      if (part && status) rows.push({ part, status });
+      if (part && status) {
+        rows.push({ part, status, section: isInternalBodyPart(part) ? "internal" : "external" });
+      }
     }
   }
   if (Array.isArray(paintPartTypes)) {
     for (const x of paintPartTypes) {
       const part = translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x));
-      if (part) rows.push({ part, status: "Окрас" });
+      if (part) rows.push({ part, status: "Окрас", section: isInternalBodyPart(part) ? "internal" : "external" });
     }
   }
   if (Array.isArray(seriousTypes)) {
     for (const x of seriousTypes) {
       const part = translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x));
-      if (part) rows.push({ part, status: "Повреждение" });
+      if (part) rows.push({ part, status: "Повреждение", section: isInternalBodyPart(part) ? "internal" : "external" });
     }
   }
   if (Array.isArray(diagnosisItems)) {
@@ -368,9 +383,7 @@ function BodyConditionSection({
       ),
     [bodyPanels, outers, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems],
   );
-  const encarCosmetic = !isNegativeFlag(simpleRepair);
   const encarAccident = !isNegativeFlag(accident);
-  const hasEncarSummary = encarCosmetic || encarAccident;
 
   const groups = useMemo(
     () => collectBodyRows({ outers, bodyPanels, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems }),
@@ -392,7 +405,7 @@ function BodyConditionSection({
   }, [tabs, activeTab]);
   const activeRows = tabs.find((x) => x.key === activeTab)?.rows ?? [];
 
-  if (!hasStructured && !hasEncarSummary) {
+  if (!hasStructured && !encarAccident) {
     return (
       <p className="text-sm text-muted-foreground">
         Нет данных инспекции кузова по этому объявлению.
@@ -405,22 +418,12 @@ function BodyConditionSection({
   }
   return (
     <div className="space-y-3">
-      {hasEncarSummary ? (
+      {encarAccident ? (
         <div className="rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 text-xs leading-snug text-amber-950 dark:border-amber-900/55 dark:bg-amber-950/35 dark:text-amber-50">
-          <ul className="list-disc space-y-1 ps-4 [overflow-wrap:anywhere]">
-            {encarCosmetic ? (
-              <li>
-                По сводке продавца отмечен косметический ремонт. Ниже — типовая сетка панелей; без детализации в
-                данных статусы показаны как «Оригинал», если нет точечных отметок.
-              </li>
-            ) : null}
-            {encarAccident ? (
-              <li>
-                По сводке продавца отмечены следы ДТП / силовые элементы. Проверьте также блок страховой истории и
-                диагностику.
-              </li>
-            ) : null}
-          </ul>
+          <p className="[overflow-wrap:anywhere]">
+            По сводке продавца отмечены следы ДТП / силовые элементы. Проверьте также блок страховой истории и
+            диагностику.
+          </p>
         </div>
       ) : null}
       <div className={SWITCH_BAR_CLASS}>
@@ -484,6 +487,7 @@ function normalizeSpecValue(v: unknown): string | null {
 }
 
 function isMeaningfulOptionLabel(v: string): boolean {
+  if (isChinaOptionNoise(v)) return false;
   const t = v.trim();
   if (!t) return false;
   if (/^\d+$/.test(t)) return false;
@@ -738,7 +742,11 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     const seen = new Set<string>();
     for (const item of chinaRecommendedRaw) {
       const raw = typeof item === "string" ? item : item && typeof item === "object" ? asStr((item as Record<string, unknown>).name) ?? asStr((item as Record<string, unknown>).value) ?? String(item) : item != null ? String(item) : "";
-      const ru = (translateKoToRuText(raw).trim() || raw.trim()).trim();
+      const ru =
+        displayChinaOptionRu(raw) ||
+        displayChinaOptionRu(translateKoToRuText(raw)) ||
+        translateKoToRuText(raw).trim() ||
+        raw.trim();
       if (!isMeaningfulOptionLabel(ru) || seen.has(ru)) continue;
       seen.add(ru);
       out.push(ru);

@@ -109,6 +109,32 @@ export function displayDriveTypeRu(v: unknown): string | null {
 }
 
 /**
+ * Кузов: English / кит. → RU (каталог China, карточка).
+ */
+export function displayBodyTypeRu(v: unknown): string | null {
+  const raw = asStr(v);
+  if (!raw) return null;
+  if (CYRILLIC.test(raw)) return raw;
+  const nk = normKey(raw);
+  const EXACT: Record<string, string> = {
+    "passenger vehicle": "Легковой автомобиль",
+    "pickup truck": "Пикап",
+    truck: "Грузовик",
+    suv: "Внедорожник (SUV)",
+    mpv: "Минивэн / MPV",
+    sedan: "Седан",
+    hatchback: "Хэтчбек",
+    coupe: "Купе",
+    wagon: "Универсал",
+    van: "Фургон / минивэн",
+    convertible: "Кабриолет",
+    crossover: "Кроссовер",
+  };
+  if (EXACT[nk]) return EXACT[nk];
+  return raw;
+}
+
+/**
  * КПП: коды API, English, «7-speed».
  */
 export function displayTransmissionRu(v: unknown): string | null {
@@ -118,6 +144,8 @@ export function displayTransmissionRu(v: unknown): string | null {
   const nk = normKey(raw);
   if (TRANS_EXACT[nk]) return TRANS_EXACT[nk];
   if (/^\d{1,2}$/.test(nk) && TRANS_EXACT[nk]) return TRANS_EXACT[nk]!;
+
+  if (nk === "continuously variable transmission") return "Вариатор";
 
   const mSpeed = raw.match(/^(\d{1,2})\s*[-]?\s*speed$/i);
   if (mSpeed) {

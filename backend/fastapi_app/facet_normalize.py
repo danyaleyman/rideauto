@@ -12,13 +12,19 @@ from localization.term_localizer import (
     _KOREA_MARK_ALIAS_OVERRIDES,
     _KOREA_MARK_EXACT_OVERRIDES,
     _as_text,
+    _china_static_maps,
     _korea_static_maps,
     facet_canonical_english,
     is_china_trim_like_noise,
 )
 
 _KO_OR_ZH_RE = re.compile(r"[\uac00-\ud7af\u4e00-\u9fff]")
+_CYRILLIC_RE = re.compile(r"[а-яёА-ЯЁ]")
 _JUNK_TRANS_NUMERIC = re.compile(r"^0*\d{1,4}$")
+_FACET_JUNK_VALUES_NORM = frozenset(
+    {"", "-", "--", "—", "null", "none", "undefined", "nan", "не указано"}
+)
+_CHINA_SPEC_MEILI_ATTRS = frozenset({"body_type", "fuel", "transmission", "color"})
 
 # Атрибуты Meilisearch → домен `facet_canonical_english` для China cleanup в `_cleanup_china_facet_value`.
 # Остальные атрибуты из `FACET_SPECS_MEILI` (body_type, fuel, transmission, color) передают domain "".
@@ -387,6 +393,225 @@ def _canon_ru_transmission(raw: str) -> str:
     return s
 
 
+def _is_facet_junk_value(raw: str) -> bool:
+    s = _as_text(raw)
+    if not s:
+        return True
+    return s.lower() in _FACET_JUNK_VALUES_NORM
+
+
+@lru_cache(maxsize=1)
+def _china_ru_engine_type_map() -> Dict[str, str]:
+    m = (_china_static_maps().get("ru") or {}).get("engine_type") or {}
+    return {str(k): str(v) for k, v in m.items() if isinstance(k, str)}
+
+
+_CHINA_BODY_EN_TO_RU: Dict[str, str] = {
+    "passenger vehicle": "Легковой автомобиль",
+    "pickup truck": "Пикап",
+    "truck": "Грузовик",
+    "suv": "Внедорожник (SUV)",
+    "mpv": "Минивэн / MPV",
+    "sedan": "Седан",
+    "hatchback": "Хэтчбек",
+    "coupe": "Купе",
+    "wagon": "Универсал",
+    "van": "Фургон / минивэн",
+    "convertible": "Кабриолет",
+    "crossover": "Кроссовер",
+}
+
+_CHINA_COLOR_EN_TO_RU: Dict[str, str] = {
+    "white": "Белый",
+    "black": "Чёрный",
+    "silver": "Серебристый",
+    "gray": "Серый",
+    "grey": "Серый",
+    "dark gray": "Тёмно-серый",
+    "red": "Красный",
+    "blue": "Синий",
+    "green": "Зелёный",
+    "brown": "Коричневый",
+    "beige": "Бежевый",
+    "gold": "Золотой",
+    "orange": "Оранжевый",
+    "yellow": "Жёлтый",
+    "purple": "Фиолетовый",
+    "burgundy": "Бордовый",
+    "champagne": "Шампань",
+    "pearl": "Перламутр",
+}
+
+_CHINA_TRANS_CODE_TO_RU: Dict[str, str] = {
+    "1": "МКПП",
+    "2": "АКПП",
+    "3": "Вариатор (CVT)",
+    "4": "Робот (DCT)",
+    "5": "Роботизированная (AMT)",
+}
+
+
+def _canon_china_fuel(raw: str) -> str:
+    s = _as_text(raw)
+    if _is_facet_junk_value(s):
+        return ""
+    hit = fuel_alias_resolve(s) or fuel_alias_resolve(_fuel_plus_normalize(s))
+    if hit:
+        return hit
+    mapped = _china_ru_engine_type_map().get(s)
+    if mapped and not _is_facet_junk_value(mapped):
+        return mapped
+    low = s.lower()
+    if "pure electric" in low or low in {"electric", "ev"}:
+        return "Электро"
+    if "plug-in hybrid" in low or "plug in hybrid" in low:
+        return "Подключаемый гибрид (PHEV)"
+    if "range extender" in low:
+        return "Расширенный диапазон (EREV)"
+    if "hybrid" in low:
+        if "diesel" in low:
+            return "Гибрид (Дизель)"
+        return "Гибрид (Бензин)"
+    if "diesel" in low:
+        return "Дизель"
+    if "gasoline" in low or "petrol" in low:
+        if "cng" in low:
+            return "Бензин (+Метан)"
+        if "lpg" in low:
+            return "Бензин (+ГБО)"
+        if "mild hybrid" in low or re.search(r"\b(24|48|90)v\b", low):
+            return "Гибрид (Бензин)"
+        return "Бензин"
+    if "compressed natural gas" in low or re.search(r"\bcng\b", low):
+        return "Метан"
+    if "methanol" in low:
+        return "Метанол / гибрид"
+    if _CYRILLIC_RE.search(s):
+        return _canon_ru_fuel(s)
+    fallback = _canon_ru_fuel(s)
+    if fallback and _CYRILLIC_RE.search(fallback):
+        return fallback
+    return s
+
+
+def _canon_china_body(raw: str) -> str:
+    s = _as_text(raw)
+    if _is_facet_junk_value(s):
+        return ""
+    hit = _ru_body_type_map().get(s)
+    if hit and hit != s:
+        return hit
+    if _CYRILLIC_RE.search(s):
+        return s
+    nk = re.sub(r"\s+", " ", s.strip().lower())
+    return _CHINA_BODY_EN_TO_RU.get(nk, s)
+
+
+def _canon_china_transmission(raw: str) -> str:
+    s = _as_text(raw)
+    if _is_facet_junk_value(s):
+        return ""
+    if _CYRILLIC_RE.search(s):
+        return _canon_ru_transmission(s)
+    code = _CHINA_TRANS_CODE_TO_RU.get(s)
+    if code:
+        return code
+    low = re.sub(r"\s+", " ", s.strip().lower())
+    if low in {"manual", "mt", "m/t"}:
+        return "Механика"
+    if low in {"automatic", "at", "a/t"}:
+        return "Автомат"
+    if low in {"cvt", "continuously variable transmission"}:
+        return "Вариатор"
+    if low in {"amt"}:
+        return "Роботизированная (AMT)"
+    if low in {"dct"}:
+        return "Робот (DCT)"
+    m_speed = re.match(r"^(\d{1,2})\s*[-]?\s*speed$", s, flags=re.IGNORECASE)
+    if m_speed:
+        return f"{m_speed.group(1)}-ступенчатая"
+    if s.isdigit() and len(s) <= 2:
+        n = int(s)
+        if 6 <= n <= 10:
+            return f"{n}-ступенчатая"
+    hit = _canon_ru_transmission(s)
+    if hit and hit != s:
+        return hit
+    return s
+
+
+def _canon_china_color(raw: str) -> str:
+    s = _as_text(raw)
+    if _is_facet_junk_value(s):
+        return ""
+    hit = _canon_ru_color(s)
+    if hit and hit != s:
+        return hit
+    if _CYRILLIC_RE.search(s):
+        return s
+    nk = re.sub(r"\s+", " ", s.strip().lower())
+    if nk in _CHINA_COLOR_EN_TO_RU:
+        return _CHINA_COLOR_EN_TO_RU[nk]
+    first = re.split(r"[\s,/]+", nk, maxsplit=1)[0] if nk else nk
+    if first in _CHINA_COLOR_EN_TO_RU:
+        return _CHINA_COLOR_EN_TO_RU[first]
+    china_ru = ((_china_static_maps().get("ru") or {}).get("color") or {}).get(s)
+    if china_ru:
+        return str(china_ru)
+    return s
+
+
+def _canon_china_spec_display(meili_attr: str, raw: str) -> str:
+    if meili_attr == "fuel":
+        return _canon_china_fuel(raw)
+    if meili_attr == "body_type":
+        return _canon_china_body(raw)
+    if meili_attr == "transmission":
+        return _canon_china_transmission(raw)
+    if meili_attr == "color":
+        return _canon_china_color(raw)
+    return _as_text(raw)
+
+
+def _merge_grouped_spec_rows(
+    rows: List[Dict[str, object]],
+    *,
+    meili_attr: str,
+    label_fn,
+) -> List[Dict[str, object]]:
+    grouped: Dict[str, Dict[str, object]] = {}
+    for r in rows:
+        raw = _as_text(r.get("value"))
+        count = int(r.get("count") or 0)
+        if not raw or count <= 0 or _is_facet_junk_value(raw):
+            continue
+        key = label_fn(raw)
+        if not key or _is_facet_junk_value(key):
+            continue
+        if _KO_OR_ZH_RE.search(str(key)) and not _CYRILLIC_RE.search(str(key)):
+            continue
+        norm_key = re.sub(r"\s+", " ", str(key).strip().lower())
+        if not norm_key:
+            continue
+        bucket = grouped.get(norm_key)
+        if bucket is None:
+            bucket = {
+                "value": key,
+                "label": key,
+                "values": [raw],
+                "count": 0,
+            }
+            grouped[norm_key] = bucket
+        else:
+            vals = bucket.get("values")
+            if isinstance(vals, list) and raw not in vals:
+                vals.append(raw)
+        bucket["count"] = int(bucket.get("count") or 0) + count
+    out = list(grouped.values())
+    out.sort(key=lambda r: str(r.get("label") or r.get("value") or "").lower())
+    return out
+
+
 def _should_drop_transmission_facet(value: str) -> bool:
     s = _as_text(value)
     if not s:
@@ -413,9 +638,11 @@ def merge_facet_distribution_rows(
             for r in rows:
                 raw = _as_text(r.get("value"))
                 count = int(r.get("count") or 0)
-                if not raw or count <= 0:
+                if not raw or count <= 0 or _is_facet_junk_value(raw):
                     continue
                 label = _cleanup_china_facet_value(raw, meili_attr) or raw
+                if _is_facet_junk_value(label):
+                    continue
                 key = re.sub(r"\s+", " ", label.strip().lower())
                 if not key:
                     continue
@@ -436,7 +663,13 @@ def merge_facet_distribution_rows(
             out_cn = list(grouped.values())
             out_cn.sort(key=lambda r: str(r.get("label") or r.get("value") or "").lower())
             return out_cn
-        out = [{"value": str(r["value"]), "count": int(r["count"])} for r in rows if int(r.get("count") or 0) > 0]
+        if china and meili_attr in _CHINA_SPEC_MEILI_ATTRS:
+            return _merge_grouped_spec_rows(
+                rows,
+                meili_attr=meili_attr,
+                label_fn=lambda raw, attr=meili_attr: _canon_china_spec_display(attr, raw),
+            )
+        out = [{"value": str(r["value"]), "count": int(r["count"])} for r in rows if int(r.get("count") or 0) > 0 and not _is_facet_junk_value(str(r.get("value") or ""))]
         out.sort(key=lambda r: str(r["value"]).lower())
         return out
 

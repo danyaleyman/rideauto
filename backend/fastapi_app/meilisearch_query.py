@@ -59,6 +59,19 @@ def _shift_ym(ym: int, delta_months: int) -> int:
     return (ordinal // 12) * 100 + (ordinal % 12) + 1
 
 
+def _ordinal_month_index(ym: int) -> int:
+    return (ym // 100) * 12 + (ym % 100 - 1)
+
+
+def _passable_age_bounds(now: datetime) -> tuple[int, int, int, int]:
+    """37–59 полных месяцев возраста → границы YYYYMM и ordinal month index."""
+    now_ym = now.year * 100 + now.month
+    now_ord = _ordinal_month_index(now_ym)
+    min_ord = now_ord - 59
+    max_ord = now_ord - 37
+    return _shift_ym(now_ym, -59), _shift_ym(now_ym, -37), min_ord, max_ord
+
+
 _YEAR_TOKEN_RE = re.compile(r"\b(19|20)\d{2}\b")
 
 
@@ -261,26 +274,12 @@ def build_meilisearch_filter(
 
     if q.get("passable_only") == "1":
         now = datetime.now(timezone.utc)
-        ym_5y = (now.year - 5) * 100 + now.month
-        ym_3y = (now.year - 3) * 100 + now.month
-        y_from = now.year - 5
-        y_to = now.year - 3
-        ym_from = _shift_ym(ym_5y, +1)
-        ym_to = _shift_ym(ym_3y, -1)
-        ord_from = (ym_from // 100) * 12 + (ym_from % 100 - 1)
-        ord_to = (ym_to // 100) * 12 + (ym_to % 100 - 1)
-        # Строгая фильтрация 3–5 лет с учетом того, что в индексе обычно только YYYYMM
-        # (без дня): границы месяцев исключаем, чтобы не попадали авто «на 1 день» вне окна.
-        # Поддерживаем mixed-форматы хранения:
-        # - year_month в YYYYMM
-        # - year_month в ordinal month index (year*12 + month-1)
-        # - legacy year в YYYYMM
+        ym_from, ym_to, ord_from, ord_to = _passable_age_bounds(now)
+        # Строгое окно «проходной» (37–59 мес.), совпадает с carPassabilityStatus на фронте.
         clauses.append(
             "("
             f"(year_month >= {ym_from} AND year_month <= {ym_to}) OR "
-            f"(year_month >= {ord_from} AND year_month <= {ord_to}) OR "
-            f"(year >= {ym_from} AND year <= {ym_to}) OR "
-            f"(year >= {y_from} AND year <= {y_to})"
+            f"(year_month >= {ord_from} AND year_month <= {ord_to})"
             ")"
         )
 

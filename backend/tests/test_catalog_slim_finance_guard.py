@@ -105,6 +105,15 @@ def test_slim_uses_legacy_when_clean_mode_off(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_slim_includes_catalog_created_at_from_car_root():
+    car = {
+        "data": {"source": "encar", "mark": "Kia", "model": "K5", "year": "2021"},
+        "_catalog_created_at": "2026-05-20T10:00:00+00:00",
+    }
+    out = slim_catalog_car(car, "encar-ts")
+    assert out.get("catalog_created_at") == "2026-05-20T10:00:00+00:00"
+
+
 def test_slim_includes_vin_in_data_for_catalog_dedupe():
     car = {
         "data": {

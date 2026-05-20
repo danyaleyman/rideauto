@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, Fuel, Gauge, Settings2, Zap } from "lucide-react";
+import { CalendarDays, Fuel, Gauge, Zap } from "lucide-react";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import {
@@ -120,8 +120,15 @@ export function parseYmValue(value: unknown): number | null {
   return y * 100 + m;
 }
 
-export function carPassabilityStatus(data: Record<string, unknown>): PassabilityStatus | null {
-  const ym = parseYmValue(data.yearMonth) ?? parseYmValue(data.year_month) ?? parseYmValue(data.year);
+export function carPassabilityStatus(
+  data: Record<string, unknown>,
+  yearNum?: number | null,
+): PassabilityStatus | null {
+  let ym =
+    parseYmValue(data.yearMonth) ?? parseYmValue(data.year_month) ?? parseYmValue(data.year);
+  if (!ym && yearNum != null && Number.isFinite(yearNum) && yearNum >= 1980 && yearNum <= 2100) {
+    ym = Math.trunc(yearNum) * 100 + 6;
+  }
   if (!ym) return null;
   const now = new Date();
   const nowYm = now.getUTCFullYear() * 100 + (now.getUTCMonth() + 1);
@@ -224,12 +231,6 @@ export function catalogCardAttributeChips(
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
   const fuelLabel = normalizeFuelLabel(fuel);
   if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
-  const normalizedFuelLower = (fuelLabel || "").toLowerCase();
-  const isElectricFuel = normalizedFuelLower.startsWith("электро");
-  const ccValue = catalogCardDisplacementCc(data);
-  if (!isElectricFuel && ccValue !== null && ccValue > 0) {
-    chips.push({ key: "cc", label: formatDisplacementLiters(ccValue), Icon: Settings2 });
-  }
   const hpRaw = data.power_hp ?? data.power ?? data.hp;
   const hpNum = typeof hpRaw === "number" ? Math.trunc(hpRaw) : parseHp(hpRaw);
   const hpValue = Number.isFinite(hpNum) ? hpNum : null;
@@ -252,13 +253,6 @@ export function cardOverlayBadges(
         parseListingCalendarYear(data.modelyear) ??
         parseListingCalendarYear(data.year_name);
   if (yOverlay != null && yOverlay > 0) out.push(String(yOverlay));
-  const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
-  const fuelLabel = normalizeFuelLabel(fuel);
-  const isElectricFuel = (fuelLabel || "").toLowerCase().startsWith("электро");
-  const ccVal = catalogCardDisplacementCc(data);
-  if (!isElectricFuel && ccVal !== null && ccVal > 0) {
-    out.push(formatDisplacementLiters(ccVal));
-  }
   return out.slice(0, 4);
 }
 

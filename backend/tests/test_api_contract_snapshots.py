@@ -55,6 +55,7 @@ def _fixture_car_and_row() -> tuple[dict, dict]:
             "pricing_clean": {"final_price_rub": 4200000.0, "pricing_tier": "full_customs"},
         },
         "inner_id": "inner-snap-1",
+        "_catalog_created_at": "2026-01-15T12:00:00+00:00",
         "_catalog_updated_at": "2026-01-15T12:00:05+00:00",
     }
     row = {

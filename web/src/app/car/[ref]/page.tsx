@@ -14,6 +14,8 @@ import { CarHeroMeta } from "@/components/car/CarHeroMeta";
 import { CarStickyMobileBar } from "@/components/car/CarStickyMobileBar";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { carStickyPriceLine, getCarListingAvailability } from "@/lib/car-listing-trust";
+import { catalogCardAttributeChips } from "@/lib/catalog-client-utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   siteBreadcrumbBarClass,
@@ -270,9 +272,11 @@ export default async function CarPage({ params }: PageProps) {
           <p className="mt-1 text-sm text-muted-foreground">Подборка по соседним позициям в каталоге</p>
           <MotionStagger className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {similar.map((car) => {
-              const img = extractCarImageUrls((car.data ?? {}) as Record<string, unknown>)[0];
+              const cardData = (car.data ?? {}) as Record<string, unknown>;
+              const img = extractCarImageUrls(cardData)[0];
               const simSold = Boolean(car.encar_listing_sold || car.che168_listing_sold);
               const simReserved = !simSold && Boolean(car.encar_listing_reserved);
+              const attrChips = catalogCardAttributeChips(cardData, car.year_num);
               return (
                 <MotionStaggerItem key={car.id}>
                   <Link
@@ -318,6 +322,24 @@ export default async function CarPage({ params }: PageProps) {
                       <p className="line-clamp-3 break-words text-sm font-semibold leading-snug [overflow-wrap:anywhere] group-hover:text-primary sm:line-clamp-2">
                         {car.title || car.id}
                       </p>
+                      {attrChips.length ? (
+                        <ul className="mt-2 flex min-w-0 flex-wrap gap-1.5" aria-label="Краткие характеристики">
+                          {attrChips.slice(0, 3).map((c) => {
+                            const Icon = c.Icon;
+                            return (
+                              <li key={c.key}>
+                                <Badge
+                                  variant="outline"
+                                  className="inline-flex h-auto max-w-full items-center gap-1 rounded-full border-border/55 bg-background/55 px-2 py-0.5 text-[10px] font-medium normal-case text-foreground"
+                                >
+                                  <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
+                                  <span className="min-w-0">{c.label}</span>
+                                </Badge>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
                       <p className="mt-2 break-words text-sm font-medium tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
                         {formatSimilarPrice(car.price)}
                       </p>
