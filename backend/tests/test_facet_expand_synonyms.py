@@ -29,7 +29,7 @@ def test_merge_korea_drops_numeric_transmission_rows():
         [{"value": "6", "count": 5}, {"value": "Автомат", "count": 2}],
         query_flat=flat,
     )
-    assert [str(x.get("value")) for x in merged] == ["Автомат"]
+    assert [str(x.get("value")) for x in merged] == ["АКПП"]
 
 
 def test_merge_facets_hides_unmapped_korean_labels():
@@ -84,9 +84,27 @@ def test_merge_china_spec_drops_junk_and_localizes():
         query_flat=flat,
     )
     trans_labels = [str(x.get("label") or "") for x in trans]
-    assert "Автомат" in trans_labels
+    assert "АКПП" in trans_labels
     assert "6-ступенчатая" in trans_labels
     assert "-" not in trans_labels
+
+    trans10 = merge_facet_distribution_rows(
+        "transmission",
+        [
+            {"value": "10", "count": 100},
+            {"value": "3", "count": 50},
+            {"value": "CVT", "count": 20},
+            {"value": "Automatic", "count": 10},
+            {"value": "2", "count": 5},
+        ],
+        query_flat=flat,
+    )
+    cvt_rows = [x for x in trans10 if str(x.get("label") or "") == "Вариатор (CVT)"]
+    assert len(cvt_rows) == 1
+    assert int(cvt_rows[0]["count"]) == 170
+    akpp_rows = [x for x in trans10 if str(x.get("label") or "") == "АКПП"]
+    assert len(akpp_rows) == 1
+    assert int(akpp_rows[0]["count"]) == 15
 
     colors = merge_facet_distribution_rows(
         "color",

@@ -12,7 +12,8 @@ const preview: Preview = {
       },
     },
     a11y: {
-      test: "todo",
+      // В dev/storybook — предупреждения; в CI e2e/a11y.spec.js — жёсткий гейт (serious+).
+      test: "warn",
     },
   },
 };

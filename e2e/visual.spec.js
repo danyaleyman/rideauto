@@ -48,4 +48,16 @@ test.describe("визуальные снапшоты (статичные стр�
       maxDiffPixelRatio: 0.04,
     });
   });
+
+  test("catalog", { tag: "@visual" }, async ({ page }) => {
+    await page.goto(`${BASE}/catalog`);
+    await page.waitForSelector('[data-slot="listing-card"], ul[aria-label]', {
+      timeout: 45_000,
+    });
+    await expect(page).toHaveScreenshot("catalog.png", {
+      fullPage: true,
+      animations: "disabled",
+      maxDiffPixelRatio: 0.05,
+    });
+  });
 });

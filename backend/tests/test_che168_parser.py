@@ -523,6 +523,80 @@ def test_parse_one_extracts_english_paramtypeitems_format():
     assert any("круиз" in str(x).lower() for x in opts) or "Cruise control" in opts
 
 
+def test_parse_one_english_spec_kw_not_stored_as_hp_without_engine():
+    """Maximum power (kW)=190 must not become 190 hp when Ps=258 is available."""
+    spec = {
+        "result": {
+            "gearbox": "8",
+            "paramtypeitems": [
+                {
+                    "paramitems": [
+                        {"name": "Maximum power (kW)", "value": "190"},
+                        {"name": "Maximum horsepower (Ps)", "value": "258"},
+                        {"name": "Max Torque (N·m)", "value": "400"},
+                        {"name": "Abbreviation", "value": "8-speed automatic with manual shift mode"},
+                        {"name": "Drive Type", "value": "--"},
+                        {"name": "Engine", "value": "2.0T 258hp L4"},
+                        {"name": "Displacement (L)", "value": "2.0"},
+                    ],
+                }
+            ],
+        }
+    }
+    car = parse_one_che168_car_sync(
+        external_id="58448678",
+        list_item={"id": 58448678, "brandname": "BMW", "price": 300000},
+        carinfo={"title": "BMW 6", "price": 300000, "specid": 1},
+        specparam=spec,
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    d = car["data"]
+    assert d.get("power_hp") == 258
+    assert d.get("torque_nm") == 400
+    assert d.get("transmission_type") == "8-speed automatic with manual shift mode"
+    assert d.get("drive_type") is None
+
+
+def test_parse_one_corolla_top_speed_not_horsepower():
+    """Top speed (km/h)=180 must not become power_hp; Engine 116HP wins."""
+    spec = {
+        "result": {
+            "gearbox": "10",
+            "paramtypeitems": [
+                {
+                    "paramitems": [
+                        {"name": "Top speed (km/h)", "value": "180"},
+                        {"name": "Maximum power (kW)", "value": "85"},
+                        {"name": "Maximum horsepower (Ps)", "value": "116"},
+                        {"name": "Max Torque (N·m)", "value": "185"},
+                        {"name": "Engine", "value": "1.2T 116HP L4"},
+                        {
+                            "name": "Abbreviation",
+                            "value": "CVT Continuously Variable Transmission (simulated 10 gears)",
+                        },
+                    ],
+                }
+            ],
+        }
+    }
+    car = parse_one_che168_car_sync(
+        external_id="58418415",
+        list_item={"id": 58418415, "brandname": "Toyota", "price": 128800},
+        carinfo={"title": "Corolla", "price": 128800, "specid": 1},
+        specparam=spec,
+        specconfig=None,
+        recommend=None,
+        report_summary=None,
+    )
+    assert car is not None
+    d = car["data"]
+    assert d.get("power_hp") == 116
+    assert "CVT" in str(d.get("transmission_type") or "")
+
+
 def test_taxonomy_aliases():
     car = parse_one_che168_car_sync(
         external_id="1",

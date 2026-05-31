@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useCallback, useContext, useMemo } from "react";
+import { authKeys } from "@/hooks/auth-query-keys";
 import { fetchMeClient, logoutClient, requestMagicLinkClient, verifyMagicLinkClient } from "@/lib/client-api";
 import type { AuthUser } from "@/lib/types";
 
@@ -16,39 +18,40 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const AUTH_ME_STALE_MS = 60_000;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const queryClient = useQueryClient();
+  const meQuery = useQuery({
+    queryKey: authKeys.me(),
+    queryFn: ({ signal }) => fetchMeClient({ signal }),
+    staleTime: AUTH_ME_STALE_MS,
+    retry: false,
+  });
+
+  const user = meQuery.data?.authenticated ? meQuery.data.user : null;
+  const loading = meQuery.isPending;
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetchMeClient();
-      setUser(res.authenticated ? res.user : null);
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    await meQuery.refetch();
+  }, [meQuery]);
 
   const requestMagicLink = useCallback(async (email: string) => {
     await requestMagicLinkClient(email);
   }, []);
 
-  const verifyMagicLink = useCallback(async (token: string) => {
-    await verifyMagicLinkClient(token);
-    await refresh();
-  }, [refresh]);
+  const verifyMagicLink = useCallback(
+    async (token: string) => {
+      await verifyMagicLinkClient(token);
+      await meQuery.refetch();
+    },
+    [meQuery],
+  );
 
   const logout = useCallback(async () => {
     await logoutClient();
-    setUser(null);
-  }, []);
+    queryClient.setQueryData(authKeys.me(), { authenticated: false, user: null });
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

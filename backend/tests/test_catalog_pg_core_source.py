@@ -128,3 +128,20 @@ def test_row_to_car_fields_normalizes_yyyymm_year_to_calendar(monkeypatch: pytes
     payload = {"data": {"mark": "Kia", "model": "Rio", "year": 202103}}
     f = row_to_car_fields("encar-y1", payload)
     assert f["year"] == 2021
+
+
+def test_row_to_car_fields_che168_year_month_from_yearname(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("WRA_CLEAN_READ_MODE", raising=False)
+    payload = {
+        "data": {
+            "source": "che168",
+            "mark": "Chevrolet",
+            "model": "Malibu XL",
+            "year": 2022,
+            "yearname": "2021.10",
+            "regdate": "2022.11",
+        }
+    }
+    f = row_to_car_fields("che168-58249998", payload)
+    assert f["year"] == 2021
+    assert f["year_month"] == 202110

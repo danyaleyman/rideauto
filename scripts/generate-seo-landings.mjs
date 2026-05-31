@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Статические SEO-посадки под марку / марку+модель (корейский каталог Encar).
+ * Статические SEO-посадки (RU + EN) с hreflang.
  *
  *   node scripts/generate-seo-landings.mjs
  *
- * Читает data/seo-landings.json, пишет HTML в web/public/seo/korea/<mark>/<model>/index.html
+ * Читает data/seo-landings.json, пишет:
+ *   web/public/seo/korea/<mark>/...
+ *   web/public/seo/en/korea/<mark>/...
  * и обновляет блок URL в web/public/sitemap-pages.xml.
  */
 import fs from "fs";
@@ -14,9 +16,64 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const DATA_PATH = path.join(ROOT, "data", "seo-landings.json");
-const OUT_ROOT = path.join(ROOT, "web", "public", "seo", "korea");
+const OUT_RU = path.join(ROOT, "web", "public", "seo", "korea");
+const OUT_EN = path.join(ROOT, "web", "public", "seo", "en", "korea");
 const SITEMAP_PATH = path.join(ROOT, "web", "public", "sitemap-pages.xml");
-const SITEMAP_FALLBACK = path.join(ROOT, "web", "public", "sitemap-pages.xml");
+
+const UI = {
+  ru: {
+    skip: "К содержанию",
+    navAria: "Разделы",
+    about: "О компании",
+    catalog: "Каталог",
+    buy: "Как купить",
+    contacts: "Контакты",
+    contactCta: "Связаться",
+    catalogCta: "Смотреть объявления в каталоге",
+    allKorea: "Все авто из Кореи",
+    note:
+      "World Ride Auto — подбор автомобилей из Кореи, ориентиры по ценам и доставке во Владивосток. Точные суммы зависят от курса и комплектации; уточняйте у менеджера.",
+    privacy: "Конфиденциальность",
+    markH1: (mark) => `${mark} — авто из Кореи`,
+    markLead: (mark) =>
+      `Подбор ${mark} на корейском рынке: фильтры по году, пробегу и цене.`,
+    modelH1: (mark, model) => `${mark} ${model} — из Кореи`,
+    modelLead: (mark, model) =>
+      `Актуальные объявления ${mark} ${model} в каталоге World Ride Auto.`,
+    markTitle: (mark) => `${mark} из Кореи — купить автомобиль с доставкой во Владивосток`,
+    markDesc: (mark) =>
+      `Каталог ${mark} с корейского рынка: подбор по модели, цены «под ключ», доставка и оформление через World Ride Auto.`,
+    modelTitle: (mark, model) => `${mark} ${model} из Кореи — каталог World Ride Auto`,
+    modelDesc: (mark, model) =>
+      `${mark} ${model} с корейского рынка. Фильтры по году, пробегу и комплектации в каталоге World Ride Auto.`,
+  },
+  en: {
+    skip: "Skip to content",
+    navAria: "Sections",
+    about: "About",
+    catalog: "Catalog",
+    buy: "How to buy",
+    contacts: "Contacts",
+    contactCta: "Contact us",
+    catalogCta: "Browse listings in catalog",
+    allKorea: "All cars from Korea",
+    note:
+      "World Ride Auto — sourcing cars from Korea, price guidance and delivery to Vladivostok. Final amounts depend on FX and trim; ask a manager for details.",
+    privacy: "Privacy",
+    markH1: (mark) => `${mark} — cars from Korea`,
+    markLead: (mark) =>
+      `Browse ${mark} on the Korean market: filter by year, mileage and price.`,
+    modelH1: (mark, model) => `${mark} ${model} — from Korea`,
+    modelLead: (mark, model) =>
+      `Current ${mark} ${model} listings in the World Ride Auto catalog.`,
+    markTitle: (mark) => `${mark} from Korea — import with delivery to Vladivostok`,
+    markDesc: (mark) =>
+      `${mark} catalog from Korea: model filters, turnkey pricing, delivery and paperwork with World Ride Auto.`,
+    modelTitle: (mark, model) => `${mark} ${model} from Korea — World Ride Auto catalog`,
+    modelDesc: (mark, model) =>
+      `${mark} ${model} from the Korean market. Filter by year, mileage and trim in our catalog.`,
+  },
+};
 
 function slug(s) {
   return String(s || "")
@@ -37,52 +94,64 @@ function escHtml(s) {
 function catalogQueryMarkOnly(markValue) {
   const p = new URLSearchParams();
   p.set("marks", markValue);
-  return "/?" + p.toString();
+  return "/catalog?" + p.toString();
 }
 
 function catalogQueryMarkModel(markValue, modelValue) {
   const p = new URLSearchParams();
   p.set("marks", markValue);
   p.set("models", modelValue);
-  return "/?" + p.toString();
+  return "/catalog?" + p.toString();
+}
+
+function hreflangLinks(canonicalRu, canonicalEn) {
+  return `
+  <link rel="alternate" hreflang="ru" href="${escHtml(canonicalRu)}">
+  <link rel="alternate" hreflang="en" href="${escHtml(canonicalEn)}">
+  <link rel="alternate" hreflang="x-default" href="${escHtml(canonicalRu)}">`;
 }
 
 function pageTemplate(opts) {
   const {
+    lang,
     title,
     description,
     canonical,
+    alternateRu,
+    alternateEn,
     h1,
     lead,
     catalogUrl,
     jsonLd,
   } = opts;
+  const ui = UI[lang];
+  const catalogAll = lang === "en" ? "/catalog?lang=en" : "/catalog";
   return `<!DOCTYPE html>
-<html lang="ru">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escHtml(title)}</title>
   <meta name="description" content="${escHtml(description)}">
-  <link rel="canonical" href="${escHtml(canonical)}">
+  <link rel="canonical" href="${escHtml(canonical)}">${hreflangLinks(alternateRu, alternateEn)}
   <link rel="stylesheet" href="/css/common.css?v=20260423">
   <script type="application/ld+json">
 ${JSON.stringify(jsonLd, null, 2)}
   </script>
 </head>
 <body>
-  <a href="#main" class="skip-link">К содержанию</a>
+  <a href="#main" class="skip-link">${escHtml(ui.skip)}</a>
   <header class="header">
     <div class="header-content">
       <a href="/" class="logo"><img src="/image/logo.svg" alt="World Ride Auto" width="120" height="32"></a>
-      <nav class="nav-menu" aria-label="Разделы">
-        <a href="/about">О компании</a>
-        <a href="/catalog">Каталог</a>
-        <a href="/buy">Как купить</a>
-        <a href="/contacts">Контакты</a>
+      <nav class="nav-menu" aria-label="${escHtml(ui.navAria)}">
+        <a href="/about">${escHtml(ui.about)}</a>
+        <a href="${escHtml(catalogAll)}">${escHtml(ui.catalog)}</a>
+        <a href="/buy">${escHtml(ui.buy)}</a>
+        <a href="/contacts">${escHtml(ui.contacts)}</a>
       </nav>
       <div class="header-buttons">
-        <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank" rel="noopener">Связаться</a>
+        <a href="https://t.me/nikits15" class="btn btn-primary" target="_blank" rel="noopener">${escHtml(ui.contactCta)}</a>
       </div>
     </div>
   </header>
@@ -90,14 +159,14 @@ ${JSON.stringify(jsonLd, null, 2)}
     <h1>${escHtml(h1)}</h1>
     <p class="wra-seo-lead">${escHtml(lead)}</p>
     <div class="wra-seo-actions">
-      <a class="btn btn-primary" href="${escHtml(catalogUrl)}">Смотреть объявления в каталоге</a>
-      <a class="btn btn-secondary" href="/catalog">Все авто из Кореи</a>
+      <a class="btn btn-primary" href="${escHtml(catalogUrl)}">${escHtml(ui.catalogCta)}</a>
+      <a class="btn btn-secondary" href="${escHtml(catalogAll)}">${escHtml(ui.allKorea)}</a>
     </div>
-    <p class="wra-seo-note">World Ride Auto — подбор автомобилей с Encar, ориентиры по ценам и доставке во Владивосток. Точные суммы зависят от курса и комплектации; уточняйте у менеджера.</p>
+    <p class="wra-seo-note">${escHtml(ui.note)}</p>
   </main>
   <footer class="footer-wrap" style="margin-top:48px">
     <div class="footer-top wra-container" style="border-top:1px solid var(--wra-border);padding-top:24px">
-      <p class="wra-seo-note" style="margin:0">&copy; World Ride Auto 2026 · <a href="/privacy">Конфиденциальность</a></p>
+      <p class="wra-seo-note" style="margin:0">&copy; World Ride Auto 2026 · <a href="/privacy">${escHtml(ui.privacy)}</a></p>
     </div>
   </footer>
 </body>
@@ -109,23 +178,61 @@ function ensureDir(d) {
   fs.mkdirSync(d, { recursive: true });
 }
 
+function writeLanding({ outDir, lang, base, pathSeg, page }) {
+  const dir = path.join(outDir, pathSeg);
+  ensureDir(dir);
+  const canonical = `${base}/seo/${lang === "en" ? "en/korea" : "korea"}/${pathSeg}/`;
+  const alternateRu = `${base}/seo/korea/${pathSeg}/`;
+  const alternateEn = `${base}/seo/en/korea/${pathSeg}/`;
+  const ui = UI[lang];
+  const title = page.title || (page.modelValue ? ui.modelTitle(page.markValue, page.modelValue) : ui.markTitle(page.markValue));
+  const description =
+    page.description ||
+    (page.modelValue
+      ? ui.modelDesc(page.markValue, page.modelValue)
+      : ui.markDesc(page.markValue));
+  const h1 = page.h1 || (page.modelValue ? ui.modelH1(page.markValue, page.modelValue) : ui.markH1(page.markValue));
+  const lead =
+    page.lead ||
+    (page.modelValue ? ui.modelLead(page.markValue, page.modelValue) : ui.markLead(page.markValue));
+  const catalogUrl = page.catalogUrl;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: title,
+    description,
+    url: canonical,
+    inLanguage: lang === "en" ? "en" : "ru",
+    isPartOf: { "@type": "WebSite", name: "World Ride Auto", url: base + "/" },
+  };
+  const html = pageTemplate({
+    lang,
+    title,
+    description,
+    canonical,
+    alternateRu,
+    alternateEn,
+    h1,
+    lead,
+    catalogUrl,
+    jsonLd,
+  });
+  fs.writeFileSync(path.join(dir, "index.html"), html, "utf8");
+  return canonical;
+}
+
 function main() {
-  ensureDir(path.dirname(SITEMAP_PATH));
   if (!fs.existsSync(SITEMAP_PATH)) {
-    if (fs.existsSync(SITEMAP_FALLBACK)) {
-      fs.copyFileSync(SITEMAP_FALLBACK, SITEMAP_PATH);
-    } else {
-      fs.writeFileSync(
-        SITEMAP_PATH,
-        `<?xml version="1.0" encoding="UTF-8"?>
+    fs.writeFileSync(
+      SITEMAP_PATH,
+      `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- WRA_SEO_KOREA_LANDINGS_BEGIN -->
   <!-- WRA_SEO_KOREA_LANDINGS_END -->
 </urlset>
 `,
-        "utf8"
-      );
-    }
+      "utf8",
+    );
   }
 
   const raw = fs.readFileSync(DATA_PATH, "utf8");
@@ -133,70 +240,78 @@ function main() {
   const base = (data.baseUrl || "https://rideauto.ru").replace(/\/+$/, "");
   const urls = [];
 
-  fs.rmSync(OUT_ROOT, { recursive: true, force: true });
-  ensureDir(OUT_ROOT);
+  fs.rmSync(OUT_RU, { recursive: true, force: true });
+  fs.rmSync(OUT_EN, { recursive: true, force: true });
+  ensureDir(OUT_RU);
+  ensureDir(OUT_EN);
 
   for (const m of data.markPages || []) {
     const ms = slug(m.markValue);
-    const dir = path.join(OUT_ROOT, ms);
-    ensureDir(dir);
-    const canonical = `${base}/seo/korea/${ms}/`;
     const catalogUrl = catalogQueryMarkOnly(m.markValue);
-    const h1 = `${m.markValue} — авто из Кореи`;
-    const lead =
-      m.description ||
-      `Подбор ${m.markValue} на корейской площадке Encar: фильтры по году, пробегу и цене.`;
-    const jsonLd = {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      name: m.title,
-      description: m.description,
-      url: canonical,
-      isPartOf: { "@type": "WebSite", name: "World Ride Auto", url: base + "/" },
-    };
-    const html = pageTemplate({
+    const page = {
+      markValue: m.markValue,
       title: m.title,
+      titleEn: m.titleEn,
       description: m.description,
-      canonical,
-      h1,
-      lead,
+      descriptionEn: m.descriptionEn,
       catalogUrl,
-      jsonLd,
-    });
-    fs.writeFileSync(path.join(dir, "index.html"), html, "utf8");
-    urls.push(canonical);
+    };
+    urls.push(
+      writeLanding({
+        outDir: OUT_RU,
+        lang: "ru",
+        base,
+        pathSeg: ms,
+        page: { ...page, title: m.title, description: m.description },
+      }),
+    );
+    urls.push(
+      writeLanding({
+        outDir: OUT_EN,
+        lang: "en",
+        base,
+        pathSeg: ms,
+        page: {
+          ...page,
+          title: m.titleEn || UI.en.markTitle(m.markValue),
+          description: m.descriptionEn || UI.en.markDesc(m.markValue),
+        },
+      }),
+    );
   }
 
   for (const row of data.modelPages || []) {
     const ms = slug(row.markValue);
     const mo = slug(row.modelValue);
-    const dir = path.join(OUT_ROOT, ms, mo);
-    ensureDir(dir);
-    const canonical = `${base}/seo/korea/${ms}/${mo}/`;
+    const pathSeg = `${ms}/${mo}`;
     const catalogUrl = catalogQueryMarkModel(row.markValue, row.modelValue);
-    const h1 = `${row.markValue} ${row.modelValue} — из Кореи`;
-    const lead =
-      row.description ||
-      `Актуальные объявления ${row.markValue} ${row.modelValue} в каталоге World Ride Auto.`;
-    const jsonLd = {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      name: row.title,
-      description: row.description,
-      url: canonical,
-      isPartOf: { "@type": "WebSite", name: "World Ride Auto", url: base + "/" },
-    };
-    const html = pageTemplate({
-      title: row.title,
-      description: row.description,
-      canonical,
-      h1,
-      lead,
+    const page = {
+      markValue: row.markValue,
+      modelValue: row.modelValue,
       catalogUrl,
-      jsonLd,
-    });
-    fs.writeFileSync(path.join(dir, "index.html"), html, "utf8");
-    urls.push(canonical);
+    };
+    urls.push(
+      writeLanding({
+        outDir: OUT_RU,
+        lang: "ru",
+        base,
+        pathSeg,
+        page: { ...page, title: row.title, description: row.description },
+      }),
+    );
+    urls.push(
+      writeLanding({
+        outDir: OUT_EN,
+        lang: "en",
+        base,
+        pathSeg,
+        page: {
+          ...page,
+          title: row.titleEn || UI.en.modelTitle(row.markValue, row.modelValue),
+          description: row.descriptionEn || UI.en.modelDesc(row.markValue, row.modelValue),
+        },
+      }),
+    );
   }
 
   urls.sort();
@@ -206,7 +321,7 @@ function main() {
     <loc>${loc}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.75</priority>
-  </url>`
+  </url>`,
     )
     .join("\n");
 
@@ -216,17 +331,11 @@ function main() {
   if (!sitemap.includes(begin)) {
     sitemap = sitemap.replace("</urlset>", `  ${begin}\n  ${end}\n</urlset>`);
   }
-  const re = new RegExp(
-    `${begin}[\\s\\S]*?${end}`,
-    "m"
-  );
-  sitemap = sitemap.replace(
-    re,
-    `${begin}\n${urlXml}\n  ${end}`
-  );
+  const re = new RegExp(`${begin}[\\s\\S]*?${end}`, "m");
+  sitemap = sitemap.replace(re, `${begin}\n${urlXml}\n  ${end}`);
   fs.writeFileSync(SITEMAP_PATH, sitemap, "utf8");
 
-  console.log("OK: SEO landings →", OUT_ROOT, "count=", urls.length, "sitemap-pages.xml updated");
+  console.log("OK: SEO landings RU →", OUT_RU, "EN →", OUT_EN, "urls=", urls.length);
 }
 
 main();

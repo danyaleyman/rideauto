@@ -15,6 +15,7 @@ docs/
 e2e/
 infrastructure/
 scripts/
+!scripts/generate-seo-landings.mjs
 playwright.config.mjs
 RideAuto.code-workspace
 README.md

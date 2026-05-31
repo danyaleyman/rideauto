@@ -14,6 +14,15 @@
 - Synthetic smoke checks from server side (`deploy/scripts/post_migration_check.sh`)
 - Frontend RUM: `POST /api/web-vitals`, summary via `GET /api/ops/web-vitals-summary`
 
+### Frontend money-pages (целевые ориентиры)
+
+| SLI | Target | Источник |
+|-----|--------|----------|
+| LCP p75 `/catalog` | < 2.5s | RUM + Lighthouse CI (desktop/mobile) |
+| INP p75 `/catalog` | < 200ms | RUM |
+| Client error rate | < 0.5% сессий | Sentry (`NEXT_PUBLIC_SENTRY_DSN`) |
+| LH performance | warn ≥ 0.72 (CI), error ≥ 0.78 (staging config) | `web/lighthouserc.*.cjs` |
+
 ## Alerting Baseline
 
 - `api_5xx_spike`: 5xx ratio > `1%` for 5m

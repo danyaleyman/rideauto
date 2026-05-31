@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Accordion,
@@ -14,7 +14,6 @@ import {
   cleanScalarText,
   buildNormalizedCarTitle,
   formatHumanDate,
-  formatInspectionListItem,
   formatKm,
   normalizeFuelLabel,
   pickRegYearMonthDisplay,
@@ -27,33 +26,47 @@ import {
   collectSelectedEncarOptions,
   displayEncarStandardOption,
 } from "@/lib/encar-options-display";
-import { displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
+import { classifyChinaOptionGroup, displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
 import { formatPriceLabel } from "@/lib/format-price";
-import { displayColorRu, displayDriveTypeRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru";
+import {
+  bodyStatusColor,
+  collectBodyRows,
+  hasStructuredBodyPayload,
+} from "@/lib/car-body-panels";
+import { useLocaleContext } from "@/components/LocaleProvider";
+import type { AppLocale, TParams } from "@/lib/i18n";
+import { displayColor, displayDriveType, displayTransmission } from "@/lib/vehicle-spec-locale";
+import { SegmentedControl, SegmentedControlScroll } from "@/components/ui/segmented-control";
 
-const SWITCH_BAR_CLASS = "inline-flex w-full rounded-xl border border-border/60 bg-muted/20 p-1.5";
-const SWITCH_BUTTON_CLASS =
-  "flex-1 rounded-lg px-3.5 py-2 text-sm font-medium leading-none transition";
+type TI18n = (path: string, params?: TParams) => string;
+const CarAccI18nCtx = createContext<{ t: TI18n; locale: AppLocale } | null>(null);
+
+function useCarAccI18n() {
+  const ctx = useContext(CarAccI18nCtx);
+  if (!ctx) throw new Error("CarAccI18nCtx missing");
+  return ctx;
+}
 
 function localizeLabel(label: string): string {
   return translateKoToRuText(prettifyDataKey(label));
 }
 
-function localizeValue(value: string): string {
+function localizeValue(value: string, tr: TI18n): string {
   const cleaned = cleanScalarText(value);
-  if (!cleaned) return "Не указано";
+  if (!cleaned) return tr("car.accordions.notSpecified");
   const t = translateKoToRuText(cleaned);
-  if (t === "[]") return "Не выявлены";
-  if (t === "{}") return "Нет данных";
+  if (t === "[]") return tr("car.accordions.notDetected");
+  if (t === "{}") return tr("car.accordions.noData");
   return t;
 }
 
 function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
+  const { t } = useCarAccI18n();
   const filtered = rows
     .map((r) => ({ label: r.label, value: cleanScalarText(r.value) ?? "" }))
     .filter((r) => r.value.trim());
   if (!filtered.length) {
-    return <p className="text-sm text-muted-foreground">Нет данных.</p>;
+    return <p className="text-sm text-muted-foreground">{t("car.accordions.noDataDot")}</p>;
   }
   return (
     <dl className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
@@ -66,7 +79,7 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
             {localizeLabel(r.label)}
           </dt>
           <dd className="mt-1 text-sm font-medium leading-snug [overflow-wrap:anywhere] text-foreground md:mt-0">
-            {localizeValue(r.value)}
+            {localizeValue(r.value, t)}
           </dd>
         </div>
       ))}
@@ -74,281 +87,11 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
   );
 }
 
-function normalizeBodyStatus(raw: string): string {
-  const t = raw.toLowerCase();
-  if (t.includes("교환") || t.includes("замен")) return "Замена";
-  if (t.includes("용접") || t.includes("свар")) return "Сварка";
-  if (t.includes("도장") || t.includes("окрас")) return "Окрас";
-  if (t.includes("판금") || t.includes("ремонт")) return "Ремонт";
-  if (t.includes("부식") || t.includes("корроз")) return "Коррозия";
-  if (t.includes("흠집") || t.includes("царап")) return "Царапина";
-  if (t.includes("요철") || t.includes("вмят")) return "Вмятина";
-  if (t.includes("손상") || t.includes("повреж")) return "Повреждение";
-  if (t.includes("정상") || t.includes("양호") || t.includes("normal") || t.includes("없음") || t.includes("ориг")) {
-    return "Оригинал";
-  }
-  return translateKoToRuText(raw) || "Оригинал";
-}
-
-function bodyStatusColor(text: string): string {
-  const t = normalizeBodyStatus(text).toLowerCase();
-  if (t.includes("ориг")) return "bg-emerald-100 text-emerald-900 border-emerald-300";
-  if (t.includes("окрас") || t.includes("ремонт") || t.includes("царап")) return "bg-amber-100 text-amber-900 border-amber-300";
-  if (t.includes("свар") || t.includes("замен") || t.includes("дтп")) return "bg-red-100 text-red-900 border-red-300";
-  if (t.includes("вмят") || t.includes("повреж") || t.includes("корроз")) return "bg-orange-100 text-orange-900 border-orange-300";
-  return "bg-slate-100 text-slate-800 border-slate-300";
-}
-
 function isNegativeFlag(v: unknown): boolean {
   const raw = String(v ?? "").trim();
   if (!raw) return true;
   const s = translateKoToRuText(raw).trim().toLowerCase();
   return ["нет", "없음", "no", "normal", "0", "false", "n"].includes(s);
-}
-
-type BodyRow = { part: string; status: string; section?: "external" | "internal" };
-
-function bodyStatusWeight(status: string): number {
-  const s = normalizeBodyStatus(status).toLowerCase();
-  if (s.includes("замен")) return 50;
-  if (s.includes("свар")) return 40;
-  if (s.includes("повреж") || s.includes("вмят")) return 30;
-  if (s.includes("окрас") || s.includes("ремонт") || s.includes("корроз")) return 20;
-  if (s.includes("царап")) return 10;
-  return 0;
-}
-
-function isInternalBodyPart(part: string): boolean {
-  const p = part.toLowerCase();
-  const keys = [
-    "pillar", "frame", "floor", "wheel housing", "member", "package tray", "대시", "필러", "플로어",
-    "휠하우스", "사이드실", "주요골격", "트렁크 플로어", "루프", "лонжерон", "стойк", "порог",
-    "서포트", "support", "radiator", "радиатор", "패널 / 인사이드", "inside panel", "side member",
-    "package tray", "cross member", "dash panel", "wheelhouse", "sill panel",
-  ];
-  const externalOnly = ["крыл", "fender", "휀더", "펜더", "двер", "door", "капот", "hood", "багажник", "trunk"];
-  if (externalOnly.some((k) => p.includes(k))) return false;
-  return keys.some((k) => p.includes(k));
-}
-
-function normalizeBodyPartName(partRaw: string): string {
-  const p = partRaw.trim();
-  const map: Record<string, string> = {
-    "프론트 도어(좌)": "Левая передняя дверь",
-    "프론트 도어(우)": "Правая передняя дверь",
-    "리어 도어(좌)": "Левая задняя дверь",
-    "리어 도어(우)": "Правая задняя дверь",
-    "프론트 펜더(좌)": "Левое переднее крыло",
-    "프론트 펜더(우)": "Правое переднее крыло",
-    "프론트 휀더(좌)": "Левое переднее крыло",
-    "프론트 휀더(우)": "Правое переднее крыло",
-    "리어 휀더(좌)": "Левое заднее крыло",
-    "리어 휀더(우)": "Правое заднее крыло",
-    "라디에이터 서포트(볼트체결부품)": "Крепление радиатора",
-    "라디에이터 서포트": "Крепление радиатора",
-    "리어 펜더(좌)": "Левое заднее крыло",
-    "리어 펜더(우)": "Правое заднее крыло",
-    "쿼터 패널(좌)": "Левое заднее крыло",
-    "쿼터 패널(우)": "Правое заднее крыло",
-    "트렁크 리드": "Крышка багажника",
-    "후드": "Капот",
-    "프론트 패널 / 인사이드 패널": "Передняя панель / внутренняя панель",
-    "앞휠하우스 / 뒷휠하우스": "Арки колес (перед/зад)",
-    "필러패널(A/B) / 대쉬패널 / 플로어패널": "Стойки / щиток / пол",
-    "사이드실 패널 / 쿼터패널": "Пороги / четверти кузова",
-    "리어패널 / 트렁크 플로어": "Задняя панель / пол багажника",
-    "사이드멤버 / 루프패널 / 패키지트레이": "Лонжероны / крыша / полка багажника",
-  };
-  return map[p] ?? translateKoToRuText(p);
-}
-
-function withOriginalDefaults(rows: BodyRow[], section: "external" | "internal"): BodyRow[] {
-  const defaults =
-    section === "external"
-      ? [
-          "Левое переднее крыло",
-          "Правое переднее крыло",
-          "Левая передняя дверь",
-          "Правая передняя дверь",
-          "Левая задняя дверь",
-          "Правая задняя дверь",
-          "Левое заднее крыло",
-          "Правое заднее крыло",
-          "Капот",
-          "Крышка багажника",
-        ]
-      : [
-          "Передняя панель / внутренняя панель",
-          "Арки колес (перед/зад)",
-          "Стойки / щиток / пол",
-          "Пороги / четверти кузова",
-          "Задняя панель / пол багажника",
-          "Лонжероны / полка багажника",
-        ];
-  if (!rows.length) {
-    return defaults.map((part) => ({ part, status: "Оригинал", section }));
-  }
-  const seen = new Set(rows.map((r) => r.part.trim().toLowerCase()));
-  const out = [...rows];
-  for (const part of defaults) {
-    if (!seen.has(part.trim().toLowerCase())) out.push({ part, status: "Оригинал", section });
-  }
-  return out;
-}
-
-function hasStructuredBodyPayload(
-  bodyPanels: unknown,
-  outers: unknown,
-  bodyChanged: unknown,
-  paintPartTypes: unknown,
-  seriousTypes: unknown,
-  diagnosisItems: unknown,
-): boolean {
-  if (Array.isArray(bodyPanels) && bodyPanels.length > 0) return true;
-  if (Array.isArray(outers) && outers.length > 0) return true;
-  if (bodyChanged && typeof bodyChanged === "object" && !Array.isArray(bodyChanged)) {
-    if (Object.keys(bodyChanged as Record<string, unknown>).length > 0) return true;
-  }
-  if (Array.isArray(paintPartTypes) && paintPartTypes.length > 0) return true;
-  if (Array.isArray(seriousTypes) && seriousTypes.length > 0) return true;
-  if (Array.isArray(diagnosisItems) && diagnosisItems.length > 0) return true;
-  return false;
-}
-
-function collectBodyRows({
-  outers,
-  bodyPanels,
-  bodyChanged,
-  paintPartTypes,
-  seriousTypes,
-  diagnosisItems,
-}: {
-  outers: unknown;
-  bodyPanels: unknown;
-  bodyChanged: unknown;
-  paintPartTypes: unknown;
-  seriousTypes: unknown;
-  diagnosisItems: unknown;
-}): { external: BodyRow[]; internal: BodyRow[] } {
-  const rows: BodyRow[] = [];
-  if (Array.isArray(bodyPanels)) {
-    for (const panel of bodyPanels) {
-      if (!panel || typeof panel !== "object") continue;
-      const p = panel as Record<string, unknown>;
-      const part = translateKoToRuText(asStr(p.part) ?? asStr(p.name) ?? "");
-      const status = normalizeBodyStatus(asStr(p.status) ?? "Оригинал");
-      const sectionRaw = asStr(p.section)?.toLowerCase();
-      const section = sectionRaw === "internal" || sectionRaw === "external" ? sectionRaw : undefined;
-      if (part && status) rows.push({ part, status, section });
-    }
-  }
-  if (Array.isArray(outers)) {
-    for (const item of outers) {
-      if (!item || typeof item !== "object") continue;
-      const o = item as Record<string, unknown>;
-      const partRaw =
-        asStr(o.partName) ??
-        asStr(o.part) ??
-        asStr(o.name) ??
-        asStr(o.title) ??
-        asStr(getPath(o, ["type", "title"])) ??
-        "";
-      const statusTypes = getPath(o, ["statusTypes"]);
-      const firstStatus =
-        Array.isArray(statusTypes) && statusTypes[0] && typeof statusTypes[0] === "object"
-          ? asStr(getPath(statusTypes[0], ["title"]))
-          : null;
-      const part = normalizeBodyPartName(partRaw);
-      const status = normalizeBodyStatus(
-        asStr(getPath(o, ["statusType", "title"])) ??
-          firstStatus ??
-          asStr(o.status) ??
-          asStr(o.result) ??
-          "Оригинал",
-      );
-      if (part && status) {
-        rows.push({ part, status, section: isInternalBodyPart(part) ? "internal" : "external" });
-      }
-    }
-  }
-  if (bodyChanged && typeof bodyChanged === "object" && !Array.isArray(bodyChanged)) {
-    for (const [k, v] of Object.entries(bodyChanged as Record<string, unknown>)) {
-      const part = translateKoToRuText(k);
-      const status = normalizeBodyStatus(asStr(v) ?? "Замена");
-      if (part && status) {
-        rows.push({ part, status, section: isInternalBodyPart(part) ? "internal" : "external" });
-      }
-    }
-  }
-  if (Array.isArray(paintPartTypes)) {
-    for (const x of paintPartTypes) {
-      const part = translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x));
-      if (part) rows.push({ part, status: "Окрас", section: isInternalBodyPart(part) ? "internal" : "external" });
-    }
-  }
-  if (Array.isArray(seriousTypes)) {
-    for (const x of seriousTypes) {
-      const part = translateKoToRuText(typeof x === "object" ? formatInspectionListItem(x) : String(x));
-      if (part) rows.push({ part, status: "Повреждение", section: isInternalBodyPart(part) ? "internal" : "external" });
-    }
-  }
-  if (Array.isArray(diagnosisItems)) {
-    const nameMap: Record<string, { part: string; section: "external" | "internal" }> = {
-      FRONT_DOOR_LEFT: { part: "Левая передняя дверь", section: "external" },
-      FRONT_DOOR_RIGHT: { part: "Правая передняя дверь", section: "external" },
-      BACK_DOOR_LEFT: { part: "Левая задняя дверь", section: "external" },
-      BACK_DOOR_RIGHT: { part: "Правая задняя дверь", section: "external" },
-      HOOD: { part: "Капот", section: "external" },
-      TRUNK_LID: { part: "Крышка багажника", section: "external" },
-      FRONT_FENDER_LEFT: { part: "Левое переднее крыло", section: "external" },
-      FRONT_FENDER_RIGHT: { part: "Правое переднее крыло", section: "external" },
-      REAR_FENDER_LEFT: { part: "Левое заднее крыло", section: "external" },
-      REAR_FENDER_RIGHT: { part: "Правое заднее крыло", section: "external" },
-      BACK_FENDER_LEFT: { part: "Левое заднее крыло", section: "external" },
-      BACK_FENDER_RIGHT: { part: "Правое заднее крыло", section: "external" },
-      FRONT_FENDER: { part: "Передние крылья", section: "external" },
-      FRONT_DOOR: { part: "Передние двери", section: "external" },
-      BACK_DOOR: { part: "Задние двери", section: "external" },
-      FRONT_PANEL_INSIDE_PANEL: { part: "Передняя панель / внутренняя панель", section: "internal" },
-      FRONT_WHEEL_HOUSING_REAR_WHEEL_HOUSING: { part: "Арки колес (перед/зад)", section: "internal" },
-      PILLAR_PANEL_DASH_PANEL_FLOOR_PANEL: { part: "Стойки / щиток / пол", section: "internal" },
-      SIDE_SILL_PANEL_QUARTER_PANEL: { part: "Пороги / четверти кузова", section: "internal" },
-      REAR_PANEL_TRUNK_FLOOR: { part: "Задняя панель / пол багажника", section: "internal" },
-      SIDE_MEMBER_LOOP_PANEL_PACKAGE_TRAY: { part: "Лонжероны / полка багажника", section: "internal" },
-    };
-    const codeMap: Record<string, string> = {
-      NORMAL: "Оригинал",
-      REPLACEMENT: "Замена",
-      PAINT: "Окрас",
-      REPAIR: "Ремонт",
-    };
-    for (const item of diagnosisItems) {
-      if (!item || typeof item !== "object") continue;
-      const it = item as Record<string, unknown>;
-      const name = asStr(it.name) ?? "";
-      const mapped = nameMap[name];
-      if (!mapped) continue;
-      const code = asStr(it.resultCode) ?? asStr(it.resultCodeType);
-      const rawResult = asStr(it.result);
-      const status = normalizeBodyStatus((code ? codeMap[code] : null) ?? rawResult ?? "Оригинал");
-      rows.push({ part: mapped.part, status, section: mapped.section });
-    }
-  }
-  const uniq = new Map<string, BodyRow>();
-  for (const r of rows) {
-    const k = r.part.trim().toLowerCase();
-    const prev = uniq.get(k);
-    if (!prev || bodyStatusWeight(r.status) > bodyStatusWeight(prev.status)) {
-      uniq.set(k, { part: r.part, status: normalizeBodyStatus(r.status), section: r.section });
-    }
-  }
-  const out = Array.from(uniq.values());
-  const external = out.filter((r) => r.section === "external" || (r.section == null && !isInternalBodyPart(r.part)));
-  const internal = out.filter((r) => r.section === "internal" || (r.section == null && isInternalBodyPart(r.part)));
-  return {
-    internal: withOriginalDefaults(internal, "internal"),
-    external: withOriginalDefaults(external, "external"),
-  };
 }
 
 function BodyConditionSection({
@@ -359,7 +102,7 @@ function BodyConditionSection({
   seriousTypes,
   diagnosisItems,
   accident,
-  simpleRepair,
+  simpleRepair: _simpleRepair,
 }: {
   outers: unknown;
   bodyPanels: unknown;
@@ -370,6 +113,8 @@ function BodyConditionSection({
   accident: unknown;
   simpleRepair: unknown;
 }) {
+  void _simpleRepair;
+  const { t } = useCarAccI18n();
   const reduceMotion = useReducedMotion();
   const hasStructured = useMemo(
     () =>
@@ -393,10 +138,10 @@ function BodyConditionSection({
   const tabs = useMemo(
     () =>
       [
-        { key: "external" as const, title: "Внешние элементы", rows: groups.external },
-        { key: "internal" as const, title: "Внутренние элементы", rows: groups.internal },
+        { key: "external" as const, title: t("car.accordions.bodyExternal"), rows: groups.external },
+        { key: "internal" as const, title: t("car.accordions.bodyInternal"), rows: groups.internal },
       ] as const,
-    [groups.external, groups.internal],
+    [groups.external, groups.internal, t],
   );
   const [activeTab, setActiveTab] = useState<"external" | "internal">("external");
   useEffect(() => {
@@ -407,39 +152,26 @@ function BodyConditionSection({
 
   if (!hasStructured && !encarAccident) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Нет данных инспекции кузова по этому объявлению.
-      </p>
+      <p className="text-sm text-muted-foreground">{t("car.accordions.bodyNoInspection")}</p>
     );
   }
 
   if (!tabs.some((t) => t.rows.length > 0)) {
-    return <p className="text-sm text-muted-foreground">Повреждений не зафиксировано, элементы кузова в исходном состоянии.</p>;
+    return <p className="text-sm text-muted-foreground">{t("car.accordions.bodyNoDamage")}</p>;
   }
   return (
     <div className="space-y-3">
       {encarAccident ? (
         <div className="rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 text-xs leading-snug text-amber-950 dark:border-amber-900/55 dark:bg-amber-950/35 dark:text-amber-50">
-          <p className="[overflow-wrap:anywhere]">
-            По сводке продавца отмечены следы ДТП / силовые элементы. Проверьте также блок страховой истории и
-            диагностику.
-          </p>
+          <p className="[overflow-wrap:anywhere]">{t("car.accordions.bodyAccidentWarn")}</p>
         </div>
       ) : null}
-      <div className={SWITCH_BAR_CLASS}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            className={`${SWITCH_BUTTON_CLASS} ${
-              activeTab === tab.key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.title}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        value={activeTab}
+        onChange={setActiveTab}
+        items={tabs.map((tab) => ({ value: tab.key, label: tab.title }))}
+        aria-label={t("car.accordions.bodySectionsAria")}
+      />
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={activeTab}
@@ -460,7 +192,9 @@ function BodyConditionSection({
             </ul>
           ) : (
             <p className="rounded-xl border border-border/45 bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
-              По разделу «{activeTab === "internal" ? "Внутренние элементы" : "Внешние элементы"}» изменений не зафиксировано.
+              {t("car.accordions.bodySectionClear", {
+                section: activeTab === "internal" ? t("car.accordions.bodyInternal") : t("car.accordions.bodyExternal"),
+              })}
             </p>
           )}
         </motion.div>
@@ -535,6 +269,7 @@ function AccidentCases({
   title: string;
   krwRate: number;
 }) {
+  const { t } = useCarAccI18n();
   const list = items
     .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null))
     .filter((x): x is Record<string, unknown> => Boolean(x));
@@ -551,10 +286,10 @@ function AccidentCases({
           const laborCost = Number(a.laborCost ?? 0);
           const paintCost = Number(a.paintingCost ?? 0);
           const hasBodyWork = Number.isFinite(partCost + laborCost + paintCost) && partCost + laborCost + paintCost > 0;
-          const kind = hasBodyWork ? "Кузовной/ремонтный случай" : "Технический/гарантийный случай";
+          const kind = hasBodyWork ? t("car.accordions.accidentBody") : t("car.accordions.accidentTech");
           const rubOrNone = (v: unknown): string => {
             const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/\s/g, ""));
-            if (!Number.isFinite(n) || n <= 0) return "Нет";
+            if (!Number.isFinite(n) || n <= 0) return t("car.accordions.none");
             return formatPriceLabel(n * krwRate);
           };
           const part = rubOrNone(a.partCost);
@@ -568,10 +303,10 @@ function AccidentCases({
                 <Badge variant="outline">{kind}</Badge>
               </div>
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                <p><span className="text-muted-foreground">Запчасти:</span> {part}</p>
-                <p><span className="text-muted-foreground">Работы:</span> {labor}</p>
-                <p><span className="text-muted-foreground">Покраска:</span> {paint}</p>
-                <p><span className="text-muted-foreground">Страховая выплата:</span> {payout}</p>
+                <p><span className="text-muted-foreground">{t("car.accordions.parts")}</span> {part}</p>
+                <p><span className="text-muted-foreground">{t("car.accordions.labor")}</span> {labor}</p>
+                <p><span className="text-muted-foreground">{t("car.accordions.paint")}</span> {paint}</p>
+                <p><span className="text-muted-foreground">{t("car.accordions.payout")}</span> {payout}</p>
               </div>
             </li>
           );
@@ -582,6 +317,7 @@ function AccidentCases({
 }
 
 function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
+  const { t } = useCarAccI18n();
   const reduceMotion = useReducedMotion();
   const [krwRate, setKrwRate] = useState<number | null>(null);
   const krwRubRateSafe = krwRate && Number.isFinite(krwRate) && krwRate > 0 ? krwRate : 0.0539;
@@ -632,29 +368,35 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   const floodPartCnt = asCount(ro.floodPartLossCnt);
   const theftCnt = asCount(ro.robberCnt);
 
-  add("ДТП по текущему авто", String(myAccCnt));
-  add("Сумма страховых выплат по текущему авто", ro.myAccidentCost, (v) => {
+  add(t("car.accordions.insMyAccidents"), String(myAccCnt));
+  add(t("car.accordions.insMyPayout"), ro.myAccidentCost, (v) => {
     const n = asCount(v);
-    if (n <= 0) return "Нет";
+    if (n <= 0) return t("car.accordions.none");
     return rubFromKrw(v);
   });
-  add("Конструктивная гибель", totalLossCnt > 0 ? `Да (${totalLossCnt})` : "Нет");
   add(
-    "Затопления",
-    floodTotalCnt > 0 || floodPartCnt > 0
-      ? `Тотал: ${floodTotalCnt}, частичное: ${floodPartCnt}`
-      : "Нет",
+    t("car.accordions.insTotalLoss"),
+    totalLossCnt > 0 ? t("car.accordions.yesCount", { count: totalLossCnt }) : t("car.accordions.none"),
   );
-  add("Угон", theftCnt > 0 ? `Да, случаев: ${theftCnt}` : "Нет");
-  add("Отзывные кампании", ro.recall, (v) => {
-    const t = translateKoToRuText(String(v ?? "")).trim();
-    if (!t || t === "0" || t.toLowerCase() === "none") return "Нет";
-    return t;
+  add(
+    t("car.accordions.insFlood"),
+    floodTotalCnt > 0 || floodPartCnt > 0
+      ? t("car.accordions.flood", { total: floodTotalCnt, partial: floodPartCnt })
+      : t("car.accordions.none"),
+  );
+  add(
+    t("car.accordions.insTheft"),
+    theftCnt > 0 ? t("car.accordions.yesTheft", { count: theftCnt }) : t("car.accordions.none"),
+  );
+  add(t("car.accordions.insRecall"), ro.recall, (v) => {
+    const raw = translateKoToRuText(String(v ?? "")).trim();
+    if (!raw || raw === "0" || raw.toLowerCase() === "none") return t("car.accordions.none");
+    return raw;
   });
-  add("Статус выполнения отзывных кампаний", ro.recallFullFillTypes, (v) => {
-    const t = translateKoToRuText(String(v ?? "")).trim();
-    if (!t || t === "0" || t.toLowerCase() === "none") return "Нет данных";
-    return t;
+  add(t("car.accordions.insRecallStatus"), ro.recallFullFillTypes, (v) => {
+    const raw = translateKoToRuText(String(v ?? "")).trim();
+    if (!raw || raw === "0" || raw.toLowerCase() === "none") return t("car.accordions.noDataShort");
+    return raw;
   });
 
   const accidents = ro.accidents;
@@ -677,33 +419,22 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
       <SpecGrid rows={rows} />
       {ownersCount > 0 ? (
         <div className="rounded-xl border border-border/50 bg-muted/10 px-3 py-2">
-          <p className="text-xs text-muted-foreground">Собственники</p>
-          <p className="text-sm font-medium">Собственников авто в Корее: {ownersCount}</p>
+          <p className="text-xs text-muted-foreground">{t("car.accordions.ownersLabel")}</p>
+          <p className="text-sm font-medium">{t("car.accordions.ownersCount", { count: ownersCount })}</p>
         </div>
       ) : null}
       {Array.isArray(accidents) && accidents.length > 0 ? (
         <div className="space-y-3">
           {hasOtherCases ? (
-            <div className={SWITCH_BAR_CLASS}>
-              <button
-                type="button"
-                onClick={() => setInsuranceTab("mine")}
-                className={`${SWITCH_BUTTON_CLASS} ${
-                  insuranceTab === "mine" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                По текущему авто
-              </button>
-              <button
-                type="button"
-                onClick={() => setInsuranceTab("other")}
-                className={`${SWITCH_BUTTON_CLASS} ${
-                  insuranceTab === "other" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Соучастник(и) ДТП
-              </button>
-            </div>
+            <SegmentedControlScroll
+              value={insuranceTab}
+              onChange={setInsuranceTab}
+              items={[
+                { value: "mine", label: t("car.accordions.insTabMine") },
+                { value: "other", label: t("car.accordions.insTabOther") },
+              ]}
+              aria-label={t("car.accordions.insCasesAria")}
+            />
           ) : null}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -716,7 +447,11 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
             >
               <AccidentCases
                 items={insuranceTab === "other" ? otherCases : mineCases}
-                title={insuranceTab === "other" ? "Страховые случаи соучастников ДТП" : "Страховые случаи по текущему авто"}
+                title={
+                  insuranceTab === "other"
+                    ? t("car.accordions.insCasesOther")
+                    : t("car.accordions.insCasesMine")
+                }
                 krwRate={krwRubRateSafe}
               />
             </motion.div>
@@ -728,6 +463,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
 }
 
 function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
+  const { t } = useCarAccI18n();
   const reduceMotion = useReducedMotion();
   const options = d.options as Record<string, unknown> | undefined;
   const standard = options?.standard;
@@ -737,11 +473,20 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   );
   const chinaRecommendedFallback = useMemo(() => collectChinaHighlightLabels(d), [d]);
   const chinaRecommended = useMemo(() => {
-    if (!Array.isArray(chinaRecommendedRaw)) return chinaRecommendedFallback;
-    const out: string[] = [];
+    if (!Array.isArray(chinaRecommendedRaw)) return chinaRecommendedFallback.map((label) => ({ label, raw: label }));
+    const out: Array<{ label: string; raw: string }> = [];
     const seen = new Set<string>();
     for (const item of chinaRecommendedRaw) {
-      const raw = typeof item === "string" ? item : item && typeof item === "object" ? asStr((item as Record<string, unknown>).name) ?? asStr((item as Record<string, unknown>).value) ?? String(item) : item != null ? String(item) : "";
+      const raw =
+        typeof item === "string"
+          ? item
+          : item && typeof item === "object"
+            ? (asStr((item as Record<string, unknown>).name) ??
+              asStr((item as Record<string, unknown>).value) ??
+              String(item))
+            : item != null
+              ? String(item)
+              : "";
       const ru =
         displayChinaOptionRu(raw) ||
         displayChinaOptionRu(translateKoToRuText(raw)) ||
@@ -749,9 +494,11 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
         raw.trim();
       if (!isMeaningfulOptionLabel(ru) || seen.has(ru)) continue;
       seen.add(ru);
-      out.push(ru);
+      out.push({ label: ru, raw });
     }
-    return out.length ? out : chinaRecommendedFallback;
+    return out.length
+      ? out
+      : chinaRecommendedFallback.map((label) => ({ label, raw: label }));
   }, [chinaRecommendedRaw, chinaRecommendedFallback]);
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
@@ -787,16 +534,16 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   );
   const allLabels = useMemo(() => {
     const seen = new Set<string>();
-    const out: string[] = [];
-    const push = (v: string) => {
-      const t = cleanScalarText(v);
+    const out: Array<{ label: string; raw: string }> = [];
+    const push = (label: string, raw = label) => {
+      const t = cleanScalarText(label);
       if (!t || /^Опция\s+\d+$/i.test(t) || seen.has(t)) return;
       seen.add(t);
-      out.push(t);
+      out.push({ label: t, raw });
     };
-    for (const v of chinaRecommended) push(v);
-    for (const v of selectedLabels) push(v);
-    for (const v of staticCodesAll) push(v);
+    for (const row of chinaRecommended) push(row.label, row.raw);
+    for (const v of selectedLabels) push(v, v);
+    for (const v of staticCodesAll) push(v, v);
     return out;
   }, [chinaRecommended, selectedLabels, staticCodesAll]);
   const hasAnyRenderedOptions = allLabels.length > 0;
@@ -811,36 +558,23 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       media: [],
       other: [],
     };
-    const hasAny = (s: string, kws: string[]) => kws.some((k) => s.includes(k));
-    for (const raw of allLabels) {
-      const s = raw.toLowerCase();
-      if (hasAny(s, ["круиз", "ассист", "удерж", "полос", "автопарков", "парковк", "слеп", "lane", "blind"])) {
-        buckets.assist.push(raw);
-      } else if (hasAny(s, ["интерьер", "экстерь", "салон", "сиден", "руль", "люк", "панорам", "зеркал", "диск"])) {
-        buckets.interior.push(raw);
-      } else if (hasAny(s, ["airbag", "подуш", "abs", "esp", "esc", "тормоз", "безопас", "столкнов"])) {
-        buckets.safety.push(raw);
-      } else if (hasAny(s, ["подогрев", "вентиляц", "климат", "кондиц", "электропривод", "багажник", "память"])) {
-        buckets.comfort.push(raw);
-      } else if (hasAny(s, ["мультимед", "навигац", "carplay", "android auto", "bluetooth", "аудио", "дисплей", "hud"])) {
-        buckets.media.push(raw);
-      } else {
-        buckets.other.push(raw);
-      }
+    for (const { label, raw } of allLabels) {
+      const key = classifyChinaOptionGroup(label, raw);
+      buckets[key].push(label);
     }
     return buckets;
   }, [allLabels]);
   const groupMeta = useMemo(() => {
     const base: ReadonlyArray<{ key: OptGroupKey; title: string }> = [
-      { key: "assist", title: "Ассистенты" },
-      { key: "interior", title: "Интерьер и экстерьер" },
-      { key: "safety", title: "Безопасность" },
-      { key: "comfort", title: "Комфорт" },
-      { key: "media", title: "Мультимедиа" },
-      { key: "other", title: "Прочее" },
+      { key: "assist", title: t("car.accordions.equipAssist") },
+      { key: "interior", title: t("car.accordions.equipInterior") },
+      { key: "safety", title: t("car.accordions.equipSafety") },
+      { key: "comfort", title: t("car.accordions.equipComfort") },
+      { key: "media", title: t("car.accordions.equipMedia") },
+      { key: "other", title: t("car.accordions.equipOther") },
     ];
     return base.filter((g) => grouped[g.key].length > 0);
-  }, [grouped]);
+  }, [grouped, t]);
   const [activeGroup, setActiveGroup] = useState<OptGroupKey>("assist");
   useEffect(() => {
     if (!groupMeta.length) return;
@@ -851,24 +585,16 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   return (
     <div className="space-y-5">
       {!hasAnyRenderedOptions ? (
-        <p className="text-sm text-muted-foreground">По этой карточке опции не распознаны.</p>
+        <p className="text-sm text-muted-foreground">{t("car.accordions.equipNone")}</p>
       ) : (
         <div className="space-y-3">
           {groupMeta.length > 1 ? (
-            <div className={SWITCH_BAR_CLASS}>
-              {groupMeta.map((g) => (
-                <button
-                  key={g.key}
-                  type="button"
-                  onClick={() => setActiveGroup(g.key)}
-                  className={`${SWITCH_BUTTON_CLASS} ${
-                    activeGroup === g.key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {g.title}
-                </button>
-              ))}
-            </div>
+            <SegmentedControlScroll
+              value={activeGroup}
+              onChange={setActiveGroup}
+              items={groupMeta.map((g) => ({ value: g.key, label: g.title }))}
+              aria-label={t("car.accordions.equipGroupsAria")}
+            />
           ) : null}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -894,16 +620,16 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
   );
 }
 
-function normalizeDiagLabel(raw: string): string {
-  const t = raw.toLowerCase();
-  if (t.includes("водяной насос")) return "Насос системы охлаждения";
-  if (t.includes("common rail")) return raw.replace(/\s*\(common rail\)\s*/gi, "");
+function normalizeDiagLabel(raw: string, tr: TI18n): string {
+  const low = raw.toLowerCase();
+  if (low.includes("водяной насос")) return tr("car.accordions.diagCoolantPump");
+  if (low.includes("common rail")) return raw.replace(/\s*\(common rail\)\s*/gi, "");
   return raw;
 }
 
-function normalizeDiagValue(raw: string): string {
-  const t = raw.trim().toLowerCase();
-  if (t === "нет") return "В норме";
+function normalizeDiagValue(raw: string, tr: TI18n): string {
+  const low = raw.trim().toLowerCase();
+  if (low === "нет") return tr("car.accordions.diagOk");
   return raw;
 }
 
@@ -917,7 +643,10 @@ function jsonForDiagPreview(v: object): string {
   }
 }
 
-function toStructuredDiagRows(obj: Record<string, unknown> | undefined): Array<{ label: string; value: string }> {
+function toStructuredDiagRows(
+  obj: Record<string, unknown> | undefined,
+  tr: TI18n,
+): Array<{ label: string; value: string }> {
   if (!obj) return [];
   return Object.entries(obj)
     .map(([k, v]) => {
@@ -928,8 +657,8 @@ function toStructuredDiagRows(obj: Record<string, unknown> | undefined): Array<{
           : "";
       const cleaned = cleanScalarText(base);
       if (!cleaned) return null;
-      const ruLabel = normalizeDiagLabel(translateKoToRuText(prettifyDataKey(k)));
-      const ruValue = normalizeDiagValue(translateKoToRuText(cleaned));
+      const ruLabel = normalizeDiagLabel(translateKoToRuText(prettifyDataKey(k)), tr);
+      const ruValue = normalizeDiagValue(translateKoToRuText(cleaned), tr);
       return { label: ruLabel, value: ruValue };
     })
     .filter((x): x is { label: string; value: string } => Boolean(x));
@@ -942,6 +671,8 @@ export function CarDetailAccordions({
   data: Record<string, unknown>;
   diagnosisPhotosCount: number;
 }) {
+  const { t, locale } = useLocaleContext();
+  const i18n = useMemo(() => ({ t, locale }), [t, locale]);
   const reduceMotion = useReducedMotion();
   void diagnosisPhotosCount;
   const extra =
@@ -970,38 +701,60 @@ export function CarDetailAccordions({
 
   const power =
     ((): string | null => {
-      const hp =
-        parseHp((data as Record<string, unknown>).power_hp) ??
-        parseHp((data as Record<string, unknown>).power_kwhp) ??
+      const rec = data as Record<string, unknown>;
+      const systemHp =
+        parseHp(rec.power_hp) ??
+        parseHp(rec.power_hp_system) ??
         parseHp(data.power) ??
         parseHp(data.hp);
-      return hp ? `${hp} л.с.` : null;
+      const iceHp = parseHp(rec.power_ice_hp) ?? parseHp(rec.power_kwhp);
+      const edHp = parseHp(rec.power_electric_hp) ?? parseHp(rec.power_otherp);
+      const layout = String(rec.hybrid_layout ?? "").toLowerCase();
+      if (systemHp && iceHp && edHp && layout !== "series") {
+        return t("car.accordions.powerHybrid", { system: systemHp, ice: iceHp, ed: edHp });
+      }
+      if (systemHp && edHp && layout === "series") {
+        return t("car.accordions.powerSeries", { system: systemHp, ed: edHp });
+      }
+      if (systemHp) return t("car.accordions.powerHp", { hp: systemHp });
+      const hp = iceHp ?? parseHp(rec.power_kwhp) ?? parseHp(data.power) ?? parseHp(data.hp);
+      return hp ? t("car.accordions.powerHp", { hp }) : null;
     })();
   const transmissionRaw =
     normalizeSpecValue(data.transmission_type_ru) ??
     normalizeSpecValue(data.transmission_type) ??
     normalizeSpecValue((data as Record<string, unknown>).gearbox) ??
     normalizeSpecValue((data as Record<string, unknown>).transmission);
+  const transmissionSource =
+    transmissionRaw && /^\d{1,2}$/.test(transmissionRaw)
+      ? (normalizeSpecValue(data.transmission_type) ??
+        normalizeSpecValue((data as Record<string, unknown>).gearbox) ??
+        normalizeSpecValue((data as Record<string, unknown>).transmission) ??
+        transmissionRaw)
+      : transmissionRaw;
   const transmission = (() => {
-    if (!transmissionRaw) return null;
-    if (/[а-яёА-ЯЁ]/.test(transmissionRaw)) return transmissionRaw;
-    const mapped = displayTransmissionRu(transmissionRaw);
-    if (mapped && mapped !== transmissionRaw) return mapped;
-    if (/^\d{1,2}$/.test(transmissionRaw)) return `${transmissionRaw}-ст.`;
-    return mapped ?? transmissionRaw;
+    if (!transmissionSource) return null;
+    if (/[а-яёА-ЯЁ]/.test(transmissionSource)) return transmissionSource;
+    const mapped = displayTransmission(locale, transmissionSource);
+    if (mapped && mapped !== transmissionSource) return mapped;
+    if (/^\d{1,2}$/.test(transmissionSource)) return t("car.accordions.transSteps", { n: transmissionSource });
+    return mapped ?? transmissionSource;
   })();
   const driveRaw =
     normalizeSpecValue(data.drive_type_ru) ??
     normalizeSpecValue(data.drive_type) ??
     normalizeSpecValue((data as Record<string, unknown>).drivemode) ??
     normalizeSpecValue((data as Record<string, unknown>).drivingmode);
-  const drive = driveRaw ? displayDriveTypeRu(driveRaw) ?? driveRaw : null;
+  const drive = driveRaw ? displayDriveType(locale, driveRaw) ?? driveRaw : null;
   const displacementText =
     normalizeSpecValue((data as Record<string, unknown>).displacement) ??
     ((): string | null => {
+      const liters = asStr((data as Record<string, unknown>).displacement_liters_label);
+      if (liters) return t("car.accordions.liters", { n: liters });
       const cc = Number((data as Record<string, unknown>).displacement_cc);
-      return Number.isFinite(cc) && cc > 0 ? `${Math.round(cc)} см3` : null;
+      return Number.isFinite(cc) && cc > 0 ? t("car.accordions.cc", { n: Math.round(cc) }) : null;
     })();
+  const engineLine = asStr((data as Record<string, unknown>).engine);
 
   const generalRows: { label: string; value: string }[] = [];
   const push = (label: string, v: string | null) => {
@@ -1009,7 +762,7 @@ export function CarDetailAccordions({
   };
 
   push(
-    "Наименование",
+    t("car.accordions.fieldTitle"),
     buildNormalizedCarTitle(
       data.mark,
       data.model,
@@ -1018,25 +771,30 @@ export function CarDetailAccordions({
     ) ??
       joinUniqueSpecs(data.mark, data.model, data.generation),
   );
-  push("Год / месяц", pickRegYearMonthDisplay(data as Record<string, unknown>));
+  push(t("car.accordions.fieldYearMonth"), pickRegYearMonthDisplay(data as Record<string, unknown>));
   push(
-    "Цвет",
+    t("car.accordions.fieldColor"),
     (() => {
       const cr = asStr(data.color_ru);
       if (cr) return cr;
       const c = asStr(data.color);
-      return c ? displayColorRu(c) ?? c : null;
+      return c ? displayColor(locale, c) ?? c : null;
     })(),
   );
-  push("Пробег", mileage);
+  push(t("car.accordions.fieldMileage"), mileage);
   push("VIN", vin);
   push(
-    "Двигатель / объём",
-    [normalizeFuelLabel(data.engine_type), displacementText].filter(Boolean).join(", ") || null,
+    t("car.accordions.fieldEngine"),
+    [engineLine, normalizeFuelLabel(data.engine_type), displacementText].filter(Boolean).join(", ") || null,
   );
-  push("КПП / привод", [transmission, drive].filter(Boolean).join(", ") || null);
-  push("Мощность", power);
-  push("Места", asStr(data.seatCount));
+  push(t("car.accordions.fieldTransDrive"), [transmission, drive].filter(Boolean).join(", ") || null);
+  push(t("car.accordions.fieldPower"), power);
+  const torqueNm = Number((data as Record<string, unknown>).torque_nm);
+  push(
+    t("car.accordions.fieldTorque"),
+    Number.isFinite(torqueNm) && torqueNm > 0 ? t("car.accordions.torqueNm", { n: Math.round(torqueNm) }) : null,
+  );
+  push(t("car.accordions.fieldSeats"), asStr(data.seatCount));
 
   const paintPartTypes = detail?.paintPartTypes ?? getPath(detail, ["paintPartTypes"]);
   const seriousTypes = detail?.seriousTypes ?? getPath(detail, ["seriousTypes"]);
@@ -1078,12 +836,12 @@ export function CarDetailAccordions({
   const diagSections = useMemo(
     () =>
       [
-        { key: "engine", label: "Двигатель", rows: toStructuredDiagRows(engineTransmission) },
-        { key: "chassis", label: "Ходовая и тормоза", rows: toStructuredDiagRows(chassis) },
-        { key: "electrical", label: "Электрика", rows: toStructuredDiagRows(electrical) },
-        { key: "additional", label: "Дополнительно", rows: toStructuredDiagRows(additional) },
+        { key: "engine", label: t("car.accordions.diagEngine"), rows: toStructuredDiagRows(engineTransmission, t) },
+        { key: "chassis", label: t("car.accordions.diagChassis"), rows: toStructuredDiagRows(chassis, t) },
+        { key: "electrical", label: t("car.accordions.diagElectrical"), rows: toStructuredDiagRows(electrical, t) },
+        { key: "additional", label: t("car.accordions.diagAdditional"), rows: toStructuredDiagRows(additional, t) },
       ].filter((x) => x.rows.length > 0),
-    [engineTransmission, chassis, electrical, additional],
+    [engineTransmission, chassis, electrical, additional, t],
   );
   const [activeDiagTab, setActiveDiagTab] = useState<string>(diagSections[0]?.key ?? "engine");
   const activeDiag = diagSections.find((x) => x.key === activeDiagTab) ?? diagSections[0];
@@ -1095,15 +853,16 @@ export function CarDetailAccordions({
   }, [diagSections, activeDiagTab]);
 
   return (
+    <CarAccI18nCtx.Provider value={i18n}>
     <Accordion
       type="multiple"
       value={openSections}
       onValueChange={setOpenSections}
-      className="mt-6 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.07] sm:rounded-3xl"
+      className="mt-6 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm ring-1 ring-elevated-ring sm:rounded-3xl"
     >
       <AccordionItem value="general" className="first:rounded-t-3xl">
         <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          Общая информация
+          {t("car.accordions.sectionGeneral")}
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
           <SpecGrid rows={generalRows} />
@@ -1112,7 +871,7 @@ export function CarDetailAccordions({
 
       <AccordionItem value="equipment">
         <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          Комплектация
+          {t("car.accordions.sectionEquipment")}
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
           {openSections.includes("equipment") ? <EquipmentSection d={data} extra={extra} /> : null}
@@ -1121,7 +880,7 @@ export function CarDetailAccordions({
 
       <AccordionItem value="body">
         <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          Состояние кузова
+          {t("car.accordions.sectionBody")}
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
           {openSections.includes("body") ? (
@@ -1143,29 +902,22 @@ export function CarDetailAccordions({
 
       <AccordionItem value="diagnosis">
         <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          Диагностика и техсостояние
+          {t("car.accordions.sectionDiagnosis")}
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
           {openSections.includes("diagnosis") ? (
             <div className="space-y-5">
               {diagSections.length > 0 ? (
                 <div className="space-y-3">
-                  <div className={SWITCH_BAR_CLASS}>
-                    {diagSections.map((section) => (
-                      <button
-                        key={section.key}
-                        type="button"
-                        onClick={() => setActiveDiagTab(section.key)}
-                        className={`${SWITCH_BUTTON_CLASS} ${
-                          activeDiag?.key === section.key
-                            ? "bg-background shadow-sm text-foreground"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {section.label}
-                      </button>
-                    ))}
-                  </div>
+                  <SegmentedControlScroll
+                    value={activeDiagTab}
+                    onChange={setActiveDiagTab}
+                    items={diagSections.map((section) => ({
+                      value: section.key,
+                      label: section.label,
+                    }))}
+                    aria-label={t("car.accordions.diagSectionsAria")}
+                  />
                   <AnimatePresence mode="wait" initial={false}>
                     {activeDiag ? (
                       <motion.div
@@ -1189,7 +941,7 @@ export function CarDetailAccordions({
                   </AnimatePresence>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Подробная карта диагностики в источнике недоступна. Показываем подтвержденные данные из отчета.</p>
+                <p className="text-sm text-muted-foreground">{t("car.accordions.diagUnavailable")}</p>
               )}
             </div>
           ) : null}
@@ -1198,19 +950,20 @@ export function CarDetailAccordions({
 
       <AccordionItem value="insurance">
         <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          Страховые случаи и история
+          {t("car.accordions.sectionInsurance")}
         </AccordionTrigger>
         <AccordionContent className="px-4 sm:px-5">
           {openSections.includes("insurance") ? (
             recordOpen && Object.keys(recordOpen).length > 0 ? (
               <RecordOpenSection ro={recordOpen} />
             ) : (
-              <p className="text-sm text-muted-foreground">Страховая история в источнике не опубликована. По запросу менеджер уточнит данные у продавца.</p>
+              <p className="text-sm text-muted-foreground">{t("car.accordions.insUnavailable")}</p>
             )
           ) : null}
         </AccordionContent>
       </AccordionItem>
 
     </Accordion>
+    </CarAccI18nCtx.Provider>
   );
 }

@@ -46,14 +46,16 @@ export async function fetchSearchClient(
   params: URLSearchParams,
   options?: { signal?: AbortSignal },
 ): Promise<SearchResponse> {
-  return readJsonReliable<SearchResponse>(clientSearchUrl(params), options?.signal);
+  const { openApiFetchCatalogSearchAlias } = await import("@/lib/openapi-fetch-client");
+  return openApiFetchCatalogSearchAlias(params, options);
 }
 
 export async function fetchFacetsClient(
   params: URLSearchParams,
   options?: { signal?: AbortSignal },
 ): Promise<FacetsResponse> {
-  return readJsonReliable<FacetsResponse>(clientFacetsUrl(params), options?.signal);
+  const { openApiFetchFacets } = await import("@/lib/openapi-fetch-client");
+  return openApiFetchFacets(params, options);
 }
 
 export async function fetchCatalogDailyAdditions(
@@ -175,6 +177,114 @@ export async function importFavoritesClient(
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return (await res.json()) as AuthSimpleOk;
+}
+
+export type SubscriptionItem = {
+  id: string;
+  name: string;
+  filters: Record<string, unknown>;
+  query_string: string;
+  market: Market;
+  notify_enabled: boolean;
+  last_notified_at: string | null;
+  created_at: string | null;
+};
+
+export async function fetchSubscriptionsClient(options?: {
+  signal?: AbortSignal;
+}): Promise<{ result: SubscriptionItem[] }> {
+  const base = getPublicApiBase();
+  return readJson(`${base}/api/subscriptions`, options?.signal);
+}
+
+export async function createSubscriptionClient(
+  payload: {
+    name: string;
+    filters: Record<string, string>;
+    query_string: string;
+    market: Market;
+    notify_enabled?: boolean;
+  },
+  options?: { signal?: AbortSignal },
+): Promise<AuthSimpleOk> {
+  const base = getPublicApiBase();
+  const res = await fetch(`${base}/api/subscriptions`, {
+    method: "POST",
+    cache: "no-store",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal: options?.signal,
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return (await res.json()) as AuthSimpleOk;
+}
+
+export async function deleteSubscriptionClient(
+  id: string,
+  options?: { signal?: AbortSignal },
+): Promise<AuthSimpleOk> {
+  const base = getPublicApiBase();
+  const res = await fetch(`${base}/api/subscriptions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    cache: "no-store",
+    credentials: "include",
+    headers: { Accept: "application/json" },
+    signal: options?.signal,
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return (await res.json()) as AuthSimpleOk;
+}
+
+export async function patchSubscriptionClient(
+  id: string,
+  payload: { notify_enabled?: boolean; name?: string },
+  options?: { signal?: AbortSignal },
+): Promise<AuthSimpleOk> {
+  const base = getPublicApiBase();
+  const res = await fetch(`${base}/api/subscriptions/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    cache: "no-store",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal: options?.signal,
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return (await res.json()) as AuthSimpleOk;
+}
+
+export type CompareCarRow = {
+  id: string;
+  title: string;
+  mark?: string | null;
+  model?: string | null;
+  year?: string | number | null;
+  mileage_km?: number | null;
+  price_rub?: number | null;
+  fuel?: string | null;
+  transmission?: string | null;
+  power_hp?: number | null;
+  body_type?: string | null;
+  drive_type?: string | null;
+  source?: string | null;
+  thumb_url?: string | null;
+  url_path: string;
+};
+
+export async function fetchCompareClient(
+  ids: string[],
+  options?: { signal?: AbortSignal },
+): Promise<{ result: CompareCarRow[] }> {
+  const base = getPublicApiBase();
+  const q = ids.map((id) => encodeURIComponent(id)).join(",");
+  return readJsonReliable(`${base}/api/compare?ids=${q}`, options?.signal);
 }
 
 export async function translateTextClient(

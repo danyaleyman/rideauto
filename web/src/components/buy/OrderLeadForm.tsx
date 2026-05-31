@@ -11,8 +11,10 @@ import { LeadContactMethodField } from "@/components/buy/LeadContactMethodField"
 import { leadContactMethodLabel, type LeadContactMethodValue } from "@/lib/lead-contact-options";
 import { submitLeadRequest } from "@/lib/lead-client";
 import { LEAD_MESSAGE_MIN_LEN, validateLeadFullName } from "@/lib/lead-form-validation";
+import { useLocaleContext } from "@/components/LocaleProvider";
 
 export function OrderLeadForm() {
+  const { t } = useLocaleContext();
   const [fullName, setFullName] = useState("");
   const [contactMethod, setContactMethod] = useState<LeadContactMethodValue>("telegram");
   const [message, setMessage] = useState("");
@@ -34,7 +36,7 @@ export function OrderLeadForm() {
       return;
     }
     if (message.trim().length < LEAD_MESSAGE_MIN_LEN) {
-      setMessageError(`Опишите запрос не короче ${LEAD_MESSAGE_MIN_LEN} символов`);
+      setMessageError(t("buy.messageTooShort", { min: LEAD_MESSAGE_MIN_LEN }));
       return;
     }
 
@@ -60,19 +62,17 @@ export function OrderLeadForm() {
   return (
     <section
       id="order-lead"
-      className="mt-10 scroll-mt-24 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06] sm:p-8"
+      className="mt-10 scroll-mt-24 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm ring-1 ring-elevated-ring sm:p-8"
       aria-labelledby="order-lead-heading"
     >
       <h2 id="order-lead-heading" className="text-xl font-semibold tracking-tight text-foreground">
-        Оставить заявку
+        {t("buy.formTitle")}
       </h2>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Заполните форму — ответим и подскажем по срокам и стоимости. Заявка уходит на почту менеджера.
-      </p>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{t("buy.formHint")}</p>
 
       <form onSubmit={onSubmit} className="mt-6 grid max-w-xl gap-5">
         <div className="grid gap-2">
-          <Label htmlFor="lead-full-name">ФИО</Label>
+          <Label htmlFor="lead-full-name">{t("buy.fullName")}</Label>
           <Input
             id="lead-full-name"
             name="full_name"
@@ -85,7 +85,7 @@ export function OrderLeadForm() {
               setFullName(e.target.value);
               if (fullNameError) setFullNameError("");
             }}
-            placeholder="Иванов Иван Иванович"
+            placeholder={t("buy.namePlaceholder")}
             className={cn("rounded-2xl", fullNameError && "border-destructive focus-visible:ring-destructive/30")}
             aria-invalid={Boolean(fullNameError)}
             aria-describedby={fullNameError ? "lead-full-name-error" : undefined}
@@ -105,7 +105,7 @@ export function OrderLeadForm() {
         />
 
         <div className="grid gap-2">
-          <Label htmlFor="lead-message">Автомобиль и пожелания</Label>
+          <Label htmlFor="lead-message">{t("buy.message")}</Label>
           <textarea
             id="lead-message"
             name="message"
@@ -118,7 +118,7 @@ export function OrderLeadForm() {
               setMessage(e.target.value);
               if (messageError) setMessageError("");
             }}
-            placeholder="Опишите, какой автомобиль интересует (марка, год, бюджет), с какого рынка (Корея / Китай) или вставьте ссылку на объявление."
+            placeholder={t("buy.messagePlaceholder")}
             className={cn(
               "w-full min-w-0 resize-y rounded-2xl border border-transparent bg-input/50 px-3 py-2.5 text-base outline-none transition-[color,box-shadow,background-color]",
               "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 md:text-sm",
@@ -140,15 +140,15 @@ export function OrderLeadForm() {
               checked={pdAgree}
               onCheckedChange={(v) => setPdAgree(v === true)}
               className="mt-0.5 border-foreground/25"
-              aria-label="Согласие на обработку персональных данных"
+              aria-label={t("buy.pdAgree")}
             />
             <span className="leading-snug">
-              Даю согласие на обработку персональных данных в соответствии с{" "}
+              {t("buy.pdAgree")}{" "}
               <Link
                 href="/privacy"
                 className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
               >
-                Политикой конфиденциальности
+                {t("buy.privacyLink")}
               </Link>
               .
             </span>
@@ -157,12 +157,10 @@ export function OrderLeadForm() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button type="submit" size="lg" className="rounded-2xl" disabled={status === "sending" || !pdAgree}>
-            {status === "sending" ? "Отправка…" : "Отправить заявку"}
+            {status === "sending" ? t("buy.sending") : t("buy.submit")}
           </Button>
           {status === "ok" ? (
-            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-              Ваша заявка отправлена, в ближайшее время с вами свяжется менеджер.
-            </p>
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{t("buy.success")}</p>
           ) : null}
           {status === "err" ? (
             <p className="text-sm text-destructive [overflow-wrap:anywhere]" role="alert">

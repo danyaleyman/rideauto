@@ -12,7 +12,7 @@ module.exports = {
     collect: {
       numberOfRuns: 2,
       settings: { preset: "desktop" },
-      url: [`${origin}/`, `${origin}/catalog`, `${origin}/buy`],
+      url: [`${origin}/`, `${origin}/catalog`, `${origin}/car/c1`, `${origin}/buy`],
     },
     assert: {
       assertions: {

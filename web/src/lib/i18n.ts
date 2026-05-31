@@ -19,13 +19,25 @@ function walk(obj: unknown, parts: string[]): string | undefined {
   return typeof cur === "string" ? cur : undefined;
 }
 
+export type TParams = Record<string, string | number>;
+
+function applyParams(template: string, params?: TParams): string {
+  if (!params) return template;
+  let out = template;
+  for (const [key, value] of Object.entries(params)) {
+    out = out.replaceAll(`{${key}}`, String(value));
+  }
+  return out;
+}
+
 /** Локализованные строки по пути ``catalog.empty.title`` с fallback на ru. */
-export function createT(locale: AppLocale): (path: string) => string {
+export function createT(locale: AppLocale): (path: string, params?: TParams) => string {
   const primary = bundles[locale];
   const fallback = bundles.ru;
-  return (path: string) => {
+  return (path: string, params?: TParams) => {
     const parts = path.split(".");
-    return walk(primary, parts) ?? walk(fallback, parts) ?? path;
+    const raw = walk(primary, parts) ?? walk(fallback, parts) ?? path;
+    return applyParams(raw, params);
   };
 }
 

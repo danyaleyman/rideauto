@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from clean_mode import clean_read_enabled_for_key, clean_read_mode_enabled
 
+_REG_YM_SEP = re.compile(r"^(\d{4})[./-](\d{1,2})")
+
 
 def _d(payload: Dict[str, Any]) -> Dict[str, Any]:
     raw = payload.get("data")
@@ -116,26 +118,100 @@ def normalized_source(data: Dict[str, Any]) -> Optional[str]:
     return _optional_str(data.get("source"))
 
 
+def parse_registration_ym_string(raw: Any) -> Optional[int]:
+    """YYYYMM из Che168 yearname/regdate, Encar yearMonth и т.п."""
+    if raw is None or raw == "":
+        return None
+    if isinstance(raw, (int, float)):
+        iv = int(raw)
+        if 190_001 <= iv <= 210_012:
+            mo = iv % 100
+            if 1 <= mo <= 12:
+                return iv
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    m = _REG_YM_SEP.match(s)
+    if m:
+        y, mo = int(m.group(1)), int(m.group(2))
+        if 1900 <= y <= 2100 and 1 <= mo <= 12:
+            return y * 100 + mo
+    if len(s) >= 7 and s[4] == "-" and s[:4].isdigit() and s[5:7].isdigit():
+        y, mo = int(s[:4]), int(s[5:7])
+        if 1900 <= y <= 2100 and 1 <= mo <= 12:
+            return y * 100 + mo
+    digits = re.sub(r"\D", "", s)
+    if len(digits) >= 6:
+        y, mo = int(digits[:4]), int(digits[4:6])
+        if 1900 <= y <= 2100 and 1 <= mo <= 12:
+            return y * 100 + mo
+    return None
+
+
+def parse_registration_ym_from_data(data: Dict[str, Any]) -> Optional[int]:
+    """Первичная регистрация: yearMonth → yearname → regdate (как на карточке Che168)."""
+    if not isinstance(data, dict):
+        return None
+    for key in ("yearMonth", "year_month", "yearname", "regdate"):
+        ym = parse_registration_ym_string(data.get(key))
+        if ym is not None:
+            return ym
+    return None
+
+
 def year_from_data(data: Dict[str, Any]) -> Optional[int]:
+    ym = parse_registration_ym_from_data(data)
+    if ym is not None:
+        return normalize_calendar_year_value(ym // 100)
     y = normalize_calendar_year_value(_safe_int(data.get("year")))
     if y:
         return y
-    ym = _optional_str(data.get("yearMonth")) or _optional_str(data.get("year_month"))
-    if ym and len(ym) >= 4 and ym[:4].isdigit():
-        return normalize_calendar_year_value(int(ym[:4]))
+    ym_s = _optional_str(data.get("yearMonth")) or _optional_str(data.get("year_month"))
+    if ym_s and len(ym_s) >= 4 and ym_s[:4].isdigit():
+        return normalize_calendar_year_value(int(ym_s[:4]))
     return None
 
 
 def year_month_ordinal(data: Dict[str, Any]) -> Optional[int]:
-    ym = _optional_str(data.get("yearMonth")) or _optional_str(data.get("year_month"))
-    if ym and len(ym) >= 7 and ym[4] == "-" and ym[:4].isdigit() and ym[5:7].isdigit():
-        return int(ym[:4]) * 100 + int(ym[5:7])
+    ym = parse_registration_ym_from_data(data)
+    if ym is not None:
+        return ym
+    raw = _optional_str(data.get("yearMonth")) or _optional_str(data.get("year_month"))
+    if raw and len(raw) >= 7 and raw[4] == "-" and raw[:4].isdigit() and raw[5:7].isdigit():
+        return int(raw[:4]) * 100 + int(raw[5:7])
     return None
 
 
 def power_hp(payload: Dict[str, Any]) -> Optional[int]:
     d = _d(payload)
-    return _safe_int(d.get("power_hp") or d.get("hp") or d.get("outputHorsepower") or d.get("power") or d.get("horsepower"))
+    if str(d.get("source") or "").strip().lower() == "che168":
+        try:
+            from scraper_pipeline.che168.parser import resolve_che168_power_hp
+
+            raw = d.get("che168_params_raw")
+            if raw is not None:
+                hp = resolve_che168_power_hp(raw, str(d.get("engine") or ""))
+                if hp is not None and hp > 0:
+                    return int(hp)
+        except ImportError:
+            pass
+    try:
+        from hybrid_power import catalog_display_power_hp
+
+        hp = catalog_display_power_hp(d)
+        if hp is not None and hp > 0:
+            return hp
+    except ImportError:
+        pass
+    return _safe_int(
+        d.get("power_hp_system")
+        or d.get("power_hp")
+        or d.get("hp")
+        or d.get("outputHorsepower")
+        or d.get("power")
+        or d.get("horsepower")
+    )
 
 
 def offer_created_at(payload: Dict[str, Any]) -> Optional[datetime]:

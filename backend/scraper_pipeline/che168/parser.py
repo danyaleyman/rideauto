@@ -287,6 +287,170 @@ def _map_spec_alias(label: Any, alias_to_key: Dict[str, str]) -> Optional[str]:
     return None
 
 
+_CHE168_PLACEHOLDER_VALUES = frozenset({"--", "-", "—", "null", "none", "n/a", "undefined", ""})
+
+
+def _is_che168_placeholder(v: Any) -> bool:
+    if v is None:
+        return True
+    s = str(v).strip().lower()
+    return s in _CHE168_PLACEHOLDER_VALUES
+
+
+def _iter_spec_label_values(body: Any):
+    """Пары (label, value) из paramitems и name/value узлов specparam."""
+    name_keys = ("name", "itemname", "title", "paramname", "specname", "configName", "key", "label")
+    value_keys = ("value", "dispvalue", "paramvalue", "specvalue", "subvalue", "text", "val")
+    for node in _iter_deep_nodes(body):
+        if not isinstance(node, dict):
+            continue
+        n_val = None
+        for nk in name_keys:
+            cand = node.get(nk)
+            if cand is not None and str(cand).strip():
+                n_val = str(cand).strip()
+                break
+        if n_val is None:
+            continue
+        for vk in value_keys:
+            vv = node.get(vk)
+            if vv is not None and str(vv).strip() and not _is_che168_placeholder(vv):
+                yield n_val, str(vv).strip()
+                break
+
+
+def _resolve_che168_gearbox(body: Any, current: Any) -> Optional[str]:
+    """Che168 EN: «Abbreviation» / «Transmission Type» важнее числового кода gearbox=8."""
+    candidates: List[str] = []
+    for label, val in _iter_spec_label_values(body):
+        n = _norm_label_token(label)
+        if not n:
+            continue
+        if any(
+            frag in n
+            for frag in (
+                "abbreviation",
+                "transmissiontype",
+                "gearbox",
+                "变速箱",
+                "变速器",
+            )
+        ) or ("transmission" in n and "speed" not in n):
+            candidates.append(val)
+    rich = [c for c in candidates if len(c) > 4 and not re.fullmatch(r"\d{1,2}", c.strip())]
+    if rich:
+        return max(rich, key=len)
+    cur = str(current or "").strip()
+    if cur and not _is_che168_placeholder(cur):
+        if not re.fullmatch(r"\d{1,2}", cur):
+            return cur
+    if candidates:
+        return candidates[-1]
+    if cur and not _is_che168_placeholder(cur):
+        return cur
+    return None
+
+
+def _resolve_che168_drive(body: Any, current: Any) -> Optional[str]:
+    if current is not None and not _is_che168_placeholder(current):
+        return str(current).strip()
+    for label, val in _iter_spec_label_values(body):
+        n = _norm_label_token(label)
+        if not n:
+            continue
+        if any(frag in n for frag in ("drivetype", "drivemode", "drivetrain", "驱动方式", "驱动形式")):
+            return val
+    return None
+
+
+def _resolve_che168_torque_nm(body: Any) -> Optional[int]:
+    for label, val in _iter_spec_label_values(body):
+        n = _norm_label_token(label)
+        if not n or ("torque" not in n and "扭矩" not in n):
+            continue
+        if "rpm" in n:
+            continue
+        m = re.search(r"(\d{2,4})", str(val).replace(",", ""))
+        if m:
+            v = int(m.group(1))
+            if 50 <= v <= 2000:
+                return v
+    return None
+
+
+_KW_TO_HP = 1.35962
+
+
+def _classify_che168_power_label(label: str) -> str:
+    """hp | kw | engine | skip — без ложного «ps» в «speed»."""
+    n = _norm_label_token(label)
+    if not n:
+        return "skip"
+    if "torque" in n or "扭矩" in n:
+        return "skip"
+    if "rpm" in n:
+        return "skip"
+    if "topspeed" in n or "maxspeed" in n or "最高车速" in n or "最高速度" in n:
+        return "skip"
+    if "powersteering" in n or "steeringtype" in n:
+        return "skip"
+    if n in ("engine", "enginetype") or "发动机" in n:
+        return "engine"
+    if "kw" in n or "千瓦" in n or "maximumnetpower" in n:
+        return "kw"
+    if any(
+        frag in n
+        for frag in ("horsepower", "最大马力", "maximumhorsepower", "maxhorsepower", "马力")
+    ):
+        return "hp"
+    if n.endswith("hp"):
+        return "hp"
+    if re.search(r"\bps\b", label, re.I) or n.endswith("ps"):
+        return "hp"
+    if "power" in n or "功率" in n:
+        return "kw"
+    return "skip"
+
+
+def resolve_che168_power_hp(body: Any, engine_text: str = "") -> Optional[int]:
+    """Публичная обёртка для таможни/каталога (л.с. из specparam, не kW как л.с.)."""
+    return _resolve_che168_power_hp(body, engine_text)
+
+
+def _resolve_che168_power_hp(body: Any, engine_text: str = "") -> Optional[int]:
+    from_eng = _extract_power_from_engine_text(engine_text)
+    if from_eng is not None:
+        return from_eng
+    engine_from_spec: Optional[int] = None
+    hp_explicit: List[int] = []
+    kw_vals: List[int] = []
+    for label, val in _iter_spec_label_values(body):
+        kind = _classify_che168_power_label(label)
+        if kind == "skip":
+            continue
+        m = re.search(r"(\d{2,4})", str(val).replace(",", ""))
+        if not m:
+            continue
+        num = int(m.group(1))
+        if not (30 <= num <= 2000):
+            continue
+        if kind == "engine":
+            hp = _extract_power_from_engine_text(str(val))
+            if hp is not None:
+                engine_from_spec = hp
+        elif kind == "hp":
+            hp_explicit.append(num)
+        elif kind == "kw":
+            kw_vals.append(num)
+    if engine_from_spec is not None:
+        return engine_from_spec
+    if hp_explicit:
+        return max(hp_explicit)
+    if kw_vals:
+        return round(max(kw_vals) * _KW_TO_HP)
+    return None
+
+
 def _pick_first_non_empty_with_source(sources: List[tuple[str, dict]], keys: tuple[str, ...]) -> tuple[Optional[Any], Optional[str]]:
     for src_name, src in sources:
         if not isinstance(src, dict):
@@ -1297,7 +1461,7 @@ def _extract_power_from_engine_text(engine_text: str) -> Optional[int]:
     if not s:
         return None
     # Учитываем: 150HP / 150 hp / 150 л.с. / 150马力
-    match = re.search(r"(\d{2,4})\s*(?:HP|hp|л\.?с\.?|马力)", s)
+    match = re.search(r"(\d{2,4})\s*(?:HP|hp|PS|ps|л\.?с\.?|马力)", s)
     if match:
         try:
             v = int(match.group(1))
@@ -1484,6 +1648,7 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
             "gearbox",
             "transmission",
             "transmissiontype",
+            "abbreviation",
             "gear",
             "变速箱",
             "变速箱类型",
@@ -1548,6 +1713,9 @@ def _spec_fields(specparam: Any) -> Dict[str, Any]:
             if vv is not None and str(vv).strip():
                 out[mapped] = vv
                 break
+    for k in list(out.keys()):
+        if _is_che168_placeholder(out.get(k)):
+            del out[k]
     return out
 
 
@@ -1642,8 +1810,10 @@ def parse_one_che168_car_sync(
     if disp_cc is None and spec_hints.get("displacement") is not None:
         disp_cc = _displacement_cc_from_value(spec_hints.get("displacement"))
     engine_display = str(ci.get("engine")).strip() if ci.get("engine") not in (None, "") else ""
-    p_from_engine = _extract_power_from_engine_text(engine_display) if engine_display else None
-    p_hp = p_from_engine if p_from_engine is not None else _power_hp_from_hints(spec_hints)
+    p_hp = _resolve_che168_power_hp(spec_raw, engine_display) if spec_raw else None
+    if p_hp is None:
+        p_from_engine = _extract_power_from_engine_text(engine_display) if engine_display else None
+        p_hp = p_from_engine if p_from_engine is not None else _power_hp_from_hints(spec_hints)
 
     geo = _extract_geo(ci, li, session_cookie_hints)
     dt_fields = _extract_datetimes(ci, li)
@@ -1678,9 +1848,11 @@ def parse_one_che168_car_sync(
         if yearname_s and regdate_s:
             break
     yr_out = _year_from_yearname(yearname_s, yr)
-    transmission_norm = _normalize_che168_transmission(spec_hints.get("gearbox"))
-    drive_raw = _che168_drive_raw_candidate(spec_hints, ci, li)
-    drive_norm = _normalize_che168_drive(drive_raw)
+    gearbox_resolved = _resolve_che168_gearbox(spec_raw, spec_hints.get("gearbox")) if spec_raw else spec_hints.get("gearbox")
+    transmission_norm = _normalize_che168_transmission(gearbox_resolved)
+    drive_raw = _resolve_che168_drive(spec_raw, _che168_drive_raw_candidate(spec_hints, ci, li)) if spec_raw else _che168_drive_raw_candidate(spec_hints, ci, li)
+    drive_norm = _normalize_che168_drive(drive_raw) if drive_raw and not _is_che168_placeholder(drive_raw) else None
+    torque_nm = _resolve_che168_torque_nm(spec_raw) if spec_raw else None
     km_v = _mileage_km(ci, li)
     trim, trim_src = _pick_first_non_empty_with_source(
         [("carinfo", c) for c in _nested_dict_candidates(ci)] + [("list_item", c) for c in _nested_dict_candidates(li)],
@@ -1716,6 +1888,7 @@ def parse_one_che168_car_sync(
         "transmission_type": transmission_norm,
         "drive_type": drive_norm,
         "power_hp": p_hp,
+        "torque_nm": torque_nm,
         "displacement_cc": disp_cc,
         "che168_params_raw": spec_raw if spec_raw else None,
         "options_real": opts_real or None,
@@ -1742,6 +1915,20 @@ def parse_one_che168_car_sync(
 
     if engine_display:
         data["engine"] = engine_display
+
+    reg_ym = None
+    for raw_ym in (yearname_s, regdate_s):
+        if not raw_ym:
+            continue
+        head = str(raw_ym).strip()
+        m = re.match(r"^(\d{4})[./-](\d{1,2})", head)
+        if m:
+            y, mo = int(m.group(1)), int(m.group(2))
+            if 1900 <= y <= 2100 and 1 <= mo <= 12:
+                reg_ym = y * 100 + mo
+                break
+    if reg_ym is not None:
+        data["yearMonth"] = f"{reg_ym // 100}-{reg_ym % 100:02d}"
 
     lc = listing_cluster if isinstance(listing_cluster, dict) else {}
     if lc.get("enabled", True) is not False and recommend:

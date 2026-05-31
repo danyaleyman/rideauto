@@ -7,6 +7,9 @@ import {
   catalogStateKey,
   catalogStateToFetchParams,
 } from "@/lib/catalog-url";
+import { buildCatalogSeo } from "@/lib/catalog-seo";
+import { createT } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/locale-server";
 import { fetchSearch } from "@/lib/api";
 import { emptySearchResponse } from "@/lib/catalog-empty-search";
 import type { SearchResponse } from "@/lib/types";
@@ -19,12 +22,13 @@ export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
   const sp = await searchParams;
-  const q = typeof sp.q === "string" ? sp.q.trim() : "";
-  const title = q ? `Поиск: ${q}` : "Каталог";
+  const state = catalogStateFromRecord(sp);
+  const locale = await getServerLocale();
+  const seo = buildCatalogSeo(state, locale);
   return {
-    title,
-    description:
-      "Автомобили из Кореи и Китая: фильтры и поиск через Meilisearch, карточки из PostgreSQL.",
+    title: seo.title,
+    description: seo.description,
+    robots: seo.index ? undefined : { index: false, follow: true },
   };
 }
 
@@ -33,6 +37,9 @@ export default async function CatalogPage({ searchParams }: PageProps) {
   const state = catalogStateFromRecord(sp);
   const ssrKey = catalogStateKey(state);
   const flat = catalogStateToFetchParams(state);
+
+  const locale = await getServerLocale();
+  const t = createT(locale);
 
   let initial: SearchResponse = emptySearchResponse();
   let ssrDegraded = false;
@@ -49,7 +56,7 @@ export default async function CatalogPage({ searchParams }: PageProps) {
   return (
     <CatalogPageLayout>
       <Suspense
-        fallback={<div className="py-12 text-center text-muted-foreground">Загрузка каталога…</div>}
+        fallback={<div className="py-12 text-center text-muted-foreground">{t("catalog.error.ssrLoading")}</div>}
       >
         <CatalogClient initialSearch={initial} ssrKey={ssrKey} ssrDegraded={ssrDegraded} />
       </Suspense>

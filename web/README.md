@@ -1,40 +1,71 @@
-RideAuto на **Next.js (App Router)**: SSR первой выдачи каталога, в браузере — фильтры (фасеты Meilisearch), маркеты Корея/Китай, карточка авто. См. [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
+# RideAuto Web (Next.js)
 
-Ниже — шаблонный README `create-next-app`.
+SSR каталога, карточка авто, фильтры Meilisearch. См. [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
+## Локальная разработка
 
 ```bash
+cd web
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте [http://localhost:3000](http://localhost:3000). API: rewrites на `WRA_API_INTERNAL` (по умолчанию `http://127.0.0.1:8080`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Feature flags (build-time)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Переменные `NEXT_PUBLIC_*` вшиваются при `next build` / `docker compose build web`.
 
-## Learn More
+| Переменная | Значение | Эффект |
+|------------|----------|--------|
+| `NEXT_PUBLIC_FEATURE_VIRTUAL_LIST` | `1` | Виртуализация списка каталога (`@tanstack/react-virtual`) |
+| `NEXT_PUBLIC_FEATURE_HOME_TRUST` | `0` | Скрыть блок доверия на главной |
+| `NEXT_PUBLIC_SENTRY_DSN` | URL | Клиентские ошибки в Sentry |
+| `NEXT_PUBLIC_CSP_ENFORCE` | `1` | CSP enforce вместо report-only |
+| `WRA_ISR_WARM_CAR_REFS` | `id1,id2` | Пререндер карточек при `WRA_ISR_WARM_STATIC_BUILD=1` (не в Docker build) |
 
-To learn more about Next.js, take a look at the following resources:
+### Тест виртуального списка локально
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# PowerShell
+$env:NEXT_PUBLIC_FEATURE_VIRTUAL_LIST="1"
+npm run dev
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# bash
+NEXT_PUBLIC_FEATURE_VIRTUAL_LIST=1 npm run dev
+```
 
-## Deploy on Vercel
+E2E smoke для virtual scroll (мок API):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run test:e2e -- --grep @virtual-scroll
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## OpenAPI-клиент
+
+```bash
+npm run generate:api-types   # src/lib/generated/openapi.ts
+```
+
+Типизированные запросы: `src/lib/openapi-fetch-client.ts` (`openapi-fetch`). Каталог в UI ходит на `/api/search` (alias), в OpenAPI — `GET /api/cars`.
+
+## Тесты и качество
+
+```bash
+npm run test:unit
+npm run lint
+npm run check:budget   # после npm run build
+```
+
+Корневой репозиторий: `npm run test:e2e`, `npm run test:e2e:a11y` (axe), `npm run test:e2e:staging` (реальный `https://rideauto.ru`).
+
+Пороги JS: `bundle-budget.json` + `scripts/check-bundle-budget.mjs` (CI в `next-build`). Доступность: [`docs/A11Y.md`](docs/A11Y.md).
+
+## Docker (prod)
+
+См. [`deploy/DEPLOY.md`](../deploy/DEPLOY.md). После правок `.env`:
+
+```bash
+docker compose build web
+docker compose up -d web
+```

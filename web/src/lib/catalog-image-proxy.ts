@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-export type GalleryImageSize = "thumb" | "medium";
+export type GalleryImageSize = "blur" | "thumb" | "medium";
 
 export async function sha256HexUtf8(text: string): Promise<string> {
   const data = new TextEncoder().encode(text.trim());
@@ -55,7 +55,7 @@ export function useProxiedCatalogThumbUrls(urls: string[]): string[] {
     let cancelled = false;
     void (async () => {
       const next = await Promise.all(
-        list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "thumb") : Promise.resolve(u))),
+        list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "medium") : Promise.resolve(u))),
       );
       if (!cancelled) setOut(next);
     })();
@@ -70,9 +70,13 @@ export function useProxiedCatalogThumbUrls(urls: string[]): string[] {
  * Одна асинхронная фаза на страницу каталога: дедуп SHA-256 по уникальным URL,
  * вместо N хуков по карточкам (Китай / прокси).
  */
+export type CatalogThumbRow = { key: string; urls: string[] };
+
+export type CatalogThumbResolve = { urls: string[]; lqip: string };
+
 export function useBatchProxiedCatalogThumbUrls(
-  rows: readonly { key: string; urls: string[] }[],
-): ReadonlyMap<string, string[]> {
+  rows: readonly CatalogThumbRow[],
+): ReadonlyMap<string, CatalogThumbResolve> {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const stableKey = useMemo(
@@ -81,12 +85,15 @@ export function useBatchProxiedCatalogThumbUrls(
   );
 
   const baseMap = useMemo(() => {
-    const m = new Map<string, string[]>();
-    for (const r of rows) m.set(r.key, thumbPlaceholderRow([...r.urls]));
+    const m = new Map<string, CatalogThumbResolve>();
+    for (const r of rows) {
+      const urls = thumbPlaceholderRow([...r.urls]);
+      m.set(r.key, { urls, lqip: "" });
+    }
     return m;
   }, [rows]);
 
-  const [resolvedMap, setResolvedMap] = useState<Map<string, string[]> | null>(null);
+  const [resolvedMap, setResolvedMap] = useState<Map<string, CatalogThumbResolve> | null>(null);
 
   useEffect(() => {
     setResolvedMap(null);
@@ -105,19 +112,33 @@ export function useBatchProxiedCatalogThumbUrls(
       }
       await Promise.all(
         [...rawNeeding].map(async (raw) => {
-          uniqueProxied.set(raw, await catalogImageProxyUrl(raw, "thumb"));
+          uniqueProxied.set(raw, await catalogImageProxyUrl(raw, "medium"));
         }),
       );
       if (cancelled) return;
-      const next = new Map<string, string[]>();
+      const uniqueBlur = new Map<string, string>();
+      const rawForBlur = new Set<string>();
       for (const r of current) {
-        next.set(
-          r.key,
-          r.urls.map((u) => {
+        const first = r.urls.find((u) => u.trim());
+        if (first && catalogImageNeedsProxy(first)) rawForBlur.add(first.trim());
+      }
+      await Promise.all(
+        [...rawForBlur].map(async (raw) => {
+          uniqueBlur.set(raw, await catalogImageProxyUrl(raw, "blur"));
+        }),
+      );
+      const next = new Map<string, CatalogThumbResolve>();
+      for (const r of current) {
+        const first = r.urls[0]?.trim() ?? "";
+        const lqip =
+          first && catalogImageNeedsProxy(first) ? (uniqueBlur.get(first) ?? "") : "";
+        next.set(r.key, {
+          urls: r.urls.map((u) => {
             const t = u.trim();
             return catalogImageNeedsProxy(u) ? (uniqueProxied.get(t) ?? u) : u;
           }),
-        );
+          lqip,
+        });
       }
       setResolvedMap(next);
     })();
@@ -154,7 +175,7 @@ export function useProxiedCarGalleryUrls(urls: string[]): { thumbUrls: string[];
     let cancelled = false;
     void (async () => {
       const t = await Promise.all(
-        list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "thumb") : Promise.resolve(u))),
+        list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "medium") : Promise.resolve(u))),
       );
       const m = await Promise.all(
         list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "medium") : Promise.resolve(u))),

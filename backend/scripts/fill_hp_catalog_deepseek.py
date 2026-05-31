@@ -147,8 +147,9 @@ def _build_prompt(row: dict) -> str:
     return (
         "Return ONLY compact JSON:\n"
         '{"hp": <integer or null>, "confidence": <number 0..1>, "reason": "<=120 chars>"}\n'
-        "Task: manufacturer's rated engine power at the crank in metric horsepower "
-        "(PS ≈ DIN hp; ignore kW unless you convert to hp as hp ≈ kW/0.7355).\n"
+        "Task: rated power in metric horsepower (PS ≈ DIN hp; kW→hp as hp ≈ kW/0.7355). "
+        "For gasoline+diesel hybrids (HEV/PHEV, 가솔린+전기): return ICE/crank hp only in hp, "
+        "not system combined — electric motor is enriched separately.\n"
         "confidence: your certainty based on typical factory specs for this exact trim/year/volume "
         "(0 if guessing from similar engines only).\n"
         f"manufacturer={row['manufacturer']}\n"

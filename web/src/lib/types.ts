@@ -1,3 +1,8 @@
+/**
+ * Доменные типы каталога (ручная модель, синхронизировать с API).
+ * Сгенерированные пути OpenAPI: `npm run generate:api-types` → `src/lib/generated/openapi.ts`.
+ */
+
 export type SearchMeta = {
   total: number;
   limit: number;

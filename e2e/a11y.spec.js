@@ -1,6 +1,9 @@
 // @ts-check
+/** @tag @a11y */
 import { test, expect } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
+
+test.describe.configure({ tag: "@a11y" });
 
 const BASE = "http://127.0.0.1:24173";
 
@@ -35,7 +38,7 @@ test("a11y: главная", async ({ page }) => {
 });
 
 test("a11y: каталог (мок)", async ({ page }) => {
-  await page.goto(`${BASE}/catalog?region=korea&source=encar`);
+  await page.goto(`${BASE}/catalog?region=korea`);
   await page.locator('a[href^="/car/"]').first().waitFor({ state: "visible", timeout: 60_000 });
   const res = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

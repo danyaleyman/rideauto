@@ -48,8 +48,12 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-control: var(--radius-2xl);
+  --radius-surface: var(--radius-3xl);
   /* Семантическая обводка «приподнятых» карточек (вместо ad-hoc ring-black/…). */
   --color-elevated-ring: var(--elevated-ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
 }
 
 :root {
@@ -86,6 +90,10 @@
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --elevated-ring: oklch(0 0 0 / 0.045);
+  --brand: oklch(0.205 0 0);
+  --brand-foreground: oklch(0.985 0 0);
+  --site-header-height: 3.5rem;
+  --wra-cookie-banner-height: 0px;
 }
 
 .dark {
@@ -120,7 +128,37 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  --elevated-ring: oklch(1 0 0 / 0.08);
+  --elevated-ring: oklch(1 0 0 / 0.1);
+  --brand: oklch(0.85 0 0);
+  --brand-foreground: oklch(0.145 0 0);
+}
+
+@layer utilities {
+  .text-caption {
+    font-size: 0.6875rem;
+    line-height: 1.25;
+  }
+  .text-title-sm {
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+  .text-price {
+    font-size: 1.0625rem;
+    line-height: 1.3;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .text-display-sm {
+    font-size: 1.55rem;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  @media (min-width: 768px) {
+    .text-display-sm {
+      font-size: 2.15rem;
+    }
+  }
 }
 
 @layer base {
@@ -132,5 +170,16 @@
   }
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .bottom-safe-chrome {
+    bottom: var(--wra-cookie-banner-height, 0px);
   }
 }

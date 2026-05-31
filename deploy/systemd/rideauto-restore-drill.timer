@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly RideAuto PG restore drill
+
+[Timer]
+OnCalendar=Sun 04:30
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target

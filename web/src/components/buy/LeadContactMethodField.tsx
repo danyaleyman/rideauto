@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { ChevronsUpDown } from "lucide-react";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { LEAD_CONTACT_OPTIONS, type LeadContactMethodValue } from "@/lib/lead-contact-options";
+import { leadContactOptions, type LeadContactMethodValue } from "@/lib/lead-contact-options";
 
 type Props = {
   id: string;
@@ -21,10 +23,12 @@ type Props = {
 };
 
 export function LeadContactMethodField({ id, value, onChange, disabled }: Props) {
-  const active = LEAD_CONTACT_OPTIONS.find((o) => o.value === value) ?? LEAD_CONTACT_OPTIONS[0];
+  const { t } = useLocaleContext();
+  const options = useMemo(() => leadContactOptions(t), [t]);
+  const active = options.find((o) => o.value === value) ?? options[0];
   return (
     <div className="grid gap-2">
-      <Label htmlFor={id}>Предпочтительный способ связи</Label>
+      <Label htmlFor={id}>{t("buy.contactMethod")}</Label>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -40,12 +44,14 @@ export function LeadContactMethodField({ id, value, onChange, disabled }: Props)
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1.5">
-          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Как с вами связаться</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+            {t("buy.contactMethodMenu")}
+          </DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={active.value}
             onValueChange={(v) => onChange(v as LeadContactMethodValue)}
           >
-            {LEAD_CONTACT_OPTIONS.map((o) => (
+            {options.map((o) => (
               <DropdownMenuRadioItem key={o.value} value={o.value} className="cursor-pointer rounded-xl">
                 {o.label}
               </DropdownMenuRadioItem>

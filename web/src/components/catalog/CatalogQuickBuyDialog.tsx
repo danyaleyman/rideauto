@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, type buttonVariants } from "@/components/ui/button";
+import type { VariantProps } from "class-variance-authority";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import Link from "next/link";
 import { submitLeadRequest } from "@/lib/lead-client";
 import { LEAD_NAME_MAX_LEN, validateLeadFullName, validateLeadPhone } from "@/lib/lead-form-validation";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -18,15 +20,19 @@ type Props = {
   triggerLabel?: string;
   triggerClassName?: string;
   triggerSize?: "sm" | "default" | "lg";
+  triggerVariant?: VariantProps<typeof buttonVariants>["variant"];
 };
 
 export function CatalogQuickBuyDialog({
   carId,
   carTitle,
-  triggerLabel = "Купить",
+  triggerLabel,
   triggerClassName,
   triggerSize = "sm",
+  triggerVariant = "default",
 }: Props) {
+  const { t } = useLocaleContext();
+  const label = triggerLabel ?? t("catalog.quickBuy.trigger");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">("idle");
@@ -54,17 +60,17 @@ export function CatalogQuickBuyDialog({
     setStatus("sending");
     const link = getCarPageAbsoluteUrl(carId);
     const message = [
-      "Заявка на покупку из каталога",
-      `Автомобиль: ${carTitle}`,
-      `Ссылка: ${link}`,
+      t("catalog.quickBuy.leadSubject"),
+      t("catalog.quickBuy.leadCar", { title: carTitle }),
+      t("catalog.quickBuy.leadLink", { link }),
       "",
-      `Имя клиента: ${name.trim()}`,
-      `Контактный номер: ${phoneCheck.digits}`,
+      t("catalog.quickBuy.leadName", { name: name.trim() }),
+      t("catalog.quickBuy.leadPhone", { phone: phoneCheck.digits }),
     ].join("\n");
 
     const result = await submitLeadRequest({
       full_name: name.trim(),
-      contact_method: "Звонок по телефону",
+      contact_method: t("catalog.quickBuy.contactCall"),
       message,
       pd_agree: pdAgree,
     });
@@ -85,21 +91,21 @@ export function CatalogQuickBuyDialog({
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="default"
+          variant={triggerVariant}
           size={triggerSize}
           className={triggerClassName ?? "ms-auto rounded-full px-4 font-semibold shadow-sm"}
         >
-          {triggerLabel}
+          {label}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
-          <DialogTitle>Оставить заявку на покупку</DialogTitle>
+          <DialogTitle>{t("catalog.quickBuy.title")}</DialogTitle>
           <DialogDescription id={`catalog-buy-desc-${carId}`}>{carTitle}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
           <div className="grid gap-1.5">
-            <Label htmlFor={`buy-name-${carId}`}>Имя</Label>
+            <Label htmlFor={`buy-name-${carId}`}>{t("catalog.quickBuy.name")}</Label>
             <Input
               id={`buy-name-${carId}`}
               value={name}
@@ -107,7 +113,7 @@ export function CatalogQuickBuyDialog({
                 setName(e.target.value);
                 if (nameError) setNameError("");
               }}
-              placeholder="Ваше имя"
+              placeholder={t("catalog.quickBuy.namePlaceholder")}
               autoComplete="name"
               minLength={2}
               maxLength={LEAD_NAME_MAX_LEN}
@@ -122,7 +128,7 @@ export function CatalogQuickBuyDialog({
             ) : null}
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor={`buy-phone-${carId}`}>Контактный номер</Label>
+            <Label htmlFor={`buy-phone-${carId}`}>{t("catalog.quickBuy.phone")}</Label>
             <Input
               id={`buy-phone-${carId}`}
               value={phone}
@@ -146,7 +152,7 @@ export function CatalogQuickBuyDialog({
             ) : null}
           </div>
           <Button type="button" onClick={submit} disabled={status === "sending" || !pdAgree}>
-            {status === "sending" ? "Отправка..." : "Отправить"}
+            {status === "sending" ? t("catalog.quickBuy.sending") : t("catalog.quickBuy.submit")}
           </Button>
           <div className="rounded-xl border border-border/70 bg-muted/25 p-3">
             <label className="flex items-start gap-3 text-xs text-foreground/90">
@@ -154,15 +160,15 @@ export function CatalogQuickBuyDialog({
                 checked={pdAgree}
                 onCheckedChange={(v) => setPdAgree(v === true)}
                 className="mt-0.5 border-foreground/25"
-                aria-label="Согласие на обработку персональных данных"
+                aria-label={t("catalog.quickBuy.pdAria")}
               />
               <span className="leading-snug">
-                Согласен на обработку персональных данных по{" "}
+                {t("catalog.quickBuy.pdPrefix")}{" "}
                 <Link
                   href="/privacy"
                   className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
                 >
-                  Политике конфиденциальности
+                  {t("buy.privacyLink")}
                 </Link>
                 .
               </span>
@@ -170,7 +176,7 @@ export function CatalogQuickBuyDialog({
           </div>
           {status === "ok" ? (
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-              Ваша заявка отправлена, в ближайшее время с вами свяжется менеджер.
+              {t("catalog.quickBuy.success")}
             </p>
           ) : null}
           {status === "err" ? (

@@ -13,4 +13,8 @@ describe("t() / createT()", () => {
   it("createT(en) returns English", () => {
     expect(createT("en")("catalog.empty.title")).toContain("filters");
   });
+
+  it("interpolates params", () => {
+    expect(createT("ru")("catalog.results.vinDedupe", { count: 3 })).toContain("3");
+  });
 });

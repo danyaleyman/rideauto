@@ -46,3 +46,21 @@ test-results/
 # Storybook build output
 web/storybook-static/
 
+# Ad-hoc одноразовые remote-скрипты с захардкоженными секретами (заменены deploy/ops).
+deploy/scripts/_remote_*.py
+# Конфиг удалённых операций с реальными секретами (шаблон: deploy/.env.deploy.example)
+deploy/.env.deploy
+
+# Временные дампы API на корне (отладка)
+/tmp_*.json
+
+# Autorepair agent runtime state
+var/autorepair/
+
+# Python / Node tool caches (local only)
+backend/.hypothesis/
+backend/.pytest_cache/
+backend/.ruff_cache/
+web/.next/
+web/.ruff_cache/
+

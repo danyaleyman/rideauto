@@ -10,9 +10,17 @@ import {
 import { encodeOffsetCursor } from "./cursor";
 
 describe("parseCatalogUrl", () => {
-  it("defaults to Korea / encar", () => {
+  it("defaults to Korea", () => {
     const s = parseCatalogUrl(new URLSearchParams());
     expect(s.market).toBe("korea");
+  });
+
+  it("maps legacy source=encar to korea", () => {
+    expect(parseCatalogUrl(new URLSearchParams("source=encar")).market).toBe("korea");
+  });
+
+  it("maps legacy source=che168 to china", () => {
+    expect(parseCatalogUrl(new URLSearchParams("source=che168")).market).toBe("china");
   });
 
   it("detects China from region", () => {
@@ -48,7 +56,18 @@ describe("stateToBrowserUrl", () => {
     const b = catalogStateFromRecord({ marks: "B,A", region: "korea", q: "z" });
     expect(catalogStateKey(a)).toBe(catalogStateKey(b));
     expect(stateToBrowserUrl(a)).toMatch(/marks=/);
-    expect(stateToBrowserUrl(a)).toMatch(/region=korea/);
+    expect(stateToBrowserUrl(a)).not.toMatch(/source=/);
+    expect(stateToBrowserUrl(a)).not.toMatch(/encar|che168/);
+  });
+
+  it("browser url uses region=china only for china market", () => {
+    const s = catalogStateFromRecord({ region: "china" });
+    expect(stateToBrowserUrl(s)).toBe("region=china");
+  });
+
+  it("browser url omits region for default korea", () => {
+    const s = catalogStateFromRecord({});
+    expect(stateToBrowserUrl(s)).toBe("");
   });
 });
 

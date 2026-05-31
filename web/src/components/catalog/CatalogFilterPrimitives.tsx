@@ -21,6 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useLocaleContext } from "@/components/LocaleProvider";
+import { scrollFocusedFieldIntoView } from "@/lib/focus-scroll";
 import { cn } from "@/lib/utils";
 import { colorSwatchClass, groupFacetRows } from "@/lib/catalog-client-utils";
 import type { FacetRow } from "@/lib/types";
@@ -42,6 +44,7 @@ export function FacetMultiDropdown({
   labelFormatter?: (row: FacetRow) => string;
   comparator?: (a: string, b: string) => number;
 }) {
+  const { locale, t } = useLocaleContext();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const groupedRows = useMemo(() => groupFacetRows(rows, { labelFormatter, comparator }), [rows, labelFormatter, comparator]);
@@ -68,7 +71,9 @@ export function FacetMultiDropdown({
           disabled={disabled || !groupedRows.length}
           className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
           aria-label={
-            n > 0 ? `${label}, фильтр, выбрано значений: ${n}, открыть список` : `${label}, фильтр, открыть список`
+            n > 0
+              ? t("catalog.facets.facetAriaSelected", { label, n: String(n) })
+              : t("catalog.facets.facetAria", { label })
           }
         >
           <span className="min-w-0 text-start [overflow-wrap:anywhere]">
@@ -87,20 +92,21 @@ export function FacetMultiDropdown({
       >
         <div className="border-b border-border p-2">
           <Input
-            placeholder="Поиск…"
+            placeholder={t("catalog.facets.search")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-8 rounded-xl"
+            className="h-10 rounded-2xl"
+            onFocus={(e) => scrollFocusedFieldIntoView(e.currentTarget)}
             onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           />
         </div>
         <DropdownMenuLabel className="px-3 py-2 text-xs font-normal text-muted-foreground">
-          Можно выбрать несколько
+          {t("catalog.facets.multiHint")}
         </DropdownMenuLabel>
         <div className="max-h-60 overflow-y-auto overscroll-contain p-1.5 pt-0">
           {filtered.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Нет совпадений</p>
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">{t("catalog.facets.noMatches")}</p>
           ) : (
             filtered.map((r) => (
               <DropdownMenuCheckboxItem
@@ -111,7 +117,7 @@ export function FacetMultiDropdown({
               >
                 <span className="min-w-0 flex-1 select-text [overflow-wrap:anywhere]">{r.label}</span>
                 <span className="ms-1 shrink-0 tabular-nums text-xs text-muted-foreground">
-                  {r.count.toLocaleString("ru-RU")}
+                  {r.count.toLocaleString(locale === "en" ? "en-US" : "ru-RU")}
                 </span>
               </DropdownMenuCheckboxItem>
             ))
@@ -137,6 +143,7 @@ export function ColorFacetDialog({
   disabled?: boolean;
   labelFormatter?: (row: FacetRow) => string;
 }) {
+  const { locale, t } = useLocaleContext();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const groupedRows = useMemo(() => groupFacetRows(rows, { labelFormatter }), [rows, labelFormatter]);
@@ -165,8 +172,8 @@ export function ColorFacetDialog({
           className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
           aria-label={
             n > 0
-              ? `${label}, фильтр по цвету, выбрано значений: ${n}, открыть`
-              : `${label}, фильтр по цвету, открыть`
+              ? t("catalog.facets.colorAriaSelected", { label, n: String(n) })
+              : t("catalog.facets.colorAria", { label })
           }
         >
           <span className="min-w-0 text-start [overflow-wrap:anywhere]">
@@ -184,11 +191,11 @@ export function ColorFacetDialog({
       >
         <DialogHeader className="shrink-0 space-y-1 border-b border-border px-5 pt-5 pb-3 pe-12 sm:px-6 sm:pt-6 sm:pb-4 sm:pe-14">
           <DialogTitle className="text-base sm:text-lg">{label}</DialogTitle>
-          <DialogDescription>Можно выбрать несколько значений</DialogDescription>
+          <DialogDescription>{t("catalog.facets.multiValuesHint")}</DialogDescription>
         </DialogHeader>
         <div className="shrink-0 border-b border-border px-5 py-3 sm:px-6">
           <Input
-            placeholder="Поиск по названию цвета…"
+            placeholder={t("catalog.facets.colorSearch")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="h-10 rounded-xl text-sm"
@@ -198,7 +205,7 @@ export function ColorFacetDialog({
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           {filtered.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Нет совпадений</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">{t("catalog.facets.noMatches")}</p>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {filtered.map((r) => {
@@ -209,7 +216,7 @@ export function ColorFacetDialog({
                       type="button"
                       variant={active ? "default" : "outline"}
                       size="sm"
-                      className="h-auto min-h-11 w-full min-w-0 flex-col items-stretch justify-center gap-1 rounded-xl px-3 py-2.5 text-center font-normal shadow-sm"
+                      className="h-auto min-h-10 w-full min-w-0 flex-col items-stretch justify-center gap-1 rounded-2xl px-3 py-2.5 text-center font-normal shadow-sm"
                       onClick={() => onToggle(r.values)}
                     >
                       <span
@@ -221,7 +228,7 @@ export function ColorFacetDialog({
                       />
                       <span className="min-w-0 text-pretty text-xs leading-snug sm:text-[13px]">{r.label}</span>
                       <span className="tabular-nums text-[11px] text-muted-foreground">
-                        {r.count.toLocaleString("ru-RU")}
+                        {r.count.toLocaleString(locale === "en" ? "en-US" : "ru-RU")}
                       </span>
                     </Button>
                   </div>
@@ -233,7 +240,7 @@ export function ColorFacetDialog({
         <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
           <DialogClose asChild>
             <Button type="button" variant="secondary" className="w-full sm:w-auto">
-              Закрыть
+              {t("catalog.facets.close")}
             </Button>
           </DialogClose>
         </DialogFooter>

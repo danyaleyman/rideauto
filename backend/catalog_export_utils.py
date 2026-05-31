@@ -14,6 +14,7 @@ def fill_power_from_external(data: dict) -> None:
     if not isinstance(data, dict):
         return
     if data.get("power") and str(data.get("power", "")).strip():
+        fill_hybrid_power_from_specs(data)
         return
     try:
         from power_from_external import get_power_for_car
@@ -21,6 +22,18 @@ def fill_power_from_external(data: dict) -> None:
         hp = get_power_for_car(data, record_source=True)
         if hp is not None:
             data["power"] = str(hp)
+    except ImportError:
+        pass
+    fill_hybrid_power_from_specs(data)
+
+
+def fill_hybrid_power_from_specs(data: dict) -> None:
+    if not isinstance(data, dict):
+        return
+    try:
+        from hybrid_power import enrich_hybrid_power_fields
+
+        enrich_hybrid_power_fields(data)
     except ImportError:
         pass
 

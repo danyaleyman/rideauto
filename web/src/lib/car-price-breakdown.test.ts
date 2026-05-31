@@ -59,4 +59,22 @@ describe("buildPriceBreakdownRows", () => {
     expect(labels).not.toContain("СБКТС / ЭПТС / регистрационные платежи");
     expect(labels).toContain("Цена в объявлении (CNY)");
   });
+
+  it("returns empty rows when listing unavailable", () => {
+    const rows = buildPriceBreakdownRows({
+      priceRub: 1_000_000,
+      listingUnavailable: true,
+      calcDetails: { source: "encar", pricing_tier: "full_customs" },
+    });
+    expect(rows).toEqual([]);
+  });
+
+  it("returns empty rows for price on request without calc details", () => {
+    const rows = buildPriceBreakdownRows({
+      priceRub: null,
+      priceOnRequest: true,
+      calcDetails: null,
+    });
+    expect(rows).toEqual([]);
+  });
 });

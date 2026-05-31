@@ -1,15 +1,25 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import type { AppLocale } from "@/lib/i18n";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { AppLocale, TParams } from "@/lib/i18n";
 import { createT } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/locale-constants";
+
+function readLocaleCookie(): AppLocale | null {
+  try {
+    const m = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`));
+    const v = m ? decodeURIComponent(m[1]) : "";
+    return v === "en" || v === "ru" ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 type Ctx = {
   locale: AppLocale;
   /** Обновляет cookie и перезагружает страницу. */
   setLocale: (next: AppLocale) => void;
-  t: (path: string) => string;
+  t: (path: string, params?: TParams) => string;
 };
 
 const LocaleContext = createContext<Ctx | null>(null);
@@ -23,6 +33,18 @@ export function LocaleProvider({
 }) {
   const [locale, setLocaleState] = useState<AppLocale>(initialLocale);
   const t = useMemo(() => createT(locale), [locale]);
+
+  // Серверный HTML рендерится с DEFAULT_LOCALE (для ISR). После гидрации читаем cookie
+  // и корректируем локаль + <html lang>, не перезагружая страницу.
+  useEffect(() => {
+    const fromCookie = readLocaleCookie();
+    if (fromCookie && fromCookie !== locale) {
+      setLocaleState(fromCookie);
+    }
+    if (fromCookie) {
+      document.documentElement.lang = fromCookie;
+    }
+  }, [locale]);
 
   const setLocale = useCallback((next: AppLocale) => {
     setLocaleState(next);

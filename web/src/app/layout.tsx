@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
-import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { PwaRegister } from "@/components/PwaRegister";
 import { AuthProvider } from "@/components/AuthProvider";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { LocaleProvider } from "@/components/LocaleProvider";
+import { QueryProvider } from "@/components/QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSiteUrl } from "@/lib/env";
-import { getServerLocale } from "@/lib/locale-server";
+import { DEFAULT_LOCALE } from "@/lib/locale-constants";
+import { createT } from "@/lib/i18n";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+
+const rootT = createT(DEFAULT_LOCALE);
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -23,32 +28,42 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(`${getSiteUrl()}/`),
+  manifest: "/manifest.webmanifest",
   title: {
-    default: "World Ride Auto — авто из Азии",
+    default: rootT("meta.siteTitle"),
     template: "%s — World Ride Auto",
   },
-  description:
-    "Автомобили из Кореи и Азии с доставкой во Владивосток. Каталог, фильтры, цены и оформление через World Ride Auto.",
+  description: rootT("meta.siteDescription"),
 };
 
-export default async function RootLayout({
+// Root layout НЕ читает cookie/headers → не форсит dynamic-рендер всего сайта.
+// `lang` по умолчанию ru; LocaleProvider на клиенте корректирует локаль из cookie.
+// Это позволяет ISR для /car (см. car/[ref]/page.tsx). Home/каталог остаются
+// динамическими через свой (site)/car layout-метаданные при необходимости.
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getServerLocale();
   return (
-    <html lang={locale} dir="ltr" className={cn("font-sans", inter.variable, geistMono.variable)}>
+    <html
+      lang={DEFAULT_LOCALE}
+      dir="ltr"
+      className={cn("font-sans", inter.variable, geistMono.variable)}
+    >
       <body className="antialiased">
-        <LocaleProvider initialLocale={locale}>
-          <AuthProvider>
-            <TooltipProvider>
-              <WebVitalsReporter />
-              {children}
-              <CookieConsentBanner />
-            </TooltipProvider>
-          </AuthProvider>
-        </LocaleProvider>
+        <QueryProvider>
+          <LocaleProvider initialLocale={DEFAULT_LOCALE}>
+            <AuthProvider>
+              <TooltipProvider>
+                <WebVitalsReporter />
+                {children}
+                <PwaRegister />
+                <CookieConsentBanner />
+              </TooltipProvider>
+            </AuthProvider>
+          </LocaleProvider>
+        </QueryProvider>
       </body>
     </html>
   );

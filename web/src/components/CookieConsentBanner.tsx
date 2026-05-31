@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { Button } from "@/components/ui/button";
 import {
   COOKIE_CONSENT_OPEN_EVENT,
@@ -9,8 +10,14 @@ import {
   writeCookieConsent,
 } from "@/lib/cookie-consent";
 
+function setCookieBannerHeight(px: number) {
+  document.documentElement.style.setProperty("--wra-cookie-banner-height", `${px}px`);
+}
+
 export function CookieConsentBanner() {
+  const { t } = useLocaleContext();
   const [open, setOpen] = useState(false);
+  const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setOpen(!readCookieConsent());
@@ -19,30 +26,48 @@ export function CookieConsentBanner() {
     return () => window.removeEventListener(COOKIE_CONSENT_OPEN_EVENT, onOpen);
   }, []);
 
+  useEffect(() => {
+    const el = barRef.current;
+    if (!open || !el) {
+      setCookieBannerHeight(0);
+      return;
+    }
+    const sync = () => setCookieBannerHeight(el.offsetHeight);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    window.addEventListener("resize", sync);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", sync);
+      setCookieBannerHeight(0);
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div
+      ref={barRef}
       role="dialog"
-      aria-label="Согласие на использование cookie"
-      className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-primary/25 bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md sm:p-4 sm:pb-4"
+      aria-label={t("cookie.ariaLabel")}
+      className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-primary/25 bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md sm:p-4"
     >
       <div className="mx-auto flex max-w-[1100px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-foreground/90 [overflow-wrap:anywhere]">
-          Мы используем обязательные cookie для работы сайта и можем использовать аналитические cookie только с вашего
-          согласия. Подробнее в{" "}
+          {t("cookie.body")}{" "}
           <Link
             href="/cookies"
-            className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
+            className="font-medium text-brand underline underline-offset-4 hover:text-brand/90"
           >
-            Политике cookie
+            {t("cookie.policyCookies")}
           </Link>{" "}
-          и{" "}
+          {t("cookie.and")}{" "}
           <Link
             href="/privacy"
-            className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
+            className="font-medium text-brand underline underline-offset-4 hover:text-brand/90"
           >
-            Политике конфиденциальности
+            {t("cookie.policyPrivacy")}
           </Link>
           .
         </p>
@@ -50,23 +75,23 @@ export function CookieConsentBanner() {
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-lg px-3 text-xs sm:text-sm"
+            className="min-h-10 rounded-2xl px-3 text-xs sm:text-sm"
             onClick={() => {
               writeCookieConsent({ analytics: false, marketing: false });
               setOpen(false);
             }}
           >
-            Только необходимые
+            {t("cookie.essentialOnly")}
           </Button>
           <Button
             type="button"
-            className="h-9 rounded-lg px-3 text-xs sm:text-sm"
+            className="min-h-10 rounded-2xl px-3 text-xs sm:text-sm"
             onClick={() => {
               writeCookieConsent({ analytics: true, marketing: false });
               setOpen(false);
             }}
           >
-            Принять
+            {t("cookie.accept")}
           </Button>
         </div>
       </div>

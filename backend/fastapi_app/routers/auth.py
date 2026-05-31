@@ -129,6 +129,16 @@ async def _require_user(request: Request, settings: Settings) -> AuthUserRespons
     return user
 
 
+async def require_listing_admin(request: Request) -> AuthUserResponse:
+    """Сессия magic-link + email из WRA_LISTING_ADMIN_EMAILS (см. web car-admin-access)."""
+    settings = get_settings()
+    user = await _require_user(request, settings)
+    email = (user.email or "").strip().lower()
+    if email not in settings.listing_admin_emails_set():
+        raise HTTPException(status_code=403, detail="listing_admin_forbidden")
+    return user
+
+
 async def _get_current_user(request: Request, settings: Settings) -> Optional[AuthUserResponse]:
     token = (request.cookies.get(settings.auth_cookie_name) or "").strip()
     if not token:

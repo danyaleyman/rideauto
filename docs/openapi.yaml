@@ -21,6 +21,11 @@ components:
       type: http
       scheme: bearer
       bearerFormat: opaque
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: wra_session
+      description: Сессия magic-link (WRA_AUTH_COOKIE_NAME, по умолчанию wra_session)
   schemas:
     Error:
       type: object
@@ -159,6 +164,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RateLimitError"
+
+  /api/search:
+    get:
+      summary: Каталог (alias GET /api/cars, тот же handler)
+      description: Используется фронтом; параметры и ответы идентичны `/api/cars`.
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer }
+        - name: region
+          in: query
+          schema: { type: string, enum: [korea, china] }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: JSON каталога
+          content:
+            application/json:
+              schema:
+                type: object
 
   /api/sitemap/catalog.xml:
     get:
@@ -306,6 +336,159 @@ paths:
                     type: array
                     items: { type: object }
 
+  /api/sitemap/cars:
+    get:
+      summary: Car refs для dynamic sitemap (JSON)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 5000, maximum: 20000 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ref: { type: string }
+                        updated_at: { type: string, nullable: true }
+                  total: { type: integer }
+                  limit: { type: integer }
+                  offset: { type: integer }
+
+  /api/leads/admin:
+    get:
+      summary: Список заявок с сайта (listing admin, magic-link сессия)
+      description: |
+        Доступ только для email из `WRA_LISTING_ADMIN_EMAILS` с активной cookie-сессией
+        (`WRA_AUTH_COOKIE_NAME`, по умолчанию `wra_session`). Заголовок `X-Admin-Key` не используется.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/push/vapid-public-key:
+    get:
+      summary: Публичный VAPID-ключ для Web Push
+      description: Требует `WRA_PUSH_VAPID_PUBLIC_KEY` на сервере; иначе 503 `push_not_configured`.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [public_key]
+                properties:
+                  public_key: { type: string }
+        "503":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/push/subscribe:
+    post:
+      summary: Сохранить Web Push подписку (авторизованный пользователь)
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, keys]
+              properties:
+                endpoint: { type: string, minLength: 20, maxLength: 2000 }
+                keys:
+                  type: object
+                  required: [p256dh, auth]
+                  properties:
+                    p256dh: { type: string }
+                    auth: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      summary: Удалить Web Push подписку по endpoint
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: endpoint
+          in: query
+          required: true
+          schema: { type: string, minLength: 20 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/meili/outbox/process:
+    post:
+      summary: Обработать PG→Meili outbox (X-Admin-Key)
+      parameters:
+        - name: X-Admin-Key
+          in: header
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /api/similar:
     get:
       summary: Похожие объявления
@@ -325,7 +508,8 @@ paths:
 
   /api/auth/telegram:
     post:
-      summary: Вход через Telegram Login Widget
+      deprecated: true
+      summary: "(не реализовано) Вход через Telegram Login Widget"
       requestBody:
         required: true
         content:
@@ -541,6 +725,35 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
 
   /api/subscriptions/{sid}:
+    patch:
+      summary: Обновить подписку (notify / name)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: sid
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                notify_enabled: { type: boolean }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
     delete:
       summary: Удалить подписку
       security:
@@ -565,7 +778,8 @@ paths:
 
   /api/checkout:
     get:
-      summary: Список заявок checkout
+      deprecated: true
+      summary: "(B2B, не реализовано) Список заявок checkout"
       security:
         - bearerAuth: []
       responses:
@@ -578,7 +792,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
     post:
-      summary: Создать заявку
+      deprecated: true
+      summary: "(B2B, не реализовано) Создать заявку"
       security:
         - bearerAuth: []
       requestBody:

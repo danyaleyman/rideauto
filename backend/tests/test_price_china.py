@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from market_pricing_shared import parse_engine_cc
 from pricechina import (
     CHINA_BROKER_RUB,
     CHINA_DOCS_DELIVERY_CNY,
@@ -8,6 +7,7 @@ from pricechina import (
     PriceCalculatorChina,
     sync_china_pricing_clean_block,
 )
+from market_pricing_shared import age_years_for_customs, parse_engine_cc, parse_power_hp
 
 
 def test_parse_engine_cc_supports_t_label():
@@ -68,3 +68,24 @@ def test_sync_china_pricing_clean_block_price_on_request():
     assert pc["pricing_rules_version"] == CHINA_PRICING_RULES_VERSION
     assert pc["price_on_request"] is True
     assert "final_price_rub" not in pc
+
+
+def test_che168_power_hp_from_spec_not_kw_as_hp():
+    raw = {
+        "paramitems": [
+            {"name": "Maximum power (kW)", "value": "124"},
+            {"name": "Maximum horsepower (Ps)", "value": "169"},
+        ]
+    }
+    car = {
+        "source": "che168",
+        "power_hp": 124,
+        "che168_params_raw": raw,
+        "engine_type": "Gasoline",
+    }
+    assert parse_power_hp(car) == 169.0
+
+
+def test_age_years_for_customs_uses_registration_month():
+    car = {"year": 2022, "yearname": "2021.10"}
+    assert age_years_for_customs(car) in (4, 5)

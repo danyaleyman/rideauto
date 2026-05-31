@@ -708,12 +708,36 @@ def localize_china_data(data: Dict[str, object], localizer: PgTermLocalizer) -> 
             data[f"{f}_ru"] = ru
 
 
+_KO_SERIES_INFIX_RE = re.compile(r"(\d+)\s*시리즈")
+_KO_S_SERIES_RE = re.compile(r"(?<![A-Za-z0-9])S\s*시리즈", re.IGNORECASE)
+_ROMANIZED_SERIES_GARBAGE_RE = re.compile(r"(?<![A-Za-z0-9])(\d+)\s*silijeu\b", re.IGNORECASE)
+_ROMANIZED_S_SERIES_GARBAGE_RE = re.compile(r"(?<![A-Za-z0-9])S\s*silijeu\b", re.IGNORECASE)
+
+
+def _preprocess_ko_taxonomy_label(s: str) -> str:
+    """1시리즈 → 1 Series до lookup/romanize (иначе academic → «1silijeu»)."""
+    out = _KO_SERIES_INFIX_RE.sub(r"\1 Series", s)
+    out = _KO_S_SERIES_RE.sub("S Series", out)
+    return out.strip()
+
+
+def _normalize_facet_display_english(s: str) -> str:
+    t = _as_text(s)
+    if not t:
+        return ""
+    t = re.sub(r"^(\d+)-Series\b", r"\1 Series", t, flags=re.IGNORECASE)
+    t = re.sub(r"^S-Series\b", "S Series", t, flags=re.IGNORECASE)
+    t = _ROMANIZED_SERIES_GARBAGE_RE.sub(r"\1 Series", t)
+    t = _ROMANIZED_S_SERIES_GARBAGE_RE.sub("S Series", t)
+    return t.strip()
+
+
 def facet_canonical_english(text: object, domain: str) -> str:
     """
     Статическая канонизация для Meilisearch-фасетов и заголовков каталога (без БД).
     Дублирует «раннюю» ветку translate() для EN, чтобы схлопнуть a-udi→Audi и корейские ключи.
     """
-    s = _as_text(text)
+    s = _preprocess_ko_taxonomy_label(_as_text(text))
     if not s:
         return ""
     if domain == "mark":
@@ -738,14 +762,23 @@ def facet_canonical_english(text: object, domain: str) -> str:
         if cm:
             return cm
         if _looks_english(s):
-            return s
+            return _normalize_facet_display_english(s)
         if detect_lang(s) == "ko":
-            return _romanize_ko(s)
-        return s
+            return _normalize_facet_display_english(_romanize_ko(s))
+        return _normalize_facet_display_english(s)
     if domain in _KOREA_EN_DOMAIN_NAMES:
+        try:
+            from encar_mapping_lookup import encar_mapping_en_for
+
+            encar_field = "model" if domain == "model" else domain
+            enc = encar_mapping_en_for(encar_field, s)
+            if enc:
+                return _normalize_facet_display_english(enc)
+        except Exception:
+            pass
         dm = _korea_en_domain_alias_map_for(domain).get(_alias_key(s))
         if dm:
-            return dm
+            return _normalize_facet_display_english(dm)
     if domain in _CHINA_EN_DOMAIN_NAMES:
         cm = _china_en_domain_alias_map_for(domain).get(_alias_key(s))
         if cm:
@@ -754,26 +787,26 @@ def facet_canonical_english(text: object, domain: str) -> str:
     if not static_hit:
         static_hit = _lookup_china_static(_china_static_maps(), s, "en", domain)
     if static_hit:
-        return static_hit
+        return _normalize_facet_display_english(static_hit)
     if domain == "trim_name":
         sh2 = _lookup_korea_static(_korea_static_maps(), s, "en", "configuration")
         if not sh2:
             sh2 = _lookup_china_static(_china_static_maps(), s, "en", "configuration")
         if sh2:
-            return sh2
+            return _normalize_facet_display_english(sh2)
     if domain in {"trim_name", "configuration", "gradeName", "modelGroupName"}:
         # Listing-style trims: romanize+cleanup strips CJK and can leave only displacement (e.g. 1.5L) or a bare Latin prefix.
         if _ZH_RE.search(s) and (_LATIN_RE.search(s) or "款" in s or len(s) >= 10):
             return s.strip()
     if _looks_english(s):
         out = _cleanup_china_en_text(s, domain=domain)
-        return out or s
+        return _normalize_facet_display_english(out or s)
     if detect_lang(s) == "ko":
-        return _romanize_ko(s)
+        return _normalize_facet_display_english(_romanize_ko(s))
     if detect_lang(s) == "zh":
         s = _romanize_zh(s)
     out = _cleanup_china_en_text(s, domain=domain)
-    return out or s
+    return _normalize_facet_display_english(out or s)
 
 
 _CHINA_OPTION_EN_RU: Dict[str, str] = {

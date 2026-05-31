@@ -28,7 +28,10 @@ router = APIRouter(tags=["images"])
 async def optimized_image(
     request: Request,
     image_id: str,
-    size: Literal["thumb", "medium"] = Query("thumb", description="thumb=300px, medium=800px (max side)"),
+    size: Literal["blur", "thumb", "medium"] = Query(
+        "thumb",
+        description="blur=LQIP ~32px, thumb=300px, medium=800px (max side)",
+    ),
     src: Optional[str] = Query(
         None,
         description="Исходный URL изображения (обязателен при холодном кэше, если нет Redis)",

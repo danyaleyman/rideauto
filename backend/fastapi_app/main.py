@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -28,6 +29,7 @@ from fastapi_app.middleware.cdn_cache import CDNCacheMiddleware
 from fastapi_app.middleware.prometheus_http import PrometheusHTTPMiddleware
 from fastapi_app.otel_tracing import init_otel_instrumentation
 from fastapi_app.rate_limit import limiter
+from fastapi_app.health_deep import run_deep_health, update_health_metrics
 from fastapi_app.redis_cache import RedisJSONCache, close_redis_client, create_redis_client
 from fastapi_app.routers import (
     auth,
@@ -39,9 +41,15 @@ from fastapi_app.routers import (
     facets,
     images,
     lead,
+    leads_admin,
+    meili_outbox,
+    push,
     search,
     translate,
     web_vitals,
+    subscriptions,
+    compare,
+    sitemap,
 )
 
 
@@ -68,7 +76,37 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         settings.meilisearch_url,
         settings.meilisearch_key or None,
     )
+
+    probe_task: asyncio.Task[None] | None = None
+
+    async def _health_probe_loop() -> None:
+        interval = int(settings.health_probe_interval_sec or 0)
+        if interval <= 0:
+            return
+        while True:
+            try:
+                payload = await run_deep_health(
+                    pg_pool=app.state.pg_pool,
+                    redis_client=app.state.redis,
+                    meili_client=app.state.meili,
+                    settings=settings,
+                )
+                update_health_metrics(payload)
+            except Exception:
+                pass
+            await asyncio.sleep(interval)
+
+    if settings.health_probe_interval_sec > 0:
+        probe_task = asyncio.create_task(_health_probe_loop())
+
     yield
+
+    if probe_task is not None:
+        probe_task.cancel()
+        try:
+            await probe_task
+        except asyncio.CancelledError:
+            pass
     await app.state.pg_pool.close()
     await close_redis_client(getattr(app.state, "redis", None))
 
@@ -78,10 +116,11 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     init_otel_instrumentation(app)
+    _cors_settings = get_settings()
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
+        allow_origins=_cors_settings.cors_origins_list(),
+        allow_credentials=_cors_settings.cors_allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -98,24 +137,41 @@ def create_app() -> FastAPI:
     app.include_router(images.router, prefix="/api")
     app.include_router(web_vitals.router, prefix="/api")
     app.include_router(lead.router, prefix="/api")
+    app.include_router(leads_admin.router, prefix="/api")
+    app.include_router(meili_outbox.router, prefix="/api")
+    app.include_router(subscriptions.router, prefix="/api")
+    app.include_router(push.router, prefix="/api")
+    app.include_router(compare.router, prefix="/api")
+    app.include_router(sitemap.router, prefix="/api")
     app.include_router(translate.router, prefix="/api")
 
     @app.get("/api/health")
     async def health(request: Request):
-        out = {
+        settings = get_settings()
+        deep = (request.query_params.get("deep") or "").strip() == "1"
+        if deep:
+            payload = await run_deep_health(
+                pg_pool=request.app.state.pg_pool,
+                redis_client=getattr(request.app.state, "redis", None),
+                meili_client=request.app.state.meili,
+                settings=settings,
+            )
+            update_health_metrics(payload)
+            code = 200 if payload["status"] in {"ok", "degraded"} else 503
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                content={
+                    "service": "rideauto-fastapi",
+                    **payload,
+                },
+                status_code=code,
+            )
+        return {
             "status": "ok",
             "service": "rideauto-fastapi",
             "redis_cache": getattr(request.app.state, "redis", None) is not None,
         }
-        if (request.query_params.get("deep") or "").strip() == "1":
-            pg_pool = getattr(request.app.state, "pg_pool", None)
-            if pg_pool is not None:
-                try:
-                    total = await pg_pool.fetchval("SELECT COUNT(*) FROM cars")
-                    out["catalog_db"] = {"ok": True, "cars_count": int(total or 0)}
-                except Exception as e:
-                    out["catalog_db"] = {"ok": False, "error": str(e)[:200]}
-        return out
 
     @app.get("/api/version")
     async def version():

@@ -132,7 +132,22 @@ def _facet_syn_bag(bag: Optional[frozenset[str]], s: str, c: str) -> frozenset[s
 @lru_cache(maxsize=1)
 def _trans_synonyms_by_canon() -> Dict[str, frozenset[str]]:
     inv = {k: set(v) for k, v in _invert_map_forward(_ru_transmission_map()).items()}
-    inv.setdefault("Вариатор", set()).update(["CVT", "cvt"])
+    inv.setdefault("Вариатор (CVT)", set()).update(
+        [
+            "CVT",
+            "cvt",
+            "Вариатор",
+            "вариатор",
+            "3",
+            "10",
+            "10-ступенчатая",
+            "continuously variable transmission",
+        ]
+    )
+    inv.setdefault("АКПП", set()).update(["Automatic", "automatic", "AT", "at", "A/T", "Автомат", "автомат", "2"])
+    inv.setdefault("МКПП", set()).update(["Manual", "manual", "MT", "mt", "M/T", "Механика", "механика", "1"])
+    inv.setdefault("Робот (DCT)", set()).update(["DCT", "dct", "4"])
+    inv.setdefault("Роботизированная (AMT)", set()).update(["AMT", "amt", "5"])
     return {k: frozenset(v) for k, v in inv.items()}
 
 
@@ -380,17 +395,7 @@ def _canon_ru_transmission(raw: str) -> str:
     s = _as_text(raw)
     if not s:
         return ""
-    m = _ru_transmission_map()
-    if s in m:
-        return m[s]
-    u = s.upper()
-    if u == "CVT":
-        return "Вариатор"
-    if u in ("AT", "A/T"):
-        return "Автомат"
-    if u in ("MT", "M/T"):
-        return "Механика"
-    return s
+    return _canon_transmission_ru(s)
 
 
 def _is_facet_junk_value(raw: str) -> bool:
@@ -449,6 +454,74 @@ _CHINA_TRANS_CODE_TO_RU: Dict[str, str] = {
     "4": "Робот (DCT)",
     "5": "Роботизированная (AMT)",
 }
+
+_TRANS_CANON_ALIASES: Dict[str, str] = {
+    "manual": "МКПП",
+    "mt": "МКПП",
+    "m/t": "МКПП",
+    "механика": "МКПП",
+    "мкпп": "МКПП",
+    "automatic": "АКПП",
+    "at": "АКПП",
+    "a/t": "АКПП",
+    "автомат": "АКПП",
+    "акпп": "АКПП",
+    "cvt": "Вариатор (CVT)",
+    "вариатор": "Вариатор (CVT)",
+    "вариатор (cvt)": "Вариатор (CVT)",
+    "continuously variable transmission": "Вариатор (CVT)",
+    "dct": "Робот (DCT)",
+    "робот (dct)": "Робот (DCT)",
+    "робот (двойное сцепление)": "Робот (DCT)",
+    "amt": "Роботизированная (AMT)",
+    "роботизированная (amt)": "Роботизированная (AMT)",
+}
+
+
+def _canon_transmission_ru(raw: str) -> str:
+    """Единая канонизация КПП для Korea/China facets и фильтров."""
+    s = _as_text(raw)
+    if not s:
+        return ""
+    low = re.sub(r"\s+", " ", s.strip().lower())
+    if re.search(r"cvt|continuously\s*variable|simulated\s+\d+\s+gears|无级", low):
+        return "Вариатор (CVT)"
+    hit = _ru_transmission_map().get(s)
+    if hit:
+        s = hit
+        low = re.sub(r"\s+", " ", s.strip().lower())
+    code = _CHINA_TRANS_CODE_TO_RU.get(s.strip())
+    if code:
+        return code
+    alias = _TRANS_CANON_ALIASES.get(low)
+    if alias:
+        return alias
+    stepped = re.match(r"^(\d{1,2})-ступенчатая$", s, flags=re.IGNORECASE)
+    if stepped:
+        n = int(stepped.group(1))
+        if n == 10:
+            return "Вариатор (CVT)"
+        return f"{n}-ступенчатая"
+    m_speed = re.match(r"^(\d{1,2})\s*[-]?\s*speed\b", s, flags=re.IGNORECASE)
+    if m_speed:
+        return f"{int(m_speed.group(1))}-ступенчатая"
+    if s == "10":
+        return "Вариатор (CVT)"
+    if s.isdigit() and len(s) <= 2:
+        n = int(s)
+        if 6 <= n <= 9:
+            return f"{n}-ступенчатая"
+    if s.upper() == "CVT":
+        return "Вариатор (CVT)"
+    if s.upper() in ("AT", "A/T"):
+        return "АКПП"
+    if s.upper() in ("MT", "M/T"):
+        return "МКПП"
+    if s.upper() == "DCT":
+        return "Робот (DCT)"
+    if s.upper() == "AMT":
+        return "Роботизированная (AMT)"
+    return s
 
 
 def _canon_china_fuel(raw: str) -> str:
@@ -512,32 +585,8 @@ def _canon_china_transmission(raw: str) -> str:
     if _is_facet_junk_value(s):
         return ""
     if _CYRILLIC_RE.search(s):
-        return _canon_ru_transmission(s)
-    code = _CHINA_TRANS_CODE_TO_RU.get(s)
-    if code:
-        return code
-    low = re.sub(r"\s+", " ", s.strip().lower())
-    if low in {"manual", "mt", "m/t"}:
-        return "Механика"
-    if low in {"automatic", "at", "a/t"}:
-        return "Автомат"
-    if low in {"cvt", "continuously variable transmission"}:
-        return "Вариатор"
-    if low in {"amt"}:
-        return "Роботизированная (AMT)"
-    if low in {"dct"}:
-        return "Робот (DCT)"
-    m_speed = re.match(r"^(\d{1,2})\s*[-]?\s*speed$", s, flags=re.IGNORECASE)
-    if m_speed:
-        return f"{m_speed.group(1)}-ступенчатая"
-    if s.isdigit() and len(s) <= 2:
-        n = int(s)
-        if 6 <= n <= 10:
-            return f"{n}-ступенчатая"
-    hit = _canon_ru_transmission(s)
-    if hit and hit != s:
-        return hit
-    return s
+        return _canon_transmission_ru(s)
+    return _canon_transmission_ru(s)
 
 
 def _canon_china_color(raw: str) -> str:

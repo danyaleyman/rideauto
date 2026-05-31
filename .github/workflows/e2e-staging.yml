@@ -1,0 +1,27 @@
+# Smoke E2E против staging/real API (опционально: задайте secrets STAGING_WEB_ORIGIN).
+name: E2E Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      origin:
+        description: "Публичный origin (https://staging.example)"
+        required: true
+        default: "https://rideauto.ru"
+
+jobs:
+  staging-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: true
+      STAGING_WEB_ORIGIN: ${{ github.event.inputs.origin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test e2e/staging-smoke.spec.js

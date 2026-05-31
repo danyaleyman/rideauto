@@ -100,12 +100,15 @@ def main() -> int:
 
     p = argparse.ArgumentParser(description="Mark Che168 rows needs_pricing_recompute from stale China pricing JSON")
     p.add_argument("--config", default="che168_scraper.yaml")
+    p.add_argument("--dsn", default=os.environ.get("DATABASE_URL", ""))
     p.add_argument("--limit", type=int, default=5000)
     p.add_argument("--apply", action="store_true")
     p.add_argument("--car-id", action="append", default=[], help="Restrict to car_id (repeatable)")
     args = p.parse_args()
 
-    dsn = _dsn_for_host_outside_compose(_dsn(Path(args.config).expanduser().resolve()))
+    dsn = (args.dsn or "").strip() or _dsn_for_host_outside_compose(
+        _dsn(Path(args.config).expanduser().resolve())
+    )
     if not dsn:
         print("DATABASE_URL / config storage.postgres.dsn required", file=sys.stderr)
         return 2

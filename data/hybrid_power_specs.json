@@ -1,0 +1,141 @@
+{
+  "_comment": "Заводские мощности гибридов (Корея): ice_hp — ДВС, electric_hp — пик электромотора, system_hp — суммарная/системная для витрины (если ≠ ice+electric).",
+  "specs": [
+    {
+      "make": ["Hyundai", "현대"],
+      "model_substrings": ["Ioniq Hybrid", "아이오닉 하이브리드", "The New Ioniq Hybrid"],
+      "cc_min": 1580,
+      "cc_max": 1600,
+      "ice_hp": 105,
+      "electric_hp": 43.5,
+      "system_hp": 141
+    },
+    {
+      "make": ["Hyundai", "현대"],
+      "model_substrings": ["Ioniq", "아이오닉"],
+      "cc_min": 1580,
+      "cc_max": 1600,
+      "ice_hp_min": 100,
+      "ice_hp_max": 110,
+      "electric_hp": 43.5,
+      "system_hp": 141
+    },
+    {
+      "make": ["Toyota", "토요타"],
+      "model_substrings": ["Prius", "프리우스"],
+      "cc_min": 1797,
+      "cc_max": 1800,
+      "ice_hp": 98,
+      "electric_hp": 53,
+      "system_hp": 122
+    },
+    {
+      "make": ["Toyota", "토요타"],
+      "model_substrings": ["Camry Hybrid", "캠리 하이브리드"],
+      "cc_min": 2487,
+      "cc_max": 2500,
+      "ice_hp": 178,
+      "electric_hp": 118,
+      "system_hp": 218
+    },
+    {
+      "make": ["Kia", "기아"],
+      "model_substrings": ["Niro", "니로", "All New Niro", "The All New Niro"],
+      "cc_min": 1580,
+      "cc_max": 1600,
+      "ice_hp_min": 100,
+      "ice_hp_max": 110,
+      "electric_hp": 43.5,
+      "system_hp": 141
+    },
+    {
+      "make": ["Hyundai", "현대"],
+      "model_substrings": ["Sonata Hybrid", "쏘나타 하이브리드"],
+      "cc_min": 1999,
+      "cc_max": 2400,
+      "ice_hp": 152,
+      "electric_hp": 51,
+      "system_hp": 195
+    },
+    {
+      "make": ["Hyundai", "현대"],
+      "model_substrings_all": ["Grandeur", "Hybrid"],
+      "cc_min": 1999,
+      "cc_max": 2500,
+      "ice_hp_min": 155,
+      "ice_hp_max": 165,
+      "electric_hp": 51,
+      "system_hp": 210
+    },
+    {
+      "make": ["Hyundai", "현대"],
+      "model_substrings": ["Grandeur Hybrid", "그랜저 하이브리드", "Azera Hybrid"],
+      "cc_min": 1598,
+      "cc_max": 2400,
+      "ice_hp": 159,
+      "electric_hp": 51,
+      "system_hp": 210
+    },
+    {
+      "make": ["Kia", "기아"],
+      "model_substrings": ["Carnival", "카니발"],
+      "model_substrings_all": ["HEV"],
+      "cc_min": 1590,
+      "cc_max": 1610,
+      "ice_hp": 180,
+      "electric_hp": 65,
+      "system_hp": 245
+    },
+    {
+      "make": ["Kia", "기아"],
+      "model_substrings": ["Sorento"],
+      "model_substrings_all": ["HEV", "Hybrid"],
+      "cc_min": 1590,
+      "cc_max": 1610,
+      "ice_hp_min": 175,
+      "ice_hp_max": 185,
+      "electric_hp": 65,
+      "system_hp": 245
+    },
+    {
+      "make": ["Kia", "기아"],
+      "model_substrings": ["Sportage"],
+      "model_substrings_all": ["HEV", "Hybrid"],
+      "cc_min": 1590,
+      "cc_max": 1610,
+      "ice_hp_min": 175,
+      "ice_hp_max": 185,
+      "electric_hp": 65,
+      "system_hp": 245
+    },
+    {
+      "make": ["Hyundai", "현대"],
+      "model_substrings": ["Santa Fe", "싼타페", "Palisade"],
+      "model_substrings_all": ["HEV", "Hybrid"],
+      "cc_min": 1590,
+      "cc_max": 1610,
+      "ice_hp_min": 175,
+      "ice_hp_max": 185,
+      "electric_hp": 65,
+      "system_hp": 245
+    },
+    {
+      "make": ["Kia", "기아"],
+      "model_substrings": ["K5 Hybrid", "K5 하이브리드", "Optima Hybrid"],
+      "cc_min": 1999,
+      "cc_max": 2400,
+      "ice_hp": 152,
+      "electric_hp": 51,
+      "system_hp": 195
+    },
+    {
+      "make": ["Renault Korea (Samsung)", "Renault", "삼성", "Samsung", "르노"],
+      "model_substrings": ["Philant", "필란트", "E-TECH", "E-Tech", "E-Tech"],
+      "cc_min": 1490,
+      "cc_max": 1510,
+      "ice_hp": 103,
+      "electric_hp": 57,
+      "system_hp": 160
+    }
+  ]
+}

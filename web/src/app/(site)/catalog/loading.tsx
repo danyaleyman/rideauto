@@ -8,7 +8,7 @@ export default function CatalogLoading() {
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-28 rounded-2xl border border-border/60 bg-muted/30 ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:h-32 sm:rounded-3xl"
+                className="h-28 rounded-2xl border border-border/60 bg-muted/30 ring-1 ring-elevated-ring sm:h-32 sm:rounded-3xl"
               />
             ))}
           </aside>
@@ -18,7 +18,7 @@ export default function CatalogLoading() {
               {Array.from({ length: 8 }).map((_, i) => (
                 <li
                   key={i}
-                  className="overflow-hidden rounded-2xl border border-border/60 bg-card/50 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:rounded-3xl"
+                  className="overflow-hidden rounded-2xl border border-border/60 bg-card/50 shadow-sm ring-1 ring-elevated-ring sm:rounded-3xl"
                 >
                   <div className="flex flex-col sm:flex-row">
                     <div className="aspect-[16/10] bg-muted/50 sm:aspect-auto sm:h-36 sm:w-56" />

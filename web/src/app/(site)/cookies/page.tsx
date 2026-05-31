@@ -1,68 +1,17 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { DocLegalChrome } from "@/components/doc-legal/DocLegalChrome";
+import { CookiesPageContent } from "@/components/legal/CookiesPageContent";
+import { createT } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/locale-server";
 
-export const metadata: Metadata = {
-  title: "Политика использования cookie",
-  description: "Какие cookie использует сайт World Ride Auto и как управлять согласием.",
-  alternates: { canonical: "/cookies" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = createT(await getServerLocale());
+  return {
+    title: t("legal.cookies.metaTitle"),
+    description: t("legal.cookies.metaDescription"),
+    alternates: { canonical: "/cookies" },
+  };
+}
 
 export default function CookiesPage() {
-  return (
-    <DocLegalChrome>
-      <main className="doc-wrap">
-        <article className="doc-card">
-          <h1>Политика использования cookie</h1>
-          <p className="muted">Актуально на 30.04.2026</p>
-
-          <h2>1. Что такое cookie</h2>
-          <p>
-            Cookie — это небольшие файлы, которые браузер сохраняет на устройстве пользователя для
-            корректной работы сайта и сохранения пользовательских настроек.
-          </p>
-
-          <h2>2. Какие cookie используются</h2>
-          <ul>
-            <li>
-              <strong>Необходимые cookie</strong> — обеспечивают базовую работу сайта и не требуют
-              отдельного согласия.
-            </li>
-            <li>
-              <strong>Аналитические cookie</strong> подключаются только после явного согласия
-              пользователя в cookie-баннере.
-            </li>
-            <li>
-              <strong>Маркетинговые cookie</strong> на сайте по умолчанию не используются.
-            </li>
-          </ul>
-
-          <h2>3. Как управлять согласием</h2>
-          <p>
-            При первом посещении сайта пользователю предлагается выбор: принять все cookie или
-            оставить только необходимые. Выбор сохраняется локально в браузере.
-          </p>
-          <p>
-            Изменить выбор можно через пункт «Управление cookie» внизу сайта.
-          </p>
-
-          <h2>4. Как отключить cookie в браузере</h2>
-          <p>
-            Пользователь может удалить или заблокировать cookie в настройках браузера. При этом
-            отдельные функции сайта могут работать ограниченно.
-          </p>
-
-          <h2>5. Связанные документы</h2>
-          <ul>
-            <li>
-              <Link href="/privacy">Политика конфиденциальности</Link>
-            </li>
-            <li>
-              <Link href="/agreement">Пользовательское соглашение</Link>
-            </li>
-          </ul>
-        </article>
-      </main>
-    </DocLegalChrome>
-  );
+  return <CookiesPageContent />;
 }

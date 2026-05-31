@@ -1,83 +1,61 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ListingChip } from "@/components/ui/listing-chip";
 import { MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { catalogCardAttributeChips } from "@/lib/catalog-client-utils";
 import { cn } from "@/lib/utils";
-
-type Variant = "catalog" | "detail";
-
-const variantClasses: Record<Variant, string> = {
-  catalog:
-    "inline-flex h-auto max-w-full items-center gap-1 rounded-full border-border/55 bg-background/55 px-2.5 py-1 text-[11px] font-medium normal-case text-foreground shadow-none [overflow-wrap:anywhere] max-sm:border-dashed max-sm:text-muted-foreground dark:bg-muted/20",
-  detail:
-    "inline-flex h-auto w-full max-w-full items-start gap-1.5 rounded-2xl border-border/70 py-2 ps-2.5 pe-3 text-left text-xs font-medium normal-case shadow-sm sm:inline-flex sm:w-auto sm:max-w-none sm:rounded-full sm:items-center",
-};
 
 /** Единые чипы характеристик: каталог и страница авто. */
 export function CarListingAttributeChips({
   data,
   yearNum,
-  variant = "catalog",
   className,
   animated = false,
+  size = "md",
 }: {
   data: Record<string, unknown>;
   yearNum?: number | null;
-  variant?: Variant;
   className?: string;
   animated?: boolean;
+  size?: "sm" | "md";
 }) {
-  const chips = catalogCardAttributeChips(data, yearNum);
+  const { t, locale } = useLocaleContext();
+  const chips = catalogCardAttributeChips(data, yearNum, locale);
   if (!chips.length) return null;
 
-  const badgeVariant = variant === "detail" ? "outline" : "outline";
+  const chipEl = (c: { key: string; label: string; Icon: LucideIcon }) => {
+    const Icon = c.Icon;
+    return (
+      <ListingChip key={c.key} size={size} tone="neutral" className="normal-case">
+        <Icon className="size-3 shrink-0 opacity-80 sm:size-3.5" aria-hidden />
+        <span className="min-w-0">{c.label}</span>
+      </ListingChip>
+    );
+  };
+
   const list = (
     <ul
-      className={cn(
-        "flex min-w-0 flex-wrap gap-1.5 md:gap-2",
-        variant === "detail" && "gap-2",
-        className,
-      )}
-      aria-label="Краткие характеристики"
+      className={cn("flex min-w-0 flex-wrap gap-1.5 md:gap-2", className)}
+      aria-label={t("catalog.card.attrList")}
     >
-      {chips.map((c) => {
-        const Icon = c.Icon as LucideIcon;
-        return (
-          <li key={c.key} className="min-w-0 max-w-full">
-            <Badge variant={badgeVariant} className={variantClasses[variant]}>
-              <Icon
-                className={cn(
-                  "size-3 shrink-0 opacity-80",
-                  variant === "detail" && "mt-0.5 size-3.5 sm:mt-0",
-                )}
-                aria-hidden
-              />
-              <span className={cn("min-w-0", variant === "detail" && "flex-1 [overflow-wrap:anywhere]")}>
-                {c.label}
-              </span>
-            </Badge>
-          </li>
-        );
-      })}
+      {chips.map((c) => (
+        <li key={c.key} className="min-w-0 max-w-full">
+          {chipEl(c)}
+        </li>
+      ))}
     </ul>
   );
 
-  if (animated && variant === "detail") {
+  if (animated) {
     return (
-      <MotionStagger className="mt-4 flex min-w-0 flex-wrap gap-2" aria-label="Краткие характеристики">
-        {chips.map((c) => {
-          const Icon = c.Icon as LucideIcon;
-          return (
-            <MotionStaggerItem key={c.key} className="min-w-0 max-w-full">
-              <Badge variant="outline" className={variantClasses.detail}>
-                <Icon className="mt-0.5 size-3.5 shrink-0 opacity-80 sm:mt-0" aria-hidden />
-                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{c.label}</span>
-              </Badge>
-            </MotionStaggerItem>
-          );
-        })}
+      <MotionStagger className={cn("mt-4 flex min-w-0 flex-wrap gap-2", className)} aria-label={t("catalog.card.attrList")}>
+        {chips.map((c) => (
+          <MotionStaggerItem key={c.key} className="min-w-0 max-w-full">
+            {chipEl(c)}
+          </MotionStaggerItem>
+        ))}
       </MotionStagger>
     );
   }

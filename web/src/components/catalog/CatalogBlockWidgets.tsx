@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { catalogCardImagePlaceholder } from "@/lib/catalog-card-image";
 import { useProxiedCatalogThumbUrls } from "@/lib/catalog-image-proxy";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronsUpDown, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,27 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { MOTION_TOKENS } from "@/components/ui/motion";
+import { catalogPricingTierOptions, catalogSortOptions } from "@/lib/catalog-widget-options";
 import { cn } from "@/lib/utils";
 import type { CatalogPricingTierFilter, CatalogUrlState, Market } from "@/lib/catalog-url";
-
-export const PRICING_TIER_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "__any__", label: "Любая" },
-  { value: "full_customs", label: "Под ключ (с таможней РФ)" },
-  { value: "korea_land_only", label: "Без таможни РФ (Корея и логистика)" },
-  { value: "price_on_request", label: "Цена по запросу" },
-];
-
-export const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: "date_new", label: "Сначала новые" },
-  { value: "date_old", label: "Сначала старые" },
-  { value: "year_new", label: "Год: новее" },
-  { value: "year_old", label: "Год: старше" },
-  { value: "price_low", label: "Цена: дешевле" },
-  { value: "price_high", label: "Цена: дороже" },
-  { value: "mileage_low", label: "Пробег: меньше" },
-  { value: "mileage_high", label: "Пробег: больше" },
-];
 
 export const cardListVariants = {
   hidden: {},
@@ -60,16 +45,30 @@ export const cardItemVariants = {
   },
 };
 
-export function SortDropdown({ value, onChange }: { value: string; onChange: (next: string) => void }) {
-  const active = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
+export function SortDropdown({
+  value,
+  onChange,
+  variant = "sidebar",
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  variant?: "sidebar" | "toolbar";
+}) {
+  const { locale, t } = useLocaleContext();
+  const sortOptions = useMemo(() => catalogSortOptions(locale), [locale]);
+  const active = sortOptions.find((o) => o.value === value) ?? sortOptions[0];
+  const isToolbar = variant === "toolbar";
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
           variant="outline"
-          className="mt-2 h-10 w-full justify-between rounded-2xl font-normal"
-          aria-label={`Сортировка списка: ${active.label}`}
+          className={cn(
+            "h-10 justify-between font-normal shadow-sm",
+            isToolbar ? "min-w-[10.5rem] max-w-full rounded-xl px-3" : "mt-2 w-full rounded-2xl",
+          )}
+          aria-label={t("catalog.widgets.sortAria", { label: active.label })}
         >
           <span className="min-w-0 truncate text-start">{active.label}</span>
           <ChevronsUpDown className="size-4 shrink-0 opacity-55" aria-hidden />
@@ -79,9 +78,9 @@ export function SortDropdown({ value, onChange }: { value: string; onChange: (ne
         align="start"
         className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[13rem] p-1.5"
       >
-        <DropdownMenuLabel>Сортировка списка</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("catalog.widgets.sortMenu")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          {SORT_OPTIONS.map((o) => (
+          {sortOptions.map((o) => (
             <DropdownMenuRadioItem key={o.value} value={o.value} className="cursor-pointer">
               {o.label}
             </DropdownMenuRadioItem>
@@ -97,9 +96,9 @@ export function ListRowSkeleton() {
     <li>
       <Card
         size="sm"
-        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-border/60 sm:min-h-[13rem] sm:flex-row"
+        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-elevated-ring md:flex-row"
       >
-        <Skeleton className="h-52 w-full shrink-0 rounded-none sm:h-auto sm:w-60 sm:min-h-[13rem] md:w-72" />
+        <Skeleton className="aspect-[4/3] w-full shrink-0 rounded-none md:w-72" />
         <div className="flex min-w-0 flex-1 flex-col gap-0">
           <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
             <Skeleton className="h-4 w-[70%] rounded-md" />
@@ -127,6 +126,7 @@ export function ListRowSkeleton() {
 export function CatalogCardImage({
   images,
   displayImages: displayImagesProp,
+  lqipSrc,
   alt,
   eager,
   sold,
@@ -134,10 +134,13 @@ export function CatalogCardImage({
   images: string[];
   /** Если задано (например батч из родителя), не вызываем отдельный прокси-хук на карточку. */
   displayImages?: string[];
+  /** LQIP через /api/images?size=blur — снижает CLS до загрузки thumb. */
+  lqipSrc?: string;
   alt: string;
   eager: boolean;
   sold?: boolean;
 }) {
+  const { t } = useLocaleContext();
   const hooked = useProxiedCatalogThumbUrls(displayImagesProp != null ? [] : images);
   const displayImages = displayImagesProp ?? hooked;
   const [idx, setIdx] = useState(0);
@@ -148,17 +151,22 @@ export function CatalogCardImage({
   }, [images]);
 
   const src = displayImages[idx] ?? displayImages[0] ?? "";
+  const [mainLoaded, setMainLoaded] = useState(false);
+  useEffect(() => {
+    setMainLoaded(false);
+  }, [src]);
+
   if (!src) {
     return (
-      <div className="flex size-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
-        {images.length ? "Загрузка фото…" : "Нет фото"}
+      <div className="flex size-full items-center justify-center bg-muted/40 px-2 text-center text-xs text-muted-foreground">
+        {catalogCardImagePlaceholder(images.length > 0)}
       </div>
     );
   }
 
   return (
     <div
-      className="relative size-full"
+      className="relative size-full overflow-hidden bg-muted/30"
       onMouseEnter={() => {
         if (canCycle) setIdx(0);
       }}
@@ -166,22 +174,41 @@ export function CatalogCardImage({
         setIdx(0);
       }}
     >
+      {lqipSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element -- tiny LQIP from our CDN proxy
+        <img
+          src={lqipSrc}
+          alt=""
+          aria-hidden
+          className={cn(
+            "absolute inset-0 size-full scale-110 object-cover object-center blur-md transition-opacity duration-300",
+            mainLoaded ? "opacity-0" : "opacity-100",
+          )}
+          decoding="async"
+          loading="eager"
+        />
+      ) : null}
       <Image
         src={src}
         alt={alt}
-        width={448}
-        height={288}
-        sizes="(min-width: 1024px) 224px, 44vw"
-        className="h-full w-full object-cover object-center"
+        width={800}
+        height={520}
+        sizes="(min-width: 1024px) 320px, (min-width: 768px) 288px, 44vw"
+        className={cn(
+          "relative h-full w-full object-cover object-center transition-opacity duration-300",
+          mainLoaded || !lqipSrc ? "opacity-100" : "opacity-0",
+        )}
         loading={eager ? "eager" : "lazy"}
         fetchPriority={eager ? "high" : "auto"}
         decoding="async"
         unoptimized
+        onLoad={() => setMainLoaded(true)}
+        onError={() => setMainLoaded(true)}
       />
       {sold ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/58 px-3">
           <p className="text-center text-sm font-semibold leading-snug text-white drop-shadow-md sm:text-base">
-            Автомобиль продан
+            {t("catalog.card.soldBadge")}
           </p>
         </div>
       ) : null}
@@ -198,6 +225,8 @@ export function RangeBlock({
   navigate: (s: CatalogUrlState) => void;
   market: Market;
 }) {
+  const { locale, t } = useLocaleContext();
+  const pricingTierOptions = useMemo(() => catalogPricingTierOptions(locale), [locale]);
   const [draft, setDraft] = useState({
     price_from: state.price_from,
     price_to: state.price_to,
@@ -255,18 +284,22 @@ export function RangeBlock({
       {market === "korea" ? (
         <div className="mb-1 space-y-3 rounded-xl border border-border/80 bg-muted/15 px-3 py-3 dark:bg-muted/10">
           <div>
-            <span className="text-sm font-medium text-foreground">Оценка цены</span>
+            <span className="text-sm font-medium text-foreground">{t("catalog.widgets.pricingTitle")}</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
                   variant="outline"
                   className="mt-1.5 h-10 w-full justify-between rounded-2xl font-normal"
-                  aria-label={`Фильтр по типу оценки цены: ${PRICING_TIER_FILTER_OPTIONS.find((o) => o.value === (state.pricing_tier || "__any__"))?.label ?? "Любая"}`}
+                  aria-label={t("catalog.widgets.pricingAria", {
+                    label:
+                      pricingTierOptions.find((o) => o.value === (state.pricing_tier || "__any__"))?.label ??
+                      t("catalog.widgets.tierAny"),
+                  })}
                 >
                   <span className="min-w-0 truncate text-start">
-                    {PRICING_TIER_FILTER_OPTIONS.find((o) => o.value === (state.pricing_tier || "__any__"))?.label ??
-                      "Любая"}
+                    {pricingTierOptions.find((o) => o.value === (state.pricing_tier || "__any__"))?.label ??
+                      t("catalog.widgets.tierAny")}
                   </span>
                   <ChevronsUpDown className="size-4 shrink-0 opacity-55" aria-hidden />
                 </Button>
@@ -275,12 +308,12 @@ export function RangeBlock({
                 align="start"
                 className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[13rem] max-w-[min(100vw-2rem,24rem)] p-1.5"
               >
-                <DropdownMenuLabel>Оценка цены</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("catalog.widgets.pricingTitle")}</DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={state.pricing_tier || "__any__"}
                   onValueChange={(v) => setPricingTier(v === "__any__" ? "" : v)}
                 >
-                  {PRICING_TIER_FILTER_OPTIONS.map((o) => (
+                  {pricingTierOptions.map((o) => (
                     <DropdownMenuRadioItem key={o.value} value={o.value} className="cursor-pointer">
                       {o.label}
                     </DropdownMenuRadioItem>
@@ -307,10 +340,10 @@ export function RangeBlock({
                 className="mt-0.5 shrink-0"
               />
               <span>
-                В цене уже учтена таможня РФ
+                {t("catalog.widgets.customsInPrice")}
                 {state.pricing_tier === "full_customs" ? (
                   <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                    Это уже следует из фильтра «Под ключ».
+                    {t("catalog.widgets.customsFromTierHint")}
                   </span>
                 ) : null}
               </span>
@@ -320,7 +353,7 @@ export function RangeBlock({
                 <button
                   type="button"
                   className="inline-flex shrink-0 text-muted-foreground disabled:opacity-40"
-                  aria-label="Пояснение: таможня в цене"
+                  aria-label={t("catalog.widgets.customsInPriceAria")}
                   disabled={state.pricing_tier === "full_customs"}
                   onClick={(e) => e.preventDefault()}
                 >
@@ -328,8 +361,7 @@ export function RangeBlock({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[20rem]">
-                Показываются объявления, где расчёт итога включает пошлины и сборы таможни РФ (слой «под ключ» по
-                данным каталога).
+                {t("catalog.widgets.customsInPriceTip")}
               </TooltipContent>
             </Tooltip>
           </label>
@@ -337,49 +369,49 @@ export function RangeBlock({
       ) : null}
       <div className="grid grid-cols-1 gap-2 text-sm min-[420px]:grid-cols-2">
         <Input
-          placeholder="Цена от"
+          placeholder={t("catalog.widgets.priceFrom")}
           value={draft.price_from}
           onChange={(e) => setDraft((d) => ({ ...d, price_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder="Цена до"
+          placeholder={t("catalog.widgets.priceTo")}
           value={draft.price_to}
           onChange={(e) => setDraft((d) => ({ ...d, price_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder="Пробег от"
+          placeholder={t("catalog.widgets.mileageFrom")}
           value={draft.mileage_from}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder="Пробег до"
+          placeholder={t("catalog.widgets.mileageTo")}
           value={draft.mileage_to}
           onChange={(e) => setDraft((d) => ({ ...d, mileage_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder="Год от"
+          placeholder={t("catalog.widgets.yearFrom")}
           value={draft.year_from}
           onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder="Год до"
+          placeholder={t("catalog.widgets.yearTo")}
           value={draft.year_to}
           onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder="Объём от (см³)"
+          placeholder={t("catalog.widgets.ccFrom")}
           value={draft.engine_cc_from}
           onChange={(e) => setDraft((d) => ({ ...d, engine_cc_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder="Объём до (см³)"
+          placeholder={t("catalog.widgets.ccTo")}
           value={draft.engine_cc_to}
           onChange={(e) => setDraft((d) => ({ ...d, engine_cc_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
@@ -392,27 +424,24 @@ export function RangeBlock({
             onCheckedChange={(v) => setDraft((d) => ({ ...d, passable_only: Boolean(v) }))}
             className="mt-0.5 shrink-0"
           />
-          Только проходные авто
+          {t("catalog.widgets.passableOnly")}
         </span>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               className="inline-flex shrink-0 text-muted-foreground"
-              aria-label="Что такое проходные авто"
+              aria-label={t("catalog.widgets.passableAria")}
               onClick={(e) => e.preventDefault()}
             >
               <CircleHelp className="size-4" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">
-            «Проходными» считаются автомобили возрастом от 3 до 5 лет. Для них обычно действуют
-            льготные таможенные тарифы.
-          </TooltipContent>
+          <TooltipContent side="top">{t("catalog.widgets.passableTip")}</TooltipContent>
         </Tooltip>
       </label>
       <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
-        Применить диапазоны
+        {t("catalog.widgets.applyRanges")}
       </Button>
     </>
   );

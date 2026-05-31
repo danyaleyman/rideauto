@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, Fuel, Gauge, Zap } from "lucide-react";
+import { CalendarDays, Cog, Fuel, Gauge, Settings2, Zap } from "lucide-react";
 import { extractCarImageUrls } from "@/lib/car-images";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import {
@@ -11,6 +11,9 @@ import {
 } from "@/lib/car-detail-data";
 import type { Market } from "@/lib/catalog-url";
 import type { FacetRow, SlimCar } from "@/lib/types";
+import type { AppLocale } from "@/lib/i18n";
+import { createT } from "@/lib/i18n";
+import { canonicalTransmission } from "@/lib/vehicle-spec-locale";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 /** Номера страниц с «…» для shadcn Pagination. */
@@ -58,16 +61,16 @@ export function previewImageUrls(car: SlimCar): string[] {
   return ordered.slice(0, 4);
 }
 
-export function carsAddedTodayLabel(n: number): string {
-  if (n === 0) return "Сегодня новых записей нет";
+export function carsAddedTodayLabel(n: number, locale: AppLocale = "ru"): string {
+  const t = createT(locale);
+  if (n === 0) return t("catalog.card.addedTodayNone");
   const n10 = n % 10;
   const n100 = n % 100;
-  let word: string;
-  if (n100 >= 11 && n100 <= 19) word = "автомобилей";
-  else if (n10 === 1) word = "автомобиль";
-  else if (n10 >= 2 && n10 <= 4) word = "автомобиля";
-  else word = "автомобилей";
-  return `${n.toLocaleString("ru-RU")} ${word} добавлено сегодня`;
+  const count = n.toLocaleString(locale === "en" ? "en-US" : "ru-RU");
+  if (n === 1) return t("catalog.card.addedTodayOne");
+  if (n100 >= 11 && n100 <= 19) return t("catalog.card.addedTodayCount", { count });
+  if (n10 >= 2 && n10 <= 4) return t("catalog.card.addedTodayFew", { count });
+  return t("catalog.card.addedTodayCount", { count });
 }
 
 export type PassabilityStatus = "passable" | "young" | "old";
@@ -159,6 +162,8 @@ export function catalogCardDisplacementCc(data: Record<string, unknown>): number
   const ccRaw =
     data.displacement_cc ??
     data.displacement ??
+    data.che168_displacement_label ??
+    data.displacement_label ??
     data.engine_volume ??
     data.engine_displacement ??
     data.displacement_ml;
@@ -202,6 +207,7 @@ export function parseListingCalendarYear(v: unknown): number | null {
 export function catalogCardAttributeChips(
   data: Record<string, unknown>,
   yearNum?: number | null,
+  locale: AppLocale = "ru",
 ): { key: string; label: string; Icon: LucideIcon }[] {
   const parseHp = (v: unknown): number | null => {
     const s = asStr(v);
@@ -231,11 +237,31 @@ export function catalogCardAttributeChips(
   const fuel = asStr(data.engine_type) ?? asStr(data.fuel);
   const fuelLabel = normalizeFuelLabel(fuel);
   if (fuelLabel) chips.push({ key: "fuel", label: fuelLabel, Icon: Fuel });
+  const normalizedFuelLower = (fuelLabel || "").toLowerCase();
+  const isElectricFuel =
+    normalizedFuelLower.startsWith("электро") || normalizedFuelLower.startsWith("electric");
+  const ccValue = catalogCardDisplacementCc(data);
+  if (!isElectricFuel && ccValue != null && ccValue > 0) {
+    chips.push({ key: "cc", label: formatDisplacementLiters(ccValue), Icon: Settings2 });
+  }
   const hpRaw = data.power_hp ?? data.power ?? data.hp;
   const hpNum = typeof hpRaw === "number" ? Math.trunc(hpRaw) : parseHp(hpRaw);
   const hpValue = Number.isFinite(hpNum) ? hpNum : null;
   if (hpValue !== null && hpValue > 0) {
-    chips.push({ key: "hp", label: `${hpValue} л.с.`, Icon: Zap });
+    chips.push({
+      key: "hp",
+      label: locale === "en" ? `${hpValue} hp` : `${hpValue} л.с.`,
+      Icon: Zap,
+    });
+  }
+  const transRaw =
+    asStr(data.transmission_type_ru) ??
+    asStr(data.transmission_type) ??
+    asStr(data.gearbox) ??
+    asStr(data.transmission);
+  const transLabel = transRaw ? canonicalTransmission(locale, transRaw) : null;
+  if (transLabel) {
+    chips.push({ key: "trans", label: transLabel, Icon: Cog });
   }
   return chips;
 }
@@ -274,16 +300,17 @@ export function colorSwatchClass(colorName: string): string {
 }
 
 /** Человекочитаемое пояснение к ошибке сети/API для каталога. */
-export function catalogSearchErrorHint(message: string): string {
+export function catalogSearchErrorHint(message: string, locale: AppLocale = "ru"): string {
+  const t = createT(locale);
   const m = message.toLowerCase();
   if (m.includes("failed to fetch") || m.includes("networkerror") || m === "typeerror: failed to fetch") {
-    return "Похоже, нет соединения с сервером или сеть нестабильна.";
+    return t("catalog.error.hintNetwork");
   }
   if (m.includes("таймаут") || m.includes("timeout") || m.includes("время ожидания")) {
-    return "Запрос занял слишком много времени. Проверьте сеть и попробуйте снова.";
+    return t("catalog.error.hintTimeout");
   }
   if (/\b52\d\b/.test(m) || m.includes("502") || m.includes("503") || m.includes("504")) {
-    return "Сервер временно перегружен. Попробуйте через минуту.";
+    return t("catalog.error.hintServerBusy");
   }
   return "";
 }

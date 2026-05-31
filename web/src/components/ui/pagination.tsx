@@ -4,11 +4,15 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 
-function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
+function Pagination({
+  className,
+  "aria-label": ariaLabel = "Pagination",
+  ...props
+}: React.ComponentProps<"nav">) {
   return (
     <nav
       role="navigation"
-      aria-label="Нумерация страниц"
+      aria-label={ariaLabel}
       data-slot="pagination"
       className={cn("mx-auto flex w-full justify-center", className)}
       {...props}
@@ -49,7 +53,7 @@ function PaginationLink({
       asChild
       variant={isActive ? "outline" : "ghost"}
       size={size}
-      className={cn(className)}
+      className={cn("max-lg:min-h-11 max-lg:min-w-11", className)}
     >
       <a
         aria-current={isActive ? "page" : undefined}
@@ -99,21 +103,22 @@ function PaginationNext({
 
 function PaginationEllipsis({
   className,
+  label = "Skipped pages",
   ...props
-}: React.ComponentProps<"span">) {
+}: React.ComponentProps<"span"> & { label?: string }) {
   return (
     <span
       aria-hidden
       data-slot="pagination-ellipsis"
       className={cn(
-        "flex size-9 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
+        "flex size-9 max-lg:min-h-11 max-lg:min-w-11 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
     >
       <MoreHorizontalIcon
       />
-      <span className="sr-only">Пропущенные страницы</span>
+      <span className="sr-only">{label}</span>
     </span>
   )
 }

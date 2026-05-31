@@ -1,6 +1,5 @@
 /**
  * Русские подписи для КПП, привода и цвета (каталог, фильтры, карточка).
- * Если значение уже на кириллице — возвращаем как есть.
  */
 
 import { asStr } from "@/lib/car-detail-data";
@@ -29,16 +28,13 @@ const DRIVE_EXACT: Record<string, string> = {
   前置后驱: "Задний привод",
 };
 
-const TRANS_EXACT: Record<string, string> = {
+/** Che168 / Encar коды и синонимы → одна подпись на тип КПП. */
+const TRANS_TYPE_CODES: Record<string, string> = {
   "1": "МКПП",
   "2": "АКПП",
   "3": "Вариатор (CVT)",
   "4": "Робот (DCT)",
   "5": "Роботизированная (AMT)",
-  "6": "6-ступенчатая",
-  "7": "7-ступенчатая",
-  "8": "8-ступенчатая",
-  "9": "9-ступенчатая",
   manual: "МКПП",
   automatic: "АКПП",
   cvt: "Вариатор (CVT)",
@@ -46,14 +42,27 @@ const TRANS_EXACT: Record<string, string> = {
   amt: "Роботизированная (AMT)",
   at: "АКПП",
   mt: "МКПП",
+  "a/t": "АКПП",
+  "m/t": "МКПП",
   手动: "МКПП",
   自动: "АКПП",
   双离合: "Робот (DCT)",
   无级变速: "Вариатор (CVT)",
 };
 
-/** «8 at», «6speed», «9速» после normKey — сводим к «N-ступенчатая». */
-const SPEED_GEAR_RE = /^(\d{1,2})\s*(?:at|speed|mt|dct|cvt|amt|速|挡|档)$/i;
+const TRANS_ALIAS_TO_CANON: Record<string, string> = {
+  механика: "МКПП",
+  мкпп: "МКПП",
+  автомат: "АКПП",
+  акпп: "АКПП",
+  вариатор: "Вариатор (CVT)",
+  "вариатор (cvt)": "Вариатор (CVT)",
+  "робот (dct)": "Робот (DCT)",
+  "робот (двойное сцепление)": "Робот (DCT)",
+  робот: "Робот (DCT)",
+  "роботизированная (amt)": "Роботизированная (AMT)",
+  "continuously variable transmission": "Вариатор (CVT)",
+};
 
 const COLOR_EXACT: Record<string, string> = {
   white: "Белый",
@@ -89,9 +98,61 @@ function normKey(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function isCvtTransmissionText(raw: string): boolean {
+  return /cvt|continuously\s*variable|simulated\s+\d+\s+gears|无级变速|无级/i.test(raw);
+}
+
 /**
- * Каноничные подписи привода (в т.ч. FWD / «Front-Wheel Drive»).
+ * Единая канонизация КПП для фильтров, каталога и карточки.
+ * Сводит синонимы (Автомат/АКПП, Вариатор/CVT, «10» у Che168) к одной подписи.
  */
+export function canonicalTransmissionRu(v: unknown): string | null {
+  const raw = asStr(v);
+  if (!raw) return null;
+
+  if (isCvtTransmissionText(raw)) return "Вариатор (CVT)";
+
+  const nk = normKey(raw);
+
+  const steppedRu = nk.match(/^(\d{1,2})-ступенчатая$/);
+  if (steppedRu) {
+    if (steppedRu[1] === "10") return "Вариатор (CVT)";
+    return `${steppedRu[1]}-ступенчатая`;
+  }
+
+  const alias = TRANS_ALIAS_TO_CANON[nk];
+  if (alias) return alias;
+
+  const typeCode = TRANS_TYPE_CODES[nk];
+  if (typeCode) return typeCode;
+
+  const mSpeed = raw.match(/^(\d{1,2})\s*[-]?\s*speed\b/i);
+  if (mSpeed && !isCvtTransmissionText(raw)) return `${mSpeed[1]}-ступенчатая`;
+
+  // Che168: gearbox=10 — «simulated 10 gears» у CVT, не 10-ступенчатый автомат.
+  if (nk === "10") return "Вариатор (CVT)";
+
+  if (/^[6-9]$/.test(nk)) return `${nk}-ступенчатая`;
+
+  if (CYRILLIC.test(raw)) return TRANS_ALIAS_TO_CANON[nk] ?? raw;
+
+  return raw;
+}
+
+/** Порядок в фильтре КПП. */
+export function transmissionSortRank(label: string): number {
+  const canon = canonicalTransmissionRu(label) ?? label;
+  const nk = normKey(canon);
+  if (nk === "мкпп") return 10;
+  if (nk === "акпп") return 20;
+  const stepped = nk.match(/^(\d{1,2})-ступенчатая$/);
+  if (stepped) return 30 + Number(stepped[1]);
+  if (nk.startsWith("вариатор")) return 50;
+  if (nk.startsWith("робот (dct)")) return 60;
+  if (nk.startsWith("роботизированная")) return 70;
+  return 100;
+}
+
 export function displayDriveTypeRu(v: unknown): string | null {
   const raw = asStr(v);
   if (!raw) return null;
@@ -108,9 +169,6 @@ export function displayDriveTypeRu(v: unknown): string | null {
   return raw;
 }
 
-/**
- * Кузов: English / кит. → RU (каталог China, карточка).
- */
 export function displayBodyTypeRu(v: unknown): string | null {
   const raw = asStr(v);
   if (!raw) return null;
@@ -134,33 +192,10 @@ export function displayBodyTypeRu(v: unknown): string | null {
   return raw;
 }
 
-/**
- * КПП: коды API, English, «7-speed».
- */
 export function displayTransmissionRu(v: unknown): string | null {
-  const raw = asStr(v);
-  if (!raw) return null;
-  if (CYRILLIC.test(raw)) return raw;
-  const nk = normKey(raw);
-  if (TRANS_EXACT[nk]) return TRANS_EXACT[nk];
-  if (/^\d{1,2}$/.test(nk) && TRANS_EXACT[nk]) return TRANS_EXACT[nk]!;
-
-  if (nk === "continuously variable transmission") return "Вариатор";
-
-  const mSpeed = raw.match(/^(\d{1,2})\s*[-]?\s*speed$/i);
-  if (mSpeed) {
-    const n = mSpeed[1];
-    return `${n}-ступенчатая`;
-  }
-  const gearMatch = nk.match(SPEED_GEAR_RE);
-  if (gearMatch) return `${gearMatch[1]}-ступенчатая`;
-  // «1-speed DHT» и прочий текст — оставляем, но дожим по словам
-  return raw;
+  return canonicalTransmissionRu(v);
 }
 
-/**
- * Цвет кузова: English / кит. иероглифы в короткие RU-имена.
- */
 export function displayColorRu(v: unknown): string | null {
   const raw = asStr(v);
   if (!raw) return null;
@@ -171,7 +206,6 @@ export function displayColorRu(v: unknown): string | null {
   if (first && COLOR_EXACT[first]) return COLOR_EXACT[first];
   if (nk.includes("pearl") && nk.includes("white")) return "Перламутровый белый";
   if (nk.includes("metallic")) return raw;
-  // короткие китайские составные (白色 / 珍珠白)
   if (/色/.test(raw) && raw.length <= 8) {
     if (raw.includes("白")) return "Белый";
     if (raw.includes("黑")) return "Чёрный";

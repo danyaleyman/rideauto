@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { useProxiedCarGalleryUrls } from "@/lib/catalog-image-proxy";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
@@ -11,6 +12,7 @@ import {
   carSourceBadgeVariant,
   carSourceShortRegionLabel,
 } from "@/lib/car-listing-trust";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +41,7 @@ export default function CarPhotoGallery({
   catalogCreatedAt,
   availability = "available",
 }: CarPhotoGalleryProps) {
+  const { t } = useLocaleContext();
   const images = useMemo(() => {
     const raw = rawImages.filter((x) => /^https?:\/\//i.test(x.trim()));
     const seen = new Set<string>();
@@ -58,6 +61,7 @@ export default function CarPhotoGallery({
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
+  useBodyScrollLock(lightboxOpen);
   const thumbBtnRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const safeActive = n ? Math.min(active, n - 1) : 0;
@@ -125,7 +129,7 @@ export default function CarPhotoGallery({
 
   return (
     <>
-      <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-muted shadow-md ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:rounded-3xl">
+      <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-muted shadow-md ring-1 ring-elevated-ring sm:rounded-3xl">
         <div
           className={cn(
             "grid min-h-0 min-w-0 gap-2 lg:gap-3",
@@ -135,7 +139,7 @@ export default function CarPhotoGallery({
           )}
         >
           <div
-            className="relative aspect-[16/10] min-h-[220px] w-full cursor-zoom-in overflow-hidden bg-muted sm:min-h-[260px] lg:aspect-auto lg:h-full lg:min-h-0"
+            className="relative aspect-[4/3] min-h-[200px] w-full cursor-zoom-in overflow-hidden bg-muted sm:min-h-[240px] lg:aspect-auto lg:min-h-0 lg:h-full"
             onClick={() => openLightbox(safeActive)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -145,12 +149,12 @@ export default function CarPhotoGallery({
             }}
             role="button"
             tabIndex={0}
-            aria-label="Открыть галерею фото"
+            aria-label={t("gallery.open")}
           >
             {current ? (
               <Image
                 src={current}
-                alt={`${title} — фото ${safeActive + 1}`}
+                alt={t("gallery.photoAlt", { title, n: safeActive + 1 })}
                 fill
                 sizes="(min-width: 1536px) 900px, (min-width: 1280px) 75vw, (min-width: 1024px) 72vw, 100vw"
                 className="object-cover object-center"
@@ -161,19 +165,19 @@ export default function CarPhotoGallery({
             ) : (
               <div className="flex size-full items-center justify-center bg-muted">
                 <Loader2 className="size-10 animate-spin text-muted-foreground" aria-hidden />
-                <span className="sr-only">Загрузка фото…</span>
+                <span className="sr-only">{t("gallery.loading")}</span>
               </div>
             )}
             {availability === "sold" ? (
               <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/58 px-4">
                 <p className="text-center text-base font-semibold leading-snug text-white drop-shadow-md sm:text-lg">
-                  Автомобиль продан
+                  {t("car.purchase.sold")}
                 </p>
               </div>
             ) : availability === "reserved" ? (
               <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-amber-950/55 px-4">
                 <p className="text-center text-base font-semibold leading-snug text-amber-50 drop-shadow-md sm:text-lg">
-                  Зарезервировано
+                  {t("gallery.reserved")}
                 </p>
               </div>
             ) : null}
@@ -192,7 +196,7 @@ export default function CarPhotoGallery({
               </div>
             ) : showListedTodayBadge ? (
               <div className="pointer-events-none absolute start-3 top-3 z-[2] max-w-[min(100%,14rem)] rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium leading-snug text-white shadow-md ring-1 ring-white/15 backdrop-blur-sm sm:text-[11px]">
-                Добавлено сегодня
+                {t("gallery.listedToday")}
               </div>
             ) : null}
 
@@ -207,7 +211,7 @@ export default function CarPhotoGallery({
                   variant="ghost"
                   size="icon-xs"
                   className="size-7 rounded-full text-white hover:bg-white/15 hover:text-white"
-                  aria-label="Предыдущее фото"
+                  aria-label={t("gallery.prev")}
                   onClick={() => go(-1)}
                 >
                   <ChevronLeft className="size-4 rtl:rotate-180" />
@@ -220,7 +224,7 @@ export default function CarPhotoGallery({
                   variant="ghost"
                   size="icon-xs"
                   className="size-7 rounded-full text-white hover:bg-white/15 hover:text-white"
-                  aria-label="Следующее фото"
+                  aria-label={t("gallery.next")}
                   onClick={() => go(1)}
                 >
                   <ChevronRight className="size-4 rtl:rotate-180" />
@@ -255,8 +259,8 @@ export default function CarPhotoGallery({
                       )}
                       aria-label={
                         showMore
-                          ? `Показать фото ${idx + 1}, ещё ${moreCount} в галерее`
-                          : `Показать фото ${idx + 1}`
+                          ? t("gallery.thumbShowMore", { n: idx + 1, more: moreCount })
+                          : t("gallery.thumbShow", { n: idx + 1 })
                       }
                     >
                       {src ? (
@@ -274,7 +278,7 @@ export default function CarPhotoGallery({
                       )}
                       {showMore ? (
                         <span className="absolute inset-0 flex items-center justify-center bg-black/65 px-1 text-center text-[10px] font-semibold leading-tight text-white sm:text-xs">
-                          +{moreCount} фото
+                          {t("gallery.morePhotos", { count: moreCount })}
                         </span>
                       ) : null}
                     </button>
@@ -298,7 +302,7 @@ export default function CarPhotoGallery({
           )}
         >
           <DialogHeader className="sr-only">
-            <DialogTitle>Галерея фото</DialogTitle>
+            <DialogTitle>{t("gallery.dialogTitle")}</DialogTitle>
           </DialogHeader>
 
           <div className="relative flex min-h-0 flex-1 items-center justify-center px-4 pt-4 pb-2 sm:px-10">
@@ -308,7 +312,7 @@ export default function CarPhotoGallery({
                 variant="ghost"
                 size="icon-lg"
                 className="absolute start-2 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white sm:start-6"
-                aria-label="Предыдущее фото"
+                aria-label={t("gallery.prev")}
                 onClick={() => goLightbox(-1)}
               >
                 <ChevronLeft className="size-7 rtl:rotate-180" aria-hidden />
@@ -320,7 +324,7 @@ export default function CarPhotoGallery({
                 variant="ghost"
                 size="icon-lg"
                 className="absolute end-2 top-1/2 z-10 size-12 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white sm:end-6"
-                aria-label="Следующее фото"
+                aria-label={t("gallery.next")}
                 onClick={() => goLightbox(1)}
               >
                 <ChevronRight className="size-7 rtl:rotate-180" aria-hidden />
@@ -331,7 +335,7 @@ export default function CarPhotoGallery({
               {lightboxMainSrc ? (
                 <Image
                   src={lightboxMainSrc}
-                  alt={`${title} — ${lightboxIdx + 1} из ${n}`}
+                  alt={t("gallery.photoSlide", { title, n: lightboxIdx + 1, total: n })}
                   width={1800}
                   height={1200}
                   className="max-h-[calc(100dvh-11rem)] w-auto max-w-full object-contain"
@@ -340,7 +344,7 @@ export default function CarPhotoGallery({
               ) : (
                 <div className="flex min-h-[40vh] items-center justify-center">
                   <Loader2 className="size-12 animate-spin text-white/70" aria-hidden />
-                  <span className="sr-only">Загрузка фото…</span>
+                  <span className="sr-only">{t("gallery.loading")}</span>
                 </div>
               )}
             </div>
@@ -356,7 +360,7 @@ export default function CarPhotoGallery({
                   className="rounded-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
                   disabled={n <= 1}
                   onClick={() => goLightbox(-1)}
-                  aria-label="Предыдущее фото"
+                  aria-label={t("gallery.prev")}
                 >
                   <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
                 </Button>
@@ -370,7 +374,7 @@ export default function CarPhotoGallery({
                   className="rounded-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
                   disabled={n <= 1}
                   onClick={() => goLightbox(1)}
-                  aria-label="Следующее фото"
+                  aria-label={t("gallery.next")}
                 >
                   <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
                 </Button>
@@ -379,7 +383,7 @@ export default function CarPhotoGallery({
                   variant="outline"
                   size="sm"
                   className="rounded-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-                  aria-label="Закрыть полноэкранную галерею"
+                  aria-label={t("gallery.close")}
                   onClick={() => setLightboxOpen(false)}
                 >
                   <X className="size-4" aria-hidden />
@@ -399,7 +403,7 @@ export default function CarPhotoGallery({
                       "relative h-14 w-[5.25rem] shrink-0 overflow-hidden rounded-md border-2 transition-colors sm:h-16 sm:w-24",
                       i === lightboxIdx ? "border-white" : "border-transparent opacity-70 hover:opacity-100",
                     )}
-                    aria-label={`Фото ${i + 1}`}
+                    aria-label={t("gallery.thumbPhoto", { n: i + 1 })}
                     aria-current={i === lightboxIdx ? "true" : undefined}
                   >
                     {src ? (

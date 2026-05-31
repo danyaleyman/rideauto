@@ -1,0 +1,5 @@
+{
+  "maxTotalClientGzipBytes": 3200000,
+  "maxSingleChunkGzipBytes": 720000,
+  "maxFrameworkChunkGzipBytes": 180000
+}

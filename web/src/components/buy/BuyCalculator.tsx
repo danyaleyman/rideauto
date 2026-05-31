@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -179,8 +180,8 @@ function effectivePowerHp(
   const ed30 = hpEdPeak * 0.45;
   if (engType === "electric") return ed30;
   if (engType === "hybrid") {
-    // TKS-like logic: parallel = ICE + 30-min ED, series = 30-min ED only.
-    return hybridType === "series" ? ed30 : hpIce + ed30;
+    // parallel: полная сумма пиков; series: только 30-мин. ЭД (ДВС — генератор).
+    return hybridType === "series" ? ed30 : hpIce + hpEdPeak;
   }
   return hpIce;
 }
@@ -476,15 +477,15 @@ const UTIL_SELF_CHECK_CASES: UtilCase[] = [
     expectedUtil: 991200,
   },
   {
-    name: "Parallel hybrid uses ICE + 30-min ED",
+    name: "Parallel hybrid uses ICE + ED peak sum",
     age: "0-3",
     engType: "hybrid",
     hybridType: "parallel",
     vol: 1998,
     hpIce: 100,
-    hpEd: 200, // total effective = 190
+    hpEd: 200, // total effective = 300
     purpose: "personal",
-    expectedUtil: 900000,
+    expectedUtil: 1291200,
   },
   {
     name: "Parallel hybrid legal no loyal",
@@ -594,6 +595,7 @@ function SelectField({
 }
 
 export function BuyCalculator() {
+  const { t, locale } = useLocaleContext();
   const [engineType, setEngineType] = useState<EngineType>("petrol");
   const [hybridType, setHybridType] = useState<HybridType>("none");
   const [currency, setCurrency] = useState<Currency>("USD");
@@ -606,7 +608,7 @@ export function BuyCalculator() {
   const [purpose, setPurpose] = useState<Purpose>("personal");
   const [calcNonce, setCalcNonce] = useState(0);
   const [cbrRates, setCbrRates] = useState<Record<Currency, CbrRate>>(FALLBACK_RATES);
-  const [rateDateBadge, setRateDateBadge] = useState("Курсы ЦБ РФ (резервные)");
+  const [rateDateBadge, setRateDateBadge] = useState(() => t("buy.calc.ratesFallback"));
 
   useEffect(() => {
     const fetchExchangeRates = async () => {
@@ -623,19 +625,21 @@ export function BuyCalculator() {
           CNY: valute.CNY ?? FALLBACK_RATES.CNY,
         };
         setCbrRates(nextRates);
-        const date = d?.date ? new Date(d.date).toLocaleDateString("ru-RU") : "";
+        const date = d?.date
+          ? new Date(d.date).toLocaleDateString(locale === "en" ? "en-US" : "ru-RU")
+          : "";
         if (d?.source === "cbr") {
-          setRateDateBadge(`Курсы ЦБ РФ ${date}`);
+          setRateDateBadge(t("buy.calc.ratesCbr", { date }));
         } else {
-          setRateDateBadge("Курсы ЦБ РФ (резервные)");
+          setRateDateBadge(t("buy.calc.ratesFallback"));
         }
       } catch {
         setCbrRates(FALLBACK_RATES);
-        setRateDateBadge("Курсы ЦБ РФ (резервные)");
+        setRateDateBadge(t("buy.calc.ratesFallback"));
       }
     };
     void fetchExchangeRates();
-  }, []);
+  }, [locale, t]);
 
   useEffect(() => {
     const failed = runUtilSelfCheck();
@@ -664,11 +668,12 @@ export function BuyCalculator() {
 
     const rub = safePrice * rate;
     const effectivePower = effectivePowerHp(engineType, hybridType, finalHpIce, finalHpEd);
+    const hp30Min = finalHpEd * 0.45;
     const powerForExcise =
       engineType === "electric"
-        ? finalHpEd || safeHpEd
+        ? hp30Min
         : engineType === "hybrid"
-          ? finalHpIce + finalHpEd * 0.45
+          ? effectivePower
           : safeHpSingle || finalHpIce;
     const duty = getDuty(rub, eurRate, ageRange, safeVol, engineType, powerForExcise);
     const excise = engineType === "electric" ? exciseRub(powerForExcise) : 0;
@@ -676,19 +681,16 @@ export function BuyCalculator() {
     const util = getUtil(ageRange, engineType, hybridType, safeVol, finalHpIce, finalHpEd, purpose);
     const customsFee = getCustomsFee(rub);
     const total = duty + excise + vat + util + customsFee;
-    const hp30Min = finalHpEd * 0.45;
 
     return { rate, eurRate, rub, duty, excise, vat, util, customsFee, total, hp30Min, effectivePower };
   }, [ageRange, calcNonce, cbrRates, currency, engineType, hpEd, hpIce, hpSingle, hybridType, price, purpose, volume]);
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-sm dark:ring-white/[0.06] sm:p-6">
+    <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm ring-1 ring-elevated-ring backdrop-blur-sm sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h3 className="text-xl font-semibold tracking-tight text-foreground">Растаможка авто в РФ</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Бензин, дизель, гибриды и электромобили — физические лица
-          </p>
+          <h3 className="text-xl font-semibold tracking-tight text-foreground">{t("buy.calc.title")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{t("buy.calc.subtitle")}</p>
         </div>
         <span className="rounded-full border border-border/70 bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
           {rateDateBadge}
@@ -698,7 +700,7 @@ export function BuyCalculator() {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="space-y-3">
           <SelectField
-            label="Тип двигателя"
+            label={t("buy.calc.engineType")}
             value={engineType}
             onChange={(raw) => {
               const v = raw as EngineType;
@@ -706,29 +708,29 @@ export function BuyCalculator() {
               if (v !== "hybrid") setHybridType("none");
             }}
           >
-            <option value="petrol">Бензиновый</option>
-            <option value="diesel">Дизельный</option>
-            <option value="electric">Электрический</option>
-            <option value="hybrid">Гибрид</option>
+            <option value="petrol">{t("buy.calc.enginePetrol")}</option>
+            <option value="diesel">{t("buy.calc.engineDiesel")}</option>
+            <option value="electric">{t("buy.calc.engineElectric")}</option>
+            <option value="hybrid">{t("buy.calc.engineHybrid")}</option>
           </SelectField>
 
           {engineType === "hybrid" ? (
-            <SelectField label="Тип гибрида" value={hybridType} onChange={(v) => setHybridType(v as HybridType)}>
-              <option value="parallel">Параллельный (HEV/PHEV)</option>
-              <option value="series">Последовательный (ДВС-генератор)</option>
+            <SelectField label={t("buy.calc.hybridType")} value={hybridType} onChange={(v) => setHybridType(v as HybridType)}>
+              <option value="parallel">{t("buy.calc.hybridParallel")}</option>
+              <option value="series">{t("buy.calc.hybridSeries")}</option>
             </SelectField>
           ) : null}
 
-          <SelectField label="Валюта цены" value={currency} onChange={(v) => setCurrency(v as Currency)}>
-            <option value="USD">Доллар (USD)</option>
-            <option value="EUR">Евро (EUR)</option>
-            <option value="JPY">Йена (JPY)</option>
-            <option value="KRW">Вона (KRW)</option>
-            <option value="CNY">Юань (CNY)</option>
+          <SelectField label={t("buy.calc.currency")} value={currency} onChange={(v) => setCurrency(v as Currency)}>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="JPY">JPY</option>
+            <option value="KRW">KRW</option>
+            <option value="CNY">CNY</option>
           </SelectField>
 
           <label className="block text-sm font-medium text-foreground">
-            Цена авто
+            {t("buy.calc.price")}
             <Input
               className="mt-1 h-10"
               type="number"
@@ -740,7 +742,7 @@ export function BuyCalculator() {
 
           {engineType !== "electric" ? (
             <label className="block text-sm font-medium text-foreground">
-              Объём двигателя (см³)
+              {t("buy.calc.volume")}
               <Input
                 className="mt-1 h-10"
                 type="number"
@@ -755,7 +757,7 @@ export function BuyCalculator() {
             <>
               {engineType === "hybrid" ? (
                 <label className="block text-sm font-medium text-foreground">
-                  Мощность ДВС (л.с.)
+                  {t("buy.calc.hpIce")}
                   <Input
                     className="mt-1 h-10"
                     type="number"
@@ -766,7 +768,7 @@ export function BuyCalculator() {
                 </label>
               ) : null}
               <label className="block text-sm font-medium text-foreground">
-                Суммарная пиковая мощность ЭД (л.с.)
+                {t("buy.calc.hpEd")}
                 <Input
                   className="mt-1 h-10"
                   type="number"
@@ -775,16 +777,14 @@ export function BuyCalculator() {
                   onChange={(e) => setHpEd(e.target.value)}
                 />
                 <div className="mt-1 rounded-lg bg-amber-100/70 px-3 py-2 text-xs text-amber-900">
-                  30-минутная мощность ЭД: {result.hp30Min.toFixed(1)} л.с.
-                  {engineType === "hybrid" && hybridType === "parallel"
-                    ? " (для утильсбора: ДВС + 30-мин ЭД)"
-                    : ""}
+                  {t("buy.calc.hp30", { hp: result.hp30Min.toFixed(1) })}
+                  {engineType === "hybrid" && hybridType === "parallel" ? t("buy.calc.hp30Parallel") : ""}
                 </div>
               </label>
             </>
           ) : (
             <label className="block text-sm font-medium text-foreground">
-              Мощность (л.с.)
+              {t("buy.calc.hp")}
               <Input
                 className="mt-1 h-10"
                 type="number"
@@ -796,7 +796,7 @@ export function BuyCalculator() {
           )}
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">Возраст авто</p>
+            <p className="text-sm font-medium text-foreground">{t("buy.calc.age")}</p>
             <div className="flex flex-wrap gap-2">
               {(["0-3", "3-5", "5+"] as const).map((age) => (
                 <label
@@ -809,16 +809,16 @@ export function BuyCalculator() {
                     checked={ageRange === age}
                     onChange={() => setAgeRange(age)}
                   />
-                  {age === "0-3" ? "0-3 года" : age === "3-5" ? "3-5 лет" : "Старше 5 лет"}
+                  {age === "0-3" ? t("buy.calc.age03") : age === "3-5" ? t("buy.calc.age35") : t("buy.calc.age5")}
                 </label>
               ))}
             </div>
           </div>
 
-          <SelectField label="Цель ввоза" value={purpose} onChange={(v) => setPurpose(v as Purpose)}>
-            <option value="personal">личное пользование</option>
-            <option value="resale">перепродажа</option>
-            <option value="legal">юрлицо</option>
+          <SelectField label={t("buy.calc.purpose")} value={purpose} onChange={(v) => setPurpose(v as Purpose)}>
+            <option value="personal">{t("buy.calc.purposePersonal")}</option>
+            <option value="resale">{t("buy.calc.purposeResale")}</option>
+            <option value="legal">{t("buy.calc.purposeLegal")}</option>
           </SelectField>
 
           <Button
@@ -826,63 +826,64 @@ export function BuyCalculator() {
             className="mt-1 h-10 w-full"
             onClick={() => setCalcNonce((n) => n + 1)}
           >
-            Рассчитать
+            {t("buy.calc.submit")}
           </Button>
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-muted/30 p-4 sm:p-5">
           <div className="space-y-2 text-sm">
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-              <span>Курс ЦБ РФ</span>
+              <span>{t("buy.calc.rowRate")}</span>
               <span className="text-right">
-                1 {currency} = {result.rate.toFixed(4)} ₽, EUR = {result.eurRate.toFixed(4)} ₽
+                {t("buy.calc.rowRateVal", {
+                  currency,
+                  rate: result.rate.toFixed(4),
+                  eur: result.eurRate.toFixed(4),
+                })}
               </span>
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-              <span>Цена в рублях</span>
+              <span>{t("buy.calc.rowRub")}</span>
               <span>{money(result.rub)}</span>
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-              <span>Таможенная стоимость</span>
+              <span>{t("buy.calc.rowCustomsValue")}</span>
               <span>{money(result.rub)}</span>
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-              <span>{engineType === "electric" ? "Пошлина (часть СТП)" : "Таможенная пошлина"}</span>
+              <span>{engineType === "electric" ? t("buy.calc.rowDutyEv") : t("buy.calc.rowDuty")}</span>
               <span>{money(result.duty)}</span>
             </div>
             {engineType === "electric" ? (
               <>
                 <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-                  <span>Акциз (СТП)</span>
+                  <span>{t("buy.calc.rowExcise")}</span>
                   <span>{money(result.excise)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-                  <span>НДС (СТП)</span>
+                  <span>{t("buy.calc.rowVat")}</span>
                   <span>{money(result.vat)}</span>
                 </div>
               </>
             ) : null}
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-              <span>Утилизационный сбор</span>
+              <span>{t("buy.calc.rowUtil")}</span>
               <span>{money(result.util)}</span>
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-              <span>Таможенный сбор</span>
+              <span>{t("buy.calc.rowFee")}</span>
               <span>{money(result.customsFee)}</span>
             </div>
           </div>
 
           <div className="mt-4 rounded-xl border border-border/70 bg-muted/60 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-foreground">ИТОГО РАСТАМОЖКА</span>
+              <span className="text-sm font-semibold text-foreground">{t("buy.calc.total")}</span>
               <span className="text-2xl font-extrabold text-foreground">{money(result.total)}</span>
             </div>
           </div>
 
-          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-            Для последовательных гибридов учитывается 30-минутная мощность ЭД. Для параллельных — суммарная мощность
-            ДВС+ЭД. Льгота физлицам: до 160 л.с. (ДВС) или до 80 л.с. по 30-минутной мощности.
-          </p>
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">{t("buy.calc.footnote")}</p>
         </div>
       </div>
     </section>

@@ -5,6 +5,8 @@
 export const featureFlags = {
   /** Блок доверия на главной (отключить: ``NEXT_PUBLIC_FEATURE_HOME_TRUST=0``). */
   showHomeTrustStrip: process.env.NEXT_PUBLIC_FEATURE_HOME_TRUST !== "0",
-  /** Зарезервировано: виртуализация списка при очень длинной выдаче. */
-  enableCatalogVirtualList: process.env.NEXT_PUBLIC_FEATURE_VIRTUAL_LIST === "1",
+  /** Виртуализация списка (@tanstack/react-virtual) при длинной выдаче. По умолчанию включена; ``=0`` отключает. */
+  enableCatalogVirtualList: process.env.NEXT_PUBLIC_FEATURE_VIRTUAL_LIST !== "0",
+  /** Минимум карточек на странице, чтобы включить virtual list (см. PER_PAGE). */
+  catalogVirtualListMinItems: 8,
 } as const;

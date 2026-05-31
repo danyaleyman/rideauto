@@ -1,0 +1,13 @@
+[Unit]
+Description=RideAuto PostgreSQL restore drill (test DB wra_restore_test)
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/rideauto
+ExecStart=/bin/bash deploy/scripts/restore_pg_drill.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

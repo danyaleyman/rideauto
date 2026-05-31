@@ -16,7 +16,7 @@ from market_pricing_shared import (
     COMMISSION_SCHEDULE_CAR_THRESHOLD_RUB,
     EXCISE_HP_TIERS_RUB_PER_HP,
     PricingFxRates,
-    age_years_car,
+    age_years_for_customs,
     classify_fuel,
     commission_rub_tiered,
     ice_engine_inputs,
@@ -32,7 +32,7 @@ CHINA_BROKER_RUB = 86_100
 VTB_BANK_TRANSFER_RATE = 0.02
 
 # Bump при изменении формул/констант China-калькулятора (метрики каталога, repair).
-CHINA_PRICING_RULES_VERSION = "2026.05.20"
+CHINA_PRICING_RULES_VERSION = "2026.05.21"
 logger = logging.getLogger(__name__)
 
 
@@ -191,7 +191,7 @@ class PriceCalculatorChina:
         fuel = classify_fuel(car_data)
         engine_cc, power_ice = ice_engine_inputs(car_data, fuel)
         year = parse_year(car_data)
-        age = age_years_car(year)
+        age = age_years_for_customs(car_data)
 
         customs = phys_person_import_charges(
             car_value_rub=car_value_rub,
@@ -239,6 +239,11 @@ class PriceCalculatorChina:
         }
 
     def update_china_car_with_prices(self, car_data: Dict[str, Any]) -> Dict[str, Any]:
+        from market_pricing_shared import parse_power_hp
+
+        hp = parse_power_hp(car_data)
+        if hp is not None and hp > 0:
+            car_data["power_hp"] = int(round(hp))
         prices = self.calculate_total_cost_china(car_data)
         car_data["price_rub_estimate"] = prices["price_rub"]
         car_data["china_docs_delivery_cny"] = prices["china_docs_delivery_cny"]

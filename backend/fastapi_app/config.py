@@ -62,6 +62,22 @@ class Settings(BaseSettings):
         description="WRA_API_CONTRACT_VERSION — API contract version label",
     )
 
+    cors_allow_origins: str = Field(
+        default="*",
+        description=(
+            "WRA_CORS_ALLOW_ORIGINS — список origin через запятую (например "
+            "https://rideauto.ru,https://www.rideauto.ru). '*' допустим только вне prod; "
+            "в prod обязателен явный список."
+        ),
+    )
+    cors_allow_credentials: bool = Field(
+        default=False,
+        description=(
+            "WRA_CORS_ALLOW_CREDENTIALS — разрешить cookie/Authorization в cross-origin. "
+            "Несовместимо с allow_origins='*' (стандарт CORS)."
+        ),
+    )
+
     redis_url: Optional[str] = Field(default=None, description="WRA_REDIS_URL — redis://…")
     redis_cache_prefix: str = Field(
         default="wra:api:cache",
@@ -150,6 +166,51 @@ class Settings(BaseSettings):
         description="Убирать Set-Cookie с публичных GET (/api/search, /api/car, …)",
     )
 
+    health_meili_min_coverage_pct: float = Field(
+        default=90.0,
+        ge=50.0,
+        le=100.0,
+        description=(
+            "WRA_HEALTH_MEILI_MIN_COVERAGE_PCT — минимум meili_docs/pg_indexable для status=ok "
+            "(иначе degraded, метрика wra_health_meili_coverage_ratio)"
+        ),
+    )
+    health_probe_interval_sec: int = Field(
+        default=300,
+        ge=0,
+        le=3600,
+        description="WRA_HEALTH_PROBE_INTERVAL_SEC — фоновый deep health + метрики (0=выкл)",
+    )
+    listing_admin_emails: str = Field(
+        default="nikita-yudin-1998@mail.ru,danyaleyman@yandex.ru",
+        description=(
+            "WRA_LISTING_ADMIN_EMAILS — email через запятую для админ-функций листинга "
+            "(должен совпадать с web car-admin-access)"
+        ),
+    )
+    subscriptions_admin_key: Optional[str] = Field(
+        default=None,
+        description="WRA_SUBSCRIPTIONS_ADMIN_KEY — X-Admin-Key для POST /api/subscriptions/run-notifications",
+    )
+    subscriptions_max_per_user: int = Field(
+        default=20,
+        ge=1,
+        le=50,
+        description="WRA_SUBSCRIPTIONS_MAX_PER_USER — лимит сохранённых поисков на пользователя",
+    )
+    push_vapid_public_key: Optional[str] = Field(
+        default=None,
+        description="WRA_PUSH_VAPID_PUBLIC_KEY — base64url public key для Web Push",
+    )
+    push_vapid_private_key: Optional[str] = Field(
+        default=None,
+        description="WRA_PUSH_VAPID_PRIVATE_KEY — private key для отправки push",
+    )
+    push_vapid_subject: str = Field(
+        default="mailto:info@rideauto.ru",
+        description="WRA_PUSH_VAPID_SUBJECT — sub claim (mailto: or https://)",
+    )
+
     metrics_enabled: bool = Field(default=True, description="WRA_METRICS_ENABLED — /metrics и HTTP middleware")
     metrics_path: str = Field(default="/metrics", description="Путь exposition Prometheus")
     metrics_response_body_bytes_enabled: bool = Field(
@@ -197,6 +258,18 @@ class Settings(BaseSettings):
     lead_smtp_use_tls: bool = Field(
         default=False,
         description="WRA_LEAD_SMTP_USE_TLS=1 — STARTTLS (для порта 587); при 465 оставьте false",
+    )
+    lead_telegram_bot_token: Optional[str] = Field(
+        default=None,
+        description="WRA_LEAD_TELEGRAM_BOT_TOKEN — Bot API token для дубля/fallback заявок",
+    )
+    lead_telegram_chat_id: Optional[str] = Field(
+        default=None,
+        description="WRA_LEAD_TELEGRAM_CHAT_ID — chat id менеджера (число или @channel)",
+    )
+    lead_telegram_always: bool = Field(
+        default=False,
+        description="WRA_LEAD_TELEGRAM_ALWAYS=1 — слать в Telegram даже при успешном email",
     )
 
     # --- Email magic link auth ---
@@ -353,6 +426,19 @@ class Settings(BaseSettings):
         description="WRA_CATALOG_ENRICH_INTERNAL_LLM_FALLBACK — для POST /internal/... включать LLM (если и глобальный LLM вкл.)",
     )
 
+    def listing_admin_emails_set(self) -> set[str]:
+        raw = (self.listing_admin_emails or "").strip()
+        if not raw:
+            return set()
+        return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+    def cors_origins_list(self) -> list[str]:
+        """Распарсенный список origin (или ['*']) для CORSMiddleware."""
+        raw = (self.cors_allow_origins or "").strip()
+        if not raw or raw == "*":
+            return ["*"]
+        return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
+
     @field_validator("metrics_enabled", mode="before")
     @classmethod
     def _metrics_enabled_compat(cls, v: object) -> object:
@@ -367,6 +453,14 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _validate_prod_security(self) -> "Settings":
         env = (self.deployment_env or "dev").strip().lower()
+        origins = self.cors_origins_list()
+        # allow_origins='*' + credentials запрещён самим стандартом CORS (Starlette молча игнорирует),
+        # ловим раньше, чтобы не было ложного ощущения, что cookie ходят cross-origin.
+        if self.cors_allow_credentials and origins == ["*"]:
+            raise ValueError(
+                "WRA_CORS_ALLOW_CREDENTIALS=1 несовместим с WRA_CORS_ALLOW_ORIGINS='*'; "
+                "укажите явные origin."
+            )
         if env in {"prod", "production"}:
             if "postgres:postgres@" in (self.pg_dsn or ""):
                 raise ValueError("WRA_PG_DSN must not use default postgres:postgres credentials in production")
@@ -374,6 +468,11 @@ class Settings(BaseSettings):
                 raise ValueError("WRA_AUTH_SECRET is required in production")
             if not (self.cache_invalidate_secret or "").strip():
                 raise ValueError("WRA_CACHE_INVALIDATE_SECRET is required in production")
+            if origins == ["*"]:
+                raise ValueError(
+                    "WRA_CORS_ALLOW_ORIGINS must list explicit origins in production "
+                    "(e.g. https://rideauto.ru); '*' is not allowed."
+                )
         return self
 
 

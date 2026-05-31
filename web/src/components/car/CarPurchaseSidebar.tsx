@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useMemo, useState } from "react";
-import { Check, Copy, ExternalLink, Heart } from "lucide-react";
+import { Check, Copy, ExternalLink, GitCompareArrows, Heart } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useFavorites } from "@/hooks/use-favorites";
+import { useCompareCars } from "@/hooks/use-compare-cars";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
-import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
+import { formatPriceLabel } from "@/lib/format-price";
+import { priceOnRequestLabel } from "@/lib/format-price-locale";
 import { buildPriceBreakdownRows } from "@/lib/car-price-breakdown";
 import { formatHumanDate } from "@/lib/car-detail-data";
 import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
@@ -22,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { CarAdminPanel } from "@/components/car/CarAdminPanel";
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
 import type { SlimCar } from "@/lib/types";
 
@@ -38,6 +42,8 @@ type Props = {
   catalogCreatedAt?: string | null;
   sourceUpdatedAt?: string | null;
   calcDetails?: Record<string, unknown> | null;
+  carData?: Record<string, unknown>;
+  photoUrls?: string[];
 };
 
 function slimForFavorite(id: string, title: string, price: number | null): SlimCar {
@@ -57,11 +63,16 @@ export function CarPurchaseSidebar({
   catalogCreatedAt,
   sourceUpdatedAt,
   calcDetails,
+  carData,
+  photoUrls = [],
 }: Props) {
   const reduceMotion = useReducedMotion();
+  const { t, locale } = useLocaleContext();
   const { authenticated } = useAuth();
   const { toggle, isFavorite } = useFavorites();
+  const { toggle: toggleCompare, isInCompare, full: compareFull } = useCompareCars();
   const fav = authenticated && isFavorite(carId);
+  const inCompare = isInCompare(carId);
   const [copied, setCopied] = useState(false);
 
   const listingUnavailable = availability === "sold" || availability === "reserved";
@@ -86,39 +97,39 @@ export function CarPurchaseSidebar({
   return (
     <motion.aside
       id="car-order-panel"
-      className="relative max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-md ring-1 ring-black/[0.04] dark:ring-white/[0.08] sm:rounded-3xl sm:p-6 lg:sticky lg:top-24"
+      className="relative max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-md ring-1 ring-elevated-ring sm:rounded-3xl sm:p-6 lg:sticky lg:top-24"
       initial={reduceMotion ? false : { opacity: 0, y: MOTION_TOKENS.offsets.fadeUpSm }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: MOTION_TOKENS.easeSoft }}
     >
-      <h2 className="sr-only">Цена и заказ</h2>
+      <h2 className="sr-only">{t("car.purchase.panelSr")}</h2>
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {listingUnavailable ? "Статус объявления" : "Стоимость в России под ключ"}
+        {listingUnavailable ? t("car.purchase.statusHeading") : t("car.purchase.priceHeading")}
       </p>
       <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums sm:text-3xl md:text-[2rem]">
         {availability === "sold"
-          ? "Автомобиль продан"
+          ? t("car.purchase.sold")
           : availability === "reserved"
-            ? "Зарезервировано"
+            ? t("car.purchase.reserved")
             : priceOnRequest
-              ? PRICE_ON_REQUEST_RU
+              ? priceOnRequestLabel(locale)
               : priceRub != null && !Number.isNaN(priceRub)
                 ? formatPriceLabel(priceRub)
-                : PRICE_ON_REQUEST_RU}
+                : priceOnRequestLabel(locale)}
       </p>
       <p className="mt-3 line-clamp-3 text-sm font-semibold leading-snug text-foreground sm:line-clamp-2">
         {title}
       </p>
       {(updatedLabel || createdLabel) ? (
         <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-          {updatedLabel ? <p>Обновлено: {updatedLabel}</p> : null}
-          {createdLabel ? <p>Добавлено в каталог: {createdLabel}</p> : null}
+          {updatedLabel ? <p>{t("car.purchase.updated", { date: updatedLabel })}</p> : null}
+          {createdLabel ? <p>{t("car.purchase.catalogAdded", { date: createdLabel })}</p> : null}
         </div>
       ) : null}
       {sourceLabel ? (
         <Badge variant="secondary" className="mt-3 rounded-full px-3 py-1 text-xs font-medium">
-          Источник · {carSourceDisplayName(sourceLabel)}
+          {t("car.purchase.source", { name: carSourceDisplayName(sourceLabel) })}
         </Badge>
       ) : null}
 
@@ -129,8 +140,8 @@ export function CarPurchaseSidebar({
               href={sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              title="Оригинал объявления"
-              aria-label="Открыть оригинальное объявление в новой вкладке"
+              title={t("car.purchase.originalListing")}
+              aria-label={t("car.purchase.openOriginal")}
             >
               <ExternalLink className="size-4" aria-hidden />
             </a>
@@ -141,8 +152,8 @@ export function CarPurchaseSidebar({
           variant="outline"
           size="icon-sm"
           className="rounded-xl shadow-sm"
-          title={copied ? "Скопировано" : "Копировать ссылку"}
-          aria-label={copied ? "Ссылка скопирована" : "Копировать ссылку на это объявление"}
+          title={copied ? t("car.purchase.linkCopied") : t("car.purchase.copyLink")}
+          aria-label={copied ? t("car.purchase.linkCopied") : t("car.purchase.copyListingLink")}
           onClick={() => {
             void navigator.clipboard.writeText(getCarPageAbsoluteUrl(carId)).then(() => {
               setCopied(true);
@@ -156,14 +167,35 @@ export function CarPurchaseSidebar({
             <Copy className="size-4" aria-hidden />
           )}
         </Button>
+        <Button
+          type="button"
+          variant={inCompare ? "default" : "outline"}
+          size="icon-sm"
+          className="rounded-xl shadow-sm"
+          title={
+            inCompare
+              ? t("car.purchase.compareRemove")
+              : compareFull
+                ? t("car.purchase.compareFull")
+                : t("car.purchase.compareAdd")
+          }
+          aria-pressed={inCompare}
+          aria-label={
+            inCompare ? t("car.purchase.compareRemove") : t("car.purchase.compareAdd")
+          }
+          disabled={!inCompare && compareFull}
+          onClick={() => toggleCompare(carId)}
+        >
+          <GitCompareArrows className="size-4" aria-hidden />
+        </Button>
         {authenticated ? (
           <Button
             type="button"
             variant={fav ? "default" : "outline"}
             size="icon-sm"
             className="rounded-xl shadow-sm"
-            title={fav ? "В избранном" : "В избранное"}
-            aria-label={fav ? "Убрать из избранного" : "Добавить в избранное"}
+            title={fav ? t("car.purchase.inFavorites") : t("car.purchase.addFavorite")}
+            aria-label={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavoriteAria")}
             aria-pressed={fav}
             onClick={() => {
               void toggle(slimForFavorite(carId, title, priceRub));
@@ -179,26 +211,27 @@ export function CarPurchaseSidebar({
           <CatalogQuickBuyDialog
             carId={carId}
             carTitle={title}
-            triggerLabel="Купить автомобиль"
+            triggerLabel={t("car.purchase.buyCta")}
             triggerSize="default"
-            triggerClassName="h-11 w-full rounded-xl border border-border/80 bg-background text-[15px] font-semibold text-foreground shadow-sm hover:bg-muted"
+            triggerVariant="secondary"
+            triggerClassName="w-full border border-border bg-muted text-foreground text-title-sm font-semibold shadow-sm hover:bg-muted/80"
           />
         ) : null}
         <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
           <Button
             variant="outline"
-            className="h-11 w-full rounded-xl border-border/80 bg-background text-[15px] font-semibold text-foreground shadow-sm hover:bg-muted"
+            className="w-full text-title-sm font-semibold"
             asChild
           >
-            <Link href="/contacts">Связаться с менеджером</Link>
+            <Link href="/contacts">{t("car.purchase.contactManager")}</Link>
           </Button>
         </motion.div>
 
         <Dialog>
           <DialogTrigger asChild>
             <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
-              <Button variant="outline" className="h-11 w-full rounded-xl border-border/80 font-medium shadow-sm">
-                Подробный расчёт
+              <Button variant="outline" className="w-full font-medium">
+                {t("car.purchase.priceBreakdown")}
               </Button>
             </motion.div>
           </DialogTrigger>
@@ -207,14 +240,12 @@ export function CarPurchaseSidebar({
             showCloseButton
           >
             <DialogHeader className="shrink-0">
-              <DialogTitle>Состав цены</DialogTitle>
-              <DialogDescription>
-                Структура оценки под ключ по данным каталога. Сервисные детали маршрута уточняет менеджер.
-              </DialogDescription>
+              <DialogTitle>{t("car.purchase.breakdownTitle")}</DialogTitle>
+              <DialogDescription>{t("car.purchase.breakdownDesc")}</DialogDescription>
             </DialogHeader>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] sm:overflow-visible sm:[scrollbar-width:auto]">
               {breakdownRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Нет данных для детализации — цена по запросу или объявление недоступно.</p>
+                <p className="text-sm text-muted-foreground">{t("car.purchase.breakdownEmpty")}</p>
               ) : (
                 <ul className="space-y-3 text-sm">
                   {breakdownRows.map((row) => (
@@ -244,10 +275,22 @@ export function CarPurchaseSidebar({
               )}
             </div>
             <p className="shrink-0 text-xs text-muted-foreground">
-              Суммы сформированы автоматически по калькулятору для этого объявления.
+              {t("car.purchase.breakdownFootnote")}
             </p>
           </DialogContent>
         </Dialog>
+
+        {carData ? (
+          <CarAdminPanel
+            carId={carId}
+            title={title}
+            data={carData}
+            photoUrls={photoUrls}
+            priceRub={priceRub}
+            priceOnRequest={priceOnRequest}
+            publishedAt={sourceUpdatedAt ?? catalogCreatedAt ?? null}
+          />
+        ) : null}
       </div>
     </motion.aside>
   );

@@ -1,0 +1,10 @@
+[Unit]
+Description=RideAuto Meili outbox every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=rideauto-meili-outbox.service
+
+[Install]
+WantedBy=timers.target

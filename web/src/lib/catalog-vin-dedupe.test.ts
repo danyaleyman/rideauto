@@ -36,4 +36,32 @@ describe("dedupeSlimCarsByVin", () => {
     const out = dedupeSlimCarsByVin([x, y]);
     expect(out.map((c) => c.id).sort()).toEqual(["x", "y"]);
   });
+
+  it("prefers fresher catalog_updated_at when duplicate VIN appears later in list", () => {
+    const older: SlimCar = {
+      id: "old",
+      catalog_updated_at: "2024-06-01T00:00:00.000Z",
+      data: { vin: "1HGBH41JXMN109186" },
+    };
+    const newer: SlimCar = {
+      id: "new",
+      catalog_updated_at: "2025-06-01T00:00:00.000Z",
+      data: { vin: "1HGBH41JXMN109186" },
+    };
+    const out = dedupeSlimCarsByVin([older, newer]);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.id).toBe("new");
+  });
+
+  it("preserves first-seen order for unique VINs", () => {
+    const a: SlimCar = { id: "a", data: { vin: "1HGBH41JXMN109186" } };
+    const b: SlimCar = { id: "b", data: { vin: "2HGFG12888H542103" } };
+    const dup: SlimCar = {
+      id: "a2",
+      catalog_updated_at: "2099-01-01T00:00:00.000Z",
+      data: { vin: "1HGBH41JXMN109186" },
+    };
+    const out = dedupeSlimCarsByVin([a, b, dup]);
+    expect(out.map((c) => c.id)).toEqual(["a2", "b"]);
+  });
 });

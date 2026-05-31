@@ -1,5 +1,8 @@
+"use client";
+
 import { CarListingAttributeChips } from "@/components/car/CarListingAttributeChips";
 import { CarListingCommerceBadges } from "@/components/car/CarListingCommerceBadges";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
 import { parseListingCalendarYear } from "@/lib/catalog-client-utils";
 
@@ -17,6 +20,7 @@ export function CarHeroMeta({
   availability?: CarListingAvailability;
   yearNum?: number | null;
 }) {
+  const { t } = useLocaleContext();
   const resolvedYear =
     yearNum ??
     parseListingCalendarYear(data.year) ??
@@ -30,33 +34,25 @@ export function CarHeroMeta({
     <header className="mt-6 min-w-0 border-b border-border/60 pb-8 sm:mt-8">
       {srcHuman ? (
         <p className="mb-2 break-words text-xs font-medium text-muted-foreground [overflow-wrap:anywhere]">
-          Источник · <span className="text-foreground">{srcHuman}</span>
+          {t("car.purchase.source", { name: srcHuman })}
         </p>
       ) : null}
       {availability === "sold" ? (
         <p className="mb-2 inline-flex rounded-full border border-red-900/35 bg-red-950/20 px-3 py-1 text-xs font-semibold text-red-800 dark:text-red-200">
-          Продан — скоро уберём из каталога
+          {t("car.detail.soldSoon")}
         </p>
       ) : availability === "reserved" ? (
         <p className="mb-2 inline-flex rounded-full border border-amber-700/40 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-950 dark:text-amber-100">
-          Зарезервировано на площадке
+          {t("car.detail.reservedPlatform")}
         </p>
       ) : null}
-      <h1 className="font-heading text-[1.55rem] font-bold leading-snug tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-3xl md:text-[2.15rem]">
-        {title}
-      </h1>
+      <h1 className="font-heading text-display-sm [overflow-wrap:anywhere] sm:text-3xl">{title}</h1>
       {!listingUnavailable ? (
         <div className="mt-3">
-          <CarListingCommerceBadges data={data} />
+          <CarListingCommerceBadges data={data} yearNum={resolvedYear} />
         </div>
       ) : null}
-      <CarListingAttributeChips
-        data={data}
-        yearNum={resolvedYear}
-        variant="detail"
-        animated
-        className="mt-4"
-      />
+      <CarListingAttributeChips data={data} yearNum={resolvedYear} animated className="mt-4" />
     </header>
   );
 }

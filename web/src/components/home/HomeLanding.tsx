@@ -2,13 +2,14 @@
 
 import dynamic from "next/dynamic";
 import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
-import { type ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { motion, useReducedMotion, useScroll } from "framer-motion";
 import "@/lib/preload-landing-models";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { HOME_LANDING_MEDIA } from "@/lib/home-landing-media";
+import { useLocaleContext } from "@/components/LocaleProvider";
 
 const LOGO = "WORLD RIDE AUTO";
 const TELEGRAM_CHANNEL = "https://t.me/worldrideauto";
@@ -38,85 +39,6 @@ type ProcessStep = {
   title: string;
   body: ReactNode;
 };
-
-const PROCESS_STEPS: ProcessStep[] = [
-  {
-    n: "01",
-    title: "Профиль",
-    body: (
-      <>
-        Фиксируем бюджет, класс автомобиля и сценарий владения. Подписываем{" "}
-        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
-          договор
-        </a>{" "}
-        и{" "}
-        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
-          смету
-        </a>
-        .
-      </>
-    ),
-  },
-  {
-    n: "02",
-    title: "Отбор",
-    body: "Сравниваем площадки Кореи, Японии и Китая, отсеивая слабые варианты.",
-  },
-  {
-    n: "03",
-    title: "Осмотр",
-    body: (
-      <>
-        Фото, видео, подключаемая диагностика и проверка истории до покупки.{" "}
-        <a
-          href={INSPECTION_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${linkClass} mt-2 inline-flex items-center gap-1`}
-        >
-          Примеры осмотров
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-        </a>
-      </>
-    ),
-  },
-  {
-    n: "04",
-    title: "Сделка",
-    body: "Выкуп, логистика, таможня, документы и логистика автомобиля.",
-  },
-  {
-    n: "05",
-    title: "Вручение",
-    body: (
-      <>
-        Передаём автомобиль и фиксируем результат сделки.{" "}
-        <a
-          href={HANDOVER_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${linkClass} mt-2 inline-flex items-center gap-1`}
-        >
-          Живой пример вручения
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-        </a>
-      </>
-    ),
-  },
-  {
-    n: "06",
-    title: "Подробнее",
-    body: (
-      <Link
-        href="/buy"
-        className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-      >
-        Подробнее о процессе: сроки, платежи, документы
-        <ArrowRight className="h-4 w-4" aria-hidden />
-      </Link>
-    ),
-  },
-];
 
 function LandingButton({
   children,
@@ -150,8 +72,91 @@ function LandingButton({
 }
 
 export function HomeLanding() {
+  const { t } = useLocaleContext();
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
+
+  const processSteps = useMemo((): ProcessStep[] => {
+    return [
+      {
+        n: "01",
+        title: t("home.landing.step01Title"),
+        body: (
+          <>
+            {t("home.landing.step01Body")}{" "}
+            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              {t("home.landing.step01Contract")}
+            </a>{" "}
+            {t("home.landing.step01Joiner")}{" "}
+            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              {t("home.landing.step01Estimate")}
+            </a>
+            .
+          </>
+        ),
+      },
+      {
+        n: "02",
+        title: t("home.landing.step02Title"),
+        body: t("home.landing.step02Body"),
+      },
+      {
+        n: "03",
+        title: t("home.landing.step03Title"),
+        body: (
+          <>
+            {t("home.landing.step03Body")}{" "}
+            <a
+              href={INSPECTION_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${linkClass} mt-2 inline-flex items-center gap-1`}
+            >
+              {t("home.landing.step03Link")}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          </>
+        ),
+      },
+      {
+        n: "04",
+        title: t("home.landing.step04Title"),
+        body: t("home.landing.step04Body"),
+      },
+      {
+        n: "05",
+        title: t("home.landing.step05Title"),
+        body: (
+          <>
+            {t("home.landing.step05Body")}{" "}
+            <a
+              href={HANDOVER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${linkClass} mt-2 inline-flex items-center gap-1`}
+            >
+              {t("home.landing.step05Link")}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          </>
+        ),
+      },
+      {
+        n: "06",
+        title: t("home.landing.step06Title"),
+        body: (
+          <Link
+            href="/buy"
+            className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            {t("home.landing.step06Body")}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        ),
+      },
+    ];
+  }, [t]);
+
   return (
     <div className="relative isolate overflow-x-hidden bg-background text-foreground">
       <motion.div
@@ -160,7 +165,7 @@ export function HomeLanding() {
         aria-hidden
       />
 
-      <section className="relative flex min-h-[calc(100vh-4rem)] items-center overflow-hidden bg-background py-12 sm:py-16 lg:min-h-screen lg:py-20">
+      <section className="relative flex min-h-[calc(100dvh-4rem)] items-center overflow-hidden bg-background py-12 sm:py-16 lg:min-h-[100dvh] lg:py-20">
         <div className="relative z-10 mx-auto grid w-full max-w-[1440px] items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-12 lg:px-10">
           <motion.div
             className="lg:py-4"
@@ -168,30 +173,29 @@ export function HomeLanding() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="inline-flex items-center gap-3 rounded-full border border-border bg-muted/40 px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
-              <span className="h-px w-8 bg-foreground/20" />
+            <div className="inline-flex items-center gap-3 rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-caption uppercase tracking-[0.28em] text-brand">
+              <span className="h-px w-8 bg-brand/35" />
               {LOGO}
             </div>
 
             <h1 className="mt-6 max-w-xl text-[2rem] font-semibold leading-[1.08] tracking-[-0.04em] text-foreground sm:mt-7 sm:max-w-lg sm:text-4xl lg:text-[2.75rem] lg:leading-[1.06]">
-              Автомобили из Азии как предмет точного выбора
+              {t("home.landing.heroTitle")}
             </h1>
 
             <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
-              Подбор, проверка, выкуп и доставка под ключ. Понятные этапы и прозрачная смета до первого
-              платежа.
+              {t("home.landing.heroLead")}
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3 sm:mt-9">
-              <LandingButton href="/catalog" className="bg-foreground text-background hover:bg-foreground/90">
-                Каталог
+              <LandingButton href="/catalog" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {t("home.landing.catalogCta")}
               </LandingButton>
               <LandingButton
                 href={TELEGRAM_CHANNEL}
                 external
                 className="border border-border bg-background text-foreground hover:bg-muted"
               >
-                Telegram-канал
+                {t("home.landing.telegramCta")}
               </LandingButton>
             </div>
           </motion.div>
@@ -209,7 +213,7 @@ export function HomeLanding() {
 
       <MarketDirectionsCarousel />
 
-      <section id="company" className="bg-background py-16 sm:py-24" aria-label="Процесс">
+      <section id="company" className="bg-background py-16 sm:py-24" aria-label={t("home.landing.processAria")}>
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
           <motion.h2
             className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-foreground sm:text-5xl lg:text-6xl"
@@ -217,10 +221,10 @@ export function HomeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            Полный цикл без лишних декораций
+            {t("home.landing.processTitle")}
           </motion.h2>
           <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {PROCESS_STEPS.map((step, i) => (
+            {processSteps.map((step, i) => (
               <motion.div
                 key={step.n}
                 initial={reduceMotion ? false : { opacity: 0, y: 12 }}
@@ -248,21 +252,21 @@ export function HomeLanding() {
           viewport={{ once: true }}
         >
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl lg:text-5xl">
-            Подберём автомобиль под ваш запрос
+            {t("home.landing.ctaTitle")}
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Оставьте заявку в каталоге или напишите в Telegram — обсудим бюджет, сроки и варианты из Азии.
+            {t("home.landing.ctaLead")}
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <LandingButton href="/catalog" className="bg-foreground text-background hover:bg-foreground/90">
-              Подобрать авто
+              {t("home.landing.ctaCatalog")}
             </LandingButton>
             <LandingButton
               href={TELEGRAM_CHANNEL}
               external
               className="border border-border bg-background text-foreground hover:bg-muted"
             >
-              Telegram-канал
+              {t("home.landing.telegramCta")}
             </LandingButton>
           </div>
         </motion.div>

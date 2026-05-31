@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Bookmark, Heart, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { useFavorites } from "@/hooks/use-favorites";
 import { formatPriceLabel } from "@/lib/format-price";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function FavoritesDialog() {
+  const { t } = useLocaleContext();
   const { authenticated } = useAuth();
   const { items, count, remove } = useFavorites();
 
@@ -28,12 +30,10 @@ export function FavoritesDialog() {
           variant="outline"
           size="sm"
           className="relative rounded-full shadow-sm"
-          aria-label={
-            count > 0 ? `Избранное, ${count} авто` : "Избранное"
-          }
+          aria-label={count > 0 ? t("favorites.titleCount", { count }) : t("favorites.title")}
         >
           <Heart className="size-4 opacity-80" />
-          <span className="ms-1.5 hidden sm:inline">Избранное</span>
+          <span className="ms-1.5 hidden sm:inline">{t("favorites.title")}</span>
           {count > 0 ? (
             <span className="absolute -top-1.5 -end-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground shadow">
               {count > 99 ? "99+" : count}
@@ -45,24 +45,19 @@ export function FavoritesDialog() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bookmark className="size-5 opacity-70" />
-            Избранные авто
+            {t("favorites.dialogTitle")}
           </DialogTitle>
-          <DialogDescription>
-            Сохранено в этом браузере. Нажмите на строку, чтобы открыть карточку.
-          </DialogDescription>
+          <DialogDescription>{t("favorites.hint")}</DialogDescription>
         </DialogHeader>
         {!authenticated ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Избранное доступно после входа.
-            {" "}
+            {t("favorites.loginRequired")}{" "}
             <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
-              Войти
+              {t("header.login")}
             </Link>
           </p>
         ) : count === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Пока пусто. В каталоге нажмите на иконку сердца на карточке, чтобы добавить объявление.
-          </p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{t("favorites.empty")}</p>
         ) : (
           <ScrollArea className="max-h-[min(50vh,360px)] pr-3">
             <ul className="space-y-2">
@@ -90,8 +85,8 @@ export function FavoritesDialog() {
                       variant="ghost"
                       size="icon-xs"
                       className="shrink-0 text-muted-foreground hover:text-destructive"
-                      title="Убрать из избранного"
-                      aria-label="Убрать из избранного"
+                      title={t("favorites.remove")}
+                      aria-label={t("favorites.remove")}
                       onClick={() => {
                         void remove(car.id);
                       }}

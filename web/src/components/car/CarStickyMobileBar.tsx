@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import type { CarListingAvailability } from "@/lib/car-listing-trust";
+import { useBottomChromeOffset } from "@/hooks/use-bottom-chrome-offset";
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -13,22 +15,25 @@ type Props = {
 
 /** Фиксированная панель цены + CTA на телефоне (как у агрегаторов). */
 export function CarStickyMobileBar({ priceLine, availability = "available" }: Props) {
+  const { t } = useLocaleContext();
   const reduceMotion = useReducedMotion();
+  const cookieOffset = useBottomChromeOffset();
 
   const caption =
     availability === "sold" || availability === "reserved"
-      ? "Статус объявления"
-      : "Стоимость в России под ключ";
+      ? t("car.purchase.statusHeading")
+      : t("car.purchase.priceHeading");
 
   return (
     <motion.div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 lg:hidden",
+        "fixed inset-x-0 z-40 lg:hidden",
         "border-t border-border/60 bg-background/95",
         "shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.12)]",
         "backdrop-blur-xl dark:shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.45)]",
+        "pb-[max(0.65rem,env(safe-area-inset-bottom))]",
       )}
-      style={{ paddingBottom: "max(0.65rem, env(safe-area-inset-bottom))" }}
+      style={{ bottom: cookieOffset }}
       initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={reduceMotion ? { duration: 0.01 } : { duration: 0.24, ease: MOTION_TOKENS.easeSoft }}
@@ -52,9 +57,9 @@ export function CarStickyMobileBar({ priceLine, availability = "available" }: Pr
         <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
           <Link
             href="/contacts"
-            className="flex w-full min-h-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-md transition-colors hover:bg-blue-700 active:scale-[0.98] min-[420px]:w-auto min-[420px]:px-5"
+            className="flex h-10 w-full shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary px-4 text-center text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/80 active:scale-[0.98] min-[420px]:w-auto min-[420px]:px-5"
           >
-            Менеджер
+            {t("contacts.manager")}
           </Link>
         </motion.div>
       </div>

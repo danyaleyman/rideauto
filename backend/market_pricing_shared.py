@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -131,18 +132,32 @@ def _util_ev_power_coeff(age: str, effective_hp: float) -> float:
     return _util_coeff_by_power(effective_hp, bands)
 
 
+# 30-минутная (рабочая) мощность электромотора ≈ 0.45 × пик (ЕЭК / практика TKS).
+ED_THIRTY_MIN_HP_FACTOR = 0.45
+
+
+def _ed_thirty_min_hp(hp_ed_peak: float) -> float:
+    return max(0.0, float(hp_ed_peak)) * ED_THIRTY_MIN_HP_FACTOR
+
+
 def _effective_power_util(
     eng_type: str,
     hybrid_type: str,
     hp_ice: float,
     hp_ed_peak: float,
 ) -> float:
-    """Совпадает с BuyCalculator.effectivePowerHp (30-мин. мощность ЭД = 0.45×пик)."""
-    ed30 = hp_ed_peak * 0.45
+    """
+    Мощность для утиля/таможни:
+    - ДВС: пик ДВС;
+    - EV: 30-мин. мощность ЭД;
+    - parallel HEV/PHEV: пик ДВС + пик ЭД (полная сумма);
+    - series HEV: только 30-мин. мощность ЭД (ДВС — генератор).
+    """
+    ed30 = _ed_thirty_min_hp(hp_ed_peak)
     if eng_type == "electric":
         return ed30
     if eng_type == "hybrid":
-        return ed30 if hybrid_type == "series" else hp_ice + ed30
+        return ed30 if hybrid_type == "series" else hp_ice + max(0.0, float(hp_ed_peak))
     return hp_ice
 
 
@@ -261,8 +276,13 @@ def _engine_type_is_diesel(car_data: Dict[str, Any]) -> bool:
 
 
 def _hybrid_series_hint(car_data: Dict[str, Any]) -> bool:
-    s = str(car_data.get("hybrid_layout") or car_data.get("hybrid_type") or "").strip().lower()
-    return s in ("series", "serial", "последовательный", "series_hybrid")
+    try:
+        from hybrid_power import infer_hybrid_layout
+
+        return infer_hybrid_layout(car_data) == "series"
+    except ImportError:
+        s = str(car_data.get("hybrid_layout") or car_data.get("hybrid_type") or "").strip().lower()
+        return s in ("series", "serial", "последовательный", "series_hybrid")
 
 
 def _hybrid_ed_peak_hp(car_data: Dict[str, Any]) -> float:
@@ -297,19 +317,22 @@ def engine_volume_bracket_index(engine_cc: int) -> int:
 
 
 def classify_fuel(car_data: Dict[str, Any]) -> str:
-    raw = (
-        car_data.get("engine_type")
-        or car_data.get("fuel")
-        or car_data.get("engineType")
-        or ""
-    )
-    s = str(raw).lower()
-    ko = str(raw)
+    chunks: List[str] = []
+    for key in ("engine_type", "engine_type_original", "engine_type_ru", "fuel", "engineType"):
+        v = car_data.get(key)
+        if v not in (None, ""):
+            chunks.append(str(v))
+    raw = " ".join(chunks)
+    s = raw.lower()
+    ko = raw
 
     if "전기" in ko and "가솔린" not in ko and "디젤" not in ko and "하이브리드" not in ko:
-        return "electric"
-    if "electric" in s or s.strip() == "ev" or "электро" in s:
-        return "electric"
+        if "+" not in ko and "электр" not in s and "+" not in raw:
+            return "electric"
+    if ("electric" in s or s.strip() == "ev" or "электро" in s) and "+" not in raw:
+        if not any(x in s for x in ("hybrid", "гибрид", "hev", "phev")) and "бензин" not in s and "дизель" not in s:
+            if "электричество" not in s:
+                return "electric"
 
     if (
         "hybrid" in s
@@ -320,10 +343,26 @@ def classify_fuel(car_data: Dict[str, Any]) -> str:
         or ("가솔린" in ko and "전기" in ko)
         or ("디젤" in ko and "전기" in ko)
         or "гибрид" in s
+        or ("бензин" in s and ("электр" in s or "электричество" in s))
+        or ("дизель" in s and ("электр" in s or "электричество" in s))
+        or ("gasoline" in s and "electric" in s)
+        or ("diesel" in s and "electric" in s)
+        or ("gas" in s and "electric" in s and "+" in raw)
     ):
         return "hybrid"
 
     return "ice"
+
+
+def _enrich_hybrid_power_if_needed(car_data: Dict[str, Any], fuel: str) -> None:
+    if fuel != "hybrid" or not isinstance(car_data, dict):
+        return
+    try:
+        from hybrid_power import enrich_hybrid_power_fields
+
+        enrich_hybrid_power_fields(car_data)
+    except ImportError:
+        pass
 
 
 def ice_engine_inputs(car_data: Dict[str, Any], fuel: str) -> Tuple[int, Optional[float]]:
@@ -339,17 +378,54 @@ def ice_engine_inputs(car_data: Dict[str, Any], fuel: str) -> Tuple[int, Optiona
     if fuel == "electric":
         return 0, None
 
-    hp = parse_power_hp(car_data)
+    _enrich_hybrid_power_if_needed(car_data, fuel)
+
+    hp: Optional[float] = None
     if fuel == "hybrid" and car_data.get("power_ice_hp") is not None:
         try:
             hp = float(car_data["power_ice_hp"])
         except (TypeError, ValueError):
-            pass
+            hp = None
+    if hp is None:
+        hp = parse_power_hp(car_data)
 
     return engine_cc, hp
 
 
 def parse_power_hp(car_data: Dict[str, Any]) -> Optional[float]:
+    if isinstance(car_data, dict) and str(car_data.get("source") or "").strip().lower() == "che168":
+        try:
+            from scraper_pipeline.che168.parser import resolve_che168_power_hp
+
+            raw = car_data.get("che168_params_raw")
+            engine = str(car_data.get("engine") or "")
+            if raw is not None:
+                hp = resolve_che168_power_hp(raw, engine)
+                if hp is not None and hp > 0:
+                    return float(hp)
+        except ImportError:
+            pass
+
+    fuel = classify_fuel(car_data) if isinstance(car_data, dict) else "ice"
+    if fuel == "hybrid" and isinstance(car_data, dict):
+        _enrich_hybrid_power_if_needed(car_data, fuel)
+        for key in ("power_hp", "power", "power_hp_system"):
+            v = car_data.get(key)
+            if v not in (None, ""):
+                try:
+                    n = float(re.sub(r"[^\d.]", "", str(v)) or "0")
+                    if n > 0:
+                        return n
+                except (TypeError, ValueError):
+                    pass
+        comp_ice = car_data.get("power_ice_hp")
+        comp_ed = car_data.get("power_electric_hp")
+        if comp_ice is not None and comp_ed is not None:
+            try:
+                return float(comp_ice) + float(comp_ed)
+            except (TypeError, ValueError):
+                pass
+
     p = (
         car_data.get("power")
         or car_data.get("power_hp")
@@ -476,6 +552,7 @@ def utilization_phys_person_rub(
         )
 
     if fuel == "hybrid":
+        _enrich_hybrid_power_if_needed(cd, fuel)
         series = _hybrid_series_hint(cd)
         hp_ed = _hybrid_ed_peak_hp(cd)
         return utilization_buy_page_rub(
@@ -595,8 +672,9 @@ def phys_person_import_charges(
     )
 
     if fuel == "electric":
-        power_hp = parse_power_hp(cd)
-        excise = excise_rub(power_hp, tiers)
+        peak = parse_power_hp(cd)
+        excise_hp = _ed_thirty_min_hp(float(peak or 0))
+        excise = excise_rub(excise_hp if excise_hp > 0 else None, tiers)
         vat = vat_import_rub(car_value_rub, duty, excise, fuel=fuel, age_years=age_years)
     else:
         excise = 0.0
@@ -669,6 +747,14 @@ def commission_rub_tiered(
 
 
 def parse_year(car_data: Dict[str, Any]) -> int:
+    try:
+        from catalog_pg_core import parse_registration_ym_from_data
+
+        ym = parse_registration_ym_from_data(car_data if isinstance(car_data, dict) else {})
+        if ym is not None:
+            return int(ym // 100)
+    except ImportError:
+        pass
     y = car_data.get("year") or car_data.get("Year") or datetime.now().year - 5
     if isinstance(y, str):
         digits = "".join(c for c in y if c.isdigit())
@@ -678,6 +764,23 @@ def parse_year(car_data: Dict[str, Any]) -> int:
 
 def age_years_car(year: int) -> int:
     return max(0, datetime.now().year - year)
+
+
+def age_years_for_customs(car_data: Dict[str, Any]) -> int:
+    """Возраст для пошлины/утиля: по месяцу первичной регистрации, если известен."""
+    try:
+        from catalog_pg_core import parse_registration_ym_from_data
+
+        ym = parse_registration_ym_from_data(car_data if isinstance(car_data, dict) else {})
+        if ym is not None:
+            now = datetime.now()
+            now_m = now.year * 12 + (now.month - 1)
+            car_m = (ym // 100) * 12 + (ym % 100 - 1)
+            age_months = max(0, now_m - car_m)
+            return age_months // 12
+    except ImportError:
+        pass
+    return age_years_car(parse_year(car_data))
 
 
 def _load_json_config(config_path: str) -> Dict[str, Any]:

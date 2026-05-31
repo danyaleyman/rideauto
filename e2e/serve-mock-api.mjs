@@ -124,6 +124,32 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/compare") {
+    const ids = (url.searchParams.get("ids") || "").split(",").map((x) => x.trim()).filter(Boolean);
+    const result = ids
+      .map((id) => {
+        const car = CARS.find((x) => x.id === id);
+        if (!car) return null;
+        return {
+          id: car.id,
+          title: car.title,
+          mark: car.data.mark,
+          model: car.data.model,
+          year: car.data.year,
+          mileage_km: car.data.km_age,
+          price_rub: car.price,
+          fuel: car.data.engine_type,
+          transmission: car.data.transmission_type,
+          body_type: car.data.body_type,
+          drive_type: car.data.drive_type,
+          thumb_url: car.data.images?.[0] ?? null,
+          url_path: `/car/${car.id}`,
+        };
+      })
+      .filter(Boolean);
+    return json(res, 200, { result });
+  }
+
   return json(res, 404, { detail: "not found" });
 });
 

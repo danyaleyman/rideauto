@@ -23,10 +23,10 @@ import httpx
 
 _log = logging.getLogger(__name__)
 
-_SIZE_MAX: dict[str, int] = {"thumb": 300, "medium": 800}
+_SIZE_MAX: dict[str, int] = {"blur": 32, "thumb": 300, "medium": 800}
 _RE_DIGEST = re.compile(r"^[a-f0-9]{64}$", re.I)
 
-ImageSize = Literal["thumb", "medium"]
+ImageSize = Literal["blur", "thumb", "medium"]
 
 
 class ImageServiceError(Exception):
@@ -312,6 +312,7 @@ async def ensure_cached_webp(
         return _resize_to_webp(
             raw,
             _SIZE_MAX[size],
+            quality=58 if size == "blur" else 82,
             content_type=upstream_ct,
             digest_prefix=digest,
         )

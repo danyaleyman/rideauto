@@ -13,8 +13,9 @@ module.exports = {
       },
       url: [
         "http://127.0.0.1:3099/",
-        "http://127.0.0.1:3099/privacy",
+        "http://127.0.0.1:3099/catalog?region=korea",
         "http://127.0.0.1:3099/buy",
+        "http://127.0.0.1:3099/privacy",
       ],
       startServerCommand:
         "bash -lc 'cd web && npm run start -- --port 3099 --hostname 127.0.0.1'",

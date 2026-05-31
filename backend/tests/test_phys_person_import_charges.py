@@ -25,7 +25,7 @@ def test_ev_stp_components():
         engine_cc=0,
         age_years=1,
         fuel="electric",
-        car_data={"power_hp": 200.0},
+        car_data={"engine_type": "Электро", "power_hp": 250.0},
     )
     assert c["duty"] == 450_000.0
     assert c["excise"] > 0.0

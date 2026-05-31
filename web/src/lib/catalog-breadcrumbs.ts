@@ -1,5 +1,6 @@
 import type { CatalogUrlState } from "./catalog-url";
 import { stateToBrowserUrl } from "./catalog-url";
+import { createT, type AppLocale } from "@/lib/i18n";
 
 /** Состояние «только рынок»: без поиска, фасетов и прочих фильтров, первая страница. */
 export function defaultCatalogStateForMarket(market: CatalogUrlState["market"]): CatalogUrlState {
@@ -67,22 +68,30 @@ function truncateLabel(s: string, max = TRUNC): string {
 export function catalogBreadcrumbSegments(
   state: CatalogUrlState,
   facetLabelByValue: Map<string, string>,
+  locale: AppLocale = "ru",
 ): Array<{ href?: string; label: string }> {
-  const base: Array<{ href?: string; label: string }> = [{ href: "/", label: "Главная" }];
+  const t = createT(locale);
+  const base: Array<{ href?: string; label: string }> = [
+    { href: "/", label: t("catalog.breadcrumbs.home") },
+  ];
 
   const marketOnly = defaultCatalogStateForMarket(state.market);
   const catalogBaseHref = `/catalog?${stateToBrowserUrl(marketOnly)}`;
 
   if (!stateHasDeepContext(state)) {
-    return [...base, { label: "Каталог" }];
+    return [...base, { label: t("catalog.breadcrumbs.catalog") }];
   }
 
   const parts: string[] = [];
-  parts.push(state.market === "china" ? "Китай" : "Корея");
+  parts.push(
+    state.market === "china"
+      ? t("catalog.breadcrumbs.marketChina")
+      : t("catalog.breadcrumbs.marketKorea"),
+  );
 
   const q = state.q.trim();
   if (q) {
-    parts.push(`Поиск: ${truncateLabel(q, 36)}`);
+    parts.push(t("catalog.breadcrumbs.search", { q: truncateLabel(q, 36) }));
   }
 
   const facetBits: string[] = [];
@@ -116,14 +125,14 @@ export function catalogBreadcrumbSegments(
     state.color.length > 0;
 
   if (hasRangeOrFlags && parts.length < 3) {
-    parts.push("Фильтры");
+    parts.push(t("catalog.breadcrumbs.filters"));
   }
 
   if (state.page > 1) {
-    parts.push(`Стр. ${state.page}`);
+    parts.push(t("catalog.breadcrumbs.page", { n: String(state.page) }));
   }
 
   const tail = truncateLabel(parts.join(" — "), 120);
 
-  return [...base, { href: catalogBaseHref, label: "Каталог" }, { label: tail }];
+  return [...base, { href: catalogBaseHref, label: t("catalog.breadcrumbs.catalog") }, { label: tail }];
 }

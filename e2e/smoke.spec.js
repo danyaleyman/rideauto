@@ -20,7 +20,7 @@ test("главная: герой и ссылка в каталог", async ({ pa
 });
 
 test("каталог с параметрами и карточка", async ({ page }) => {
-  await page.goto(`${BASE}/catalog?region=korea&q=Hyundai&source=encar`);
+  await page.goto(`${BASE}/catalog?region=korea&q=Hyundai`);
   const toCar = page.locator('a[href="/car/c1"]').first();
   await expect(toCar).toBeVisible({ timeout: 60_000 });
   await toCar.click();

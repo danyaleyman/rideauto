@@ -1,0 +1,15 @@
+[Unit]
+Description=RideAuto PostgreSQL backup (pg_dump)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/rideauto
+EnvironmentFile=-/opt/rideauto/.env
+ExecStart=/bin/bash /opt/rideauto/deploy/scripts/backup_pg.sh
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

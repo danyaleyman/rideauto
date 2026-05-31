@@ -115,9 +115,17 @@ def _resolve_displacement_cc(spec: Dict[str, Any], data: Dict[str, Any]) -> int 
 
 
 def _resolve_power_hp(spec: Dict[str, Any], data: Dict[str, Any]) -> int | None:
+    try:
+        from hybrid_power import catalog_display_power_hp
+
+        hp = catalog_display_power_hp(data)
+        if hp is not None and hp > 0:
+            return hp
+    except ImportError:
+        pass
     raw = _pick(spec, "power_hp", data, "power_hp")
     if raw in (None, ""):
-        raw = data.get("power")
+        raw = data.get("power_hp_system") or data.get("power")
     return _normalize_power_hp_value(raw)
 
 

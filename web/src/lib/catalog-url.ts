@@ -1,3 +1,4 @@
+import { legacySourceToMarket, marketToApiSource } from "./catalog-market";
 import { decodeOffsetCursor, encodeOffsetCursor } from "./cursor";
 
 export const PER_PAGE = 10;
@@ -60,11 +61,12 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
   const region = (sp.get("region") || "").toLowerCase();
   const source = (sp.get("source") || "").toLowerCase();
   let market: Market = "korea";
-  if (
-    region === "china" ||
-    source === "china" || source === "che168"
-  ) {
+  const fromRegion = legacySourceToMarket(region);
+  const fromSource = legacySourceToMarket(source);
+  if (fromRegion === "china" || fromSource === "china") {
     market = "china";
+  } else if (fromRegion === "korea" || fromSource === "korea") {
+    market = "korea";
   }
 
   let page = parseInt(sp.get("page") || "1", 10);
@@ -135,14 +137,11 @@ function setCsv(u: URLSearchParams, key: string, values: string[]) {
   else u.delete(key);
 }
 
+/** Публичный URL: только ``region=china`` при китайском рынке; Корея — без лишних query. */
 export function stateToBrowserUrl(state: CatalogUrlState): string {
   const u = new URLSearchParams();
   if (state.market === "china") {
     u.set("region", "china");
-    u.set("source", "che168");
-  } else {
-    u.set("region", "korea");
-    u.set("source", "encar");
   }
   if (state.q) u.set("q", state.q);
   setCsv(u, "marks", state.marks);
@@ -180,13 +179,8 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
 export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   const p = new URLSearchParams();
   p.set("per_page", String(PER_PAGE));
-  if (state.market === "china") {
-    p.set("region", "china");
-    p.set("source", "che168");
-  } else {
-    p.set("region", "korea");
-    p.set("source", "encar");
-  }
+  p.set("region", state.market);
+  p.set("source", marketToApiSource(state.market));
   if (state.q) p.set("q", state.q);
   setCsv(p, "marks", state.marks);
   setCsv(p, "clusters", state.clusters);
@@ -231,5 +225,14 @@ export function catalogStateToFetchParams(
   toApiSearchParams(state).forEach((v, k) => {
     out[k] = v;
   });
+  return out;
+}
+
+/** Фильтры для POST /api/subscriptions (без пагинации). */
+export function catalogStateToSubscriptionFilters(state: CatalogUrlState): Record<string, string> {
+  const out = { ...catalogStateToFetchParams(state) };
+  delete out.per_page;
+  delete out.page;
+  delete out.cursor;
   return out;
 }

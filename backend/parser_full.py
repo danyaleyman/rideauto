@@ -1221,6 +1221,13 @@ class EncarFullParser:
             data["power_source"] = "engine_map"
             data["power_estimated"] = True
 
+        try:
+            from hybrid_power import enrich_hybrid_power_fields
+
+            enrich_hybrid_power_fields(data)
+        except ImportError:
+            pass
+
         intent, signals = classify_encar_price_intent(data)
         data["price_intent"] = intent
         data["price_intent_confidence"] = "high" if signals else "low"

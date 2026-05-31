@@ -1,63 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { COOKIE_CONSENT_OPEN_EVENT } from "@/lib/cookie-consent";
+import { useLocaleContext } from "@/components/LocaleProvider";
 
 export function SiteFooter() {
+  const { t } = useLocaleContext();
   return (
-    <footer className="border-t border-border bg-muted/25 py-8 text-sm text-muted-foreground">
-      <div className="mx-auto flex min-w-0 max-w-[1440px] flex-col gap-4 px-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 lg:px-10">
-        <nav className="flex flex-wrap gap-x-4 gap-y-1">
-          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
-            <Link className="transition-colors hover:text-foreground" href="/catalog">
-              Каталог
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
-            <Link className="transition-colors hover:text-foreground" href="/buy">
-              Как купить
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
-            <Link className="transition-colors hover:text-foreground" href="/contacts">
-              Контакты
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
-            <Link className="transition-colors hover:text-foreground" href="/privacy">
-              Конфиденциальность
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
-            <Link className="transition-colors hover:text-foreground" href="/cookies">
-              Cookie
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
-            <Link className="transition-colors hover:text-foreground" href="/agreement">
-              Соглашение
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }} transition={{ duration: 0.16 }}>
-            <button
-              type="button"
-              className="transition-colors hover:text-foreground"
-              onClick={() => window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_OPEN_EVENT))}
-            >
-              Управление cookie
-            </button>
-          </motion.div>
+    <footer className="border-t border-border/60 bg-muted/20">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-10 sm:px-6 lg:px-10">
+        <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+          <Link href="/catalog" className="hover:text-foreground">
+            {t("footer.catalog")}
+          </Link>
+          <Link href="/buy" className="hover:text-foreground">
+            {t("footer.buy")}
+          </Link>
+          <Link href="/contacts" className="hover:text-foreground">
+            {t("footer.contacts")}
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground">
+            {t("footer.privacy")}
+          </Link>
+          <Link href="/agreement" className="hover:text-foreground">
+            {t("footer.agreement")}
+          </Link>
+          <Link href="/cookies" className="hover:text-foreground">
+            {t("footer.cookies")}
+          </Link>
         </nav>
-        <motion.p
-          className="shrink-0 text-muted-foreground"
-          initial={{ opacity: 0, y: 6 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.25 }}
-        >
-          © World Ride Auto 2026
-        </motion.p>
       </div>
     </footer>
   );

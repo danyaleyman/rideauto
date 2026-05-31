@@ -1,0 +1,18 @@
+{
+  "name": "World Ride Auto",
+  "short_name": "RideAuto",
+  "description": "Авто из Кореи и Китая с доставкой во Владивосток",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
+

@@ -27,3 +27,21 @@ groups:
         annotations:
           summary: "API не отдаёт метрики: /metrics недоступен для мониторинга."
           description: "Проверь, что контейнер api запущен и порт 8080 на хосте слушается."
+
+      - alert: WraMeiliCatalogStale
+        expr: wra_health_meili_coverage_ratio < 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Meilisearch отстаёт от PostgreSQL (мало документов в индексе)."
+          description: "Запустите sync_meilisearch / deploy.ops meili-sync. Проверьте /api/health?deep=1."
+
+      - alert: WraDeepHealthUnhealthy
+        expr: wra_health_ok == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Deep health API не в статусе ok (PG/Redis/Meili)."
+          description: "curl https://rideauto.ru/api/health?deep=1 и логи api/postgres/meilisearch."

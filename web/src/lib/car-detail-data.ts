@@ -206,7 +206,12 @@ export function normalizeCatalogDisplayLabel(v: unknown): string | null {
   const translated = translateKoToRuText(raw);
   if (!translated) return null;
   // Last-resort cleanup for leaked Hangul values in facets/titles.
-  const cleaned = translated.replace(/[\uac00-\ud7af]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  let cleaned = translated.replace(/[\uac00-\ud7af]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  cleaned = cleaned
+    .replace(/(\d+)\s*silijeu\b/gi, "$1 Series")
+    .replace(/\bS\s*silijeu\b/gi, "S Series")
+    .replace(/(\d+)-Series\b/gi, "$1 Series")
+    .replace(/\bS-Series\b/gi, "S Series");
   return cleaned || translated;
 }
 

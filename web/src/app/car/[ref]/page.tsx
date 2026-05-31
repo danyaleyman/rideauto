@@ -1,64 +1,74 @@
-﻿import Link from "next/link";
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchCar, fetchSimilar } from "@/lib/api";
-import { buildCarMetadata, carHeading, pickCarData } from "@/lib/car-seo";
-import { formatPriceLabel, PRICE_ON_REQUEST_RU } from "@/lib/format-price";
+import { getIsrWarmCarRefs } from "@/lib/isr-warm-car-refs";
+import { buildCarJsonLd, buildCarMetadata, carHeading, pickCarData } from "@/lib/car-seo";
+import { createT } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/locale-server";
+import { formatPriceLabel } from "@/lib/format-price";
+import { priceOnRequestLabel } from "@/lib/format-price-locale";
 import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
 import type { SlimCar } from "@/lib/types";
 import CarPhotoGallery from "@/components/car/CarPhotoGallery";
-import { ProxiedListingImage } from "@/components/car/ProxiedListingImage";
 import { CarDetailAccordions } from "@/components/car/CarDetailAccordions";
 import { CarPurchaseSidebar } from "@/components/car/CarPurchaseSidebar";
 import { CarHeroMeta } from "@/components/car/CarHeroMeta";
 import { CarStickyMobileBar } from "@/components/car/CarStickyMobileBar";
-import { extractCarImageUrls } from "@/lib/car-images";
+import {
+  CarAvailabilityBanner,
+  CarDescriptionSection,
+  CarPageBreadcrumbBar,
+  CarSimilarSection,
+} from "@/components/car/CarPageI18nBlocks";
 import { carStickyPriceLine, getCarListingAvailability } from "@/lib/car-listing-trust";
-import { catalogCardAttributeChips } from "@/lib/catalog-client-utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { listingSourceUrl } from "@/lib/listing-source-url";
 import {
   siteBreadcrumbBarClass,
   siteContainerClass,
   siteMainBottomCarClass,
   siteMainSurfaceClass,
 } from "@/lib/site-layout";
-import { MotionFadeUp, MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { MotionFadeUp } from "@/components/ui/motion";
 
 type PageProps = { params: Promise<{ ref: string }> };
 
-function formatSimilarPrice(v: unknown): string {
-  if (v == null || v === "") return PRICE_ON_REQUEST_RU;
-  if (typeof v === "number" && Number.isFinite(v)) return formatPriceLabel(v);
-  if (typeof v === "string") {
-    const n = Number(v.replace(/\s/g, ""));
-    if (!Number.isNaN(n)) return formatPriceLabel(n);
-  }
-  return PRICE_ON_REQUEST_RU;
+// ISR: root/car layout больше не читают cookie/headers (локаль корректируется на клиенте),
+// поэтому карточка кэшируется на edge и ревалидируется по таймеру. Параметры не читаются
+// На этапе рендера только ref из пути; fetch с next.revalidate (ISR).
+export const revalidate = 3600;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  // Во время `docker compose build` сервис api недоступен — не пререндерим карточки в образе.
+  if (process.env.WRA_ISR_WARM_STATIC_BUILD !== "1") return [];
+  return getIsrWarmCarRefs().map((ref) => ({ ref }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { ref } = await params;
+  const locale = await getServerLocale();
+  const t = createT(locale);
   try {
-    const { result } = await fetchCar(ref, { revalidate: 120 });
-    if (!result || Object.keys(result).length === 0) return { title: "Не найдено" };
+    const { result, found } = await fetchCar(ref, { revalidate: 3600 });
+    if (!found || !result || Object.keys(result).length === 0) {
+      return { title: t("car.detail.notFound"), robots: { index: false, follow: false } };
+    }
     return buildCarMetadata(ref, result);
   } catch {
-    return { title: "Автомобиль" };
+    return { title: t("car.detail.defaultTitle") };
   }
 }
 
 export default async function CarPage({ params }: PageProps) {
   const { ref } = await params;
-  const body = await fetchCar(ref, { revalidate: 60 });
+  let body: Awaited<ReturnType<typeof fetchCar>>;
+  try {
+    body = await fetchCar(ref, { revalidate: 3600 });
+  } catch {
+    // Ошибка API → error.tsx (кнопка «Повторить»), без redirect/revalidate-циклов.
+    throw new Error("car_fetch_failed");
+  }
+  if (!body.found) notFound();
   const raw = body.result;
   if (!raw || Object.keys(raw).length === 0) notFound();
 
@@ -68,7 +78,7 @@ export default async function CarPage({ params }: PageProps) {
   const carId = typeof raw.id === "string" ? raw.id : ref;
   const rawMap = raw as Record<string, unknown>;
   const availability = getCarListingAvailability(rawMap);
-  const similarPayload = await fetchSimilar(carId, 8, { revalidate: 60 }).catch(() => ({ result: [] }));
+  const similarPayload = await fetchSimilar(carId, 8, { revalidate: 3600 }).catch(() => ({ result: [] }));
   const similar = (similarPayload.result || []) as SlimCar[];
 
   const rubPrice =
@@ -97,12 +107,7 @@ export default async function CarPage({ params }: PageProps) {
         ? Number(String(d.price_cny).replace(/\s/g, ""))
         : null;
 
-  const sourceUrl =
-    typeof d.che168_vehicle_url === "string" && d.che168_vehicle_url.trim()
-      ? d.che168_vehicle_url.trim()
-      : typeof d.url === "string" && d.url.trim()
-        ? d.url.trim()
-        : null;
+  const sourceUrl = listingSourceUrl(d as Record<string, unknown>, carId);
 
   const extra =
     d.extra && typeof d.extra === "object" && !Array.isArray(d.extra)
@@ -129,62 +134,35 @@ export default async function CarPage({ params }: PageProps) {
 
   const priceLine = carStickyPriceLine(availability, priceOnRequest, rubFinite ? rubPrice : null);
 
+  const jsonLd = buildCarJsonLd(ref, raw, {
+    priceRub: rubFinite ? rubPrice : null,
+    priceOnRequest,
+    availability,
+    images: imgs,
+  });
+
   return (
     <div className={`${siteMainSurfaceClass} ${siteMainBottomCarClass}`}>
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className={siteContainerClass}>
         <MotionFadeUp>
           <div
             className={`${siteBreadcrumbBarClass} flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4`}
           >
-            <Breadcrumb className="min-w-0 flex-1">
-              <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Главная</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/catalog">Каталог</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem className="min-w-0 max-w-full">
-                  <BreadcrumbPage className="line-clamp-2 break-words text-start font-medium [overflow-wrap:anywhere] sm:line-clamp-1">
-                    {title}
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-            {typeof d.che168_specs_url === "string" && d.che168_specs_url.trim() ? (
-              <Button variant="outline" size="sm" className="h-auto min-h-9 w-full shrink-0 whitespace-normal rounded-xl px-3 py-2 text-center text-xs shadow-sm sm:h-9 sm:w-auto sm:rounded-full sm:text-sm" asChild>
-                <a href={d.che168_specs_url} target="_blank" rel="noopener noreferrer">
-                  Полные параметры комплектации
-                </a>
-              </Button>
-            ) : null}
+            <CarPageBreadcrumbBar
+              title={title}
+              specsUrl={typeof d.che168_specs_url === "string" ? d.che168_specs_url.trim() : null}
+            />
           </div>
         </MotionFadeUp>
 
-        {availability === "sold" ? (
+        {availability === "sold" || availability === "reserved" ? (
           <MotionFadeUp delay={0.03}>
-            <div
-              className="mb-4 rounded-2xl border border-red-900/35 bg-red-950/25 px-4 py-3 text-sm text-red-50 shadow-sm backdrop-blur-sm"
-              role="status"
-            >
-              Автомобиль продан или снят с площадки. Карточку уберём из каталога при ближайшем обновлении.
-            </div>
-          </MotionFadeUp>
-        ) : availability === "reserved" ? (
-          <MotionFadeUp delay={0.03}>
-            <div
-              className="mb-4 rounded-2xl border border-amber-700/40 bg-amber-500/12 px-4 py-3 text-sm text-amber-950 shadow-sm backdrop-blur-sm dark:text-amber-50"
-              role="status"
-            >
-              Объявление в статусе резерва на площадке продавца: цена и условия могут измениться. Уточняйте актуальность у
-              менеджера.
-            </div>
+            <CarAvailabilityBanner availability={availability} />
           </MotionFadeUp>
         ) : null}
 
@@ -219,15 +197,7 @@ export default async function CarPage({ params }: PageProps) {
           <div className="order-2 min-w-0 flex-1 space-y-6 sm:space-y-8 lg:order-1">
             {description ? (
               <MotionFadeUp>
-                <section
-                  id="car-description"
-                  className="scroll-mt-20 rounded-2xl border border-border/65 bg-card p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06] sm:scroll-mt-24 sm:rounded-3xl sm:p-6 lg:scroll-mt-32"
-                >
-                  <h2 className="font-heading text-lg font-semibold tracking-tight">Описание</h2>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-                    {description}
-                  </p>
-                </section>
+                <CarDescriptionSection description={description} />
               </MotionFadeUp>
             ) : null}
 
@@ -253,6 +223,8 @@ export default async function CarPage({ params }: PageProps) {
                 catalogCreatedAt={catalogCreatedAt}
                 sourceUpdatedAt={sourceUpdatedAt ?? null}
                 calcDetails={d as Record<string, unknown>}
+                carData={d as Record<string, unknown>}
+                photoUrls={imgs}
               />
             </MotionFadeUp>
           </div>
@@ -266,89 +238,7 @@ export default async function CarPage({ params }: PageProps) {
           id="car-similar"
           className="relative mx-auto mt-12 min-w-0 max-w-[1440px] scroll-mt-20 border-t border-border/60 px-3 pb-6 pt-8 sm:scroll-mt-24 sm:px-6 sm:pt-10 lg:scroll-mt-32 lg:px-10"
         >
-          <h2 className="font-heading text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">
-            Похожие автомобили
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">Подборка по соседним позициям в каталоге</p>
-          <MotionStagger className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
-            {similar.map((car) => {
-              const cardData = (car.data ?? {}) as Record<string, unknown>;
-              const img = extractCarImageUrls(cardData)[0];
-              const simSold = Boolean(car.encar_listing_sold || car.che168_listing_sold);
-              const simReserved = !simSold && Boolean(car.encar_listing_reserved);
-              const attrChips = catalogCardAttributeChips(cardData, car.year_num);
-              return (
-                <MotionStaggerItem key={car.id}>
-                  <Link
-                    href={`/car/${encodeURIComponent(car.id)}`}
-                    className="group block min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm ring-1 ring-black/[0.03] transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md active:scale-[0.99] dark:ring-white/[0.05]"
-                  >
-                    <div className="relative overflow-hidden bg-muted">
-                      {img ? (
-                        <ProxiedListingImage
-                          src={img}
-                          alt={car.title || car.id}
-                          width={640}
-                          height={320}
-                          sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 28vw, (min-width: 640px) 44vw, 96vw"
-                          className="h-44 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        />
-                      ) : (
-                        <div className="flex h-44 items-center justify-center text-sm text-muted-foreground">
-                          Нет фото
-                        </div>
-                      )}
-                      {simSold ? (
-                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 px-2">
-                          <span className="text-center text-[11px] font-semibold leading-tight text-white sm:text-xs">
-                            Автомобиль продан
-                          </span>
-                          <span className="rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                            Продан
-                          </span>
-                        </div>
-                      ) : simReserved ? (
-                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-amber-950/50 px-2">
-                          <span className="text-center text-[11px] font-semibold leading-tight text-amber-50 sm:text-xs">
-                            Зарезервировано
-                          </span>
-                          <span className="rounded-md bg-amber-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                            Резерв
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="min-w-0 p-3 sm:p-3.5">
-                      <p className="line-clamp-3 break-words text-sm font-semibold leading-snug [overflow-wrap:anywhere] group-hover:text-primary sm:line-clamp-2">
-                        {car.title || car.id}
-                      </p>
-                      {attrChips.length ? (
-                        <ul className="mt-2 flex min-w-0 flex-wrap gap-1.5" aria-label="Краткие характеристики">
-                          {attrChips.slice(0, 3).map((c) => {
-                            const Icon = c.Icon;
-                            return (
-                              <li key={c.key}>
-                                <Badge
-                                  variant="outline"
-                                  className="inline-flex h-auto max-w-full items-center gap-1 rounded-full border-border/55 bg-background/55 px-2 py-0.5 text-[10px] font-medium normal-case text-foreground"
-                                >
-                                  <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
-                                  <span className="min-w-0">{c.label}</span>
-                                </Badge>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : null}
-                      <p className="mt-2 break-words text-sm font-medium tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
-                        {formatSimilarPrice(car.price)}
-                      </p>
-                    </div>
-                  </Link>
-                </MotionStaggerItem>
-              );
-            })}
-          </MotionStagger>
+          <CarSimilarSection similar={similar} />
         </MotionFadeUp>
       ) : null}
     </div>

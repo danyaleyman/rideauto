@@ -62,8 +62,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      # Хост ``postgres`` — DNS внутри compose. Значение по умолчанию совпадает с POSTGRES_* ниже; при смене пароля задайте WRA_PG_DSN в .env явно.
-      WRA_PG_DSN: ${WRA_PG_DSN:-postgresql://wra:wra@postgres:5432/wra}
+      # Внутри compose всегда hostname ``postgres`` (не 127.0.0.1 из .env — он для скриптов на хосте).
+      WRA_PG_DSN: postgresql://${POSTGRES_USER:-wra}:${POSTGRES_PASSWORD:-wra}@postgres:5432/${POSTGRES_DB:-wra}
       # Скрейпер/resolve_scraper_postgres_dsn на хосте подменяют postgres→127.0.0.1; внутри api оставляем имя сервиса.
       WRA_PG_DSN_SKIP_HOST_REWRITE: "1"
       WRA_REDIS_URL: ${WRA_REDIS_URL:-redis://redis:6379/0}
@@ -76,6 +76,9 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       WRA_IMAGE_CACHE_DIR: ${WRA_IMAGE_CACHE_DIR:-/app/var/image_cache}
       WRA_CACHE_INVALIDATE_SECRET: ${WRA_CACHE_INVALIDATE_SECRET:-}
+      WRA_DEPLOYMENT_ENV: ${WRA_DEPLOYMENT_ENV:-dev}
+      WRA_CORS_ALLOW_ORIGINS: ${WRA_CORS_ALLOW_ORIGINS:-*}
+      WRA_CORS_ALLOW_CREDENTIALS: ${WRA_CORS_ALLOW_CREDENTIALS:-false}
       WRA_METRICS_ENABLED: ${WRA_METRICS_ENABLED:-true}
       WRA_AUTH_ENABLED: ${WRA_AUTH_ENABLED:-true}
       WRA_AUTH_SECRET: ${WRA_AUTH_SECRET:-}
@@ -106,6 +109,8 @@ services:
       - ./data:/data
       # postgres_catalog_sync внутри api вызывает sync_meilisearch.py (образ собирается только из ./backend).
       - ./infrastructure/meilisearch:/app/infrastructure/meilisearch:ro
+      # Раннер миграций: docker compose exec api python /app/infrastructure/postgresql/migrate.py apply
+      - ./infrastructure/postgresql:/app/infrastructure/postgresql:ro
     healthcheck:
       test:
         [
@@ -143,13 +148,19 @@ services:
         # Пусто: клиент ходит на /api через Next (работает с любым host:port, не только localhost).
         NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://rideauto.ru}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_FEATURE_VIRTUAL_LIST: ${NEXT_PUBLIC_FEATURE_VIRTUAL_LIST:-0}
+        NEXT_PUBLIC_FEATURE_HOME_TRUST: ${NEXT_PUBLIC_FEATURE_HOME_TRUST:-1}
+        WRA_ISR_WARM_CAR_REFS: ${WRA_ISR_WARM_CAR_REFS:-}
     restart: unless-stopped
     environment:
       WRA_API_INTERNAL: ${WRA_API_INTERNAL:-http://api:8080}
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://rideauto.ru}
+      SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    # На Windows+WSL часто на :3000 остаётся старый Next (wslrelay) — см. WEB_PORT в .env (рекомендуем 3001).
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "${WEB_PORT:-3001}:3000"
     depends_on:
       api:
         condition: service_healthy

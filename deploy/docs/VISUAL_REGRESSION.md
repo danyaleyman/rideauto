@@ -6,13 +6,14 @@
 
 ## Где тесты
 
-- `e2e/visual.spec.js` — тег `@visual`.
+- `e2e/visual.spec.js` — тег `@visual` (desktop 1280×800).
+- `e2e/visual-mobile.spec.js` — тег `@visual-mobile` (iPhone 14 + Pixel 7 в Playwright).
 - Корневой `npm run test:e2e` **исключает** `@visual` (меньше шума на локальных ОС).
-- `npm run test:e2e:visual` — только визуальные.
+- `npm run test:e2e:visual` — все визуальные (desktop + mobile projects).
 
 ## Имена файлов
 
-В `playwright.config.mjs` задано `snapshotPathTemplate` **без суффикса `-linux`/`-win32`** — в репозитории один набор файлов, например `e2e/visual.spec.js-snapshots/privacy.png`.
+В `playwright.config.mjs` снапшоты лежат по проектам: `e2e/visual.spec.js-snapshots/visual-desktop/privacy.png`, `…/visual-iphone/catalog-mobile.png`, `…/visual-pixel/catalog-mobile.png`.
 
 ## Как обновить эталоны (рекомендуется Linux)
 

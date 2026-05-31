@@ -58,6 +58,82 @@ jobs:
       - run: ruff check .
       - run: python -m pytest tests -q
 
+  db-migrations:
+    # Гейт схемы БД: на чистом Postgres грузим schema.sql, накатываем миграции раннером,
+    # проверяем идемпотентность (повторный apply = no-op) и отсутствие pending/drift.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wra
+          POSTGRES_PASSWORD: wra
+          POSTGRES_DB: wra
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wra -d wra"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      MIGRATE_DSN: postgresql://wra:wra@127.0.0.1:5432/wra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install psycopg2-binary
+      - name: Load base schema
+        run: psql "$MIGRATE_DSN" -v ON_ERROR_STOP=1 -f infrastructure/postgresql/schema.sql
+      - name: Apply migrations
+        run: python infrastructure/postgresql/migrate.py apply
+      - name: Apply again is a no-op (idempotent tracking)
+        run: python infrastructure/postgresql/migrate.py apply
+      - name: Check no pending / no drift (CI gate)
+        run: python infrastructure/postgresql/migrate.py check
+      - name: Rollback drill (008 has .down.sql)
+        run: |
+          python infrastructure/postgresql/migrate.py rollback --version 008_catalog_dedupe_canonical
+          psql "$MIGRATE_DSN" -Atc "SELECT 1 FROM information_schema.columns WHERE table_name='cars' AND column_name='dedupe_canonical_car_id'" | grep -q '^$'
+      - name: Re-apply after rollback
+        run: python infrastructure/postgresql/migrate.py apply
+      - name: Status (visibility)
+        run: python infrastructure/postgresql/migrate.py status
+
+  web-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  web-a11y:
+    # axe serious/critical на главной, каталоге (мок API) и «Как купить»
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e:a11y
+
   frontend-eslint:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -96,6 +172,8 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - run: npm run generate:api-types
+      - run: git diff --exit-code src/lib/generated/openapi.ts
       - run: npm run test:unit
 
   storybook:
@@ -114,37 +192,9 @@ jobs:
       - run: npm ci
       - run: npm run build-storybook
 
-  lighthouse:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: python -m json.tool data/fuel_label_aliases.json >/dev/null
-        working-directory: ${{ github.workspace }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: npm ci
-        working-directory: web
-      - run: node scripts/sync-static-data.mjs
-        working-directory: web
-      - run: python backend/scripts/ci_verify_fuel_alias_sync.py
-        working-directory: ${{ github.workspace }}
-      - run: npm run build
-        working-directory: web
-      - run: npm ci
-        working-directory: ${{ github.workspace }}
-      - run: npm run lh:ci
-        working-directory: ${{ github.workspace }}
-
   next-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: web
@@ -165,6 +215,83 @@ jobs:
       - run: python backend/scripts/ci_verify_fuel_alias_sync.py
         working-directory: ${{ github.workspace }}
       - run: npm run build
+      - run: node scripts/check-bundle-budget.mjs
+      - run: npm ci
+        working-directory: ${{ github.workspace }}
+      - run: npm run lh:ci:desktop
+        working-directory: ${{ github.workspace }}
+      - run: npm run lh:ci:mobile
+        working-directory: ${{ github.workspace }}
+
+  e2e-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      CI: true
+      E2E_STAGING: "1"
+      STAGING_WEB_ORIGIN: https://rideauto.ru
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e:staging
+
+  staging-deep-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      STAGING_ORIGIN: https://rideauto.ru
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deep health (PG + Meili + Redis)
+        run: |
+          body="$(curl -fsS "${STAGING_ORIGIN}/api/health?deep=1")"
+          echo "$body"
+          echo "$body" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('status') in ('ok','degraded'), d; c=d.get('checks',{}); assert c.get('postgres',{}).get('ok'), c; assert c.get('meilisearch',{}).get('ok'), c"
+
+  e2e-funnel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e:funnel
+
+  k6-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Start mock API
+        run: node e2e/serve-mock-api.mjs &
+      - name: Wait for mock API
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:28765/api/health && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: k6 catalog search smoke
+        run: k6 run deploy/k6/catalog-search.js -e BASE_URL=http://127.0.0.1:28765 -e VUS=3 -e DURATION=10s
 
   e2e:
     runs-on: ubuntu-latest

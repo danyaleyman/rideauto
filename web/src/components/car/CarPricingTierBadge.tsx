@@ -1,7 +1,8 @@
 "use client";
 
 import { CircleHelp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useLocaleContext } from "@/components/LocaleProvider";
+import { ListingChip } from "@/components/ui/listing-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -9,47 +10,43 @@ import { cn } from "@/lib/utils";
 export function CarPricingTierBadge({
   tier,
   className,
+  size = "md",
 }: {
   tier: string | null | undefined;
   className?: string;
+  size?: "sm" | "md";
 }) {
-  const t = (tier || "").trim();
-  if (t === "korea_land_only") {
+  const { t } = useLocaleContext();
+  const tierKey = (tier || "").trim();
+  if (tierKey === "korea_land_only") {
     return (
-      <Badge
-        variant="outline"
-        className={cn(
-          "inline-flex h-auto max-w-full items-center gap-1 rounded-full border-amber-500/35 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-950 dark:text-amber-100",
-          className,
-        )}
-      >
-        Без таможни РФ
+      <ListingChip size={size} tone="commerceAmber" className={className}>
+        {t("car.tier.landOnly")}
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" className="inline-flex shrink-0" aria-label="Пояснение: цена без растаможки РФ">
+            <button type="button" className="inline-flex shrink-0" aria-label={t("catalog.card.noCustomsAria")}>
               <CircleHelp className="size-3.5 opacity-80" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-[20rem]">
-            Указанная сумма — Корея, логистика и сопутствующие сборы по данным каталога; растаможка в РФ в эту цифру не
-            входит и считается отдельно.
+            {t("catalog.card.noCustomsTip")}
           </TooltipContent>
         </Tooltip>
-      </Badge>
+      </ListingChip>
     );
   }
-  if (t === "price_on_request") {
+  if (tierKey === "price_on_request") {
     return (
-      <Badge variant="secondary" className={cn("rounded-full px-3 py-1 text-xs font-medium", className)}>
-        Цена по запросу
-      </Badge>
+      <ListingChip size={size} tone="neutral" className={cn("bg-muted/80", className)}>
+        {t("car.tier.priceOnRequest")}
+      </ListingChip>
     );
   }
-  if (t === "full_customs") {
+  if (tierKey === "full_customs") {
     return (
-      <Badge variant="outline" className={cn("rounded-full border-primary/25 bg-primary/5 px-3 py-1 text-xs font-medium", className)}>
-        Оценка под ключ (с таможней РФ)
-      </Badge>
+      <ListingChip size={size} tone="brand" className={className}>
+        {t("car.tier.fullCustoms")}
+      </ListingChip>
     );
   }
   return null;

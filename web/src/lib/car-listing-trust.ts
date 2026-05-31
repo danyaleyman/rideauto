@@ -46,7 +46,7 @@ export function carStickyPriceLine(
   rubPrice: number | null,
 ): string {
   if (availability === "sold") return "Автомобиль продан";
-  if (availability === "reserved") return "Зарезервировано на площадке";
+  if (availability === "reserved") return "Зарезервировано";
   if (priceOnRequest || rubPrice == null || Number.isNaN(rubPrice) || rubPrice <= 0) return PRICE_ON_REQUEST_RU;
   return formatPriceLabel(rubPrice);
 }

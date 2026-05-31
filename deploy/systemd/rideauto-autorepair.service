@@ -1,0 +1,18 @@
+[Unit]
+Description=RideAuto autorepair agent (probe, diagnose, remediate)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/rideauto
+EnvironmentFile=-/opt/rideauto/deploy/.env.deploy
+Environment=WRA_AUTOREPAIR_ENABLED=1
+Environment=WRA_AUTOREPAIR_DRY_RUN=1
+Environment=WRA_AUTOREPAIR_INTERVAL_SEC=30
+ExecStart=/usr/bin/python3 -m deploy.autorepair daemon
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

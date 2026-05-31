@@ -1,0 +1,12 @@
+[Unit]
+Description=RideAuto Meili outbox processor (one-shot)
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/rideauto/env
+ExecStart=/usr/bin/python3 /app/backend/scripts/process_meili_outbox.py --api http://127.0.0.1:8080 --admin-key ${WRA_SUBSCRIPTIONS_ADMIN_KEY} --limit 500
+WorkingDirectory=/app
+
+[Install]
+WantedBy=multi-user.target
