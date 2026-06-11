@@ -54,6 +54,24 @@
     "toolbar": {
       "aria": "Catalog search and sort"
     },
+    "benchmark": {
+      "title": "Price among similar listings",
+      "typicalLine": "Usually {range} (median {median}, {n} cars)",
+      "cleanLine": "No accident data ({n} cars): {range}",
+      "disclaimerChina": "Based on listings in the RideAuto catalog. Body condition and repair history are not included.",
+      "disclaimerChinaShort": "Body condition is not included.",
+      "disclaimerKorea": "For Korea we also show a band for listings with no insurance claims or part replacements in our data.",
+      "belowTypical": "Below typical for similar listings",
+      "aboveTypical": "Above typical for similar listings",
+      "withinTypical": "Within the typical range",
+      "vsMedianBelow": "about {pct}% below the median",
+      "vsMedianAbove": "about {pct}% above the median",
+      "belowHint": "Compare trim, mileage and history — a low price is not always a good deal.",
+      "howAria": "How the price guide is calculated",
+      "howTitle": "How the guide is calculated",
+      "howBody": "Median and 25th–75th percentile band in rubles among similar listings (brand, model, market; on the car page also year ±1 and similar mileage). “Price on request” and sold listings are excluded.",
+      "loading": "Calculating guide…"
+    },
     "filters": {
       "title": "Catalog filters",
       "vehicle": "Model and trim",

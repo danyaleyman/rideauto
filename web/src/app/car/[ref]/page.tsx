@@ -4,10 +4,10 @@ import { fetchCar, fetchSimilar } from "@/lib/api";
 import { getIsrWarmCarRefs } from "@/lib/isr-warm-car-refs";
 import { buildCarJsonLd, buildCarMetadata, carHeading, pickCarData } from "@/lib/car-seo";
 import { createT } from "@/lib/i18n";
-import { getServerLocale } from "@/lib/locale-server";
+import { DEFAULT_LOCALE } from "@/lib/locale-constants";
 import { formatPriceLabel } from "@/lib/format-price";
 import { priceOnRequestLabel } from "@/lib/format-price-locale";
-import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
+import { carPhotoUrlsFromApiResult } from "@/lib/car-gallery-images";
 import type { SlimCar } from "@/lib/types";
 import CarPhotoGallery from "@/components/car/CarPhotoGallery";
 import { CarDetailAccordions } from "@/components/car/CarDetailAccordions";
@@ -35,7 +35,7 @@ type PageProps = { params: Promise<{ ref: string }> };
 // ISR: root/car layout больше не читают cookie/headers (локаль корректируется на клиенте),
 // поэтому карточка кэшируется на edge и ревалидируется по таймеру. Параметры не читаются
 // На этапе рендера только ref из пути; fetch с next.revalidate (ISR).
-export const revalidate = 3600;
+export const revalidate = 60;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
@@ -46,8 +46,8 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { ref } = await params;
-  const locale = await getServerLocale();
-  const t = createT(locale);
+  // Без cookies()/headers() — иначе ISR-страница падает с app-static-to-dynamic-error (500).
+  const t = createT(DEFAULT_LOCALE);
   try {
     const { result, found } = await fetchCar(ref, { revalidate: 3600 });
     if (!found || !result || Object.keys(result).length === 0) {
@@ -74,9 +74,9 @@ export default async function CarPage({ params }: PageProps) {
 
   const d = pickCarData(raw);
   const title = carHeading(raw);
-  const imgs = getAllCarPhotoUrls(d as Record<string, unknown>);
-  const carId = typeof raw.id === "string" ? raw.id : ref;
   const rawMap = raw as Record<string, unknown>;
+  const imgs = carPhotoUrlsFromApiResult(rawMap);
+  const carId = typeof raw.id === "string" ? raw.id : ref;
   const availability = getCarListingAvailability(rawMap);
   const similarPayload = await fetchSimilar(carId, 8, { revalidate: 3600 }).catch(() => ({ result: [] }));
   const similar = (similarPayload.result || []) as SlimCar[];

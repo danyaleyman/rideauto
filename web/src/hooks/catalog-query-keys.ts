@@ -6,4 +6,5 @@ export const catalogKeys = {
   search: (stateKey: string) => [...catalogKeys.all, "search", stateKey] as const,
   facets: (facetKey: string) => [...catalogKeys.all, "facets", facetKey] as const,
   dailyAdditions: (market: Market) => [...catalogKeys.all, "daily", market] as const,
+  priceBenchmark: (paramsKey: string) => [...catalogKeys.all, "price-benchmark", paramsKey] as const,
 };

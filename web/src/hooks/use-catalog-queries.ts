@@ -4,9 +4,14 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { assertSearchResponse } from "@/lib/api-contract";
 import {
   fetchCatalogDailyAdditions,
+  fetchCatalogPriceBenchmark,
   fetchFacetsClient,
   fetchSearchClient,
 } from "@/lib/client-api";
+import {
+  catalogBenchmarkEligible,
+  toBenchmarkApiParams,
+} from "@/lib/catalog-price-benchmark";
 import { sendCatalogDiagEvent } from "@/lib/catalog-diagnostics";
 import type { CatalogUrlState, Market } from "@/lib/catalog-url";
 import { toApiSearchParams, toFacetApiParams } from "@/lib/catalog-url";
@@ -17,6 +22,7 @@ import { catalogKeys } from "@/hooks/catalog-query-keys";
 const CATALOG_SEARCH_STALE_MS = 30_000;
 const CATALOG_FACETS_STALE_MS = 60_000;
 const CATALOG_DAILY_STALE_MS = 5 * 60_000;
+const CATALOG_BENCHMARK_STALE_MS = 5 * 60_000;
 
 export function useCatalogSearchQuery(args: {
   key: string;
@@ -138,6 +144,18 @@ export function useCatalogDailyAdditionsQuery(market: Market) {
     queryKey: catalogKeys.dailyAdditions(market),
     queryFn: ({ signal }) => fetchCatalogDailyAdditions(market, signal),
     staleTime: CATALOG_DAILY_STALE_MS,
+  });
+}
+
+export function useCatalogPriceBenchmarkQuery(state: CatalogUrlState) {
+  const enabled = catalogBenchmarkEligible(state);
+  const params = toBenchmarkApiParams(state);
+  const paramsKey = params.toString();
+  return useQuery({
+    queryKey: catalogKeys.priceBenchmark(paramsKey),
+    queryFn: ({ signal }) => fetchCatalogPriceBenchmark(params, signal),
+    enabled,
+    staleTime: CATALOG_BENCHMARK_STALE_MS,
   });
 }
 

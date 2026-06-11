@@ -79,6 +79,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.byteimg.com" },
       { protocol: "https", hostname: "*.bytecdn.com" },
       { protocol: "https", hostname: "*.dcarimg.com" },
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
     formats: ["image/avif", "image/webp"],
   },

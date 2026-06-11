@@ -2,6 +2,7 @@
 
 import { fetchJsonWithRetry } from "./client-fetch";
 import { getPublicApiBase } from "./env";
+import type { PriceBenchmarkResponse } from "@/lib/catalog-price-benchmark";
 import type {
   AuthMeResponse,
   AuthSimpleOk,
@@ -42,6 +43,11 @@ export function clientCatalogDailyAdditionsUrl(market: Market): string {
   return `${base}/api/catalog/daily-additions?region=${encodeURIComponent(market)}`;
 }
 
+export function clientCatalogPriceBenchmarkUrl(params: URLSearchParams): string {
+  const base = getPublicApiBase();
+  return `${base}/api/catalog/price-benchmark?${params.toString()}`;
+}
+
 export async function fetchSearchClient(
   params: URLSearchParams,
   options?: { signal?: AbortSignal },
@@ -63,6 +69,13 @@ export async function fetchCatalogDailyAdditions(
   signal?: AbortSignal,
 ): Promise<CatalogDailyAdditionsResponse> {
   return readJsonReliable<CatalogDailyAdditionsResponse>(clientCatalogDailyAdditionsUrl(market), signal);
+}
+
+export async function fetchCatalogPriceBenchmark(
+  params: URLSearchParams,
+  signal?: AbortSignal,
+): Promise<PriceBenchmarkResponse> {
+  return readJsonReliable<PriceBenchmarkResponse>(clientCatalogPriceBenchmarkUrl(params), signal);
 }
 
 export async function fetchMeClient(options?: { signal?: AbortSignal }): Promise<AuthMeResponse> {

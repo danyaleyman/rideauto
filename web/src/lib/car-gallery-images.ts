@@ -1,4 +1,5 @@
 import { extractCarImageUrls } from "@/lib/car-images";
+import { pickCarData } from "@/lib/car-seo";
 
 /** Ключ для дедупликации: один кадр корейского контура часто приходит и в `images`, и в `h_images` с разным query. */
 export function imageUrlDedupeKey(url: string): string {
@@ -63,6 +64,12 @@ function parseJsonArray(v: unknown): unknown[] {
   }
 }
 
+function isPhotoUrl(v: unknown): v is string {
+  if (typeof v !== "string") return false;
+  const t = v.trim();
+  return /^https?:\/\//i.test(t) || t.startsWith("/");
+}
+
 /** URL снизу / диагностика в корейском контуре. */
 function collectDiagnosisPhotoUrls(raw: Record<string, unknown>): string[] {
   const extra = raw.extra;
@@ -72,7 +79,7 @@ function collectDiagnosisPhotoUrls(raw: Record<string, unknown>): string[] {
   if (!Array.isArray(photos)) return [];
   const out: string[] = [];
   for (const u of photos) {
-    if (typeof u === "string" && /^https?:\/\//i.test(u)) out.push(u);
+    if (isPhotoUrl(u)) out.push(u.trim());
   }
   return out;
 }
@@ -88,13 +95,22 @@ export function getAllCarPhotoUrls(data: Record<string, unknown>): string[] {
   const out: string[] = [];
   for (const u of [...main, ...fromHi, ...diag]) {
     const s = u.trim();
-    if (!/^https?:\/\//i.test(s)) continue;
+    if (!/^https?:\/\//i.test(s) && !s.startsWith("/")) continue;
     const key = imageUrlDedupeKey(s);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(s);
   }
   return out;
+}
+
+/** GET /api/car → result: объединяем `data` и pickCarData, чтобы images не терялись при read_model. */
+export function carPhotoUrlsFromApiResult(raw: Record<string, unknown>): string[] {
+  const inner =
+    raw.data && typeof raw.data === "object" && !Array.isArray(raw.data)
+      ? (raw.data as Record<string, unknown>)
+      : {};
+  return getAllCarPhotoUrls({ ...inner, ...pickCarData(raw) });
 }
 
 /** Мета по h_images (корейский контур): подписи к кадрам для подписей в модалке. */

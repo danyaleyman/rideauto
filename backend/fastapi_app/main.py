@@ -38,6 +38,7 @@ from fastapi_app.routers import (
     catalog_enrich,
     catalog_enrich_internal,
     catalog_stats,
+    catalog_price_benchmark,
     facets,
     images,
     lead,
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     app.include_router(catalog_enrich.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
     app.include_router(catalog_stats.router, prefix="/api")
+    app.include_router(catalog_price_benchmark.router, prefix="/api")
     app.include_router(car.router, prefix="/api")
     app.include_router(facets.router, prefix="/api")
     app.include_router(cache_invalidate.router, prefix="/api")

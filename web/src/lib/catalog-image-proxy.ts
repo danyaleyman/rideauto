@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { sha256HexUtf8 } from "@/lib/sha256-hex";
 
 export type GalleryImageSize = "blur" | "thumb" | "medium";
 
-export async function sha256HexUtf8(text: string): Promise<string> {
-  const data = new TextEncoder().encode(text.trim());
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
-}
+export { sha256HexUtf8 };
 
 /** CDN / листинги Китая: прямой hotlink в браузере часто даёт 403; грузим через /api/images. */
 export function catalogImageNeedsProxy(url: string): boolean {
@@ -174,15 +171,22 @@ export function useProxiedCarGalleryUrls(urls: string[]): { thumbUrls: string[];
     setMediumUrls(pending);
     let cancelled = false;
     void (async () => {
-      const t = await Promise.all(
-        list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "medium") : Promise.resolve(u))),
-      );
-      const m = await Promise.all(
-        list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "medium") : Promise.resolve(u))),
-      );
-      if (!cancelled) {
-        setThumbUrls(t);
-        setMediumUrls(m);
+      try {
+        const t = await Promise.all(
+          list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "medium") : Promise.resolve(u))),
+        );
+        const m = await Promise.all(
+          list.map((u) => (catalogImageNeedsProxy(u) ? catalogImageProxyUrl(u, "medium") : Promise.resolve(u))),
+        );
+        if (!cancelled) {
+          setThumbUrls(t);
+          setMediumUrls(m);
+        }
+      } catch {
+        if (!cancelled) {
+          setThumbUrls(list);
+          setMediumUrls(list);
+        }
       }
     })();
     return () => {

@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { CarAdminPanel } from "@/components/car/CarAdminPanel";
+import { PriceBenchmarkInsight } from "@/components/catalog/PriceBenchmarkInsight";
+import { useCarPriceBenchmarkQuery } from "@/hooks/use-car-price-benchmark";
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
 import type { SlimCar } from "@/lib/types";
 
@@ -76,6 +78,11 @@ export function CarPurchaseSidebar({
   const [copied, setCopied] = useState(false);
 
   const listingUnavailable = availability === "sold" || availability === "reserved";
+
+  const priceBenchmarkQuery = useCarPriceBenchmarkQuery(
+    carId,
+    !priceOnRequest && priceRub != null && !listingUnavailable,
+  );
 
   const breakdownRows = useMemo(
     () =>
@@ -132,6 +139,12 @@ export function CarPurchaseSidebar({
           {t("car.purchase.source", { name: carSourceDisplayName(sourceLabel) })}
         </Badge>
       ) : null}
+
+      <PriceBenchmarkInsight
+        variant="car"
+        data={priceBenchmarkQuery.data}
+        loading={priceBenchmarkQuery.isFetching && !priceBenchmarkQuery.data}
+      />
 
       <div className="mt-5 flex min-w-0 flex-wrap gap-2">
         {sourceUrl ? (

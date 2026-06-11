@@ -22,8 +22,14 @@ function unwrapJsonStrings(v: unknown, depth = 0): unknown {
   }
 }
 
+function isResolvableImageUrl(v: unknown): v is string {
+  if (typeof v !== "string") return false;
+  const t = v.trim();
+  return /^https?:\/\//i.test(t) || t.startsWith("/");
+}
+
 function isHttpUrl(v: unknown): v is string {
-  return typeof v === "string" && /^https?:\/\//i.test(v);
+  return isResolvableImageUrl(v);
 }
 
 function normalizeImageUrl(v: string): string {

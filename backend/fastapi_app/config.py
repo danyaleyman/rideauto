@@ -110,7 +110,7 @@ class Settings(BaseSettings):
         default=(
             "ci.encar.com,imgcar.encar.com,fem.encar.com,www.encar.com,"
             "*.autoimg.cn,*.che168.com,che168.com,global.che168.com,www.che168.com,"
-            "*.byteimg.com,*.bytecdn.com,*.dcarimg.com"
+            "*.byteimg.com,*.bytecdn.com,*.dcarimg.com,images.unsplash.com"
         ),
         description="Список разрешённых хостов для src= (через запятую; *.example.com — поддомены и apex)",
     )

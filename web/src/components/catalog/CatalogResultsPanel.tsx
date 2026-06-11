@@ -12,6 +12,8 @@ import { LocaleSwitchLinks } from "@/components/LocaleSwitchLinks";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { cardListVariants, ListRowSkeleton } from "@/components/catalog/CatalogBlockWidgets";
 import { CatalogResultsToolbar } from "@/components/catalog/CatalogResultsToolbar";
+import { PriceBenchmarkInsight } from "@/components/catalog/PriceBenchmarkInsight";
+import { useCatalogPriceBenchmarkQuery } from "@/hooks/use-catalog-queries";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +50,8 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
     activeChips,
     catalogDensity,
   } = catalog;
+
+  const priceBenchmarkQuery = useCatalogPriceBenchmarkQuery(state);
 
   const [wideViewport, setWideViewport] = useState(false);
   useEffect(() => {
@@ -101,6 +105,12 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
               </span>
               {loading ? t("catalog.results.updating") : ""}
             </p>
+            <PriceBenchmarkInsight
+              variant="catalog"
+              data={priceBenchmarkQuery.data}
+              loading={priceBenchmarkQuery.isFetching && !priceBenchmarkQuery.data}
+              className="w-full min-w-0 basis-full"
+            />
             {openingCarId ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />

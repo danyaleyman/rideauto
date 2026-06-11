@@ -82,6 +82,31 @@ class CatalogDailyAdditionsResponse(BaseModel):
     timezone: str = "Asia/Yekaterinburg"
 
 
+class PriceBenchmarkStats(BaseModel):
+    n: int = Field(ge=0)
+    p25_rub: Optional[int] = None
+    median_rub: Optional[int] = None
+    p75_rub: Optional[int] = None
+
+
+class PriceBenchmarkListing(BaseModel):
+    price_rub: int = Field(ge=0)
+    vs_median_all_pct: Optional[int] = None
+    vs_median_clean_pct: Optional[int] = None
+    band: str = Field(description="below_typical | typical | above_typical")
+
+
+class PriceBenchmarkResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    cohort: Dict[str, Any] = Field(default_factory=dict)
+    peer_all: Optional[PriceBenchmarkStats] = None
+    peer_clean: Optional[PriceBenchmarkStats] = None
+    listing: Optional[PriceBenchmarkListing] = None
+    min_n: int = Field(default=8, ge=1)
+    eligible: bool = True
+
+
 class WebVitalEvent(BaseModel):
     model_config = ConfigDict(extra="allow")
 

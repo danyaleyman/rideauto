@@ -154,7 +154,8 @@ services:
         WRA_ISR_WARM_CAR_REFS: ${WRA_ISR_WARM_CAR_REFS:-}
     restart: unless-stopped
     environment:
-      WRA_API_INTERNAL: ${WRA_API_INTERNAL:-http://api:8080}
+      # SSR внутри compose — только docker-сеть; не подставляйте 127.0.0.1:8081 из .env хоста.
+      WRA_API_INTERNAL: http://api:8080
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://rideauto.ru}
       SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
