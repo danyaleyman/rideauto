@@ -19,6 +19,7 @@ from market_pricing_shared import (
     age_years_car,
     classify_fuel,
     commission_rub_tiered,
+    customs_fee,
     ice_engine_inputs,
     parse_commission_schedule_from_config,
     parse_year,

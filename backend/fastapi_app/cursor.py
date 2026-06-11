@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any, Optional, Tuple
+from typing import Optional, Tuple
 
 
 def encode_offset_cursor(offset: int, limit: int, *, version: int = 1) -> str:
@@ -23,10 +23,10 @@ def decode_offset_cursor(token: Optional[str]) -> Optional[Tuple[int, int]]:
     if not isinstance(obj, dict) or int(obj.get("v", 0)) != 1:
         return None
     try:
-        o = int(obj["o"])
-        l = int(obj["l"])
+        offset = int(obj["o"])
+        limit = int(obj["l"])
     except (KeyError, TypeError, ValueError):
         return None
-    if o < 0 or l < 1:
+    if offset < 0 or limit < 1:
         return None
-    return o, l
+    return offset, limit

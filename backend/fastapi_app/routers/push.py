@@ -1,7 +1,7 @@
 """Web Push subscribe (B2C, authenticated)."""
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Dict
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field

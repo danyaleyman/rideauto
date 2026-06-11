@@ -156,7 +156,7 @@ async def _http_post_chat_completions_with_retry(
         try:
             resp = await client.post(url, headers=headers, json=req_body)
         except httpx.RequestError as exc:
-            last_net = exc
+            _last_net = exc
             if attempt >= max_attempts - 1:
                 return None, exc
             await asyncio.sleep(delay)

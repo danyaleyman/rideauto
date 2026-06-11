@@ -679,6 +679,300 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sitemap/cars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Car refs для dynamic sitemap (JSON) */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            result?: {
+                                ref?: string;
+                                updated_at?: string | null;
+                            }[];
+                            total?: number;
+                            limit?: number;
+                            offset?: number;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leads/admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Список заявок с сайта (listing admin, magic-link сессия)
+         * @description Доступ только для email из `WRA_LISTING_ADMIN_EMAILS` с активной cookie-сессией
+         *     (`WRA_AUTH_COOKIE_NAME`, по умолчанию `wra_session`). Заголовок `X-Admin-Key` не используется.
+         *
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": Record<string, never>;
+                    };
+                };
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/push/vapid-public-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Публичный VAPID-ключ для Web Push
+         * @description Требует `WRA_PUSH_VAPID_PUBLIC_KEY` на сервере; иначе 503 `push_not_configured`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            public_key: string;
+                        };
+                    };
+                };
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/push/subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сохранить Web Push подписку (авторизованный пользователь) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        endpoint: string;
+                        keys: {
+                            p256dh: string;
+                            auth: string;
+                        };
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok?: boolean;
+                        };
+                    };
+                };
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Удалить Web Push подписку по endpoint */
+        delete: {
+            parameters: {
+                query: {
+                    endpoint: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok?: boolean;
+                        };
+                    };
+                };
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/meili/outbox/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Обработать PG→Meili outbox (X-Admin-Key) */
+        post: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: {
+                    "X-Admin-Key"?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": Record<string, never>;
+                    };
+                };
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/similar": {
         parameters: {
             query?: never;
@@ -726,7 +1020,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Вход через Telegram Login Widget */
+        /**
+         * (не реализовано) Вход через Telegram Login Widget
+         * @deprecated
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1224,7 +1521,45 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /** Обновить подписку (notify / name) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sid: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        notify_enabled?: boolean;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok?: boolean;
+                        };
+                    };
+                };
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/checkout": {
@@ -1234,7 +1569,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Список заявок checkout */
+        /**
+         * (B2B, не реализовано) Список заявок checkout
+         * @deprecated
+         */
         get: {
             parameters: {
                 query?: never;
@@ -1263,7 +1601,10 @@ export interface paths {
             };
         };
         put?: never;
-        /** Создать заявку */
+        /**
+         * (B2B, не реализовано) Создать заявку
+         * @deprecated
+         */
         post: {
             parameters: {
                 query?: never;

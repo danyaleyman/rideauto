@@ -79,9 +79,8 @@ async def test_openai_enrich_missing_fills_rows():
 async def test_openai_enrich_cached_avoids_repeat_post():
     settings = _settings_llm()
 
-    rows_template = lambda: [
-        {"text_in": "cache-key-here", "domain": "model", "ru": "", "en": "", "source_ru": "none"}
-    ]
+    def rows_template() -> list[dict[str, str]]:
+        return [{"text_in": "cache-key-here", "domain": "model", "ru": "", "en": "", "source_ru": "none"}]
     payload = dict(items=[dict(i=0, ru="R1", en="E1")])
     body = json.dumps(payload, ensure_ascii=False)
     fake = {"choices": [{"message": {"content": body}}]}

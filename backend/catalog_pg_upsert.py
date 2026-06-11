@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 from catalog_pg_core import UPSERT_CAR_SQL, extract_image_urls, get_or_create_brand, get_or_create_model, row_to_car_fields
 

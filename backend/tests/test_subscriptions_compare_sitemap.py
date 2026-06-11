@@ -106,7 +106,6 @@ def test_leads_admin_requires_session(mock_pool: MagicMock, monkeypatch: pytest.
 
 
 def test_leads_admin_lists(mock_pool: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
-    from types import SimpleNamespace
 
     from fastapi.requests import Request
     from fastapi_app.config import get_settings

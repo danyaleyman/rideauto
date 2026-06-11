@@ -1,4 +1,3 @@
-import pytest
 
 from scraper_pipeline.che168.parser import (
     _extract_real_options,

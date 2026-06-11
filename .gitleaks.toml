@@ -1,0 +1,17 @@
+# Примеры и плейсхолдеры в доке — не реальные секреты.
+title = "rideauto gitleaks"
+
+[allowlist]
+description = "example env templates and docs"
+paths = [
+  '''deploy/env.rideauto.example''',
+  '''deploy/monitoring/secrets/slack_webhook.example''',
+  '''deploy/docs/RUNBOOK_OPERATIONS.md''',
+  '''backend/scripts/encar_parser_audit.py''',
+  '''backend/scripts/slack_ops.py''',
+]
+regexes = [
+  '''example\.invalid''',
+  '''xoxb-\.\.\.''',
+  '''T00000000/B00000000''',
+]

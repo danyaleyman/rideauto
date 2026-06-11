@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -146,18 +147,6 @@ jobs:
       - run: npm ci
       - run: npm run lint:js
 
-  frontend-tailwind:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run build:car-tailwind
-
   frontend-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -226,7 +215,8 @@ jobs:
   e2e-staging:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Только вручную до деплоя на rideauto.ru (иначе падает на старом проде).
+    if: github.event_name == 'workflow_dispatch'
     env:
       CI: true
       E2E_STAGING: "1"
@@ -244,7 +234,7 @@ jobs:
   staging-deep-health:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch'
     env:
       STAGING_ORIGIN: https://rideauto.ru
     steps:

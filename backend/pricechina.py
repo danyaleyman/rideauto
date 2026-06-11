@@ -21,7 +21,6 @@ from market_pricing_shared import (
     commission_rub_tiered,
     ice_engine_inputs,
     parse_commission_schedule_from_config,
-    parse_year,
     phys_person_import_charges,
 )
 
@@ -174,7 +173,6 @@ class PriceCalculatorChina:
         return parse_commission_schedule_from_config(cfg.get("commission_car_tiers"))
 
     def calculate_total_cost_china(self, car_data: Dict[str, Any]) -> Dict[str, float]:
-        fx = self._fx
         cfg = self._get_price_config()
         docs_delivery_cny = float(cfg.get("china_docs_delivery_cny", CHINA_DOCS_DELIVERY_CNY))
         broker_rub = float(cfg.get("china_broker_rub", CHINA_BROKER_RUB))
@@ -190,7 +188,6 @@ class PriceCalculatorChina:
 
         fuel = classify_fuel(car_data)
         engine_cc, power_ice = ice_engine_inputs(car_data, fuel)
-        year = parse_year(car_data)
         age = age_years_for_customs(car_data)
 
         customs = phys_person_import_charges(

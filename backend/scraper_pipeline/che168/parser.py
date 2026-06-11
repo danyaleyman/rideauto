@@ -10,7 +10,7 @@ import re
 import time
 from datetime import datetime, timezone
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from scraper_pipeline.che168.api_outcome import che168_extract_similar_ids, che168_flatten_dealer
 from clean_layers import build_catalog_clean_layers

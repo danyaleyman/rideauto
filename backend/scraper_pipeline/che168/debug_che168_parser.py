@@ -4,9 +4,7 @@
 """
 
 import asyncio
-import json
 import sys
-from pathlib import Path
 
 # Добавляем путь к проекту
 sys.path.insert(0, '/opt/rideauto')
@@ -17,8 +15,6 @@ from scraper_pipeline.che168.parser import (
     che168_carinfo_body,
     merge_che168_api_carinfo_envelope,
 )
-from scraper_pipeline.encar.savers import build_car_saver
-from scraper_pipeline.checkpoint_pg import CheckpointAsync
 
 async def debug_car(car_id: str):
     """Диагностика одного авто"""
@@ -37,7 +33,7 @@ async def debug_car(car_id: str):
         print(f"   Статус: {status}, Ошибка: {err}")
         
         if status != 200:
-            print(f"   ❌ Ошибка API")
+            print("   ❌ Ошибка API")
             return
         
         # 2. Проверяем specid в сыром ответе
@@ -66,7 +62,7 @@ async def debug_car(car_id: str):
             print(f"\n5. Запрос /specparam?specid={specid_body}...")
             specparam, st_sp, err_sp = await client.fetch_specparam(specid_body)
             if st_sp == 200 and specparam:
-                print(f"   ✅ /specparam успешно получен")
+                print("   ✅ /specparam успешно получен")
                 # Показываем ключи
                 result_sp = specparam.get("result", {}) if isinstance(specparam, dict) else {}
                 print(f"   Ключи specparam: {list(result_sp.keys())[:10]}")
@@ -86,7 +82,7 @@ async def debug_car(car_id: str):
             print(f"\n6. Запрос /specconfig?specid={specid_body}...")
             specconfig, st_sc, err_sc = await client.fetch_specconfig(specid_body)
             if st_sc == 200 and specconfig:
-                print(f"   ✅ /specconfig успешно получен")
+                print("   ✅ /specconfig успешно получен")
             else:
                 print(f"   ❌ /specconfig ошибка: статус {st_sc}")
         
@@ -106,7 +102,7 @@ async def debug_car(car_id: str):
             
             if parsed and isinstance(parsed, dict):
                 data = parsed.get("data", {})
-                print(f"\n8. Результат парсинга:")
+                print("\n8. Результат парсинга:")
                 print(f"   power_hp: {data.get('power_hp')}")
                 print(f"   displacement_cc: {data.get('displacement_cc')}")
                 print(f"   engine_type: {data.get('engine_type')}")

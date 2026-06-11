@@ -4,7 +4,7 @@ from __future__ import annotations
 import gzip
 import json
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Iterator
 
 from catalog_media_order import normalize_images_field_in_data
 from encar_image_order import _sort_h_images_list_entries

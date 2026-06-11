@@ -1,7 +1,6 @@
 """Правила «есть ли цена в объявлении» и очистка полей расчёта для режима «цена по запросу»."""
 from __future__ import annotations
 
-import re
 from typing import Any, Dict, Optional
 
 from encar_price_intent import classify_encar_price_intent

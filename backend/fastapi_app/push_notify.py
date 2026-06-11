@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import asyncpg
 
@@ -27,7 +27,7 @@ def send_web_push_sync(
     payload: Dict[str, Any],
     settings: Settings,
 ) -> None:
-    from pywebpush import WebPushException, webpush
+    from pywebpush import webpush
 
     vapid = {
         "private_key": (settings.push_vapid_private_key or "").strip(),

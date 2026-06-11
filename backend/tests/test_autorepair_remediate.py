@@ -8,9 +8,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from deploy.autorepair.config import AutorepairConfig
-from deploy.autorepair.probes import ProbeResult
-from deploy.autorepair.remediate import plan_remediation
+from deploy.autorepair.config import AutorepairConfig  # noqa: E402
+from deploy.autorepair.probes import ProbeResult  # noqa: E402
+from deploy.autorepair.remediate import plan_remediation  # noqa: E402
 
 
 def test_plan_meili_sync_on_stale() -> None:

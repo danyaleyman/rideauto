@@ -9,7 +9,7 @@ from email.utils import formataddr
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 
-from fastapi_app.config import Settings, get_settings
+from fastapi_app.config import get_settings
 from fastapi_app.lead_telegram import send_lead_telegram_sync, telegram_lead_configured
 from fastapi_app.rate_limit import public_rate_limit
 
