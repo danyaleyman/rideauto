@@ -38,6 +38,24 @@ def ensure_che168_deviceid(config: dict, log: Optional[logging.Logger] = None) -
     return dev
 
 
+def resolve_che168_api_language(raw: Any, log: Optional[logging.Logger] = None) -> str:
+    """
+    Ingest language for Global API is always English.
+
+    RU for the RideAuto UI comes from EN→RU mapping (facet_normalize / term_localizer),
+    not a second scrape with language=ru (extra WAF/API load, facet split risk).
+    """
+    v = str(raw or "en").strip().lower().replace("_", "-")
+    if v in ("en", "en-us", "en-gb"):
+        return "en"
+    if log is not None:
+        log.warning(
+            "Che168: language=%r ignored — API ingest is EN-only; RU via mapping",
+            raw,
+        )
+    return "en"
+
+
 class AsyncChe168Client:
     """
     Базовый URL: https://globalapi.che168.com/api/v1/
@@ -60,7 +78,8 @@ class AsyncChe168Client:
         self.base_url = str(ch.get("base_url", "https://globalapi.che168.com/api/v1")).rstrip("/")
         self._appid = str(ch.get("app_id", "global.pc"))
         self._deviceid = str(ch.get("deviceid", "") or "").strip()
-        self._language = str(ch.get("language", "en"))
+        self._language = resolve_che168_api_language(ch.get("language", "en"), logger)
+        ch["language"] = self._language
         self._origin = str(ch.get("origin", "https://global.che168.com")).rstrip("/")
         self._referer = str(ch.get("referer", f"{self._origin}/"))
 

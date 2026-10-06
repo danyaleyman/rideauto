@@ -15,6 +15,7 @@ _ZH_RE = re.compile(r"[\u4e00-\u9fff]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
 
 _RU_TERM_MAP: Dict[str, str] = {
+    # --- CN leftovers (domestic / mixed payloads) ---
     "汽油": "Бензин",
     "柴油": "Дизель",
     "电动": "Электро",
@@ -40,6 +41,49 @@ _RU_TERM_MAP: Dict[str, str] = {
     "黄色": "Желтый",
     "紫色": "Фиолетовый",
     "橙色": "Оранжевый",
+    # --- Che168 Global EN → RU (ingest language=en) ---
+    "Gasoline": "Бензин",
+    "Petrol": "Бензин",
+    "Diesel": "Дизель",
+    "Electric": "Электро",
+    "EV": "Электро",
+    "Hybrid": "Гибрид",
+    "HEV": "Гибрид",
+    "PHEV": "Подключаемый гибрид",
+    "Plug-in Hybrid": "Подключаемый гибрид",
+    "Plugin Hybrid": "Подключаемый гибрид",
+    "Automatic": "Автомат",
+    "Manual": "Механика",
+    "CVT": "Вариатор",
+    "DCT": "Робот",
+    "Dual Clutch": "Робот",
+    "AMT": "Робот",
+    "FWD": "Передний",
+    "RWD": "Задний",
+    "AWD": "Полный привод",
+    "4WD": "Полный привод",
+    "Front": "Передний",
+    "Rear": "Задний",
+    "White": "Белый",
+    "Black": "Черный",
+    "Gray": "Серый",
+    "Grey": "Серый",
+    "Silver": "Серебристый",
+    "Red": "Красный",
+    "Blue": "Синий",
+    "Green": "Зеленый",
+    "Brown": "Коричневый",
+    "Yellow": "Желтый",
+    "Purple": "Фиолетовый",
+    "Orange": "Оранжевый",
+    "Sedan": "Седан",
+    "SUV": "Внедорожник (SUV)",
+    "MPV": "Минивэн",
+    "Hatchback": "Хэтчбек",
+    "Wagon": "Универсал",
+    "Coupe": "Купе",
+    "Convertible": "Кабриолет",
+    "Pickup": "Пикап",
 }
 
 
@@ -431,7 +475,14 @@ def _offline_translate(text: str, *, target_lang: str) -> str:
     if not s:
         return s
     if target_lang == "ru":
-        return _RU_TERM_MAP.get(s, s)
+        hit = _RU_TERM_MAP.get(s)
+        if hit:
+            return hit
+        # Global EN labels often vary in casing ("gasoline" vs "Gasoline").
+        for k, v in _RU_TERM_MAP.items():
+            if k.lower() == s.lower():
+                return v
+        return s
     if target_lang == "en":
         if _contains_latin(s):
             return s
@@ -850,8 +901,9 @@ def localize_china_option_label(text: str, *, target_lang: str = "ru") -> Option
     s = _as_text(text)
     if not s:
         return None
-    if _RU_TERM_MAP.get(s):
-        return _RU_TERM_MAP[s]
+    offline = _offline_translate(s, target_lang="ru")
+    if offline != s:
+        return offline
     low = s.lower()
     if low in _CHINA_OPTION_EN_RU:
         return _CHINA_OPTION_EN_RU[low]

@@ -50,6 +50,8 @@ che168:
   base_url: https://globalapi.che168.com/api/v1
   app_id: global.pc
   deviceid: ""
+  # Global API ingest language: always English (RU via EN→RU mapping in RideAuto).
+  # language=ru / zh are coerced to en in client.resolve_che168_api_language.
   language: en
   origin: https://global.che168.com
   referer: https://global.che168.com/

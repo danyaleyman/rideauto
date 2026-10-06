@@ -61,6 +61,8 @@ python scripts/resilience_probes.py --source che168 --config ../che168_scraper.y
 
 Реализованы вызовы: `/brand`, `/search`, `/carinfo/{id}`, `/specparam`, `/specconfig`, `/recommend`, `/report/summary` с параметрами `_appid`, `deviceid`, `language` и заголовками Origin/Referer под `global.che168.com`.
 
+**Язык ingest:** всегда **`language=en`** (их перевод с китайского точнее). RU на сайте RideAuto — через EN→RU маппинг (`localization/term_localizer.py`, `facet_normalize`), без второго прогона API. Клиент принудительно нормализует `che168.language` в `en`.
+
 Ответ `/carinfo` иногда кладёт галерею **рядом** с `result` (не внутри объекта карточки). Перед парсингом `merge_che168_api_carinfo_envelope` объединяет внутренний слой и такие соседние поля (`images`, `picurls`, …), иначе в каталоге остаётся только обложка.
 
 Дополнительно выполняется **глубокий обход** всего JSON ответа `/carinfo` и поиск URL на CDN (`autoimg` / `escimg` / `erscglobal`), чтобы подхватить галереи под нестандартными ключами. Соцссылки дилера (`wa.me`, WeChat) отфильтровываются.
