@@ -4,17 +4,25 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import type { CarListingAvailability } from "@/lib/car-listing-trust";
 import { useBottomChromeOffset } from "@/hooks/use-bottom-chrome-offset";
+import { CatalogQuickBuyDialog } from "@/components/catalog/CatalogQuickBuyDialog";
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { cn } from "@/lib/utils";
 
 type Props = {
+  carId: string;
+  carTitle: string;
   priceLine: string;
   availability?: CarListingAvailability;
 };
 
 /** Фиксированная панель цены + CTA на телефоне (как у агрегаторов). */
-export function CarStickyMobileBar({ priceLine, availability = "available" }: Props) {
+export function CarStickyMobileBar({
+  carId,
+  carTitle,
+  priceLine,
+  availability = "available",
+}: Props) {
   const { t } = useLocaleContext();
   const reduceMotion = useReducedMotion();
   const cookieOffset = useBottomChromeOffset();
@@ -23,6 +31,19 @@ export function CarStickyMobileBar({ priceLine, availability = "available" }: Pr
     availability === "sold" || availability === "reserved"
       ? t("car.purchase.statusHeading")
       : t("car.purchase.priceHeading");
+
+  const stickyCtaClass =
+    "flex h-10 w-full shrink-0 items-center justify-center rounded-2xl px-4 text-center text-sm font-semibold shadow-sm transition-colors active:scale-[0.98] min-[420px]:w-auto min-[420px]:min-w-[9.5rem] min-[420px]:px-5";
+  const stickyBuyClass = cn(
+    stickyCtaClass,
+    "border border-primary/20 bg-primary text-primary-foreground hover:bg-primary/92",
+  );
+  const stickyContactClass = cn(
+    stickyCtaClass,
+    availability === "available"
+      ? "h-9 border border-border/70 bg-background text-foreground shadow-none hover:bg-muted/60"
+      : "border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80",
+  );
 
   return (
     <motion.div
@@ -54,14 +75,25 @@ export function CarStickyMobileBar({ priceLine, availability = "available" }: Pr
             {priceLine}
           </p>
         </div>
-        <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
-          <Link
-            href="/contacts"
-            className="flex h-10 w-full shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary px-4 text-center text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/80 active:scale-[0.98] min-[420px]:w-auto min-[420px]:px-5"
-          >
-            {t("contacts.manager")}
-          </Link>
-        </motion.div>
+        <div className="flex w-full flex-col gap-2 min-[420px]:w-auto min-[420px]:items-stretch">
+          {availability === "available" ? (
+            <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
+              <CatalogQuickBuyDialog
+                carId={carId}
+                carTitle={carTitle}
+                triggerLabel={t("car.purchase.buyCta")}
+                triggerSize="default"
+                triggerVariant="default"
+                triggerClassName={stickyBuyClass}
+              />
+            </motion.div>
+          ) : null}
+          <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
+            <Link href="/contacts" className={stickyContactClass}>
+              {availability === "available" ? t("car.purchase.contactManager") : t("contacts.manager")}
+            </Link>
+          </motion.div>
+        </div>
       </div>
     </motion.div>
   );

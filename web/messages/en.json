@@ -97,6 +97,7 @@
       "searchLabel": "Search catalog",
       "searchPlaceholder": "Make, model…",
       "searchSubmit": "Search",
+      "searchClear": "Clear search",
       "sortLabel": "Sort",
       "tech": "Specs and body",
       "techHint": "Body type, fuel, drive, transmission",

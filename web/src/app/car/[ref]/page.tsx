@@ -231,7 +231,12 @@ export default async function CarPage({ params }: PageProps) {
         </div>
       </div>
 
-      <CarStickyMobileBar priceLine={priceLine} availability={availability} />
+      <CarStickyMobileBar
+        carId={carId}
+        carTitle={title}
+        priceLine={priceLine}
+        availability={availability}
+      />
 
       {similar.length ? (
         <MotionFadeUp

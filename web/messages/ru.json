@@ -97,6 +97,7 @@
       "searchLabel": "Поиск в каталоге",
       "searchPlaceholder": "Марка, модель…",
       "searchSubmit": "Найти",
+      "searchClear": "Очистить поиск",
       "sortLabel": "Сортировка",
       "tech": "Техника и кузов",
       "techHint": "Тип кузова, топливо, привод, КПП",

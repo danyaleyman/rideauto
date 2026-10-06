@@ -3,6 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
+import type { MouseEvent } from "react";
 import {
   cardOverlayBadges,
   carPassabilityStatus,
@@ -150,7 +151,11 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
       </>
     ) : null;
   const buyTriggerClass =
-    "shrink-0 rounded-full border-primary/25 bg-primary text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/92";
+    "relative z-[2] shrink-0 rounded-full border-primary/25 bg-primary text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/92";
+  const carHref = `/car/${encodeURIComponent(car.id)}`;
+  const markOpening = (e: MouseEvent) => {
+    if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
+  };
 
   return (
     <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout>
@@ -164,6 +169,14 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
           "!shadow-sm hover:!shadow-md",
         )}
       >
+        {/* Primary hit-area: whole card opens listing; actions sit above with z-[2]. */}
+        <Link
+          href={carHref}
+          prefetch
+          className="absolute inset-0 z-[1] rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label={t("catalog.card.openListing", { title: normalizedTitle })}
+          onClick={markOpening}
+        />
         {openingThisCard ? (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/65 backdrop-blur-[1px]">
             <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
@@ -172,14 +185,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
             </span>
           </div>
         ) : null}
-        <Link
-          href={`/car/${encodeURIComponent(car.id)}`}
-          prefetch
-          className={catalogListingThumbFocusClass}
-          onClick={(e) => {
-            if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
-          }}
-        >
+        <div className={cn(catalogListingThumbFocusClass, "pointer-events-none relative z-0")}>
           <div className="relative size-full">
             <CatalogCardImage
               images={preview}
@@ -227,27 +233,18 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
               </div>
             </div>
           </div>
-        </Link>
-        <div className="flex min-w-0 flex-1 flex-col justify-between gap-0 md:rounded-e-2xl">
+        </div>
+        <div className="relative z-0 flex min-w-0 flex-1 flex-col justify-between gap-0 md:rounded-e-2xl">
           <div
             className={cn(
               "flex items-start justify-between gap-2 border-b border-border/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3.5 md:px-5",
               compact && "px-2.5 py-2 sm:px-3 sm:py-2.5",
             )}
           >
-            <Link
-              href={`/car/${encodeURIComponent(car.id)}`}
-              prefetch
-              className="flex min-w-0 flex-1 items-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={(e) => {
-                if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
-              }}
-            >
-              <p className="font-heading line-clamp-2 text-title-sm font-semibold sm:text-base">
-                {normalizedTitle}
-              </p>
-            </Link>
-            <div className="flex shrink-0 items-start gap-1.5 pt-px">
+            <p className="font-heading pointer-events-none line-clamp-2 min-w-0 flex-1 text-title-sm font-semibold sm:text-base">
+              {normalizedTitle}
+            </p>
+            <div className="relative z-[2] flex shrink-0 items-start gap-1.5 pt-px">
               <Button
                 type="button"
                 variant="secondary"
@@ -255,7 +252,9 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
                 className={cn(touchIconButtonClass, "rounded-lg shadow-sm")}
                 title={showCopied ? t("catalog.card.copied") : t("catalog.card.copyLink")}
                 aria-label={showCopied ? t("catalog.card.linkCopied") : t("catalog.card.copyLink")}
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   void navigator.clipboard
                     .writeText(getCarPageAbsoluteUrl(car.id))
                     .then(() => {
@@ -291,7 +290,11 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
                   inCompare ? t("car.purchase.compareRemove") : t("car.purchase.compareAdd")
                 }
                 disabled={!inCompare && compareFull}
-                onClick={() => toggleCompare(car.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleCompare(car.id);
+                }}
               >
                 <GitCompareArrows className="size-4" aria-hidden />
               </Button>
@@ -304,7 +307,9 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
                   title={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavorite")}
                   aria-pressed={fav}
                   aria-label={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavoriteAria")}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     void toggleFavorite(car);
                   }}
                 >
@@ -315,37 +320,27 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
           </div>
           <div
             className={cn(
-              "flex items-start px-3 pb-1.5 pt-1.5 sm:px-4 sm:pb-2 sm:pt-2.5 md:px-5 md:pt-3 lg:justify-start",
+              "pointer-events-none flex items-start px-3 pb-1.5 pt-1.5 sm:px-4 sm:pb-2 sm:pt-2.5 md:px-5 md:pt-3 lg:justify-start",
               compact && "px-2.5 py-1 sm:px-3",
             )}
           >
             {attrChips.length ? (
-              <Link
-                href={`/car/${encodeURIComponent(car.id)}`}
-                prefetch
-                className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring lg:max-w-xl"
-                onClick={(e) => {
-                  if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
-                }}
-                aria-label={t("catalog.card.openListing", { title: normalizedTitle })}
+              <ul
+                className="flex min-w-0 flex-1 flex-wrap justify-start gap-1.5 md:gap-2 lg:max-w-xl"
+                aria-label={t("catalog.card.attrList")}
               >
-                <ul
-                  className="flex min-w-0 flex-wrap justify-start gap-1.5 md:gap-2"
-                  aria-label={t("catalog.card.attrList")}
-                >
-                  {attrChips.map((c) => {
-                    const Icon = c.Icon;
-                    return (
-                      <li key={c.key} className="min-w-0 max-w-full">
-                        <ListingChip tone="neutral" size={compact ? "sm" : "md"} className="normal-case">
-                          <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
-                          <span className="min-w-0">{c.label}</span>
-                        </ListingChip>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Link>
+                {attrChips.map((c) => {
+                  const Icon = c.Icon;
+                  return (
+                    <li key={c.key} className="min-w-0 max-w-full">
+                      <ListingChip tone="neutral" size={compact ? "sm" : "md"} className="normal-case">
+                        <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
+                        <span className="min-w-0">{c.label}</span>
+                      </ListingChip>
+                    </li>
+                  );
+                })}
+              </ul>
             ) : null}
           </div>
           <div
@@ -356,21 +351,13 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
           >
             {!listingUnavailable ? (
               <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                  <Link
-                    href={`/car/${encodeURIComponent(car.id)}`}
-                    prefetch
-                    className="inline-flex max-w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={(e) => {
-                      if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
-                    }}
-                    aria-label={t("catalog.card.openPrice", { title: normalizedTitle })}
-                  >
-                    <span className="text-price block max-w-full truncate [overflow-wrap:anywhere] max-md:min-w-[5rem]">
-                      {formatCatalogCardPrice(car.price, car.price_on_request)}
-                    </span>
-                  </Link>
-                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">{commerceStatusBadges}</div>
+                <div className="pointer-events-none flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <span className="text-price block max-w-full truncate [overflow-wrap:anywhere] max-md:min-w-[5rem]">
+                    {formatCatalogCardPrice(car.price, car.price_on_request)}
+                  </span>
+                  <div className="pointer-events-auto relative z-[2] flex min-w-0 flex-wrap items-center gap-1.5">
+                    {commerceStatusBadges}
+                  </div>
                 </div>
                 <CatalogQuickBuyDialog
                   carId={car.id}

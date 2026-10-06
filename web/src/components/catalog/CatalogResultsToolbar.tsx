@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { SortDropdown } from "@/components/catalog/CatalogBlockWidgets";
 import { CatalogDensityToggle } from "@/components/catalog/CatalogDensityToggle";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,11 @@ export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchContr
   } = catalog;
 
   const applySearch = () => navigate({ ...state, q: qDraft.trim(), page: 1 });
+  const clearSearch = () => {
+    setQDraft("");
+    if (state.q) navigate({ ...state, q: "", page: 1 });
+  };
+  const hasQuery = Boolean(qDraft.trim() || state.q);
 
   return (
     <div
@@ -44,11 +49,28 @@ export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchContr
           onChange={(e) => setQDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") applySearch();
+            if (e.key === "Escape" && hasQuery) clearSearch();
           }}
           placeholder={t("catalog.filters.searchPlaceholder")}
-          className="h-10 min-w-0 border-border/80 bg-background ps-9 pe-20 shadow-sm"
+          className={cn(
+            "h-10 min-w-0 border-border/80 bg-background ps-9 shadow-sm",
+            hasQuery ? "pe-28" : "pe-20",
+          )}
           aria-label={t("catalog.filters.searchLabel")}
         />
+        {hasQuery ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="absolute end-[4.25rem] top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg text-muted-foreground hover:text-foreground"
+            onClick={clearSearch}
+            aria-label={t("catalog.filters.searchClear")}
+            title={t("catalog.filters.searchClear")}
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="sm"

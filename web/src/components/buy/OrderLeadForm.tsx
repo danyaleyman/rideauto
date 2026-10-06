@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 import { LeadContactMethodField } from "@/components/buy/LeadContactMethodField";
+import { LeadPdAgreeField } from "@/components/leads/LeadPdAgreeField";
 import { leadContactMethodLabel, type LeadContactMethodValue } from "@/lib/lead-contact-options";
 import { submitLeadRequest } from "@/lib/lead-client";
 import { LEAD_MESSAGE_MIN_LEN, validateLeadFullName } from "@/lib/lead-form-validation";
@@ -134,26 +133,7 @@ export function OrderLeadForm() {
           ) : null}
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-muted/25 p-3 sm:p-4">
-          <label className="flex items-start gap-3 text-sm text-foreground/90">
-            <Checkbox
-              checked={pdAgree}
-              onCheckedChange={(v) => setPdAgree(v === true)}
-              className="mt-0.5 border-foreground/25"
-              aria-label={t("buy.pdAgree")}
-            />
-            <span className="leading-snug">
-              {t("buy.pdAgree")}{" "}
-              <Link
-                href="/privacy"
-                className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
-              >
-                {t("buy.privacyLink")}
-              </Link>
-              .
-            </span>
-          </label>
-        </div>
+        <LeadPdAgreeField checked={pdAgree} onCheckedChange={setPdAgree} variant="buy" />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button type="submit" size="lg" className="rounded-2xl" disabled={status === "sending" || !pdAgree}>

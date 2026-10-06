@@ -226,8 +226,8 @@ export function CarPurchaseSidebar({
             carTitle={title}
             triggerLabel={t("car.purchase.buyCta")}
             triggerSize="default"
-            triggerVariant="secondary"
-            triggerClassName="w-full border border-border bg-muted text-foreground text-title-sm font-semibold shadow-sm hover:bg-muted/80"
+            triggerVariant="default"
+            triggerClassName="w-full text-title-sm font-semibold shadow-sm"
           />
         ) : null}
         <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>

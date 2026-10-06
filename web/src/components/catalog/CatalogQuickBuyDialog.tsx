@@ -6,11 +6,10 @@ import type { VariantProps } from "class-variance-authority";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { getCarPageAbsoluteUrl } from "@/lib/car-url";
-import Link from "next/link";
 import { submitLeadRequest } from "@/lib/lead-client";
 import { LEAD_NAME_MAX_LEN, validateLeadFullName, validateLeadPhone } from "@/lib/lead-form-validation";
+import { LeadPdAgreeField } from "@/components/leads/LeadPdAgreeField";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { cn } from "@/lib/utils";
 
@@ -154,26 +153,7 @@ export function CatalogQuickBuyDialog({
           <Button type="button" onClick={submit} disabled={status === "sending" || !pdAgree}>
             {status === "sending" ? t("catalog.quickBuy.sending") : t("catalog.quickBuy.submit")}
           </Button>
-          <div className="rounded-xl border border-border/70 bg-muted/25 p-3">
-            <label className="flex items-start gap-3 text-xs text-foreground/90">
-              <Checkbox
-                checked={pdAgree}
-                onCheckedChange={(v) => setPdAgree(v === true)}
-                className="mt-0.5 border-foreground/25"
-                aria-label={t("catalog.quickBuy.pdAria")}
-              />
-              <span className="leading-snug">
-                {t("catalog.quickBuy.pdPrefix")}{" "}
-                <Link
-                  href="/privacy"
-                  className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
-                >
-                  {t("buy.privacyLink")}
-                </Link>
-                .
-              </span>
-            </label>
-          </div>
+          <LeadPdAgreeField checked={pdAgree} onCheckedChange={setPdAgree} variant="quickBuy" />
           {status === "ok" ? (
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
               {t("catalog.quickBuy.success")}
