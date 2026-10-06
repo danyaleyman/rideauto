@@ -75,3 +75,6 @@ var/autorepair/
 
 # Abandoned / local experiment trees
 frontend-heroui/
+
+# Local research dumps (HAR/JSON with possible cookies — keep offline)
+docs/research/usa-samples/
