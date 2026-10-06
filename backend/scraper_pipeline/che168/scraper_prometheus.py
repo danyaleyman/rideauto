@@ -97,6 +97,20 @@ def write_che168_scraper_prometheus_textfile(path: str, stats: Dict[str, Any]) -
             lines.append(f"# TYPE {mname} counter")
             lines.append(f"{mname} {val}")
 
+    from scraper_pipeline.resilience.prometheus import resilience_metric_lines
+
+    res_stats = {
+        "client_metrics": cm,
+        "transport_metrics": stats.get("transport_metrics")
+        if isinstance(stats.get("transport_metrics"), dict)
+        else {},
+        "policy_metrics": stats.get("policy_metrics")
+        if isinstance(stats.get("policy_metrics"), dict)
+        else {},
+        "session_refreshes": stats.get("session_refreshes", 0),
+    }
+    lines.extend(resilience_metric_lines(res_stats, source="che168"))
+
     lines.append("")
     out = Path(p)
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -2,10 +2,14 @@
 
 Внутренняя страница: что должно быть включено для «того же класса» продукта, что и Корея.
 
+**Attestation (prod Done):** заполнить дату/оператора внизу после прогона всех пунктов.
+
 ## Ингест и данные
 
 - [ ] `che168_scraper.yaml` → DSN, proxy/Playwright, `store_raw_responses` при необходимости отладки.
-- [ ] После прогона: **`postgres_catalog_sync`** (уже вызывается из `che168_scraper`, если не `SKIP_FRONTEND_EXPORT`).
+- [ ] Resilience: `http.transport=curl_cffi`, `scripts/resilience_probes.py --source che168`.
+- [ ] После прогона: **catalog pipeline** (`deploy/scripts/run_catalog_pipeline_host.sh`) или `postgres_catalog_sync` + Meili.
+- [ ] Timer `rideauto-che168-auto-update` активен (паритет с Encar `rideauto-auto-update`).
 - [ ] Повторный разбор из сырья: `python backend/scripts/reprocess_from_raw_envelope.py --source che168 --config …` (нужен сохранённый `cars.raw`).
 
 ## Ценообразование
@@ -44,3 +48,15 @@
 ## CI (опционально)
 
 - Workflow **China catalog maintenance**: `.github/workflows/china_catalog_maintenance.yml` — `workflow_dispatch` и еженедельный cron; нужны секреты `DATABASE_URL` и при опциональных шагах `CHE168_DEVICE_ID`.
+- [ ] Один успешный прогон workflow с артефактом summary приложен к attestation.
+
+## Attestation (prod)
+
+| Field | Value |
+|-------|-------|
+| Date | |
+| Operator | |
+| Last che168_parser_audit exit | |
+| Catalog pipeline after China ingest | OK / fail |
+| Legacy orchestration unused on prod | confirmed |
+| Sign-off | |

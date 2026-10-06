@@ -23,9 +23,11 @@ Pillow>=10.0.0
 hangul-romanize>=0.1.0
 pypinyin>=0.53.0
 
-# Production scraper (encar_scraper.py)
+# Production scraper (encar_scraper.py / che168_scraper.py)
 aiohttp>=3.9.0
 PyYAML>=6.0
+# TLS/JA3 Chrome impersonation (Scraper Resilience Platform)
+curl_cffi>=0.7.0
 
 # Che168 session bootstrap (optional): pip install playwright && playwright install chromium
 playwright>=1.40.0

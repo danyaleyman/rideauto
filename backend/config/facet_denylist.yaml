@@ -1,0 +1,20 @@
+# Facet value denylist (normalized lowercase). Dropped from public facet distributions.
+# Extend per market without code changes.
+version: 1
+global:
+  - "null"
+  - "none"
+  - "undefined"
+  - "nan"
+  - "-"
+  - "--"
+  - "не указано"
+  - "n/a"
+  - "unknown"
+by_attr:
+  transmission:
+    - "0"
+    - "00"
+    - "000"
+  fuel: []
+  color: []

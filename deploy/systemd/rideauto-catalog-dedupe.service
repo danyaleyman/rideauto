@@ -1,0 +1,14 @@
+[Unit]
+Description=RideAuto — catalog VIN dedupe auto-apply (Entity Resolution)
+After=network.target
+
+[Service]
+Type=oneshot
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+EnvironmentFile=-/etc/default/rideauto
+Environment=PYTHONUNBUFFERED=1
+# Dry-run by default; set WRA_DEDUPE_AUTO_APPLY=1 to link VIN groups
+ExecStart=/bin/bash -c 'cd /opt/rideauto && . .venv/bin/activate && export PYTHONPATH=/opt/rideauto/backend && if [ "${WRA_DEDUPE_AUTO_APPLY:-0}" = "1" ]; then python backend/scripts/catalog_dedupe_auto_apply.py --apply --report /var/log/rideauto/dedupe_skip.jsonl; else python backend/scripts/catalog_dedupe_auto_apply.py --dry-run --report /var/log/rideauto/dedupe_skip.jsonl; fi'
+TimeoutStartSec=2h

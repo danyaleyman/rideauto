@@ -2,13 +2,15 @@
 
 Цель: безопасно включать **`build_catalog_read_model(..., use_clean=True)`** для части карточек, сравнивать с legacy на выборке и **откатывать флагами** без деплоя кода.
 
+**Target defaults (compose / зрелый прод):** `WRA_CLEAN_READ_MODE=1`, `PERCENT=100`, `WRA_LEGACY_FALLBACKS_ENABLED=0`. Gate перед сменой: `deploy/scripts/clean_read_gate.sh`.
+
 ## Механика в коде
 
 | Переменная | Эффект |
 |------------|--------|
 | `WRA_CLEAN_READ_MODE=1` | Мастер-включатель: rollout и выбор `use_clean` имеют смысл. При `0` clean выключен для всех ключей. |
 | `WRA_CLEAN_READ_PERCENT=0…100` | Доля карточек с `use_clean=True`: **детерминированно** по `sha1(car_id)` (см. `clean_mode.clean_read_enabled_for_key`). |
-| `WRA_LEGACY_FALLBACKS_ENABLED=1` | Внутри read model разрешён **fallback** с `*_clean` на legacy-поля при пустых clean (см. `read_models._pick`). На этапе канарейки обычно оставляют `1`. |
+| `WRA_LEGACY_FALLBACKS_ENABLED=1` | Внутри read model разрешён **fallback** с `*_clean` на legacy-поля при пустых clean (см. `read_models._pick`). На этапе канарейки обычно оставляют `1`; target — `0`. |
 
 Где применяется `clean_read_enabled_for_key`:
 

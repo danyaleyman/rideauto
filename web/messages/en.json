@@ -620,6 +620,7 @@
       "s4Title": "4. Legal basis",
       "s4p1": "Processing is carried out in accordance with applicable law, including Russian personal data law where relevant.",
       "s4p2": "For forms and requests, processing is based on your consent confirmed by a checkbox before submit.",
+      "s4p3": "Retention: lead requests up to 365 days; magic-link tokens up to 7 days after create/use; sessions up to 90 days or until revoked. Automated purge: pd_retention_purge job.",
       "s5Title": "5. Third parties",
       "s5p1": "Data may be shared only when necessary to operate the site, fulfill your request or comply with law.",
       "s5p2": "Cross-border transfers are not performed unless explicitly stated in user notices and consents.",

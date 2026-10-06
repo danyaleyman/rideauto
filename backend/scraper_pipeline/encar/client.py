@@ -1,4 +1,4 @@
-"""Fetcher: асинхронный HTTP-клиент Encar с экспоненциальным backoff (retry)."""
+"""Fetcher: асинхронный HTTP-клиент Encar с resilience Transport + backoff."""
 
 from __future__ import annotations
 
@@ -6,33 +6,24 @@ import asyncio
 import logging
 import random
 import time
-import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
 import aiohttp
 
 from scraper_pipeline.common.backoff import build_backoff_config
 from scraper_pipeline.common.proxy_pool import ProxyPool
+from scraper_pipeline.resilience.browser_profile import resolve_browser_profile
+from scraper_pipeline.resilience.policy import ResiliencePolicy, build_resilience_policy
+from scraper_pipeline.resilience.transport import AsyncHttpTransport, split_proxy_url
 from scraper_pipeline.retry import BackoffConfig, sleep_backoff
 
 
 def _proxy_url_and_auth(proxy: Optional[str]) -> Tuple[Optional[str], Optional[aiohttp.BasicAuth]]:
     """Часть прокси отвечает 407, если логин/пароль только в URL; aiohttp надёжнее с proxy_auth."""
-    if not proxy:
-        return None, None
-    parsed = urllib.parse.urlsplit(proxy)
-    if not parsed.hostname:
-        return proxy, None
-    if parsed.username is not None or parsed.password is not None:
-        login = urllib.parse.unquote(parsed.username or "")
-        password = urllib.parse.unquote(parsed.password or "")
-        auth = aiohttp.BasicAuth(login, password)
-        host = parsed.hostname
-        port = parsed.port
-        scheme = (parsed.scheme or "http").lower()
-        netloc = f"{host}:{port}" if port else host
-        return f"{scheme}://{netloc}", auth
-    return proxy, None
+    p_url, auth_pair = split_proxy_url(proxy)
+    if not auth_pair:
+        return p_url, None
+    return p_url, aiohttp.BasicAuth(auth_pair[0], auth_pair[1])
 
 
 class AsyncEncarClient:
@@ -40,6 +31,8 @@ class AsyncEncarClient:
         self,
         config: dict,
         logger: logging.Logger,
+        *,
+        policy: Optional[ResiliencePolicy] = None,
     ):
         self.config = config
         self.log = logger
@@ -47,8 +40,6 @@ class AsyncEncarClient:
         self.list_url = "https://api.encar.com/search/car/list/general"
         self.base_api = "https://api.encar.com/v1/readside"
         self.conn_limit = http.get("conn_limit_per_host", 10)
-        # sock_read: иначе при «залипшем» прокси чтение тела может не уложиться в total так, как ожидают.
-        # sock_connect: CONNECT к HTTP-прокси без потолка иногда «висит» годами — отдельный лимит.
         _conn = float(http.get("timeout_connect", 10) or 10)
         self.timeout = aiohttp.ClientTimeout(
             total=http.get("timeout_total", 30),
@@ -56,8 +47,6 @@ class AsyncEncarClient:
             sock_connect=_conn,
             sock_read=http.get("timeout_sock_read", 25),
         )
-        # Внешний потолок на одну попытку (jitter + запрос + чтение тела). Иначе один await _request
-        # может жить max_attempts * (total + backoff) и обходить asyncio.wait_for вокруг fetch_vehicle_detail.
         _per = http.get("hard_deadline_per_attempt_sec")
         self._hard_deadline_per_attempt: Optional[float] = float(_per) if _per is not None else None
         if self._hard_deadline_per_attempt is not None and self._hard_deadline_per_attempt <= 0:
@@ -68,15 +57,16 @@ class AsyncEncarClient:
         self.max_attempts = retry.get("max_attempts", 5)
         self._backoff: BackoffConfig = build_backoff_config(config.get("retry", {}) or {}, retry)
         self.retry_statuses = set(retry.get("retry_statuses", [429, 500, 502, 503, 504]))
+        self.profile = resolve_browser_profile(config)
+        # Coherent identity: profile UA primary; config list kept for aiohttp legacy only.
         self.user_agents = config.get("user_agents", [])
         if not self.user_agents:
-            self.user_agents = [
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-            ]
+            self.user_agents = [self.profile.user_agent]
         proxy_cfg = config.get("proxy", {})
         proxy_urls = [str(u).strip() for u in (proxy_cfg.get("urls") or []) if str(u).strip()] if proxy_cfg.get("enabled") else []
         self.proxy_pool = ProxyPool(proxy_urls, rotation=str(proxy_cfg.get("rotation", "round_robin")))
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._transport: Optional[AsyncHttpTransport] = None
+        self.policy = policy or build_resilience_policy(config, source="encar", logger=logger)
         self._ua_index = 0
         self._metrics: Dict[str, int] = {
             "requests_total": 0,
@@ -108,15 +98,39 @@ class AsyncEncarClient:
         return self.proxy_pool.next_url()
 
     def _next_ua(self) -> str:
+        # Prefer profile UA for TLS coherence when using curl_cffi.
+        if self._transport and self._transport.backend == "curl_cffi":
+            return self.profile.user_agent
         self._ua_index = (self._ua_index + 1) % len(self.user_agents)
         return self.user_agents[self._ua_index]
 
     async def _jitter(self) -> None:
-        delay = random.uniform(self.jitter_min, self.jitter_max)
+        mult = self.policy.jitter_multiplier() if self.policy else 1.0
+        delay = random.uniform(self.jitter_min, self.jitter_max) * mult
         await asyncio.sleep(delay)
 
     def snapshot_metrics(self) -> Dict[str, int]:
-        return dict(self._metrics)
+        out = dict(self._metrics)
+        if self._transport:
+            tm = self._transport.metrics_for_prometheus()
+            for k, v in tm.items():
+                if isinstance(v, (int, float)):
+                    out[str(k)] = int(v)
+                else:
+                    out[str(k)] = v  # type: ignore[assignment]
+        if self.policy:
+            for k, v in self.policy.snapshot_metrics().items():
+                if isinstance(v, (int, float)):
+                    out[str(k)] = int(v) if not isinstance(v, float) or v == int(v) else v  # type: ignore[assignment]
+        return out
+
+    def snapshot_transport_metrics(self) -> Dict[str, Any]:
+        if self._transport:
+            return self._transport.metrics_for_prometheus()
+        return {}
+
+    def snapshot_policy_metrics(self) -> Dict[str, Any]:
+        return self.policy.snapshot_metrics() if self.policy else {}
 
     def _metric_inc(self, key: str, by: int = 1) -> None:
         self._metrics[key] = int(self._metrics.get(key, 0) or 0) + by
@@ -141,17 +155,16 @@ class AsyncEncarClient:
         self._cb_fail_streak = 0
 
     async def __aenter__(self) -> "AsyncEncarClient":
-        self._session = aiohttp.ClientSession(
-            timeout=self.timeout,
-            trust_env=False,
-            connector=aiohttp.TCPConnector(limit_per_host=self.conn_limit),
+        self._transport = AsyncHttpTransport(
+            self.config, self.log, profile=self.profile, source="encar"
         )
+        await self._transport.__aenter__()
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        if self._session:
-            await self._session.close()
-            self._session = None
+        if self._transport:
+            await self._transport.__aexit__(*args)
+            self._transport = None
 
     async def _request(
         self,
@@ -161,7 +174,7 @@ class AsyncEncarClient:
         params: Optional[Dict[str, str]] = None,
         origin: str = "https://www.encar.com",
     ) -> Tuple[Optional[dict], int, Optional[str]]:
-        if not self._session:
+        if not self._transport:
             return None, 0, "no session"
         if self._cb_open_until_mono > time.monotonic():
             self._metric_inc("circuit_breaker_short_circuit")
@@ -169,7 +182,7 @@ class AsyncEncarClient:
         h = dict(headers or {})
         h.setdefault("User-Agent", self._next_ua())
         h.setdefault("Accept", "application/json, text/javascript, */*; q=0.01")
-        h.setdefault("Accept-Language", "en-US,en;q=0.9")
+        h.setdefault("Accept-Language", self.profile.accept_language)
         h.setdefault("Origin", origin)
         h.setdefault("Referer", origin + "/")
         last_error: Optional[str] = None
@@ -188,21 +201,34 @@ class AsyncEncarClient:
             try:
 
                 async def _one_attempt() -> Tuple[str, Optional[dict], int, Optional[str], Optional[str]]:
-                    p_url, p_auth = _proxy_url_and_auth(proxy)
-                    async with self._session.request(
-                        method, url, headers=h, params=params, proxy=p_url, proxy_auth=p_auth
-                    ) as resp:
-                        status = int(resp.status)
-                        retry_after = resp.headers.get("Retry-After")
-                        if status in self.retry_statuses:
-                            return "retry", None, status, f"status {status}", retry_after
-                        if status != 200:
-                            text = (await resp.text())[:500]
-                            return "final", None, status, text, None
-                        data = await resp.json()
-                        return "final", data, 200, None, None
+                    tr = await self._transport.request(
+                        method,
+                        url,
+                        headers=h,
+                        params=params,
+                        proxy=proxy,
+                        expect_json=True,
+                        use_profile_ua=True,
+                    )
+                    status = int(tr.status or 0)
+                    retry_after = tr.headers.get("Retry-After") or tr.headers.get("retry-after")
+                    if tr.error and status == 0:
+                        raise aiohttp.ClientError(tr.error)
+                    if status in self.retry_statuses:
+                        return "retry", None, status, f"status {status}", retry_after
+                    if status != 200:
+                        text = (tr.text or "")[:500]
+                        return "final", None, status, text or tr.error, None
+                    if tr.json_data is None and tr.error:
+                        return "final", None, 200, tr.error, None
+                    data = tr.json_data if isinstance(tr.json_data, dict) else tr.json_data
+                    if data is not None and not isinstance(data, dict):
+                        return "final", None, 200, "non_object_json", None
+                    return "final", data, 200, None, None  # type: ignore[return-value]
 
                 kind, payload, st, err, retry_after = await asyncio.wait_for(_one_attempt(), timeout=hard)
+                if self.policy:
+                    self.policy.record_http_status(st)
                 if kind == "retry":
                     self._metric_inc("retries_total")
                     if int(st or 0) == 429:
@@ -230,7 +256,7 @@ class AsyncEncarClient:
                 await sleep_backoff(self._backoff, attempt)
             except asyncio.CancelledError:
                 raise
-            except aiohttp.ClientError as e:
+            except (aiohttp.ClientError, OSError) as e:
                 self._metric_inc("exceptions_client")
                 self._record_failure_for_circuit_breaker(0, str(e))
                 last_error = str(e)

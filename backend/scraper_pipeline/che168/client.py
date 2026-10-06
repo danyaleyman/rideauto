@@ -13,7 +13,9 @@ import aiohttp
 
 from scraper_pipeline.common.backoff import build_backoff_config
 from scraper_pipeline.common.proxy_pool import ProxyPool
-from scraper_pipeline.encar.client import _proxy_url_and_auth
+from scraper_pipeline.resilience.browser_profile import resolve_browser_profile
+from scraper_pipeline.resilience.policy import ResiliencePolicy, build_resilience_policy
+from scraper_pipeline.resilience.transport import AsyncHttpTransport
 from scraper_pipeline.retry import BackoffConfig, sleep_backoff
 
 
@@ -43,7 +45,13 @@ class AsyncChe168Client:
     Общие query: _appid, deviceid, language (см. backend/che168/README.md).
     """
 
-    def __init__(self, config: dict, logger: logging.Logger):
+    def __init__(
+        self,
+        config: dict,
+        logger: logging.Logger,
+        *,
+        policy: Optional[ResiliencePolicy] = None,
+    ):
         self.config = config
         self.log = logger
         ensure_che168_deviceid(config, logger)
@@ -76,22 +84,22 @@ class AsyncChe168Client:
         self.max_attempts = int(retry.get("max_attempts", 5) or 5)
         self._backoff: BackoffConfig = build_backoff_config(config.get("retry", {}) or {}, retry)
         self.retry_statuses = set(retry.get("retry_statuses", [429, 500, 502, 503, 504]))
+        # Include 403 for session/WAF style blocks (retry + policy).
+        if 403 not in self.retry_statuses:
+            self.retry_statuses = set(self.retry_statuses) | {403}
+        self.profile = resolve_browser_profile(config)
         self.user_agents = config.get("user_agents", [])
         if not self.user_agents:
-            self.user_agents = [
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            ]
+            self.user_agents = [self.profile.user_agent]
         proxy_cfg = ch.get("proxy") if isinstance(ch.get("proxy"), dict) else {}
         if not proxy_cfg:
             proxy_cfg = config.get("proxy", {}) or {}
         sticky = str(ch.get("_session_proxy_url") or "").strip()
         if sticky:
-            # Куки из Playwright получены на этом egress — ротация других прокси сбросит сессию.
             self.proxy_pool = ProxyPool([sticky], rotation="round_robin")
             self.log.info("Che168 HTTP: зафиксирован 1 прокси (совпадает с браузерным bootstrap)")
         elif proxy_cfg.get("enabled"):
             urls = [str(u).strip() for u in (proxy_cfg.get("urls") or []) if str(u).strip()]
-            # Сессия Che168 (sessionid/куки) привязана к IP — по умолчанию один sticky egress.
             sticky_session = proxy_cfg.get("sticky_session", True)
             if urls and sticky_session:
                 self.proxy_pool = ProxyPool([urls[0]], rotation="round_robin")
@@ -105,8 +113,8 @@ class AsyncChe168Client:
                 self.proxy_pool = ProxyPool(urls, rotation=str(proxy_cfg.get("rotation", "round_robin")))
         else:
             self.proxy_pool = ProxyPool([], rotation="round_robin")
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._proxy_index = 0
+        self._transport: Optional[AsyncHttpTransport] = None
+        self.policy = policy or build_resilience_policy(config, source="che168", logger=logger)
         self._ua_index = 0
         self._last_rate_sleep_sec = 0.0
         self._metrics: Dict[str, int] = {
@@ -159,7 +167,7 @@ class AsyncChe168Client:
         return initial
 
     def reload_initial_cookies_from_config(self) -> None:
-        """После Playwright bootstrap: подтянуть sessionid/куки из config в живую сессию aiohttp."""
+        """После Playwright bootstrap: подтянуть sessionid/куки из config в живой transport."""
         self._initial_cookies = self._build_initial_cookies_dict(self.config)
         sticky = str((self.config.get("che168") or {}).get("_session_proxy_url") or "").strip()
         proxy_cfg = self.config.get("proxy", {}) or {}
@@ -173,12 +181,29 @@ class AsyncChe168Client:
                 self.proxy_pool = ProxyPool(urls, rotation=str(proxy_cfg.get("rotation", "round_robin")))
         else:
             self.proxy_pool = ProxyPool([], rotation="round_robin")
+        if self.policy:
+            self.policy.mark_session_refreshed()
 
     def get_initial_cookie(self, name: str) -> Optional[str]:
         return self._initial_cookies.get(name)
 
     def snapshot_metrics(self) -> Dict[str, int]:
-        return dict(self._metrics)
+        out: Dict[str, Any] = dict(self._metrics)
+        if self._transport:
+            for k, v in self._transport.metrics_for_prometheus().items():
+                out[str(k)] = v
+        if self.policy:
+            for k, v in self.policy.snapshot_metrics().items():
+                out[str(k)] = v
+        return out  # type: ignore[return-value]
+
+    def snapshot_transport_metrics(self) -> Dict[str, Any]:
+        if self._transport:
+            return self._transport.metrics_for_prometheus()
+        return {}
+
+    def snapshot_policy_metrics(self) -> Dict[str, Any]:
+        return self.policy.snapshot_metrics() if self.policy else {}
 
     def _metric_inc(self, key: str, by: int = 1) -> None:
         self._metrics[key] = int(self._metrics.get(key, 0) or 0) + by
@@ -206,17 +231,22 @@ class AsyncChe168Client:
         return self.proxy_pool.next_url()
 
     def _next_ua(self) -> str:
+        if self._transport and self._transport.backend == "curl_cffi":
+            return self.profile.user_agent
         self._ua_index = (self._ua_index + 1) % len(self.user_agents)
         return self.user_agents[self._ua_index]
 
     async def _jitter(self) -> None:
-        await asyncio.sleep(random.uniform(self.jitter_min, self.jitter_max))
+        mult = self.policy.jitter_multiplier() if self.policy else 1.0
+        await asyncio.sleep(random.uniform(self.jitter_min, self.jitter_max) * mult)
 
-    async def _maybe_rate_limit_sleep(self, resp: aiohttp.ClientResponse) -> None:
+    async def _maybe_rate_limit_sleep_from_headers(self, headers: Dict[str, str]) -> None:
         ch = self.config.get("che168", {}) or {}
         if not ch.get("respect_rate_limit_headers", True):
             return
-        rem = resp.headers.get("X-RateLimit-Remaining") or resp.headers.get("RateLimit-Remaining")
+        # Case-insensitive header lookup
+        lower = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+        rem = lower.get("x-ratelimit-remaining") or lower.get("ratelimit-remaining")
         if rem is None:
             return
         try:
@@ -224,7 +254,7 @@ class AsyncChe168Client:
                 return
         except ValueError:
             return
-        reset = resp.headers.get("X-RateLimit-Reset") or resp.headers.get("RateLimit-Reset") or "2"
+        reset = lower.get("x-ratelimit-reset") or lower.get("ratelimit-reset") or "2"
         try:
             delay = max(1.0, float(reset))
         except ValueError:
@@ -245,18 +275,16 @@ class AsyncChe168Client:
         }
 
     async def __aenter__(self) -> "AsyncChe168Client":
-        self._session = aiohttp.ClientSession(
-            timeout=self.timeout,
-            trust_env=False,
-            connector=aiohttp.TCPConnector(limit_per_host=self.conn_limit),
-            headers={"Accept": "application/json, text/plain, */*"},
+        self._transport = AsyncHttpTransport(
+            self.config, self.log, profile=self.profile, source="che168"
         )
+        await self._transport.__aenter__()
         return self
 
     async def __aexit__(self, *args: Any) -> None:
-        if self._session:
-            await self._session.close()
-            self._session = None
+        if self._transport:
+            await self._transport.__aexit__(*args)
+            self._transport = None
 
     async def _request(
         self,
@@ -265,7 +293,7 @@ class AsyncChe168Client:
         *,
         params: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Optional[Any], int, Optional[str]]:
-        if not self._session:
+        if not self._transport:
             return None, 0, "no session"
         if self._cb_open_until_mono > time.monotonic():
             self._metric_inc("circuit_breaker_short_circuit")
@@ -280,7 +308,8 @@ class AsyncChe168Client:
 
         h: Dict[str, str] = {
             "User-Agent": self._next_ua(),
-            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": self.profile.accept_language,
             "Origin": self._origin,
             "Referer": self._referer,
         }
@@ -300,31 +329,33 @@ class AsyncChe168Client:
             try:
 
                 async def _one_attempt() -> Tuple[str, Optional[Any], int, Optional[str], Optional[str]]:
-                    p_url, p_auth = _proxy_url_and_auth(proxy)
-                    async with self._session.request(
+                    tr = await self._transport.request(
                         method,
                         url,
                         headers=h,
                         params=qp,
                         cookies=self._initial_cookies or None,
-                        proxy=p_url,
-                        proxy_auth=p_auth,
-                    ) as resp:
-                        status = int(resp.status)
-                        retry_after = resp.headers.get("Retry-After")
-                        if status in self.retry_statuses:
-                            return "retry", None, status, f"status {status}", retry_after
-                        if status != 200:
-                            text = (await resp.text())[:500]
-                            return "final", None, status, text, None
-                        await self._maybe_rate_limit_sleep(resp)
-                        try:
-                            data = await resp.json(content_type=None)
-                        except Exception as e:
-                            return "final", None, 200, f"json_error {e}", None
-                        return "final", data, 200, None, None
+                        proxy=proxy,
+                        expect_json=True,
+                        use_profile_ua=True,
+                    )
+                    status = int(tr.status or 0)
+                    retry_after = tr.headers.get("Retry-After") or tr.headers.get("retry-after")
+                    if tr.error and status == 0:
+                        raise aiohttp.ClientError(tr.error)
+                    if status in self.retry_statuses:
+                        return "retry", None, status, f"status {status}", retry_after
+                    if status != 200:
+                        text = (tr.text or "")[:500]
+                        return "final", None, status, text or tr.error, None
+                    await self._maybe_rate_limit_sleep_from_headers(tr.headers)
+                    if tr.json_data is None and tr.error:
+                        return "final", None, 200, tr.error, None
+                    return "final", tr.json_data, 200, None, None
 
                 kind, payload, st, err, retry_after = await asyncio.wait_for(_one_attempt(), timeout=hard)
+                if self.policy:
+                    self.policy.record_http_status(st)
                 if kind == "retry":
                     self._metric_inc("retries_total")
                     if int(st or 0) == 429:
@@ -354,7 +385,7 @@ class AsyncChe168Client:
                 await sleep_backoff(self._backoff, attempt)
             except asyncio.CancelledError:
                 raise
-            except aiohttp.ClientError as e:
+            except (aiohttp.ClientError, OSError) as e:
                 self._metric_inc("exceptions_client")
                 self._record_failure_for_circuit_breaker(0, str(e))
                 last_error = str(e)
@@ -380,7 +411,6 @@ class AsyncChe168Client:
         pagesize: int,
         sort: int = 0,
         vehicle_list: int = 1,
-        # Optional search filters (API-dependent, but required for segmentation).
         price_min: Optional[int] = None,
         price_max: Optional[int] = None,
         year_min: Optional[int] = None,
@@ -395,8 +425,6 @@ class AsyncChe168Client:
             "sort": sort,
             "vehicle_list": vehicle_list,
         }
-
-        # Filters are added only when explicitly provided to avoid changing API defaults.
         if price_min is not None:
             params["price_min"] = price_min
         if price_max is not None:
@@ -409,12 +437,7 @@ class AsyncChe168Client:
             params["mileage_min"] = mileage_min
         if mileage_max is not None:
             params["mileage_max"] = mileage_max
-
-        return await self._request(
-            "GET",
-            "/search",
-            params=params,
-        )
+        return await self._request("GET", "/search", params=params)
 
     async def fetch_search_with_offset(
         self,
@@ -424,7 +447,6 @@ class AsyncChe168Client:
         limit: int,
         sort: int = 0,
         vehicle_list: int = 1,
-        # Optional search filters.
         price_min: Optional[int] = None,
         price_max: Optional[int] = None,
         year_min: Optional[int] = None,
@@ -432,11 +454,6 @@ class AsyncChe168Client:
         mileage_min: Optional[int] = None,
         mileage_max: Optional[int] = None,
     ) -> Tuple[Optional[Any], int, Optional[str]]:
-        """
-        Fallback pagination: some APIs accept offset/limit instead of pageindex/pagesize.
-
-        If the endpoint doesn't support these params, you'll get empty results / non-200 responses.
-        """
         params: Dict[str, Any] = {
             "brandid": brandid,
             "offset": offset,
@@ -456,7 +473,6 @@ class AsyncChe168Client:
             params["mileage_min"] = mileage_min
         if mileage_max is not None:
             params["mileage_max"] = mileage_max
-
         return await self._request("GET", "/search", params=params)
 
     async def fetch_carinfo(self, infoid: int | str) -> Tuple[Optional[Any], int, Optional[str]]:
@@ -495,7 +511,7 @@ class AsyncChe168Client:
         HTML страницы объявления на global.che168.com: в SSR/встроенном JSON часто есть
         полный список URL галереи (erscglobal*.autoimg.cn), которого нет в /carinfo JSON.
         """
-        if not self._session:
+        if not self._transport:
             return None, 0, "no session"
         ch = self.config.get("che168", {}) or {}
         tmpl = str(ch.get("detail_page_url_template") or "{origin}/detail/{infoid}").strip()
@@ -516,32 +532,34 @@ class AsyncChe168Client:
             h: Dict[str, str] = {
                 "User-Agent": self._next_ua(),
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Language": self.profile.accept_language,
                 "Origin": self._origin,
                 "Referer": self._referer,
             }
             try:
 
                 async def _one_html() -> Tuple[str, Optional[str], int, Optional[str], Optional[str]]:
-                    p_url, p_auth = _proxy_url_and_auth(proxy)
-                    async with self._session.get(
+                    tr = await self._transport.request(
+                        "GET",
                         url,
                         headers=h,
                         cookies=self._initial_cookies or None,
-                        proxy=p_url,
-                        proxy_auth=p_auth,
+                        proxy=proxy,
+                        expect_json=False,
                         allow_redirects=True,
-                    ) as resp:
-                        status = int(resp.status)
-                        retry_after = resp.headers.get("Retry-After")
-                        if status in self.retry_statuses:
-                            return "retry", None, status, f"status {status}", retry_after
-                        if status != 200:
-                            frag = (await resp.text())[:400]
-                            return "final", None, status, frag, None
-                        await self._maybe_rate_limit_sleep(resp)
-                        body = await resp.text()
-                        return "final", body, 200, None, None
+                        use_profile_ua=True,
+                    )
+                    status = int(tr.status or 0)
+                    retry_after = tr.headers.get("Retry-After") or tr.headers.get("retry-after")
+                    if tr.error and status == 0:
+                        raise aiohttp.ClientError(tr.error)
+                    if status in self.retry_statuses:
+                        return "retry", None, status, f"status {status}", retry_after
+                    if status != 200:
+                        frag = (tr.text or "")[:400]
+                        return "final", None, status, frag or tr.error, None
+                    await self._maybe_rate_limit_sleep_from_headers(tr.headers)
+                    return "final", tr.text, 200, None, None
 
                 kind, text, st, err, retry_after = await asyncio.wait_for(_one_html(), timeout=hard)
                 if kind == "retry":
@@ -555,7 +573,7 @@ class AsyncChe168Client:
                 await sleep_backoff(self._backoff, attempt)
             except asyncio.CancelledError:
                 raise
-            except aiohttp.ClientError as e:
+            except (aiohttp.ClientError, OSError) as e:
                 last_error = str(e)
                 await sleep_backoff(self._backoff, attempt)
         return None, last_http_status, last_error

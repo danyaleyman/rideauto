@@ -114,6 +114,15 @@ docker run -d --name prometheus --restart unless-stopped \
 
 **Проверка Slack:** временно останови **`api`** на пару минут или ослабь порог в **`alert_rules_rideauto.yml`** — в канал должно прийти уведомление; после восстановления — сообщение о **resolved** (если включено `send_resolved`). После смены webhook URL пересоздай контейнер **`alertmanager`** с теми же volume.
 
+### Fire-drill (обязательный prod gate Phase 4)
+
+1. Убедиться, что `alert_rules_rideauto.yml` подключён (см. выше) и Alertmanager → Slack жив.
+2. Временно снизить порог `RideautoSearchHighLatencyP95` до `0.001` **или** остановить API на 2–3 минуты.
+3. Зафиксировать: время firing, screenshot/текст Slack, время resolved.
+4. Вернуть порог / API; записать в `deploy/docs/DR_RESTORE_DRILL.md` или CLOSEOUT_REVIEW.
+5. Grafana: импорт `deploy/monitoring/grafana-catalog-reliability.json`.
+6. OTEL: staging-only по умолчанию — [`docs/adr/0003-otel-staging-first.md`](adr/0003-otel-staging-first.md).
+
 ### Дальше (следующие этапы)
 
 1. При необходимости — второй receiver (email и т.п.) через `route` `continue` и отдельные `receiver`.

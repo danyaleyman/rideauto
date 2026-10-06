@@ -5,8 +5,7 @@
 #   2) install/refresh rideauto catalog systemd units
 #   3) ensure runtime permissions
 #   4) run one daily Encar cycle
-#   5) postgres catalog sync
-#   6) meilisearch sync
+#   5-6) catalog pipeline (prices + Meili) — canonical, ADR 0004
 #   7) basic health checks
 #
 # Usage:
@@ -78,18 +77,20 @@ else
   echo "== [4/7] daily cycle skipped =="
 fi
 
-if [[ $SKIP_PG_SYNC -eq 0 ]]; then
-  echo "== [5/7] postgres catalog sync =="
-  run_as_runtime_user "$ROOT/deploy/scripts/run_postgres_catalog_sync_host.sh --no-meilisearch"
+if [[ $SKIP_PG_SYNC -eq 0 ]] || [[ $SKIP_MEILI_SYNC -eq 0 ]]; then
+  echo "== [5-6/7] catalog pipeline (Postgres prices → Meilisearch) =="
+  # Single canonical path — do not call PG/Meili scripts separately (ADR 0004).
+  PIPE_FLAGS=()
+  if [[ $SKIP_PG_SYNC -eq 1 ]]; then
+    export WRA_CATALOG_PIPELINE_SKIP_PG=1
+  fi
+  if [[ $SKIP_MEILI_SYNC -eq 1 ]]; then
+    export WRA_CATALOG_PIPELINE_SKIP_MEILI=1
+  fi
+  run_as_runtime_user "bash $ROOT/deploy/scripts/run_catalog_pipeline_host.sh"
+  unset WRA_CATALOG_PIPELINE_SKIP_PG WRA_CATALOG_PIPELINE_SKIP_MEILI || true
 else
-  echo "== [5/7] postgres catalog sync skipped =="
-fi
-
-if [[ $SKIP_MEILI_SYNC -eq 0 ]]; then
-  echo "== [6/7] meilisearch sync =="
-  bash "$ROOT/deploy/scripts/run_meilisearch_sync_host.sh"
-else
-  echo "== [6/7] meilisearch sync skipped =="
+  echo "== [5-6/7] catalog pipeline skipped =="
 fi
 
 if [[ $SKIP_HEALTH -eq 0 ]]; then

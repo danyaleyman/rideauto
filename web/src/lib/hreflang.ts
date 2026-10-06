@@ -1,28 +1,33 @@
 import { getSiteUrl } from "@/lib/env";
 
-/** Убираем/ставим ``lang=`` для альтернативных URL (cookie-локаль без префикса ``/en``). */
-function searchForLocale(search: string, locale: "ru" | "en"): string {
-  const raw = search.startsWith("?") ? search.slice(1) : search;
-  const q = new URLSearchParams(raw);
-  if (locale === "en") q.set("lang", "en");
-  else q.delete("lang");
-  const s = q.toString();
-  return s ? `?${s}` : "";
+const LOCALE_PREFIX = /^\/(en|ru)(?=\/|$)/;
+
+function stripLocalePrefix(pathname: string): string {
+  const m = pathname.match(LOCALE_PREFIX);
+  if (!m) return pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const rest = pathname.slice(m[0].length) || "/";
+  return rest.startsWith("/") ? rest : `/${rest}`;
 }
 
-/** Абсолютные URL для ``metadata.alternates`` (SEO-hreflang при модели ``?lang=en``). */
+/** Absolute URLs for metadata.alternates — prefer /en|/ru prefixes. */
 export function buildLocaleAlternates(
   pathname: string,
   search: string,
 ): { canonical: string; languages: Record<string, string> } {
   const base = getSiteUrl().replace(/\/$/, "");
-  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  const ruQ = searchForLocale(search, "ru");
-  const enQ = searchForLocale(search, "en");
-  const ruUrl = `${base}${path}${ruQ}`;
-  const enUrl = `${base}${path}${enQ}`;
+  const bare = stripLocalePrefix(pathname);
+  const raw = search.startsWith("?") ? search.slice(1) : search;
+  const q = new URLSearchParams(raw);
+  q.delete("lang");
+  const qs = q.toString();
+  const suffix = qs ? `?${qs}` : "";
+  const ruUrl = `${base}/ru${bare === "/" ? "" : bare}${suffix}`;
+  const enUrl = `${base}/en${bare === "/" ? "" : bare}${suffix}`;
+  // Canonical follows current path locale if present, else ru
+  const m = pathname.match(LOCALE_PREFIX);
+  const canonical = m?.[1] === "en" ? enUrl : ruUrl;
   return {
-    canonical: ruUrl,
+    canonical,
     languages: {
       "ru-RU": ruUrl,
       "en-US": enUrl,

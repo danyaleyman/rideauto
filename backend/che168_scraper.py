@@ -395,6 +395,11 @@ async def run_scraper(
             except asyncio.CancelledError:
                 pass
             stats["client_metrics"] = client.snapshot_metrics()
+            try:
+                stats["transport_metrics"] = client.snapshot_transport_metrics()
+                stats["policy_metrics"] = client.snapshot_policy_metrics()
+            except Exception:
+                pass
 
     finally:
         if int(config.get("max_new_saves_per_run", 0) or 0) > 0:
@@ -431,6 +436,17 @@ async def run_scraper(
             cm.get("exceptions_client", 0),
             cm.get("circuit_breaker_opened", 0),
             cm.get("circuit_breaker_short_circuit", 0),
+        )
+    tm = stats.get("transport_metrics") if isinstance(stats.get("transport_metrics"), dict) else {}
+    pm = stats.get("policy_metrics") if isinstance(stats.get("policy_metrics"), dict) else {}
+    if tm or pm:
+        log.info(
+            "Che168 resilience run_id=%s transport=%s impersonate=%s session_refreshes=%s concurrency_limit=%s",
+            run_id,
+            tm.get("transport_backend"),
+            tm.get("transport_impersonate"),
+            stats.get("session_refreshes", 0),
+            pm.get("policy_concurrency_limit"),
         )
     stats["run_finished_unixtime"] = int(time.time())
 

@@ -8,6 +8,23 @@ groups:
   - name: rideauto_catalog_http
     interval: 30s
     rules:
+      # SLO burn (docs/SLO.md): tight threshold for budget awareness
+      - alert: RideautoSearchSloBurnP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(wra_http_request_duration_seconds_bucket{path_group="/api/search"}[5m])
+            )
+          ) > 0.35
+        for: 10m
+        labels:
+          severity: warning
+          class: slo_burn
+        annotations:
+          summary: "SLO burn: p95 /api/search > 350ms"
+          description: "См. docs/SLO.md. Не путать с ops_pain (3s)."
+
       - alert: RideautoSearchHighLatencyP95
         expr: |
           histogram_quantile(
@@ -19,9 +36,10 @@ groups:
         for: 10m
         labels:
           severity: warning
+          class: ops_pain
         annotations:
-          summary: "Высокий p95 latency /api/search"
-          description: "p95 > 3s за 5m. Проверить Meilisearch, Postgres, Redis-кэш."
+          summary: "Ops pain: p95 /api/search > 3s"
+          description: "Проверить Meilisearch, Postgres, Redis-кэш."
 
       - alert: RideautoCatalog5xxRate
         expr: |
@@ -83,6 +101,66 @@ groups:
         annotations:
           summary: "Давно не отмечалось завершение wra_postgres_catalog_sync"
           description: "Если job не пишет метрики — отключите правило или задайте JOB_NAME."
+
+      - alert: RideautoCatalogPipelineStale
+        expr: |
+          (time() - wra_job_last_completion_unixtime{job="wra_catalog_pipeline"}) > 93600
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Catalog Pipeline давно не завершался (>26h)"
+          description: "Проверьте rideauto-catalog-pipeline.timer и journalctl."
+
+      - alert: RideautoCatalogIndexEmpty
+        expr: wra_catalog_index_empty == 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Live Meilisearch index has zero documents"
+          description: "После recreate/preflight fail каталог пуст. Запустите catalog pipeline с blue/green swap."
+
+      - alert: RideautoCatalogMeiliPgLagHigh
+        expr: |
+          wra_catalog_meili_pg_ratio < 0.85
+          and wra_catalog_pg_active_rows > 1000
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Meili docs << PG active rows (ratio < 0.85)"
+          description: "Возможен отстающий sync или агрессивный distinct/dedupe. См. catalog_pipeline_lag_metrics."
+
+      - alert: RideautoMeiliOutboxBacklogHigh
+        expr: wra_meili_outbox_pending > 500
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Meili outbox backlog > 500"
+          description: "Инкремент отстаёт от batch pipeline. Проверьте meili-outbox timer / ADR 0004."
+
+  - name: rideauto_pricing_truth
+    interval: 60s
+    rules:
+      - alert: RideautoPricingRecomputeQueueHigh
+        expr: wra_pricing_needs_recompute_rows > 5000
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "needs_pricing_recompute queue > 5000 for 6h"
+          description: "Запустите catalog pipeline с ценами / repair_*_pricing_recompute_queue.py."
+
+      - alert: RideautoPricingRecomputeQueueCritical
+        expr: wra_pricing_needs_recompute_rows > 50000
+        for: 2h
+        labels:
+          severity: critical
+        annotations:
+          summary: "needs_pricing_recompute queue critically large"
+          description: "Каталог может отдавать устаревшие цены/tier."
 
   - name: rideauto_che168_scraper
     interval: 60s

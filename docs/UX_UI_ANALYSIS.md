@@ -1,5 +1,7 @@
 # Анализ UX и UI — World Ride Auto (Encar)
 
+> **Архив (2026-10-06):** документ про legacy HTML и «мёртвое избранное». Актуальный продукт — Next.js (`web/`), favorites через auth + login CTA. См. [`UI_AUDIT_VERDICT.md`](UI_AUDIT_VERDICT.md), [`I18N_ROUTING.md`](I18N_ROUTING.md). Ниже — исторический срез.
+
 ## Общая оценка
 
 | Критерий | Оценка (1–5) | Комментарий |

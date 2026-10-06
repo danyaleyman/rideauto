@@ -1,6 +1,6 @@
 # Аудит зрелости: J+K, I, L, M, N
 
-Оценка **по секциям** на момент ревью репозитория: насколько блоки закрыты для «взрослого» продукта (наблюдаемость, единые правила, отказоустойчивость).
+Оценка **по секциям**. Обновление **2026-10-06** после Full Maturity Close-out ([`docs/CLOSEOUT_REVIEW_2026-10-06.md`](../../docs/CLOSEOUT_REVIEW_2026-10-06.md)).
 
 ## J+K — свежесть, sold/remove, кэш
 
@@ -29,9 +29,9 @@
 |----------|--------|---------|
 | UI | **Есть** | VIN-дедуп на каталоге (`catalog-vin-dedupe.ts`) |
 | Индекс Meili | **Улучшено** | `catalog_dedupe_key` + `distinctAttribute`; см. `BLOCK_L_DEDUP.md` |
-| Postgres | **Частично** | Нет обязательной канонической одной строки на авто; слияние дублей — по желанию |
+| Postgres | **Улучшено** | `008` + `catalog_dedupe_auto_apply.py` (VIN high-confidence); pagination QA script |
 
-**До полноты:** job слияния в Postgres, алерты на рассинхрон; проверка total/пагинации с distinct на проде.
+**До полноты:** прод attestation auto-apply; non-VIN группы — ops-отчёт; проверка total/пагинации на проде после settings change.
 
 ## M — масштаб и стоимость
 

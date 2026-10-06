@@ -529,6 +529,18 @@ async def run_scraper(
             cm.get("circuit_breaker_opened", 0),
             cm.get("circuit_breaker_short_circuit", 0),
         )
+    if "client" in locals():
+        try:
+            stats["transport_metrics"] = client.snapshot_transport_metrics()
+            stats["policy_metrics"] = client.snapshot_policy_metrics()
+            log.info(
+                "Encar resilience transport=%s impersonate=%s concurrency_limit=%s",
+                (stats["transport_metrics"] or {}).get("transport_backend"),
+                (stats["transport_metrics"] or {}).get("transport_impersonate"),
+                (stats["policy_metrics"] or {}).get("policy_concurrency_limit"),
+            )
+        except Exception:
+            pass
     stats["run_finished_unixtime"] = int(time.time())
     log.info(
         "Scraper finished. list_pages=%s ids_discovered=%s ids_queued=%s processed=%s saved=%s detail_gone=%s detail_fail=%s parse_fail=%s elapsed=%.1fs",

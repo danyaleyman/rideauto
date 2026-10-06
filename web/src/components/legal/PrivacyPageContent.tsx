@@ -37,6 +37,7 @@ export function PrivacyPageContent() {
           <h2>{t("legal.privacy.s4Title")}</h2>
           <p>{t("legal.privacy.s4p1")}</p>
           <p>{t("legal.privacy.s4p2")}</p>
+          <p>{t("legal.privacy.s4p3")}</p>
 
           <h2>{t("legal.privacy.s5Title")}</h2>
           <p>{t("legal.privacy.s5p1")}</p>

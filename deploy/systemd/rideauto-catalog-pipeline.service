@@ -1,0 +1,16 @@
+[Unit]
+Description=RideAuto — Catalog Pipeline (Postgres prices → Meilisearch)
+After=network.target
+
+[Service]
+Type=oneshot
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/default/rideauto
+# Prefer blue/green: set WRA_MEILISEARCH_INDEX=cars_build WRA_MEILI_LIVE_INDEX=cars WRA_MEILI_SWAP_INTO_LIVE=1
+ExecStart=/bin/bash /opt/rideauto/deploy/scripts/run_catalog_pipeline_host.sh
+TimeoutStartSec=8h
+NoNewPrivileges=true
+PrivateTmp=true

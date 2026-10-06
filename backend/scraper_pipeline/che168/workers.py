@@ -791,6 +791,7 @@ async def detail_worker_che168(
     stats_lock: Optional[asyncio.Lock] = None,
 ) -> None:
     sem = asyncio.Semaphore(1)
+    policy = getattr(client, "policy", None)
     ch = config.get("che168", {}) or {}
     mon_cfg = ch.get("monitoring") if isinstance(ch.get("monitoring"), dict) else {}
     batch_cfg = ch.get("batch") if isinstance(ch.get("batch"), dict) else {}
@@ -867,11 +868,17 @@ async def detail_worker_che168(
 
         detail_wall = float(config.get("http", {}).get("detail_wall_timeout_sec", 90))
         try:
-            async with sem:
-                raw_info, st_info, _ = await asyncio.wait_for(
-                    client.fetch_carinfo(external_id),
-                    timeout=detail_wall,
-                )
+            if policy is not None:
+                await policy.acquire()
+            try:
+                async with sem:
+                    raw_info, st_info, _ = await asyncio.wait_for(
+                        client.fetch_carinfo(external_id),
+                        timeout=detail_wall,
+                    )
+            finally:
+                if policy is not None:
+                    await policy.release()
         except asyncio.TimeoutError:
             log.error("Che168 worker %s id=%s carinfo timeout", worker_id, external_id)
             stats["detail_fail"] += 1
@@ -880,35 +887,58 @@ async def detail_worker_che168(
             continue
 
         outcome = che168_carinfo_outcome(st_info, raw_info)
-        if outcome == "retry" and che168_response_suggests_session_refresh(raw_info):
-            allow = ch.get("allow_runtime_session_refresh", True) is not False
-            if allow:
-                min_iv = float(ch.get("session_refresh_min_interval_sec", 90) or 90)
-                now = time.monotonic()
-                last = float(stats.get("_last_che168_session_refresh_mono") or 0.0)
-                if now - last >= min_iv:
-                    try:
-                        from scraper_pipeline.che168.session_playwright import (
-                            apply_playwright_bootstrap_to_config,
-                        )
+        session_hint = che168_response_suggests_session_refresh(raw_info)
+        if outcome == "retry" and session_hint:
+            allow_refresh = False
+            if policy is not None:
+                allow_refresh = policy.should_refresh_session(
+                    session_hint=True, http_status=int(st_info or 0)
+                )
+            else:
+                allow = ch.get("allow_runtime_session_refresh", True) is not False
+                if allow:
+                    min_iv = float(ch.get("session_refresh_min_interval_sec", 90) or 90)
+                    now = time.monotonic()
+                    last = float(stats.get("_last_che168_session_refresh_mono") or 0.0)
+                    allow_refresh = now - last >= min_iv
+            if allow_refresh:
+                try:
+                    from scraper_pipeline.resilience.challenge import (
+                        EscalationLevel,
+                        escalate_che168_session,
+                    )
 
-                        log.warning(
-                            "Che168 worker %s: сессия/API hint → Playwright bootstrap",
-                            worker_id,
-                        )
-                        await asyncio.to_thread(apply_playwright_bootstrap_to_config, config, log)
-                        client.reload_initial_cookies_from_config()
-                        stats["_last_che168_session_refresh_mono"] = now
-                        stats["session_refreshes"] = stats.get("session_refreshes", 0) + 1
+                    log.warning(
+                        "Che168 worker %s: сессия/API hint → challenge escalate L1",
+                        worker_id,
+                    )
+                    await asyncio.to_thread(
+                        escalate_che168_session,
+                        config,
+                        log,
+                        level=EscalationLevel.L1_SESSION_HEADLESS,
+                        policy=policy,
+                    )
+                    client.reload_initial_cookies_from_config()
+                    stats["_last_che168_session_refresh_mono"] = time.monotonic()
+                    stats["session_refreshes"] = stats.get("session_refreshes", 0) + 1
+                    if policy is not None:
+                        await policy.acquire()
+                    try:
                         raw_info, st_info, _ = await asyncio.wait_for(
                             client.fetch_carinfo(external_id),
                             timeout=detail_wall,
                         )
-                        outcome = che168_carinfo_outcome(st_info, raw_info)
-                    except ImportError as e:
-                        log.error("Che168 session refresh: нужен Playwright — %s", e)
-                    except Exception as e:
-                        log.error("Che168 session refresh failed: %s", e)
+                    finally:
+                        if policy is not None:
+                            await policy.release()
+                    outcome = che168_carinfo_outcome(st_info, raw_info)
+                except ImportError as e:
+                    log.error("Che168 session refresh: нужен Playwright — %s", e)
+                except Exception as e:
+                    log.error("Che168 session refresh failed: %s", e)
+            elif ch.get("allow_runtime_session_refresh", True) is False:
+                stats["detail_session_retry_no_refresh"] = stats.get("detail_session_retry_no_refresh", 0) + 1
             else:
                 stats["detail_session_retry_no_refresh"] = stats.get("detail_session_retry_no_refresh", 0) + 1
 

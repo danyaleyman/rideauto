@@ -1,0 +1,13 @@
+[Unit]
+Description=RideAuto — PD retention purge (leads/tokens)
+After=network.target
+
+[Service]
+Type=oneshot
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+EnvironmentFile=-/etc/default/rideauto
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash -c 'cd /opt/rideauto && . .venv/bin/activate && export PYTHONPATH=/opt/rideauto/backend && python backend/scripts/pd_retention_purge.py --apply'
+TimeoutStartSec=30m

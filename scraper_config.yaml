@@ -2,6 +2,10 @@
 # Override with environment variables: SCRAPER_<SECTION>_<KEY> (e.g. SCRAPER_HTTP_CONCURRENCY=10)
 
 http:
+  # Resilience Platform: curl_cffi = Chrome TLS (JA3); aiohttp = legacy fallback
+  transport: curl_cffi
+  # Must match BrowserProfile (chrome120|chrome124|chrome131|chrome136)
+  impersonate: chrome131
   # Concurrency for detail fetches (per car: detail + optional diagnosis/record/inspection/user)
   # Для докачки: 12–20 при стабильных прокси; меньше — если узкое место Encar/прокси.
   concurrency: 12
@@ -85,12 +89,16 @@ proxy:
   urls: []
   rotate_every: 1
 
+# With transport=curl_cffi UA is pinned to BrowserProfile (http.impersonate) — do not mix Firefox/Safari.
 user_agents:
-  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-  - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
-  - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+  - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+resilience:
+  # Encar API normally needs no browser session; enable only if WAF appears on api.encar.com
+  allow_session_refresh: false
+  degrade_after_block_streak: 8
+  recover_after_ok_streak: 40
+  min_concurrency: 1
 
 # Car types to collect: for = import (CarType N), kor = domestic (CarType Y) — как две вкладки Encar
 car_types:

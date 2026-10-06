@@ -3,17 +3,27 @@
 ## Сейчас
 
 - Тексты: `web/messages/ru.json`, `web/messages/en.json`.
-- **Локаль:** cookie `WRA_LOCALE` (`ru` | `en`), выставляется query-параметром **`?lang=en`** или **`?lang=ru`** (см. `web/src/middleware.ts`).
+- **Локаль:** cookie `WRA_LOCALE` (`ru` | `en`).
+- **URL:**
+  - Prefixed: `/en/...`, `/ru/...` (middleware rewrite на существующие `(site)` / `car` маршруты).
+  - Query: `?lang=en` / `?lang=ru` (ставит cookie).
+  - Первый визит без cookie: `Accept-Language` (только bootstrap).
 - Серверные компоненты: `getServerLocale()` из `web/src/lib/locale-server.ts`.
 - Клиент: `LocaleProvider` + `useLocaleContext()` (`t`, `setLocale`).
-- Форматы дат/чисел/валюты: `web/src/lib/format-locale.ts`.
-- **SEO / hreflang:** `generateMetadata` в `web/src/app/(site)/layout.tsx` и `web/src/app/car/layout.tsx` отдаёт `alternates.languages` (`ru-RU`, `en-US` с тем же path + `?lang=en`, `x-default`). Путь и query берутся из заголовков `x-pathname` / `x-search`, которые выставляет `middleware.ts`.
+- Форматы: `web/src/lib/format-locale.ts`.
+- **SEO / hreflang:** `generateMetadata` + `alternates.languages` для `ru-RU` / `en-US` (path с префиксом или `?lang=`).
 
-## Не сделано (как у «больших» продуктов)
+## Паритет сообщений
 
-- Отдельные URL вида `/en/catalog` без полной реструктуризации `app/[locale]/…` не вводились.
-- Нет автоопределения только из `Accept-Language` без явного `?lang=` (можно добавить в middleware при необходимости).
+```bash
+cd web && node scripts/i18n-key-parity.mjs
+```
 
-## Как включить английский для проверки
+## Favorites
 
-Откройте любую страницу с `?lang=en`, затем навигация сохранит cookie.
+Избранное — для аутентифицированных пользователей (API). Анонимам показывается CTA «войти» (`favorites.loginRequired` / `header.favoritesLoginHint`), не мёртвая кнопка.
+
+## Как проверить
+
+- `https://…/en/catalog` и `https://…/ru/catalog` → 200, язык sticky по cookie.
+- `?lang=en` затем навигация без query сохраняет EN.

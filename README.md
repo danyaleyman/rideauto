@@ -40,17 +40,21 @@ sudo bash /opt/rideauto/deploy/scripts/rideauto_catalog_install.sh
 # 2) one daily cycle
 sudo -u rideauto /opt/rideauto/deploy/scripts/run_encar_daily_once_prod.sh
 
-# 3) sync postgres catalog
-sudo -u rideauto bash /opt/rideauto/deploy/scripts/run_postgres_catalog_sync_host.sh --no-meilisearch
-
-# 4) sync meilisearch index
-sudo bash /opt/rideauto/deploy/scripts/run_meilisearch_sync_host.sh
+# 3–4) preferred: Catalog Pipeline (prices + Meili)
+sudo -u rideauto bash /opt/rideauto/deploy/scripts/run_catalog_pipeline_host.sh
+# or separately:
+# sudo -u rideauto bash /opt/rideauto/deploy/scripts/run_postgres_catalog_sync_host.sh --no-meilisearch
+# sudo bash /opt/rideauto/deploy/scripts/run_meilisearch_sync_host.sh
 ```
 
-## Быстрый старт (backend, legacy/dev helper)
+Canonical prod entrypoints: `encar_daily_update` / `che168_daily_update`, **catalog pipeline**, systemd timers.  
+**Do not** use `run_system.py` / `parser_full.py` / `quick_start.py` on production unless `WRA_ENABLE_LEGACY_ORCHESTRATION=1` for exceptional recovery (see `backend/SCRAPER_README.md`, `deploy/docs/RUNBOOK_OPERATIONS.md`).
+
+## Dev helpers (legacy orchestration — opt-in only)
 
 ```bash
 pip install -r backend/requirements.txt
+# Requires explicit flag; not a production path
 WRA_ENABLE_LEGACY_ORCHESTRATION=1 python backend/run_system.py --setup
 WRA_ENABLE_LEGACY_ORCHESTRATION=1 python backend/run_system.py --daily
 ```

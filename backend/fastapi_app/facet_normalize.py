@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from functools import lru_cache
-from typing import Dict, List, Optional, Sequence
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence
 
 from fuel_label_aliases import fuel_alias_resolve, fuel_to_canonical_ru_flat
 
@@ -25,6 +26,30 @@ _FACET_JUNK_VALUES_NORM = frozenset(
     {"", "-", "--", "—", "null", "none", "undefined", "nan", "не указано"}
 )
 _CHINA_SPEC_MEILI_ATTRS = frozenset({"body_type", "fuel", "transmission", "color"})
+
+_DENYLIST_CACHE: Optional[Dict[str, Any]] = None
+
+
+def _load_facet_denylist() -> Dict[str, Any]:
+    """Load backend/config/facet_denylist.yaml (optional)."""
+    global _DENYLIST_CACHE
+    if _DENYLIST_CACHE is not None:
+        return _DENYLIST_CACHE
+    try:
+        import yaml
+    except ImportError:
+        _DENYLIST_CACHE = {}
+        return _DENYLIST_CACHE
+    path = Path(__file__).resolve().parents[1] / "config" / "facet_denylist.yaml"
+    if not path.is_file():
+        _DENYLIST_CACHE = {}
+        return _DENYLIST_CACHE
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        raw = {}
+    _DENYLIST_CACHE = raw if isinstance(raw, dict) else {}
+    return _DENYLIST_CACHE
 
 # Атрибуты Meilisearch → домен `facet_canonical_english` для China cleanup в `_cleanup_china_facet_value`.
 # Остальные атрибуты из `FACET_SPECS_MEILI` (body_type, fuel, transmission, color) передают domain "".
@@ -398,11 +423,23 @@ def _canon_ru_transmission(raw: str) -> str:
     return _canon_transmission_ru(s)
 
 
-def _is_facet_junk_value(raw: str) -> bool:
+def _is_facet_junk_value(raw: str, meili_attr: str = "") -> bool:
     s = _as_text(raw)
     if not s:
         return True
-    return s.lower() in _FACET_JUNK_VALUES_NORM
+    low = s.lower().strip()
+    if low in _FACET_JUNK_VALUES_NORM:
+        return True
+    cfg = _load_facet_denylist()
+    global_deny = cfg.get("global") if isinstance(cfg.get("global"), list) else []
+    if low in {str(x).lower().strip() for x in global_deny}:
+        return True
+    by_attr = cfg.get("by_attr") if isinstance(cfg.get("by_attr"), dict) else {}
+    if meili_attr and meili_attr in by_attr:
+        attr_list = by_attr.get(meili_attr) or []
+        if isinstance(attr_list, list) and low in {str(x).lower().strip() for x in attr_list}:
+            return True
+    return False
 
 
 @lru_cache(maxsize=1)
@@ -687,10 +724,10 @@ def merge_facet_distribution_rows(
             for r in rows:
                 raw = _as_text(r.get("value"))
                 count = int(r.get("count") or 0)
-                if not raw or count <= 0 or _is_facet_junk_value(raw):
+                if not raw or count <= 0 or _is_facet_junk_value(raw, meili_attr):
                     continue
                 label = _cleanup_china_facet_value(raw, meili_attr) or raw
-                if _is_facet_junk_value(label):
+                if _is_facet_junk_value(label, meili_attr):
                     continue
                 key = re.sub(r"\s+", " ", label.strip().lower())
                 if not key:

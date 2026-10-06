@@ -553,6 +553,14 @@ def main() -> None:
         if live_uid == build_uid:
             parser.error("--swap-into-live requires different --index-name (build/staging) and --live-index-name")
 
+    # Fail-closed: never wipe the live UID in-place. Use staging UID + --swap-into-live.
+    if args.recreate_index and not args.swap_into_live and build_uid == live_uid:
+        parser.error(
+            "--recreate-index on the live index is refused (would empty catalog on failure). "
+            "Use a staging --index-name (e.g. cars_build), set --live-index-name to the public UID, "
+            "and pass --swap-into-live (or WRA_MEILI_SWAP_INTO_LIVE=1)."
+        )
+
     if not args.pg_dsn and not args.settings_only:
         parser.error("--pg-dsn is required unless --settings-only")
     if args.preflight_gate and not args.settings_only:

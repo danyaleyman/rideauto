@@ -299,6 +299,7 @@ async def detail_worker(
     stats_lock: Optional[asyncio.Lock] = None,
 ) -> None:
     sem = asyncio.Semaphore(1)
+    policy = getattr(client, "policy", None)
     batch_cfg = _config.get("batch", {}) if isinstance(_config.get("batch"), dict) else {}
     save_batch_size = max(1, int(batch_cfg.get("save_batch_size", 100)))
     save_flush_sec = max(0.1, float(batch_cfg.get("save_flush_sec", 2.0)))
@@ -404,11 +405,17 @@ async def detail_worker(
         log.debug("Worker %s detail begin car_id=%s", worker_id, car_id)
         try:
             detail_started = time.perf_counter()
-            async with sem:
-                detail, d_status, _ = await asyncio.wait_for(
-                    client.fetch_vehicle_detail(car_id),
-                    timeout=detail_wall,
-                )
+            if policy is not None:
+                await policy.acquire()
+            try:
+                async with sem:
+                    detail, d_status, _ = await asyncio.wait_for(
+                        client.fetch_vehicle_detail(car_id),
+                        timeout=detail_wall,
+                    )
+            finally:
+                if policy is not None:
+                    await policy.release()
             detail_latency_ms = int((time.perf_counter() - detail_started) * 1000)
         except asyncio.TimeoutError:
             log.error(

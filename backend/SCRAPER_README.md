@@ -5,8 +5,14 @@ The script `encar_scraper.py` is a scalable, resumable replacement for the small
 - **Async I/O** (aiohttp): list pages are fetched sequentially; car details are fetched concurrently (configurable limit).
 - **Checkpointing**: state is saved in **PostgreSQL** (tables `scraper_checkpoint_state`, `scraper_pending_ids`, …; см. `infrastructure/postgresql/schema.sql`). On restart, the script resumes from the last checkpoint.
 - **Storage**: **`storage.backend` must be `postgres`** — записи в таблицу `cars` (нормализованный JSON в `data`) и связанные сущности. DSN: `DATABASE_URL` или `storage.postgres.dsn` в `scraper_config.yaml`.
-- **Anti-blocking**: optional proxy list, User-Agent rotation, jitter between requests, exponential backoff and retries (429, 5xx), optional `Retry-After` respect.
+- **Anti-blocking / Resilience Platform**: Chrome TLS via `curl_cffi` (`http.transport`, `http.impersonate`), coherent BrowserProfile UA, optional proxy list, jitter, exponential backoff/retries (429, 5xx), circuit breaker, adaptive concurrency (`resilience.*`). See [`docs/adr/0002-scraper-resilience-hybrid.md`](../docs/adr/0002-scraper-resilience-hybrid.md). Playwright is **not** used for Encar bulk fetch (session provider off by default).
 - **Configuration**: `scraper_config.yaml` in the repo root; optional **`scraper_config.local.yaml`** in the same folder is merged on top (gitignored). Env overrides `SCRAPER_<section>_<key>` only nest under that section (e.g. `SCRAPER_HTTP_CONCURRENCY=10`).
+
+Health probe:
+
+```bash
+cd backend && python scripts/resilience_probes.py --source encar
+```
 
 ## Local Postgres (docker-compose)
 

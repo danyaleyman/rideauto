@@ -6,6 +6,8 @@ checkpoint:
   max_pending_ids: 500000
 
 http:
+  transport: curl_cffi
+  impersonate: chrome131
   concurrency: 6
   conn_limit_per_host: 10
   timeout_total: 35
@@ -237,5 +239,12 @@ logging:
   console: true
   file: logs/che168_scraper.log
 
+# Pinned to http.impersonate BrowserProfile when transport=curl_cffi
 user_agents:
-  - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+  - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+
+resilience:
+  degrade_after_block_streak: 8
+  recover_after_ok_streak: 40
+  min_concurrency: 1
+  session_refresh_min_interval_sec: 90

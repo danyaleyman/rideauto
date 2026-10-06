@@ -36,6 +36,11 @@ pg_dump "$DATABASE_URL" --schema-only -f schema.sql
 
 - Дублируйте `.env` / секрет-менеджер оффлайн согласно политике команды.
 
+## PII tables (leads / auth)
+
+При restore учитывайте персональные данные: `lead_requests`, `auth_users`, `auth_magic_tokens`, `auth_sessions`, `user_favorites`, push/search subscriptions.  
+Ретеншн и purge: [`deploy/docs/PD_RETENTION.md`](../deploy/docs/PD_RETENTION.md). Не копируйте прод-дампы с PII на ноутбуки без политики доступа.
+
 ## RPO / RTO
 
 - Задайте целевые **RPO/RTO** для каталога (частота дампов, SLA восстановления) и зафиксируйте в runbook команды.

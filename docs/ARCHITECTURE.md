@@ -41,7 +41,7 @@
 Scraper → PostgreSQL → синхронизация индекса Meilisearch (отдельный job / cron)
 ```
 
-Скрапер **сам** Meilisearch не обновляет: после импорта в Postgres нужно запускать синхронизацию индекса (см. `infrastructure/meilisearch/sync_meilisearch.py` и настройки индекса). Состояние чекпоинта скрапера хранится в Postgres (`scraper_checkpoint_state`, `scraper_pending_ids`, … в `infrastructure/postgresql/schema.sql`).
+Скрапер **сам** Meilisearch не обновляет. Канон: **`deploy/scripts/run_catalog_pipeline_host.sh`** (ADR 0004). Между полными прогонами — инкремент `meili_sync_outbox` (не замена pipeline). Consistency: `catalog_meili_consistency.py`.
 
 ## Сервисы в репозитории
 

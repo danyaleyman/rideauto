@@ -73,6 +73,20 @@ def write_encar_scraper_prometheus_textfile(path: str, stats: Dict[str, Any]) ->
             lines.append(f"# TYPE {metric} counter")
             lines.append(f"{metric} {int(cm.get(src, 0) or 0)}")
 
+    from scraper_pipeline.resilience.prometheus import resilience_metric_lines
+
+    res_stats = {
+        "client_metrics": cm,
+        "transport_metrics": stats.get("transport_metrics")
+        if isinstance(stats.get("transport_metrics"), dict)
+        else {},
+        "policy_metrics": stats.get("policy_metrics")
+        if isinstance(stats.get("policy_metrics"), dict)
+        else {},
+        "session_refreshes": stats.get("session_refreshes", 0),
+    }
+    lines.extend(resilience_metric_lines(res_stats, source="encar"))
+
     lines.append("")
     pp = Path(p)
     pp.parent.mkdir(parents=True, exist_ok=True)

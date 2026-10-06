@@ -22,6 +22,12 @@
 - Скрипт **`backend/scripts/catalog_dedupe_link.py`**: связать дубликат с каноническим `car_id`; дубликат перестаёт попадать в выборку синка Meili; API отдаёт данные канонической строки.
 - Скрипт **`backend/scripts/catalog_dedupe_suggest.py`**: потоковый отчёт по строкам без `dedupe_canonical_car_id`, группировка по тому же `catalog_dedupe_key`, что и индекс (dry-run; дальше — ручной `catalog_dedupe_link`).
 
+## Postgres — Entity Resolution job
+
+- **`backend/scripts/catalog_dedupe_auto_apply.py`**: auto-link групп с ключом `vin:` **и** `source:` (high confidence); прочие (`id:`) — JSONL-отчёт.
+- Systemd: `rideauto-catalog-dedupe.timer` (по умолчанию dry-run; `WRA_DEDUPE_AUTO_APPLY=1` для apply).
+- Acceptance пагинации: **`backend/scripts/meili_distinct_pagination_qa.py`**.
+
 ## Postgres (дальнейшая зрелость)
 
-- Фоновый job, помечающий дубли по эвристике, и политика «одна активная строка на VIN» без ручного CLI — по мере роста каталога.
+- Политика «одна активная строка на VIN» без CLI — покрыта VIN auto-apply; source:/id: группы остаются в ops-отчёте.

@@ -47,6 +47,12 @@ python che168_daily_update.py --config ../che168_scraper.yaml --once
 
 Прокси: блок `proxy` (`enabled`, `urls`). Для Che168 по умолчанию **`sticky_session: true`**: используется только **`urls[0]`** без ротации (иначе смена IP сбрасывает `sessionid`). После Playwright bootstrap клиент берёт **`che168._session_proxy_url`** — тот же URL, что и у Chromium. Ротацию можно включить **`sticky_session: false`** (не рекомендуется с живой сессией). Установка браузера: `pip install playwright && playwright install chromium`.
 
+**Resilience Platform:** `http.transport: curl_cffi` + `http.impersonate` (Chrome TLS), Playwright только как SessionProvider. ADR: [`docs/adr/0002-scraper-resilience-hybrid.md`](../../docs/adr/0002-scraper-resilience-hybrid.md). Probe:
+
+```bash
+python scripts/resilience_probes.py --source che168 --config ../che168_scraper.yaml
+```
+
 Остановка: `SIGINT` / `SIGTERM` — list producer прекращает дальнейшие бренды/страницы (`stop_event`).
 
 ## API (эндпоинты)
