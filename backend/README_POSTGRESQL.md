@@ -72,16 +72,7 @@ GRANT ALL PRIVILEGES ON DATABASE encar TO encar_user;
 
 #### Автоматическая настройка:
 
-**Для Linux/macOS:**
-```bash
-chmod +x setup_cron.sh
-./setup_cron.sh
-```
-
-**Для Windows:**
-```cmd
-setup_task_scheduler.bat
-```
+**Автообновление на сервере:** systemd timers в `deploy/systemd/` (см. корневой `README.md`), не Windows Task Scheduler.
 
 #### Ручная настройка:
 
@@ -161,20 +152,9 @@ crontab -e
 0 3 * * * cd /path/to/project && python3 auto_update.py --config config.json --type daily --workers 5 >> auto_update_cron.log 2>&1
 ```
 
-### Windows (Task Scheduler)
+### Планировщик на сервере
 
-Скрипт `setup_task_scheduler.bat` создаст задание в Планировщике задач:
-
-```cmd
-# Просмотр заданий
-schtasks /Query /TN "Encar Auto Update"
-
-# Удаление задания
-schtasks /Delete /TN "Encar Auto Update"
-
-# Запуск задания вручную
-schtasks /Run /TN "Encar Auto Update"
-```
+Используйте systemd timers из `deploy/systemd/` (см. корневой `README.md`). Windows Task Scheduler в репозитории больше не поддерживается.
 
 ## Конфигурация
 

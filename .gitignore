@@ -1,24 +1,59 @@
+# Secrets / local overrides
 .env
-# Локальные переопределения скрейпера (DSN, лимиты, proxy)
+.env.*
+!.env.example
 scraper_config.local.yaml
 che168_scraper.local.yaml
-# Server DB dumps (deploy/scripts/backup_postgres_compose.sh)
-backups/
-# Alertmanager Telegram secrets (копируй из *.example на сервере)
+deploy/.env.deploy
 deploy/monitoring/secrets/bot_token
 deploy/monitoring/secrets/chat_id
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.log
-.cursor/
-# Local databases / checkpoints (на сервере своя БД — не коммитить)
+
+# Runtime DBs / checkpoints (never commit)
 *.db
 *.db-shm
 *.db-wal
-# Опциональная статическая выгрузка каталога
+*.sqlite
+*.sqlite3
+
+# Logs & caches
+*.log
+logs/*.log
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.coverage
+htmlcov/
+.cursor/
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Python / Node environments & builds
+.venv/
+venv/
+ENV/
+node_modules/
+web/.next/
+web/out/
+web/storybook-static/
+test-results/
+playwright-report/
+
+# Backups & dumps
+backups/
+*.dump
+*.sql.gz
+*.tar.gz
+
+# Optional static catalog export
 web/public/cars.json
 web/public/cars.json.gz
 web/public/data/cars.index.json
@@ -26,32 +61,17 @@ web/public/data/cars.index.json.gz
 web/public/data/chunks/*.json
 web/public/data/chunks/*.json.gz
 web/public/data/chunks/*.tmp
-# Python venv
-.venv/
-venv/
-ENV/
-# Node (tailwind и др.; артефакты вроде car-tailwind.css коммитим отдельно)
-node_modules/
-# Playwright / e2e
-test-results/
-# Storybook build output
-web/storybook-static/
-# Ad-hoc одноразовые remote-скрипты с захардкоженными секретами (заменены deploy/ops).
-deploy/scripts/_remote_*.py
-# Конфиг удалённых операций с реальными секретами (шаблон: deploy/.env.deploy.example)
-deploy/.env.deploy
-# Временные дампы API на корне (отладка)
-/tmp_*.json
-# Autorepair agent runtime state
-var/autorepair/
-# Python / Node tool caches (local only)
-backend/.hypothesis/
-backend/.pytest_cache/
-backend/.ruff_cache/
-web/.next/
-web/.ruff_cache/
-# 3D models and large archives (not in git)
 
+# Large / local-only assets
 *.glb
-*.tar.gz
 web/public/assets/*.glb
+
+# Ad-hoc remote scripts with secrets (use deploy/ops templates)
+deploy/scripts/_remote_*.py
+
+# Local scratch / debug dumps
+/tmp_*.json
+var/autorepair/
+
+# Abandoned / local experiment trees
+frontend-heroui/
