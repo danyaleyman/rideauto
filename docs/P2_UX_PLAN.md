@@ -9,6 +9,8 @@
 | **3** | Shared lead PD block | Done | `LeadPdAgreeField` для QuickBuy + `/buy` |
 | **4** | Browse friction | Done | Clear search (X / Escape) в toolbar |
 | **5** | Car CTA hierarchy | Done | Primary buy на sidebar + sticky |
-| **6** | Quality (опц.) | Later | Storybook card/filters; visual smoke |
+| **6** | Storybook quality | Done | Stories: QuickBuy, ListingCard, ResultsToolbar, PdAgree; `npm run build-storybook` |
 
 Не делаем в P2: новый визуальный бренд, virtual list, смена facet schema.
+
+Локально: `cd web && npm run storybook`
