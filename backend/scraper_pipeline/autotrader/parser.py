@@ -145,21 +145,30 @@ def _safe_float(v: Any) -> Optional[float]:
 
 def extract_image_urls_from_listing(listing: dict) -> List[str]:
     images = listing.get("images") or {}
-    sources = images.get("sources") if isinstance(images, dict) else None
-    if not isinstance(sources, list):
-        return []
     out: List[str] = []
     seen: set[str] = set()
-    for item in sources:
-        if not isinstance(item, dict):
-            continue
-        src = item.get("src") or item.get("url")
-        if not src:
-            continue
-        u = str(src).strip()
+
+    def _push(raw: Any) -> None:
+        if not raw:
+            return
+        if isinstance(raw, dict):
+            raw = raw.get("src") or raw.get("url") or raw.get("uri")
+        u = str(raw).strip() if raw not in (None, "") else ""
         if u and u not in seen:
             seen.add(u)
             out.append(u)
+
+    if isinstance(images, dict):
+        sources = images.get("sources")
+        if isinstance(sources, list):
+            for item in sources:
+                _push(item)
+        # SRP cards often only expose primary when sources is empty/short
+        if not out:
+            _push(images.get("primary"))
+    elif isinstance(images, list):
+        for item in images:
+            _push(item)
     return out
 
 
@@ -243,11 +252,15 @@ def normalize_listing(
     else:
         trans_name = trans
 
+    body_type = None
     body_codes = listing.get("bodyStyleCodes") or listing.get("bodyStyles") or []
     if isinstance(body_codes, list) and body_codes:
-        body_type = str(body_codes[0])
-    else:
-        body_type = None
+        first = body_codes[0]
+        name, code = _name_code(first)
+        body_type = name or code or (str(first).strip() if first not in (None, "") else None)
+    elif body_codes not in (None, ""):
+        name, code = _name_code(body_codes)
+        body_type = name or code
 
     color_obj = listing.get("color") if isinstance(listing.get("color"), dict) else {}
     color = (

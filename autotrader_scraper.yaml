@@ -1,5 +1,6 @@
 # Autotrader USA — отдельный конфиг (не смешивать с Encar / Che168).
-# Cookie: AUTOTRADER_COOKIE env или autotrader.cookie_file (строка Cookie header из DevTools).
+# Сессия: Playwright bootstrap → cookie cache → curl_cffi HTTP (без ручных Cookie каждый раз).
+# Опционально: AUTOTRADER_COOKIE / AUTOTRADER_PROXY_URL (residential для Akamai).
 
 checkpoint:
   scope: autotrader
@@ -11,6 +12,8 @@ http:
   timeout_sock_read: 35
   list_page_delay_min: 0.6
   list_page_delay_max: 1.8
+  transport: curl_cffi
+  impersonate: chrome131
 
 storage:
   backend: postgres
@@ -23,6 +26,19 @@ autotrader:
   base_url: https://www.autotrader.com
   cookie_file: ""
   cookie: ""
+  auto_bootstrap: true
+  skip_playwright_bootstrap: false
+  bootstrap_start_url: https://www.autotrader.com/cars-for-sale/all-cars
+  # Residential proxy recommended for Akamai (как Encar FloppyData):
+  # bootstrap_proxy_url: http://USER:PASS@host:port
+  # or env AUTOTRADER_PROXY_URL / AUTOTRADER_BOOTSTRAP_PROXY_URL
+  bootstrap_proxy_url: ""
+  session_file: /var/lib/rideauto/autotrader_session.json
+  session_max_age_sec: 21600
+  playwright_headless: true
+  playwright_timeout_ms: 90000
+  playwright_post_load_wait_ms: 4000
+  challenge_retries: 2
   fetch_vdp: true
   start_page: 1
   max_pages: 2

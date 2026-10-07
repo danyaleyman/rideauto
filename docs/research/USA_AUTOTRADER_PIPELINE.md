@@ -31,9 +31,18 @@ autotrader_scraper.yaml
 
 Цена: `price_usd` в data (+ `needs_pricing_recompute`). FX USD→RUB / калькулятор USA — отдельный follow-up (`priceusa.py`), не блокер ingest.
 
-## Антибот
+## Антибот / сессия (без ручных cookie)
 
-Akamai (`_abck`, `bm_*`). Клиент принимает cookie-файл / env `AUTOTRADER_COOKIE`. Без валидной сессии live-fetch может 403 — парсер покрыт unit-тестами на сохранённых HTML/JSON fixtures.
+Akamai (`_abck`, `bm_*`). Канон для прода:
+
+1. **Playwright bootstrap** (`scraper_pipeline/autotrader/session.py`) открывает SRP, забирает cookies.
+2. Cookies кэшируются в `autotrader.session_file` (по умолчанию `/var/lib/rideauto/autotrader_session.json`, TTL ~6ч).
+3. Массовый fetch идёт через **curl_cffi** (Chrome JA3) + эти cookies; на challenge — refresh bootstrap.
+4. С датацентрового IP Akamai часто режет — задайте **residential proxy** один раз: `AUTOTRADER_PROXY_URL` или `autotrader.bootstrap_proxy_url` (как FloppyData для Encar). После этого daily/full scrape без ручных Cookie.
+
+Опциональный override: `AUTOTRADER_COOKIE` (не нужен в нормальной эксплуатации).
+
+Парсер покрыт unit-тестами на fixtures; live без proxy может 403.
 
 ## Статус реализации (код)
 

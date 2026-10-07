@@ -49,6 +49,21 @@ async def run_autotrader_offline_ingest(
         len(vdp_by_id),
     )
 
+    async def _save_one(lid: str, listing: Any, depth: str) -> None:
+        nonlocal st
+        if not isinstance(listing, dict):
+            st.skipped += 1
+            return
+        try:
+            car = normalize_listing(listing, listing_id=lid, depth=depth)
+            cid = car_id_for_listing(lid)
+            await saver.save_car(car, cid)
+            st.saved += 1
+            lg.info("saved %s depth=%s images=%s features=%s", cid, depth, len(car.get("images") or []), len(car.get("features") or []))
+        except Exception as e:
+            st.errors.append(f"save {lid}: {e}")
+            lg.exception("offline save failed %s", lid)
+
     for lid in active_ids:
         if max_cars > 0 and st.saved >= max_cars:
             break
@@ -70,19 +85,26 @@ async def run_autotrader_offline_ingest(
                 st.details_fail += 1
                 st.errors.append(f"vdp {lid}: {e}")
                 lg.warning("offline VDP %s failed: %s", lid, e)
+        await _save_one(lid, listing, depth)
 
-        if not isinstance(listing, dict):
-            st.skipped += 1
+    # VDP-only fixtures (id not present on the SRP page)
+    for lid, vhtml in vdp_by_id.items():
+        if max_cars > 0 and st.saved >= max_cars:
+            break
+        if lid in active_ids:
             continue
+        st.listings_seen += 1
         try:
-            car = normalize_listing(listing, listing_id=lid, depth=depth)
-            cid = car_id_for_listing(lid)
-            await saver.save_car(car, cid)
-            st.saved += 1
-            lg.info("saved %s depth=%s", cid, depth)
+            vparsed = parse_vdp_page(vhtml, listing_id=lid)
+            if vparsed.get("ok") and vparsed.get("listing"):
+                st.details_ok += 1
+                await _save_one(lid, vparsed["listing"], "vdp")
+            else:
+                st.details_fail += 1
         except Exception as e:
-            st.errors.append(f"save {lid}: {e}")
-            lg.exception("offline save failed %s", lid)
+            st.details_fail += 1
+            st.errors.append(f"vdp-only {lid}: {e}")
+            lg.warning("offline VDP-only %s failed: %s", lid, e)
 
     return st
 

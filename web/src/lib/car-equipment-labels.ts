@@ -43,29 +43,41 @@ function collectChinaHighlightLabels(d: Record<string, unknown>): string[] {
   return out;
 }
 
-/** Плоский список фич Autotrader (`features` / `ranked_features`). */
+/** Плоский список фич Autotrader (`features` / `features_by_group` / `ranked_features`). */
 export function collectAutotraderFeatureLabels(data: Record<string, unknown>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   const push = (raw: unknown) => {
     if (typeof raw !== "string") return;
     const t = cleanScalarText(raw);
-    if (!t || seen.has(t) || !isMeaningfulOptionLabel(t)) return;
+    // Autotrader labels are English; do not drop them via China field-noise heuristics.
+    if (!t || seen.has(t) || /^\d+$/.test(t) || /^[\W_]+$/.test(t)) return;
     seen.add(t);
     out.push(t);
   };
 
-  const ranked = data.ranked_features;
-  if (ranked && typeof ranked === "object" && !Array.isArray(ranked)) {
-    for (const arr of Object.values(ranked as Record<string, unknown>)) {
+  const pushGroupMap = (group: unknown) => {
+    if (!group || typeof group !== "object" || Array.isArray(group)) return;
+    for (const arr of Object.values(group as Record<string, unknown>)) {
       if (!Array.isArray(arr)) continue;
-      for (const item of arr) push(item);
+      for (const item of arr) {
+        if (typeof item === "string") push(item);
+        else if (item && typeof item === "object") {
+          const row = item as Record<string, unknown>;
+          push(row.name ?? row.label ?? row.value ?? row.description);
+        }
+      }
     }
-  }
+  };
+
+  pushGroupMap(data.ranked_features);
+  pushGroupMap(data.features_by_group);
 
   const features = data.features;
   if (Array.isArray(features)) {
     for (const item of features) push(item);
+  } else {
+    pushGroupMap(features);
   }
 
   return out;

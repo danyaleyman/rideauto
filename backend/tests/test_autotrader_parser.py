@@ -68,6 +68,17 @@ def test_normalize_vdp_listing(vdp_listing: dict) -> None:
     assert car["km_age"] == 5  # round(3 * 1.609344)
     assert car["configuration"] == "Calligraphy"
     assert isinstance(car["features"], list) and len(car["features"]) > 10
-    assert len(car["images"]) >= 1
+    assert len(car["images"]) >= 5
+    assert car["body_type"] == "SUV"
     assert car["dealer_city"] == "Hyannis"
     assert car["dealer_state"] == "MA"
+
+
+def test_challenge_html_detection() -> None:
+    from scraper_pipeline.autotrader.client import is_autotrader_challenge_html
+
+    assert is_autotrader_challenge_html("<html>akamai-block error</html>", status=200)
+    assert is_autotrader_challenge_html("x", status=403)
+    assert not is_autotrader_challenge_html(
+        '<script id="__NEXT_DATA__" type="application/json">{}</script>', status=200
+    )

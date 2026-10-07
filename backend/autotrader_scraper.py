@@ -106,7 +106,11 @@ async def run_scraper(
             log.info("Autotrader offline done: %s", stats.as_dict())
             return
 
-        client = AsyncAutotraderClient(config, logger=log)
+        from scraper_pipeline.autotrader.session import ensure_autotrader_session
+
+        # Mint/reuse Akamai session once per run (cache on disk between daily jobs).
+        ensure_autotrader_session(config, log)
+        client = AsyncAutotraderClient(config, logger=log, auto_bootstrap=True)
         try:
             await client.open()
             stats = await run_autotrader_ingest(client, saver, config, logger=log)
