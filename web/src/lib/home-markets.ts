@@ -36,6 +36,6 @@ export const HOME_MARKETS: HomeMarket[] = [
     // reuse japan media cascade until USA assets exist
     media: HOME_LANDING_MEDIA.markets.japan,
     catalogHref: "/catalog?region=usa",
-    catalogDisabled: true,
+    catalogDisabled: false,
   },
 ];
