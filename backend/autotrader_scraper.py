@@ -69,8 +69,9 @@ async def run_scraper(
     max_cars: Optional[int] = None,
     srp_html_path: Optional[str] = None,
     vdp_html_paths: Optional[List[str]] = None,
+    preloaded_config: Optional[dict] = None,
 ) -> None:
-    config = load_config(config_path)
+    config = preloaded_config if isinstance(preloaded_config, dict) else load_config(config_path)
     if max_pages is not None:
         config.setdefault("autotrader", {})["max_pages"] = max_pages
     if max_cars is not None:
@@ -106,10 +107,7 @@ async def run_scraper(
             log.info("Autotrader offline done: %s", stats.as_dict())
             return
 
-        from scraper_pipeline.autotrader.session import ensure_autotrader_session
-
-        # Mint/reuse Akamai session once per run (cache on disk between daily jobs).
-        ensure_autotrader_session(config, log)
+        # Session is minted in main() before asyncio.run (Playwright sync API).
         client = AsyncAutotraderClient(config, logger=log, auto_bootstrap=True)
         try:
             await client.open()
@@ -153,6 +151,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             cfg_path = str(alt)
 
     try:
+        config = load_config(cfg_path)
+        log = setup_logging(config)
+        # Playwright sync bootstrap must run outside the asyncio event loop.
+        if not args.srp_html:
+            from scraper_pipeline.autotrader.session import ensure_autotrader_session
+
+            ensure_autotrader_session(config, log)
         asyncio.run(
             run_scraper(
                 cfg_path,
@@ -160,6 +165,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 max_cars=args.max_cars,
                 srp_html_path=args.srp_html,
                 vdp_html_paths=args.vdp_html,
+                preloaded_config=config,
             )
         )
     except KeyboardInterrupt:

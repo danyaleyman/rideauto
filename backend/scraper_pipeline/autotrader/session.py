@@ -262,7 +262,6 @@ def apply_session_bundle_to_autotrader_config(
 def ensure_autotrader_session(
     config: dict,
     log_: logging.Logger,
-    *,
     force_refresh: bool = False,
 ) -> SessionBundle:
     """

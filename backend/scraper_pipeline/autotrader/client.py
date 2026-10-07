@@ -101,7 +101,9 @@ class AsyncAutotraderClient:
         if self._opened:
             return
         if self._auto_bootstrap and not self._cookie and not self._cookies_map:
-            ensure_autotrader_session(self.config, self.log)
+            import asyncio
+
+            await asyncio.to_thread(ensure_autotrader_session, self.config, self.log)
             self._apply_session_from_config()
         await self._transport.open()
         self._opened = True
@@ -124,8 +126,13 @@ class AsyncAutotraderClient:
         self._opened = False
 
     async def refresh_session(self) -> None:
+        import asyncio
+
         self.log.info("Autotrader: refreshing browser session after challenge")
-        ensure_autotrader_session(self.config, self.log, force_refresh=True)
+        # Playwright sync API cannot run inside the running event loop.
+        await asyncio.to_thread(
+            ensure_autotrader_session, self.config, self.log, force_refresh=True
+        )
         self._apply_session_from_config()
         if self._on_refresh:
             await self._on_refresh()
