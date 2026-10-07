@@ -51,6 +51,11 @@ def _autotrader_proxy_url_list(config: dict) -> list[str]:
             return
         for part in s.split(","):
             u = part.strip()
+            # typo guard: http://://user:pass@host
+            if u.startswith("http://://"):
+                u = "http://" + u[len("http://://") :]
+            elif u.startswith("https://://"):
+                u = "https://" + u[len("https://://") :]
             if u and u not in seen:
                 seen.add(u)
                 out.append(u)
