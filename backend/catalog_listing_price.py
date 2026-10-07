@@ -41,6 +41,16 @@ def china_market_car(car_id: str, data: Optional[Dict[str, Any]]) -> bool:
     return False
 
 
+def usa_market_car(car_id: str, data: Optional[Dict[str, Any]]) -> bool:
+    if str(car_id or "").lower().startswith("autotrader-"):
+        return True
+    if isinstance(data, dict):
+        src = str(data.get("source") or "").strip().lower()
+        if src in ("autotrader", "usa"):
+            return True
+    return False
+
+
 def encar_has_list_price(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
@@ -151,6 +161,14 @@ def china_has_source_price(data: Optional[Dict[str, Any]]) -> bool:
     if alt is None or alt == "":
         return False
     return parse_price_cny({"price_cny": alt}) > 0
+
+
+def usa_has_source_price(data: Optional[Dict[str, Any]]) -> bool:
+    if not isinstance(data, dict):
+        return False
+    from priceusa import parse_price_usd
+
+    return parse_price_usd(data) > 0
 
 
 def clear_estimated_price_fields(data: Dict[str, Any]) -> None:

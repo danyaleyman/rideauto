@@ -38,15 +38,19 @@
       "openCatalog": "Open catalog"
     },
     "market": {
+      "sectionTitle": "Country",
+      "sectionHint": "Choose the listing market",
       "korea": "Korea",
       "china": "China",
-      "ariaLabel": "Market: Korea or China"
+      "usa": "USA",
+      "ariaLabel": "Country: China, Korea, or USA"
     },
     "breadcrumbs": {
       "home": "Home",
       "catalog": "Catalog",
       "marketKorea": "Korea",
       "marketChina": "China",
+      "marketUsa": "USA",
       "search": "Search: {q}",
       "filters": "Filters",
       "page": "Page {n}"
@@ -226,6 +230,7 @@
     "seo": {
       "marketKorea": "from Korea",
       "marketChina": "from China",
+      "marketUsa": "from the USA",
       "vehicles": "Vehicles",
       "vehiclesLower": "vehicles",
       "searchTitle": "Search: {q}",
@@ -378,6 +383,7 @@
       "diagAdditional": "Additional",
       "diagUnavailable": "Detailed diagnostic map is unavailable from the source. Showing confirmed report data.",
       "fieldTitle": "Title",
+      "fieldTrim": "Trim",
       "fieldYearMonth": "Year / month",
       "fieldColor": "Color",
       "fieldMileage": "Mileage",
@@ -794,6 +800,12 @@
         "point1": "USS, TAA, ARAI auctions — access to rare lots",
         "point2": "Consistent mileage and strong model liquidity",
         "point3": "Diagnostics and video inspection before you decide"
+      },
+      "usa": {
+        "country": "USA",
+        "point1": "Nationwide dealer inventory via Autotrader",
+        "point2": "VIN, trim and equipment from listing pages",
+        "point3": "New and used — export-ready selection across states"
       }
     }
   },

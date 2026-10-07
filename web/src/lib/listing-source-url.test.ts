@@ -26,4 +26,19 @@ describe("listingSourceUrl", () => {
       }),
     ).toBe("https://global.che168.com/detail/999");
   });
+
+  it("builds autotrader vehicle url", () => {
+    expect(
+      listingSourceUrl({ source: "autotrader", inner_id: "789850281" }, "autotrader-789850281"),
+    ).toBe("https://www.autotrader.com/cars-for-sale/vehicle/789850281");
+  });
+
+  it("prefers detail_url for autotrader", () => {
+    expect(
+      listingSourceUrl({
+        source: "autotrader",
+        detail_url: "https://www.autotrader.com/cars-for-sale/vehicle/1",
+      }),
+    ).toBe("https://www.autotrader.com/cars-for-sale/vehicle/1");
+  });
 });

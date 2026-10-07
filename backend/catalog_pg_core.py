@@ -318,6 +318,8 @@ def row_to_car_fields(
     src = normalized_source(d) or _optional_str((payload or {}).get("source"))
     if not src and str(car_id).lower().startswith("che168-"):
         src = "che168"
+    if not src and str(car_id).lower().startswith("autotrader-"):
+        src = "autotrader"
     if not src:
         src = "encar"
     mark = _optional_str(identity.get("mark")) or (d.get("mark") or "").strip() or None

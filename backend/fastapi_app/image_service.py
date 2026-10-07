@@ -273,6 +273,7 @@ async def ensure_cached_webp(
     redis_ttl_sec: int = 604800,
     referer_for_encar: Optional[str] = None,
     referer_for_che168: Optional[str] = None,
+    referer_for_autotrader: Optional[str] = None,
 ) -> Path:
     if size not in _SIZE_MAX:
         raise ImageServiceError("invalid size")
@@ -290,6 +291,8 @@ async def ensure_cached_webp(
     hn = (urlparse(canon).hostname or "").lower()
     if referer_for_encar and hn.endswith("encar.com"):
         extra_headers["Referer"] = referer_for_encar
+    elif referer_for_autotrader and (hn == "autotrader.com" or hn.endswith(".autotrader.com")):
+        extra_headers["Referer"] = referer_for_autotrader
     elif referer_for_che168 and (
         hn.endswith(".autoimg.cn")
         or hn == "autoimg.cn"

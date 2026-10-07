@@ -1,0 +1,35 @@
+# Autotrader USA — отдельный конфиг (не смешивать с Encar / Che168).
+# Cookie: AUTOTRADER_COOKIE env или autotrader.cookie_file (строка Cookie header из DevTools).
+
+checkpoint:
+  scope: autotrader
+
+http:
+  concurrency: 3
+  timeout_total: 45
+  timeout_connect: 15
+  timeout_sock_read: 35
+  list_page_delay_min: 0.6
+  list_page_delay_max: 1.8
+
+storage:
+  backend: postgres
+  store_raw_responses: true
+  count_cars_source: autotrader
+  postgres:
+    dsn: ""
+
+autotrader:
+  base_url: https://www.autotrader.com
+  cookie_file: ""
+  cookie: ""
+  fetch_vdp: true
+  start_page: 1
+  max_pages: 2
+  max_cars: 50
+  detail_concurrency: 3
+
+logging:
+  level: INFO
+  console: true
+  file: logs/autotrader_scraper.log

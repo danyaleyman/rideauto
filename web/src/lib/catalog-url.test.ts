@@ -28,6 +28,12 @@ describe("parseCatalogUrl", () => {
     expect(s.market).toBe("china");
   });
 
+  it("detects USA from region", () => {
+    const s = parseCatalogUrl(new URLSearchParams("region=usa"));
+    expect(s.market).toBe("usa");
+    expect(stateToBrowserUrl(s)).toContain("region=usa");
+  });
+
   it("reads q and query alias", () => {
     expect(parseCatalogUrl(new URLSearchParams("q=Kia")).q).toBe("Kia");
     expect(parseCatalogUrl(new URLSearchParams("query=Kia")).q).toBe("Kia");

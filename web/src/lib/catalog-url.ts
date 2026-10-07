@@ -3,7 +3,7 @@ import { decodeOffsetCursor, encodeOffsetCursor } from "./cursor";
 
 export const PER_PAGE = 10;
 
-export type Market = "korea" | "china";
+export type Market = "korea" | "china" | "usa";
 
 /** Фильтр каталога по слою цены корейского каталога (Meilisearch ``pricing_tier``). Пустая строка — без фильтра. */
 export type CatalogPricingTierFilter = "" | "full_customs" | "korea_land_only" | "price_on_request";
@@ -65,6 +65,8 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
   const fromSource = legacySourceToMarket(source);
   if (fromRegion === "china" || fromSource === "china") {
     market = "china";
+  } else if (fromRegion === "usa" || fromSource === "usa") {
+    market = "usa";
   } else if (fromRegion === "korea" || fromSource === "korea") {
     market = "korea";
   }
@@ -137,11 +139,13 @@ function setCsv(u: URLSearchParams, key: string, values: string[]) {
   else u.delete(key);
 }
 
-/** Публичный URL: только ``region=china`` при китайском рынке; Корея — без лишних query. */
+/** Публичный URL: ``region=china|usa``; Корея — без лишних query. */
 export function stateToBrowserUrl(state: CatalogUrlState): string {
   const u = new URLSearchParams();
   if (state.market === "china") {
     u.set("region", "china");
+  } else if (state.market === "usa") {
+    u.set("region", "usa");
   }
   if (state.q) u.set("q", state.q);
   setCsv(u, "marks", state.marks);

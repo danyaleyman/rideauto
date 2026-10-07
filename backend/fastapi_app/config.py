@@ -110,7 +110,8 @@ class Settings(BaseSettings):
         default=(
             "ci.encar.com,imgcar.encar.com,fem.encar.com,www.encar.com,"
             "*.autoimg.cn,*.che168.com,che168.com,global.che168.com,www.che168.com,"
-            "*.byteimg.com,*.bytecdn.com,*.dcarimg.com,images.unsplash.com"
+            "*.byteimg.com,*.bytecdn.com,*.dcarimg.com,images.unsplash.com,"
+            "images.autotrader.com,*.autotrader.com,autotrader.com"
         ),
         description="Список разрешённых хостов для src= (через запятую; *.example.com — поддомены и apex)",
     )
@@ -133,6 +134,10 @@ class Settings(BaseSettings):
     image_che168_referer: str = Field(
         default="https://global.che168.com/",
         description="Referer для Che168 CDN (autoimg.cn, byteimg и т.д.)",
+    )
+    image_autotrader_referer: str = Field(
+        default="https://www.autotrader.com/",
+        description="Referer для images.autotrader.com / *.autotrader.com",
     )
     image_response_cache_control: str = Field(
         default="public, max-age=604800, stale-while-revalidate=86400, immutable",

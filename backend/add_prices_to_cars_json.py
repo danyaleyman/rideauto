@@ -30,8 +30,9 @@ def main():
         from market_pricing_shared import PricingFxRates
         from pricechina import PriceCalculatorChina
         from pricekorea import PriceCalculatorKorea
+        from priceusa import PriceCalculatorUsa
     except ImportError:
-        print("Ошибка: не найдены модули pricekorea/pricechina. Запуск из корня/backend.", file=sys.stderr)
+        print("Ошибка: не найдены модули pricekorea/pricechina/priceusa. Запуск из корня/backend.", file=sys.stderr)
         sys.exit(1)
 
     _here = Path(__file__).resolve().parent
@@ -39,6 +40,7 @@ def main():
     fx = PricingFxRates(config_path=str(_cfg)) if _cfg else PricingFxRates(config_path="config.json")
     calc_korea = PriceCalculatorKorea(fx=fx)
     calc_china = PriceCalculatorChina(fx=fx)
+    calc_usa = PriceCalculatorUsa(fx=fx)
     ok, fail = 0, 0
     for i, car in enumerate(cars):
         obj = car.get("data")
@@ -46,8 +48,11 @@ def main():
             obj = car
         try:
             source = str(obj.get("source") or "").strip().lower() if isinstance(obj, dict) else ""
-            if source in ("che168", "china"):
+            cid = str(car.get("id") or obj.get("id") or "").lower() if isinstance(obj, dict) else ""
+            if source in ("che168", "china") or cid.startswith("che168-"):
                 calc_china.update_china_car_with_prices(obj)
+            elif source in ("autotrader", "usa") or cid.startswith("autotrader-"):
+                calc_usa.update_usa_car_with_prices(obj)
             else:
                 calc_korea.update_car_with_prices(obj)
             if isinstance(obj, dict):

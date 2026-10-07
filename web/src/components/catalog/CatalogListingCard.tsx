@@ -153,7 +153,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
   const buyTriggerClass =
     "relative z-[2] shrink-0 rounded-full border-primary/25 bg-primary text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/92";
   const carHref = `/car/${encodeURIComponent(car.id)}`;
-  const markOpening = (e: MouseEvent) => {
+  const markOpening = (e: MouseEvent<HTMLAnchorElement>) => {
     if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
   };
 

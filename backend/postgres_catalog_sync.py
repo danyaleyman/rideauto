@@ -29,9 +29,12 @@ from catalog_listing_price import (
     clear_estimated_price_fields,
     encar_has_list_price,
     encar_reserved_placeholder_price,
+    usa_has_source_price,
+    usa_market_car,
 )
 from catalog_encar_pricing import PRICING_RULES_VERSION, encar_tier_for_pricing_snapshot, sync_pricing_clean_block
 from pricechina import CHINA_PRICING_RULES_VERSION, sync_china_pricing_clean_block
+from priceusa import USA_PRICING_RULES_VERSION, sync_usa_pricing_clean_block
 from catalog_pg_core import (
     UPSERT_CAR_SQL,
     extract_image_urls,
@@ -290,6 +293,14 @@ def _uses_china_pipeline_pricing(car: dict) -> bool:
     return china_market_car(str(car.get("id") or ""), _car_inner_data(car))
 
 
+def _uses_usa_pipeline_pricing(car: dict) -> bool:
+    return usa_market_car(str(car.get("id") or ""), _car_inner_data(car))
+
+
+def _uses_usa_pipeline_pricing(car: dict) -> bool:
+    return usa_market_car(str(car.get("id") or ""), _car_inner_data(car))
+
+
 def run_sync(
     dsn: str,
     *,
@@ -374,12 +385,13 @@ def run_sync(
             else:
                 static_sink = []
 
-        calc_korea = calc_china = None
+        calc_korea = calc_china = calc_usa = None
         if not no_prices:
             try:
                 from market_pricing_shared import PricingFxRates
                 from pricechina import PriceCalculatorChina
                 from pricekorea import PriceCalculatorKorea
+                from priceusa import PriceCalculatorUsa
 
                 cfg_path = next(
                     (p for p in (_BACKEND_DIR / "config.json", _REPO_ROOT / "config.json") if p.is_file()),
@@ -388,18 +400,23 @@ def run_sync(
                 fx = PricingFxRates(config_path=str(cfg_path))
                 calc_korea = PriceCalculatorKorea(fx=fx)
                 calc_china = PriceCalculatorChina(fx=fx)
+                calc_usa = PriceCalculatorUsa(fx=fx)
             except ImportError as e:
                 print(f"Warning: price module not found, skip prices: {e}", file=sys.stderr)
 
         price_ok = price_failed = price_ok_china = price_skipped_china = 0
+        price_ok_usa = price_skipped_usa = 0
         price_skipped_no_list = price_skipped_encar_on_request = 0
         price_ok_land_only_encar = 0
         global_idx = 0
 
         def _apply_prices_to_batch(cars_out: List[dict]) -> None:
             nonlocal price_ok, price_failed, price_ok_china, price_skipped_china
+            nonlocal price_ok_usa, price_skipped_usa
             nonlocal price_skipped_no_list, price_skipped_encar_on_request, price_ok_land_only_encar, global_idx
-            if no_prices or not cars_out or calc_korea is None or calc_china is None:
+            if no_prices or not cars_out:
+                return
+            if calc_korea is None and calc_china is None and calc_usa is None:
                 return
             for car in cars_out:
                 i = global_idx
@@ -410,7 +427,41 @@ def run_sync(
                 if not isinstance(data, dict):
                     continue
 
+                if _uses_usa_pipeline_pricing(car):
+                    if calc_usa is None:
+                        continue
+                    if not usa_has_source_price(data):
+                        price_skipped_usa += 1
+                        data["price_on_request"] = True
+                        data["pricing_tier"] = "price_on_request"
+                        clear_estimated_price_fields(data)
+                        data.pop("price_calc_failed", None)
+                        sync_usa_pricing_clean_block(data)
+                    else:
+                        try:
+                            calc_usa.update_usa_car_with_prices(data)
+                            data.pop("price_on_request", None)
+                            data.pop("price_calc_failed", None)
+                            data["pricing_tier"] = "full_customs"
+                            sync_usa_pricing_clean_block(data)
+                            price_ok += 1
+                            price_ok_usa += 1
+                        except Exception as e:
+                            price_failed += 1
+                            if i == 0:
+                                print(f"Warning: usa price calc failed for first car: {e}", file=sys.stderr)
+                            data["price_on_request"] = True
+                            data["pricing_tier"] = "price_on_request"
+                            data["price_calc_failed"] = True
+                            clear_estimated_price_fields(data)
+                            sync_usa_pricing_clean_block(data)
+                    if car.get("data") is not data:
+                        car["data"] = data
+                    continue
+
                 if _uses_china_pipeline_pricing(car):
+                    if calc_china is None:
+                        continue
                     if not china_has_source_price(data):
                         price_skipped_china += 1
                         data["price_on_request"] = True
@@ -438,6 +489,9 @@ def run_sync(
                             sync_china_pricing_clean_block(data)
                     if car.get("data") is not data:
                         car["data"] = data
+                    continue
+
+                if calc_korea is None:
                     continue
 
                 if not encar_has_list_price(data):
@@ -652,6 +706,7 @@ def run_sync(
             print(
                 f"Price calc summary: ok={price_ok} failed={price_failed} "
                 f"ok_china={price_ok_china} skipped_china_no_price={price_skipped_china} "
+                f"ok_usa={price_ok_usa} skipped_usa_no_price={price_skipped_usa} "
                 f"skipped_no_list_price={price_skipped_no_list} "
                 f"skipped_encar_on_request={price_skipped_encar_on_request} "
                 f"ok_encar_land_only_excl_rf_customs={price_ok_land_only_encar} "

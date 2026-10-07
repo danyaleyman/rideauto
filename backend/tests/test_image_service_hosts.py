@@ -2,12 +2,17 @@ from fastapi_app.image_service import _upstream_body_kind, host_matches_allowed,
 
 
 def test_host_matches_allowed_exact_and_wildcard() -> None:
-    allowed = parse_allowed_hosts("ci.encar.com,*.autoimg.cn,*.che168.com,che168.com")
+    allowed = parse_allowed_hosts(
+        "ci.encar.com,*.autoimg.cn,*.che168.com,che168.com,images.autotrader.com,*.autotrader.com"
+    )
     assert host_matches_allowed("ci.encar.com", allowed)
     assert host_matches_allowed("erscglobal1.autoimg.cn", allowed)
     assert host_matches_allowed("autoimg.cn", allowed)
     assert host_matches_allowed("global.che168.com", allowed)
     assert host_matches_allowed("che168.com", allowed)
+    assert host_matches_allowed("images.autotrader.com", allowed)
+    assert host_matches_allowed("cdn.autotrader.com", allowed)
+    assert host_matches_allowed("autotrader.com", allowed)
     assert not host_matches_allowed("evil.autoimg.cn.evil.com", allowed)
     assert not host_matches_allowed("example.com", allowed)
 

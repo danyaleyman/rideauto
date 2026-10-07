@@ -1,6 +1,6 @@
 import { HOME_LANDING_MEDIA, type MediaCascade } from "@/lib/home-landing-media";
 
-export type HomeMarketId = "korea" | "china" | "japan";
+export type HomeMarketId = "korea" | "china" | "japan" | "usa";
 
 export type HomeMarket = {
   id: HomeMarketId;
@@ -28,6 +28,14 @@ export const HOME_MARKETS: HomeMarket[] = [
     modelLabel: "Toyota Land Cruiser 250",
     media: HOME_LANDING_MEDIA.markets.japan,
     catalogHref: "/catalog?region=japan",
+    catalogDisabled: true,
+  },
+  {
+    id: "usa",
+    modelLabel: "Autotrader USA",
+    // reuse japan media cascade until USA assets exist
+    media: HOME_LANDING_MEDIA.markets.japan,
+    catalogHref: "/catalog?region=usa",
     catalogDisabled: true,
   },
 ];

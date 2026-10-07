@@ -1,6 +1,6 @@
 # RideAuto
 
-Сайт-каталог автомобилей из Кореи (Encar) и Китая (Che168): пользователь ищет машину на сайте, данные подтягиваются с площадок, чистятся и отдаются через API и поиск.
+Сайт-каталог автомобилей из Кореи (Encar), Китая (Che168) и США (Autotrader, ingest в разработке): пользователь ищет машину на сайте, данные подтягиваются с площадок, чистятся и отдаются через API и поиск.
 
 ---
 
@@ -162,7 +162,8 @@ systemctl status rideauto-auto-update.timer rideauto-catalog-pipeline.timer --no
 bash deploy/scripts/diagnose_nightly_updates.sh
 ```
 
-Конфиги скраперов: [`scraper_config.yaml`](scraper_config.yaml), [`che168_scraper.yaml`](che168_scraper.yaml).  
+Конфиги скраперов: [`scraper_config.yaml`](scraper_config.yaml), [`che168_scraper.yaml`](che168_scraper.yaml), [`autotrader_scraper.yaml`](autotrader_scraper.yaml).  
+США (Autotrader): `python backend/autotrader_scraper.py --max-pages 2` (нужна cookie-сессия, см. `docs/research/USA_AUTOTRADER_PIPELINE.md`).
 Локальные секреты/лимиты: `*.local.yaml` (в git не попадают).
 
 ### Деплой и обслуживание сервера

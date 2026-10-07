@@ -86,7 +86,9 @@ export function catalogBreadcrumbSegments(
   parts.push(
     state.market === "china"
       ? t("catalog.breadcrumbs.marketChina")
-      : t("catalog.breadcrumbs.marketKorea"),
+      : state.market === "usa"
+        ? t("catalog.breadcrumbs.marketUsa")
+        : t("catalog.breadcrumbs.marketKorea"),
   );
 
   const q = state.q.trim();

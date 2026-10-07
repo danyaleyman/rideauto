@@ -27,6 +27,7 @@ import {
   displayEncarStandardOption,
 } from "@/lib/encar-options-display";
 import { classifyChinaOptionGroup, displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
+import { collectAutotraderFeatureLabels } from "@/lib/car-equipment-labels";
 import { formatPriceLabel } from "@/lib/format-price";
 import {
   bodyStatusColor,
@@ -532,6 +533,7 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
         .filter((x): x is string => Boolean(x)),
     [codes, uniquePhotos, choicePhotos, extra, d],
   );
+  const autotraderLabels = useMemo(() => collectAutotraderFeatureLabels(d), [d]);
   const allLabels = useMemo(() => {
     const seen = new Set<string>();
     const out: Array<{ label: string; raw: string }> = [];
@@ -544,8 +546,9 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     for (const row of chinaRecommended) push(row.label, row.raw);
     for (const v of selectedLabels) push(v, v);
     for (const v of staticCodesAll) push(v, v);
+    for (const v of autotraderLabels) push(v, v);
     return out;
-  }, [chinaRecommended, selectedLabels, staticCodesAll]);
+  }, [chinaRecommended, selectedLabels, staticCodesAll, autotraderLabels]);
   const hasAnyRenderedOptions = allLabels.length > 0;
 
   type OptGroupKey = "assist" | "interior" | "safety" | "comfort" | "media" | "other";
@@ -771,6 +774,12 @@ export function CarDetailAccordions({
     ) ??
       joinUniqueSpecs(data.mark, data.model, data.generation),
   );
+  const trimLine =
+    asStr(data.configuration) ??
+    asStr(data.gradeName) ??
+    asStr((data as Record<string, unknown>).trim_name) ??
+    asStr((data as Record<string, unknown>).trim);
+  push(t("car.accordions.fieldTrim"), trimLine);
   push(t("car.accordions.fieldYearMonth"), pickRegYearMonthDisplay(data as Record<string, unknown>));
   push(
     t("car.accordions.fieldColor"),

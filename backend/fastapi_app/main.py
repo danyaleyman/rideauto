@@ -73,10 +73,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         max_size=20,
         command_timeout=120,
     )
-    app.state.meili = Client(
-        settings.meilisearch_url,
-        settings.meilisearch_key or None,
-    )
+    # meilisearch-python 0.43 sends ``Authorization: Bearer None`` when key is None,
+    # which Meili rejects as invalid_api_key on open (no-master-key) instances.
+    _meili_key = (settings.meilisearch_key or "").strip() or None
+    app.state.meili = Client(settings.meilisearch_url, _meili_key)
+    if _meili_key is None:
+        app.state.meili.http.headers.pop("Authorization", None)
 
     probe_task: asyncio.Task[None] | None = None
 

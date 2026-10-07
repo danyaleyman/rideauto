@@ -112,7 +112,13 @@ class PostgresCarSaver(CarSaver):
             return
         self._snapshot_dir.mkdir(parents=True, exist_ok=True)
         day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        prefix = "che168_raw_" if str(car_id).lower().startswith("che168-") else "encar_raw_"
+        cid = str(car_id).lower()
+        if cid.startswith("che168-"):
+            prefix = "che168_raw_"
+        elif cid.startswith("autotrader-"):
+            prefix = "autotrader_raw_"
+        else:
+            prefix = "encar_raw_"
         path = self._snapshot_dir / f"{prefix}{day}.jsonl"
         row = {
             "ts": datetime.now(timezone.utc).isoformat(),
@@ -128,7 +134,11 @@ class PostgresCarSaver(CarSaver):
         if not self._snapshot_dir.is_dir():
             return
         cutoff = datetime.now(timezone.utc) - timedelta(days=self._snapshot_retention_days)
-        for p in (*self._snapshot_dir.glob("encar_raw_*.jsonl"), *self._snapshot_dir.glob("che168_raw_*.jsonl")):
+        for p in (
+            *self._snapshot_dir.glob("encar_raw_*.jsonl"),
+            *self._snapshot_dir.glob("che168_raw_*.jsonl"),
+            *self._snapshot_dir.glob("autotrader_raw_*.jsonl"),
+        ):
             try:
                 if datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc) < cutoff:
                     p.unlink(missing_ok=True)

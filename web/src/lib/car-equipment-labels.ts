@@ -43,7 +43,35 @@ function collectChinaHighlightLabels(d: Record<string, unknown>): string[] {
   return out;
 }
 
-/** Все подписи опций/комплектации для карточки (Encar + China), в стабильном порядке. */
+/** Плоский список фич Autotrader (`features` / `ranked_features`). */
+export function collectAutotraderFeatureLabels(data: Record<string, unknown>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (raw: unknown) => {
+    if (typeof raw !== "string") return;
+    const t = cleanScalarText(raw);
+    if (!t || seen.has(t) || !isMeaningfulOptionLabel(t)) return;
+    seen.add(t);
+    out.push(t);
+  };
+
+  const ranked = data.ranked_features;
+  if (ranked && typeof ranked === "object" && !Array.isArray(ranked)) {
+    for (const arr of Object.values(ranked as Record<string, unknown>)) {
+      if (!Array.isArray(arr)) continue;
+      for (const item of arr) push(item);
+    }
+  }
+
+  const features = data.features;
+  if (Array.isArray(features)) {
+    for (const item of features) push(item);
+  }
+
+  return out;
+}
+
+/** Все подписи опций/комплектации для карточки (Encar + China + Autotrader), в стабильном порядке. */
 export function collectCarEquipmentLabels(data: Record<string, unknown>): string[] {
   const extra =
     data.extra && typeof data.extra === "object" && !Array.isArray(data.extra)
@@ -113,5 +141,6 @@ export function collectCarEquipmentLabels(data: Record<string, unknown>): string
     const label = cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, data));
     if (label) push(label);
   }
+  for (const v of collectAutotraderFeatureLabels(data)) push(v);
   return out;
 }

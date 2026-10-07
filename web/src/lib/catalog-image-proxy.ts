@@ -14,6 +14,11 @@ export function catalogImageNeedsProxy(url: string): boolean {
   try {
     const h = new URL(u).hostname.toLowerCase();
     if (h === "encar.com" || h.endsWith(".encar.com")) return false;
+    // Autotrader CDN: в каталоге иногда открывается, на detail/Next hotlink часто пустой кадр —
+    // грузим через same-origin /api/images.
+    if (h === "autotrader.com" || h.endsWith(".autotrader.com") || h === "images.autotrader.com") {
+      return true;
+    }
     if (h.endsWith(".autoimg.cn") || h === "autoimg.cn") return true;
     if (h.endsWith(".che168.com") || h === "che168.com") return true;
     if (h.includes("byteimg") || h.includes("bytecdn") || h.includes("dcarimg")) return true;

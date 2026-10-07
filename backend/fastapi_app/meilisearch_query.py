@@ -175,6 +175,8 @@ def build_meilisearch_filter(
         clauses.append('source = "encar"')
     elif src == "che168":
         clauses.append('source = "che168"')
+    elif src in ("autotrader", "usa") or reg == "usa":
+        clauses.append('source = "autotrader"')
     elif src == "china" or reg == "china":
         clauses.append('source = "che168"')
     elif reg == "korea":

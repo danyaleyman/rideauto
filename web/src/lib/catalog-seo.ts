@@ -71,7 +71,11 @@ export function catalogIsIndexable(state: CatalogUrlState): boolean {
 export function buildCatalogSeo(state: CatalogUrlState, locale: AppLocale = "ru"): CatalogSeo {
   const t = createT(locale);
   const market =
-    state.market === "china" ? t("catalog.seo.marketChina") : t("catalog.seo.marketKorea");
+    state.market === "china"
+      ? t("catalog.seo.marketChina")
+      : state.market === "usa"
+        ? t("catalog.seo.marketUsa")
+        : t("catalog.seo.marketKorea");
   const index = catalogIsIndexable(state);
 
   if (state.q) {
