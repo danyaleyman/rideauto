@@ -213,11 +213,11 @@ class AutotraderSessionProvider(PlaywrightSessionProvider):
                 )
                 collected = collect_autotrader_cookies(context.cookies())
                 if blocked and not has_next:
-                    log_.warning(
-                        "Autotrader SessionProvider: still blocked after bootstrap "
-                        "(cookies=%s). Set autotrader.bootstrap_proxy_url / AUTOTRADER_PROXY_URL "
-                        "to a residential proxy.",
-                        len(collected),
+                    raise RuntimeError(
+                        "Autotrader Akamai blocked Playwright bootstrap "
+                        f"(cookies={len(collected)}). Set residential proxy once: "
+                        "AUTOTRADER_PROXY_URL or autotrader.bootstrap_proxy_url "
+                        "(same class of proxy as Encar FloppyData)."
                     )
                 elif has_next:
                     log_.info(

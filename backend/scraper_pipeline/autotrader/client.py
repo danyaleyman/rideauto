@@ -105,7 +105,7 @@ class AsyncAutotraderClient:
 
             await asyncio.to_thread(ensure_autotrader_session, self.config, self.log)
             self._apply_session_from_config()
-        await self._transport.open()
+        await self._transport.__aenter__()
         self._opened = True
         if self._cookie or self._cookies_map:
             self.log.info(
@@ -118,11 +118,12 @@ class AsyncAutotraderClient:
         else:
             self.log.warning(
                 "Autotrader: no session cookies — live requests likely blocked; "
-                "enable Playwright bootstrap or set AUTOTRADER_PROXY_URL"
+                "set AUTOTRADER_PROXY_URL (residential) once in .env"
             )
 
     async def close(self) -> None:
-        await self._transport.close()
+        if self._opened:
+            await self._transport.__aexit__(None, None, None)
         self._opened = False
 
     async def refresh_session(self) -> None:
