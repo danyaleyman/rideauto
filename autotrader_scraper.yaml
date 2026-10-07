@@ -39,6 +39,9 @@ autotrader:
   playwright_timeout_ms: 90000
   playwright_post_load_wait_ms: 4000
   challenge_retries: 2
+  # playwright = fetch SRP/VDP inside Chromium (needed for Akamai + residential proxy)
+  # http = curl_cffi after cookie bootstrap (often blocked again by Akamai)
+  fetch_mode: playwright
   fetch_vdp: true
   start_page: 1
   max_pages: 2

@@ -152,19 +152,58 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     try:
         config = load_config(cfg_path)
+        if args.max_pages is not None:
+            config.setdefault("autotrader", {})["max_pages"] = args.max_pages
+        if args.max_cars is not None:
+            config.setdefault("autotrader", {})["max_cars"] = args.max_cars
         log = setup_logging(config)
-        # Playwright sync bootstrap must run outside the asyncio event loop.
-        if not args.srp_html:
-            from scraper_pipeline.autotrader.session import ensure_autotrader_session
 
-            ensure_autotrader_session(config, log)
+        # Offline fixtures stay on the async path.
+        if args.srp_html:
+            asyncio.run(
+                run_scraper(
+                    cfg_path,
+                    max_pages=args.max_pages,
+                    max_cars=args.max_cars,
+                    srp_html_path=args.srp_html,
+                    vdp_html_paths=args.vdp_html,
+                    preloaded_config=config,
+                )
+            )
+            return 0
+
+        # Live Autotrader: Playwright browser ingest (Akamai). curl_cffi alone is not enough.
+        at = config.setdefault("autotrader", {})
+        fetch_mode = str(at.get("fetch_mode") or "playwright").strip().lower()
+        if fetch_mode in ("playwright", "browser", "pw"):
+            from scraper_pipeline.autotrader.browser_ingest import run_autotrader_browser_ingest
+            from scraper_pipeline.encar.savers import build_car_saver
+
+            storage = config.get("storage") or {}
+            if not storage.get("count_cars_source"):
+                storage["count_cars_source"] = "autotrader"
+                config["storage"] = storage
+            saver, _backend = build_car_saver(config)
+            try:
+                stats = run_autotrader_browser_ingest(saver, config, logger=log)
+                log.info("Autotrader browser ingest done: %s", stats.as_dict())
+            finally:
+                close = getattr(saver, "close", None)
+                if callable(close):
+                    close()
+            return 0
+
+        # Legacy HTTP path (cookies + curl_cffi) — usually blocked by Akamai after bootstrap.
+        from scraper_pipeline.autotrader.session import ensure_autotrader_session
+
+        ensure_autotrader_session(config, log)
         asyncio.run(
             run_scraper(
                 cfg_path,
                 max_pages=args.max_pages,
                 max_cars=args.max_cars,
-                srp_html_path=args.srp_html,
-                vdp_html_paths=args.vdp_html,
+                srp_html_path=None,
+                vdp_html_paths=None,
                 preloaded_config=config,
             )
         )
