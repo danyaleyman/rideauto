@@ -34,21 +34,43 @@ AUTOTRADER_COOKIE_NAME_PREFIXES: Tuple[str, ...] = (
 )
 
 
-def _pick_autotrader_bootstrap_proxy_url(config: dict) -> Optional[str]:
+def _autotrader_proxy_url_list(config: dict) -> list[str]:
+    """Ordered unique proxy URLs: explicit bootstrap → AUTOTRADER_PROXY_URL(S) → proxy.urls."""
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def _add(raw: Any) -> None:
+        if raw is None:
+            return
+        if isinstance(raw, (list, tuple)):
+            for x in raw:
+                _add(x)
+            return
+        s = str(raw).strip()
+        if not s:
+            return
+        for part in s.split(","):
+            u = part.strip()
+            if u and u not in seen:
+                seen.add(u)
+                out.append(u)
+
     at = config.get("autotrader") or {}
-    for key in ("bootstrap_proxy_url", "proxy_url"):
-        manual = str(at.get(key) or "").strip()
-        if manual:
-            return manual
-    env = (os.environ.get("AUTOTRADER_PROXY_URL") or os.environ.get("AUTOTRADER_BOOTSTRAP_PROXY_URL") or "").strip()
-    if env:
-        return env
+    _add(at.get("bootstrap_proxy_url"))
+    _add(at.get("proxy_url"))
+    _add(at.get("proxy_urls"))
+    _add(os.environ.get("AUTOTRADER_BOOTSTRAP_PROXY_URL"))
+    _add(os.environ.get("AUTOTRADER_PROXY_URL"))
+    _add(os.environ.get("AUTOTRADER_PROXY_URLS"))
     px = config.get("proxy") or {}
     if px.get("enabled"):
-        urls = px.get("urls") or []
-        if urls:
-            return str(urls[0]).strip()
-    return None
+        _add(px.get("urls"))
+    return out
+
+
+def _pick_autotrader_bootstrap_proxy_url(config: dict) -> Optional[str]:
+    urls = _autotrader_proxy_url_list(config)
+    return urls[0] if urls else None
 
 
 def collect_autotrader_cookies(ck_list: list) -> Dict[str, str]:
@@ -162,84 +184,99 @@ class AutotraderSessionProvider(PlaywrightSessionProvider):
         timeout_ms = int(at.get("playwright_timeout_ms", 90000) or 90000)
         wait_ms = int(at.get("playwright_post_load_wait_ms", 4000) or 4000)
         headless = at.get("playwright_headless", True) is not False
-        proxy_url = _pick_autotrader_bootstrap_proxy_url(config)
-        pw_proxy = playwright_proxy_config(proxy_url)
         ua = profile.user_agent
+        proxy_candidates: list[Optional[str]] = list(_autotrader_proxy_url_list(config)) or [None]
 
-        launch_kw: Dict[str, Any] = {"headless": headless}
-        if pw_proxy:
-            launch_kw["proxy"] = pw_proxy
+        last_err: Optional[Exception] = None
+        for proxy_url in proxy_candidates:
+            pw_proxy = playwright_proxy_config(proxy_url)
+            launch_kw: Dict[str, Any] = {"headless": headless}
+            if pw_proxy:
+                launch_kw["proxy"] = pw_proxy
 
-        log_.info(
-            "Autotrader SessionProvider: bootstrap url=%s headless=%s proxy=%s",
-            start_url,
-            headless,
-            bool(proxy_url),
-        )
+            log_.info(
+                "Autotrader SessionProvider: bootstrap url=%s headless=%s proxy=%s",
+                start_url,
+                headless,
+                bool(proxy_url),
+            )
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(**launch_kw)
             try:
-                context = browser.new_context(
-                    user_agent=ua,
-                    locale="en-US",
-                    viewport={"width": 1440, "height": 900},
-                    extra_http_headers={
-                        "Accept-Language": "en-US,en;q=0.9",
-                        "sec-ch-ua": profile.sec_ch_ua,
-                        "sec-ch-ua-mobile": "?0",
-                        "sec-ch-ua-platform": '"Windows"',
-                    },
-                )
-                page = context.new_page()
-                page.goto(start_url, wait_until="domcontentloaded", timeout=timeout_ms)
-                # Wait for Next.js payload or challenge to settle
-                try:
-                    page.wait_for_function(
-                        "() => !!document.getElementById('__NEXT_DATA__') "
-                        "|| document.body.innerText.toLowerCase().includes('unavailable')",
-                        timeout=timeout_ms,
-                    )
-                except Exception:
-                    pass
-                if wait_ms > 0:
-                    page.wait_for_timeout(wait_ms)
-                html = page.content() or ""
-                has_next = "__NEXT_DATA__" in html
-                blocked = (
-                    "akamai-block" in html.lower()
-                    or "page unavailable" in html.lower()
-                    or ("incident number" in html.lower() and not has_next)
-                )
-                collected = collect_autotrader_cookies(context.cookies())
-                if blocked and not has_next:
-                    raise RuntimeError(
-                        "Autotrader Akamai blocked Playwright bootstrap "
-                        f"(cookies={len(collected)}). Set residential proxy once: "
-                        "AUTOTRADER_PROXY_URL or autotrader.bootstrap_proxy_url "
-                        "(same class of proxy as Encar FloppyData)."
-                    )
-                elif has_next:
-                    log_.info(
-                        "Autotrader SessionProvider: __NEXT_DATA__ ok, cookies=%s",
-                        len(collected),
-                    )
-                else:
-                    log_.warning(
-                        "Autotrader SessionProvider: no __NEXT_DATA__ (cookies=%s)",
-                        len(collected),
-                    )
-            finally:
-                browser.close()
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(**launch_kw)
+                    try:
+                        context = browser.new_context(
+                            user_agent=ua,
+                            locale="en-US",
+                            viewport={"width": 1440, "height": 900},
+                            extra_http_headers={
+                                "Accept-Language": "en-US,en;q=0.9",
+                                "sec-ch-ua": profile.sec_ch_ua,
+                                "sec-ch-ua-mobile": "?0",
+                                "sec-ch-ua-platform": '"Windows"',
+                            },
+                        )
+                        page = context.new_page()
+                        page.goto(start_url, wait_until="domcontentloaded", timeout=timeout_ms)
+                        try:
+                            page.wait_for_function(
+                                "() => !!document.getElementById('__NEXT_DATA__') "
+                                "|| document.body.innerText.toLowerCase().includes('unavailable')",
+                                timeout=timeout_ms,
+                            )
+                        except Exception:
+                            pass
+                        if wait_ms > 0:
+                            page.wait_for_timeout(wait_ms)
+                        html = page.content() or ""
+                        has_next = "__NEXT_DATA__" in html
+                        blocked = (
+                            "akamai-block" in html.lower()
+                            or "page unavailable" in html.lower()
+                            or ("incident number" in html.lower() and not has_next)
+                        )
+                        collected = collect_autotrader_cookies(context.cookies())
+                    finally:
+                        browser.close()
+            except Exception as e:
+                last_err = e
+                log_.warning("Autotrader bootstrap transport failed proxy=%s: %s", bool(proxy_url), e)
+                continue
 
-        return SessionBundle(
-            source="autotrader",
-            cookies=collected,
-            proxy_url=proxy_url,
-            user_agent=ua,
-            impersonate_id=profile.impersonate,
-            obtained_at=time.time(),
-            meta={"headless": headless, "has_next_data": has_next, "blocked": blocked},
+            if blocked and not has_next:
+                last_err = RuntimeError(
+                    "Autotrader Akamai blocked Playwright bootstrap "
+                    f"(cookies={len(collected)}, proxy={bool(proxy_url)})"
+                )
+                log_.warning("%s — trying next proxy if any", last_err)
+                continue
+
+            if has_next:
+                log_.info(
+                    "Autotrader SessionProvider: __NEXT_DATA__ ok, cookies=%s proxy=%s",
+                    len(collected),
+                    bool(proxy_url),
+                )
+            else:
+                log_.warning(
+                    "Autotrader SessionProvider: no __NEXT_DATA__ (cookies=%s)",
+                    len(collected),
+                )
+
+            return SessionBundle(
+                source="autotrader",
+                cookies=collected,
+                proxy_url=proxy_url,
+                user_agent=ua,
+                impersonate_id=profile.impersonate,
+                obtained_at=time.time(),
+                meta={"headless": headless, "has_next_data": has_next, "blocked": blocked},
+            )
+
+        raise RuntimeError(
+            "Autotrader Akamai blocked all bootstrap attempts. "
+            "Set residential US proxy: AUTOTRADER_PROXY_URL or AUTOTRADER_PROXY_URLS. "
+            f"Last error: {last_err}"
         )
 
 
