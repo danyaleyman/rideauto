@@ -68,3 +68,30 @@ def test_write_encar_prometheus_textfile_exposes_transport_max_clients() -> None
         assert "encar_scraper_processed_total 120" in text
         assert 'scraper_transport_max_clients{source="encar"} 64' in text
         assert 'impersonate="chrome131"' in text
+
+
+def test_write_encar_prometheus_textfile_exposes_proxy_quarantine_metrics() -> None:
+    """`.prom` должен отдавать health-quarantine прокси, иначе инцидент с мёртвым URL не видно.
+
+    Ключи — как в AsyncEncarClient.snapshot_metrics() (tests/test_encar_proxy_quarantine.py):
+    gauge «сколько URL сейчас в карантине» + counters «сколько раз выключали/пропускали».
+    """
+    stats = {
+        "processed": 5,
+        "client_metrics": {
+            "proxy_urls_total": 3,
+            "proxy_quarantined": 1,
+            "proxy_quarantine_events": 2,
+            "proxy_quarantine_skips": 7,
+            "proxy_failures_total": 9,
+        },
+    }
+    with tempfile.TemporaryDirectory() as d:
+        p = str(Path(d) / "encar.prom")
+        write_encar_scraper_prometheus_textfile(p, stats)
+        text = Path(p).read_text(encoding="utf-8")
+        assert 'scraper_proxy_urls_total{source="encar"} 3' in text
+        assert 'scraper_proxy_quarantined{source="encar"} 1' in text
+        assert 'scraper_proxy_quarantine_events_total{source="encar"} 2' in text
+        assert 'scraper_proxy_quarantine_skips_total{source="encar"} 7' in text
+        assert 'scraper_proxy_failures_total{source="encar"} 9' in text

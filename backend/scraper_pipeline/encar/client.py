@@ -64,7 +64,15 @@ class AsyncEncarClient:
             self.user_agents = [self.profile.user_agent]
         proxy_cfg = config.get("proxy", {})
         proxy_urls = [str(u).strip() for u in (proxy_cfg.get("urls") or []) if str(u).strip()] if proxy_cfg.get("enabled") else []
-        self.proxy_pool = ProxyPool(proxy_urls, rotation=str(proxy_cfg.get("rotation", "round_robin")))
+        # Health-quarantine мёртвых прокси: после N подряд connect-ошибок URL выпадает из
+        # ротации на quarantine_sec (иначе round-robin раздаёт мёртвый URL всем 24 воркерам
+        # и открывается общий CB — см. ProxyPool и инцидент 2026-10-10).
+        self.proxy_pool = ProxyPool(
+            proxy_urls,
+            rotation=str(proxy_cfg.get("rotation", "round_robin")),
+            failure_threshold=int(proxy_cfg.get("failure_threshold", 0) or 0),
+            quarantine_sec=float(proxy_cfg.get("quarantine_sec", 0) or 0),
+        )
         self._transport: Optional[AsyncHttpTransport] = None
         self.policy = policy or build_resilience_policy(config, source="encar", logger=logger)
         self._ua_index = 0
@@ -78,6 +86,7 @@ class AsyncEncarClient:
             "final_http_errors": 0,
             "exceptions_timeout": 0,
             "exceptions_client": 0,
+            "proxy_failures_total": 0,
             "circuit_breaker_opened": 0,
             "circuit_breaker_short_circuit": 0,
         }
@@ -122,6 +131,9 @@ class AsyncEncarClient:
             for k, v in self.policy.snapshot_metrics().items():
                 if isinstance(v, (int, float)):
                     out[str(k)] = int(v) if not isinstance(v, float) or v == int(v) else v  # type: ignore[assignment]
+        if self.proxy_pool.enabled:
+            for k, v in self.proxy_pool.snapshot().items():
+                out[str(k)] = int(v)
         return out
 
     def snapshot_transport_metrics(self) -> Dict[str, Any]:
@@ -153,6 +165,28 @@ class AsyncEncarClient:
 
     def _record_success_for_circuit_breaker(self) -> None:
         self._cb_fail_streak = 0
+
+    def _proxy_failed(self, proxy: Optional[str], reason: str) -> None:
+        """Connect-ошибка конкретного прокси → health-карантин (см. ProxyPool).
+
+        Вызывать только на транспортных сбоях (status=0 / hard deadline) и 407 — т.е. когда
+        виноват URL, а не Encar. Обычные 429/5xx — это сайт, прокси не наказываем.
+        """
+        if not proxy:
+            return
+        self._metric_inc("proxy_failures_total")
+        if not self.proxy_pool.mark_failure(proxy):
+            return
+        host = split_proxy_url(proxy)[0] or "?"
+        self.log.warning(
+            "Encar proxy quarantine: %s ушёл в карантин на %.0fs после %d подряд connect-ошибок (%s); в карантине %d/%d",
+            host,
+            self.proxy_pool.quarantine_sec,
+            self.proxy_pool.failure_threshold,
+            (reason or "")[:70],
+            self.proxy_pool.quarantined_now(),
+            len(self.proxy_pool.all()),
+        )
 
     async def __aenter__(self) -> "AsyncEncarClient":
         self._transport = AsyncHttpTransport(
@@ -229,6 +263,9 @@ class AsyncEncarClient:
                 kind, payload, st, err, retry_after = await asyncio.wait_for(_one_attempt(), timeout=hard)
                 if self.policy:
                     self.policy.record_http_status(st)
+                if int(st or 0) not in (0, 407):
+                    # Прокси довёл запрос до HTTP-ответа Encar (в т.ч. 429/5xx, 404) → он живой.
+                    self.proxy_pool.mark_success(proxy)
                 if kind == "retry":
                     self._metric_inc("retries_total")
                     if int(st or 0) == 429:
@@ -238,6 +275,9 @@ class AsyncEncarClient:
                     elif int(st or 0) >= 500:
                         self._metric_inc("retry_status_5xx")
                     self._record_failure_for_circuit_breaker(st, err)
+                    if int(st or 0) == 407:
+                        # 407 = прокси-ошибка (auth/битый туннель): виноват URL, а не Encar.
+                        self._proxy_failed(proxy, f"status {st}")
                     last_error = err or ""
                     last_http_status = st
                     await sleep_backoff(self._backoff, attempt, retry_after)
@@ -248,10 +288,14 @@ class AsyncEncarClient:
                 elif int(st or 0) >= 400:
                     self._metric_inc("final_http_errors")
                     self._record_failure_for_circuit_breaker(st, err)
+                    if int(st or 0) == 407:
+                        # 407 может прийти и как final (если его нет в retry_statuses): виноват прокси.
+                        self._proxy_failed(proxy, f"status {st}")
                 return payload, st, err
             except asyncio.TimeoutError as e:
                 self._metric_inc("exceptions_timeout")
                 self._record_failure_for_circuit_breaker(0, str(e))
+                self._proxy_failed(proxy, f"hard_deadline {hard:.0f}s")
                 last_error = f"hard_deadline {hard:.0f}s ({e})"
                 await sleep_backoff(self._backoff, attempt)
             except asyncio.CancelledError:
@@ -259,6 +303,7 @@ class AsyncEncarClient:
             except (aiohttp.ClientError, OSError) as e:
                 self._metric_inc("exceptions_client")
                 self._record_failure_for_circuit_breaker(0, str(e))
+                self._proxy_failed(proxy, str(e))
                 last_error = str(e)
                 await sleep_backoff(self._backoff, attempt)
         return None, last_http_status, last_error

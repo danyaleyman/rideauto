@@ -196,12 +196,19 @@ grep 'Stats:' "$L" | tail -3
   срезы ушли далеко за «естественный» конец выдачи (Encar принимает большие offset, и на глубоких
   страницах всё ещё попадаются новые id, поэтому ни `List exhausted`, ни `List stall`/`stall jump`
   в логах 8 последних запусков не появлялись).
-- **Из 32 срезов реально работают 2** — базовые `for` и `kor`. Все брендовые суффиксы
-  `list_q_suffixes[1..15]` (`_.(And.Manu.[현대].)` … `_.(And.Manu.[르노코리아].)`) дают
-  `List page failed … variant=kor_vN / for_vN offset=0 status=404`, после чего срез сразу выходит
-  (404 не входит в `retry_statuses`). Итог: discovery делает 2 запроса параллельно, а не 32;
-  эти же 404 при колд-старте выглядят как «все 32 среза мертвы на `offset=0`». Развитие: починить
-  формат q-суффикса под текущее API либо заменить мёртвые срезы другими (Manu/Model-фильтры).
+- **Срезы `list_q_suffixes` (починено 2026-10-10).** Все 15 брендовых срезов давали
+  `List page failed … variant=kor_vN / for_vN offset=0 status=404` (404 не входит в `retry_statuses`
+  → срез выходил сразу), т.е. discovery делала 2 запроса вместо 32. Причина: формат q-суффикса
+  `_.(And.Manu.[현대].)` — сокращение `Manu` и квадратные скобки вокруг значения. Проверено на проде
+  (`var/_de4_q_probe.py`): `_.Manufacturer.현대.` → **200, count=47744**;
+  `_.(And.Manufacturer.현대.)` → 200/count=47744; `_.Manufacturer.[현대].` → 200, но **count=0**
+  (скобки ломают матчинг молча — хуже 404). Плюс три «домашних» марки в справочнике Encar зовутся
+  со старым именем в скобках: `KG모빌리티(쌍용)`, `르노코리아(삼성)`, `쉐보레(GM대우)`; а импортный
+  бренд — `도요타`, не `토요타`. Итог (`var/_de4_brand_probe.py`, 2026-10-10): **40 срезов, все
+  отвечают 200**; покрытие по `count` ≈ `for` 63 920/64 754 = **98.7 %**, `kor` 130 432/130 472 =
+  **99.97 %**. Срезы с индексом 16+ дописаны в конец списка — ключ чекпоинта `"{car_type}_v{index}"`,
+  поэтому вставка в середину сдвинула бы `offset` уже идущих срезов. Регресс-тест:
+  `backend/tests/test_scraper_config_list_slices.py` (ловит возврат `[...]`/`Manu.` в конфиг).
 - Вспышки `detail failed status=0` (transport-level, без HTTP-кода) — **разобраны 2026-10-10**.
   Причина по строке клиента:
   `Encar circuit breaker: open 90s after failures (status=0 err=Failed to perform, curl: (28)
@@ -216,8 +223,23 @@ grep 'Stats:' "$L" | tail -3
   в дефолтных 10 слотах), после фикса — эпизоды 11:46 и 12:00 (≈1 100–1 300 карточек, 1–2 минуты).
   Митигации, задеплоенные 12:10: потолок транспорта 35 → 24 с, `detail_zero_fail_backoff_*`
   (воркер спит 1→15 с при `status=0`), `fetch_user_extras: false`.
-  Корневое лечение (ещё не сделано): health-quarantine прокси — выкинуть URL из ротации после N
-  подряд connect-таймаутов, иначе «мёртвый» прокси будет выбираться round-robin и снова копить серию.
+  Корневое лечение (сделано 2026-10-10): **health-quarantine прокси** — `ProxyPool` считает подряд
+  идущие отказы URL (`failure_threshold`, включая `status=0`/407) и убирает его из ротации на
+  `quarantine_sec`; успех сбрасывает серию. Пока живы другие URL, «мёртвый» не выбирается, а если
+  закарантинены все — отдаётся тот, у кого карантин истекает раньше (без зависания на пуле).
+  Наблюдаемость (все пять строк пишутся в `encar.prom`, экспортёр
+  `scraper_pipeline/resilience/prometheus.py`): `scraper_proxy_urls_total`,
+  `scraper_proxy_quarantined`, `scraper_proxy_quarantine_events_total`,
+  `scraper_proxy_quarantine_skips_total`, `scraper_proxy_failures_total`.
+  Тесты: `tests/test_common_proxy_backoff.py`, `tests/test_encar_proxy_quarantine.py`,
+  `tests/test_encar_scraper_prometheus.py`. Выключено при `proxy.failure_threshold: 0`.
+  Задеплоено и проверено на проде 2026-10-10 13:13 MSK: в новом процессе `grep -c 'List phase'`
+  = **80** (2 типа × 40 срезов, `variant 1/40 … 40/40`, `checkpoint_key=<car_type>_vN`), за первые
+  135 с `detail_fail=0 cb_open=0 cb_short=0 retries=0`, в `encar.prom` присутствуют все пять
+  `scraper_proxy_*` (`proxy_urls_total=22`). Деплой — хирургический патч прод-конфига (только блок
+  `list_q_suffixes` + два knob'а, остальное байт-в-байт) и SFTP трёх модулей через
+  `var/_de4_deploy_slices_quarantine.py`; бэкап — `/root/encar-slices-quarantine-<ts>/`, рестарт
+  encar делает сам супервизор (≤120 с).
 - ETA полного дампа (оценка 2026-10-10 12:00): сделано ≈50 320 id, осталось ≈145 000;
   detail даёт 350–400 авто/мин → ≈6.5 ч чистой работы (≈19:00–20:00 MSK) плюс потери на эпизоды CB.
   Discovery замерен отдельно (лог 11:25–11:31, паузы не было): 393 страницы за 6.7 мин = 58 стр/мин,
@@ -228,6 +250,12 @@ grep 'Stats:' "$L" | tail -3
 `_de4_full_state.sh` (coverage/offsets/pending), `_de4_discovery_probe.sh` (живые list-срезы),
 `_de4_burst_probe.sh` (вспышки `status=0`), `_de4_meta_probe.sh` (extras-404 в `source_meta`),
 `_de4_parity.py` (хэши local↔prod), `_de4_final_health.sh` (rate/mem/pause/prom).
+Деплой фикса срезов/карантина: `var/_de4_deploy_slices_quarantine.py` (`--plan` — только чтение,
+`--payload-only`, `--restart`, `--restart-only`), host-side патчер YAML
+`var/_de4_patch_slices_quarantine.py` (с `--dry-run` и offline-смоуком `ProxyPool`),
+`var/_de4_pull_prod_config.py` (снять прод-конфиг перед дельтой),
+`var/_de4_post_deploy_verify.py` (процесс, boot-лог, `List phase`, `encar.prom`).
+Каталог `var/` целиком в `.gitignore`: там прод-дампы с `ENCAR_PROXY_URLS` (логин:пароль).
 
 ## Прод-Done gate
 

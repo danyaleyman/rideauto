@@ -68,10 +68,14 @@ web/public/assets/*.glb
 
 # Ad-hoc remote scripts with secrets (use deploy/ops templates)
 deploy/scripts/_remote_*.py
+# var/ целиком: локальные ad-hoc пробы/дампы боевого хоста. Там лежат ENCAR_PROXY_URLS
+# и /etc/default/rideauto с логин:пароль в открытом виде (_prod_env_*.txt,
+# _de4_pool_apply.sh, _de4_pool_test.sh, _de4_encar_fast_pool.py) — в git не попадает.
+# Нужен конкретный скрипт из var/ в репо — `git add -f var/<файл>` осознанно.
+var/
 
 # Local scratch / debug dumps
 /tmp_*.json
-var/autorepair/
 
 # Abandoned / local experiment trees
 frontend-heroui/

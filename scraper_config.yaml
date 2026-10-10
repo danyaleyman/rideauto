@@ -74,23 +74,62 @@ http:
   list_stall_jump_max: 80
   # Доп. суффиксы к выражению q после CarType — параллельные «срезы» по бренду (дубликаты id отсекаются в checkpoint).
   # Первый элемент "" обязателен для совместимости ключа чекпоинта for/kor.
+  #
+  # СИНТАКСИС (проверено на проде 2026-10-10, var/_de4_q_probe.py + var/_de4_brand_probe.py):
+  #   "_.Manufacturer.현대."        -> 200 + count=47744   (рабочий)
+  #   "_.(And.Manufacturer.현대.)"  -> 200 + count=47744   (равнозначный)
+  #   "_.(And.Manu.[현대].)"        -> 404                 (старый вид: сокращение Manu + скобки)
+  #   "_.Manufacturer.[현대]."      -> 200, но count=0     (скобки вокруг значения ломают матчинг)
+  # Значение производителя пишется БЕЗ квадратных скобок; сам список работает и для for, и для kor:
+  # «чужой» рынок даёт 200/count=0 → срез делает одну пустую страницу и выходит (это нормально).
+  #
+  # ВАЖНО: ключ чекпоинта среза — "{car_type}_v{index}" (scraper_pipeline/encar/workers.py),
+  # поэтому НОВЫЕ срезы дописываем ТОЛЬКО В КОНЕЦ, иначе сдвинутся offset'ы уже идущих срезов.
+  # Покрытие по count (2026-10-10): for 63 920 / 64 754 = 98.7 %, kor 130 432 / 130 472 = 99.97 %.
   list_q_suffixes:
     - ""
-    - "_.(And.Manu.[현대].)"
-    - "_.(And.Manu.[기아].)"
-    - "_.(And.Manu.[제네시스].)"
-    - "_.(And.Manu.[BMW].)"
-    - "_.(And.Manu.[벤츠].)"
-    - "_.(And.Manu.[아우디].)"
-    - "_.(And.Manu.[테슬라].)"
-    - "_.(And.Manu.[렉서스].)"
-    - "_.(And.Manu.[토요타].)"
-    - "_.(And.Manu.[혼다].)"
-    - "_.(And.Manu.[랜드로버].)"
-    - "_.(And.Manu.[포드].)"
-    - "_.(And.Manu.[쉐보레].)"
-    - "_.(And.Manu.[KG모빌리티].)"
-    - "_.(And.Manu.[르노코리아].)"
+    - "_.Manufacturer.현대."
+    - "_.Manufacturer.기아."
+    - "_.Manufacturer.제네시스."
+    - "_.Manufacturer.BMW."
+    - "_.Manufacturer.벤츠."
+    - "_.Manufacturer.아우디."
+    - "_.Manufacturer.테슬라."
+    - "_.Manufacturer.렉서스."
+    # 엔카 пишет бренд как «도요타» (토요타 даёт count=0).
+    - "_.Manufacturer.도요타."
+    - "_.Manufacturer.혼다."
+    - "_.Manufacturer.랜드로버."
+    - "_.Manufacturer.포드."
+    - "_.Manufacturer.쉐보레."
+    # Домашние марки в справочнике Encar идут со старым именем в скобках: KG모빌리티 → KG모빌리티(쌍용), 르노코리아 → 르노코리아(삼성), 쉐보레 → 쉐보레(GM대우).
+    - "_.Manufacturer.KG모빌리티(쌍용)."
+    - "_.Manufacturer.르노코리아(삼성)."
+    # --- дописано 2026-10-10: живые срезы, закрывающие остаток каталога (индексы 16+ = новые v-ключи) ---
+    - "_.Manufacturer.쉐보레(GM대우)."
+    - "_.Manufacturer.볼보."
+    - "_.Manufacturer.포르쉐."
+    - "_.Manufacturer.미니."
+    - "_.Manufacturer.지프."
+    - "_.Manufacturer.폭스바겐."
+    - "_.Manufacturer.마세라티."
+    - "_.Manufacturer.링컨."
+    - "_.Manufacturer.캐딜락."
+    - "_.Manufacturer.재규어."
+    - "_.Manufacturer.푸조."
+    - "_.Manufacturer.벤틀리."
+    - "_.Manufacturer.닛산."
+    - "_.Manufacturer.인피니티."
+    - "_.Manufacturer.페라리."
+    - "_.Manufacturer.람보르기니."
+    - "_.Manufacturer.롤스로이스."
+    - "_.Manufacturer.닷지."
+    - "_.Manufacturer.피아트."
+    - "_.Manufacturer.크라이슬러."
+    - "_.Manufacturer.애스턴마틴."
+    - "_.Manufacturer.맥라렌."
+    - "_.Manufacturer.사브."
+    - "_.Manufacturer.스바루."
   # Параллельно обходить срезы list_q_suffixes; одновременных запросов к list API — list_max_parallel.
   list_parallel_variants: true
   list_max_parallel: 3
@@ -119,6 +158,14 @@ proxy:
   enabled: true
   urls: []
   rotate_every: 1
+  # Health-quarantine мёртвых прокси (корень инцидента 2026-10-10 11:43–12:01):
+  # мёртвый URL держал слот до transport-cap (curl: (28) ... 35000 ms), 24 detail-воркера
+  # крутили pop→fail→requeue, CB открывался на 90 s (detail_fail=650). Round-robin отдавал
+  # мёртвый URL снова и снова, потому что пул не помнил ошибок. Теперь после
+  # failure_threshold подряд connect-ошибок (timeout/refused, а также 407) URL исключается
+  # из ротации на quarantine_sec; успешный ответ сбрасывает серию. 0 = выключено (старое поведение).
+  failure_threshold: 3
+  quarantine_sec: 120
 
 # With transport=curl_cffi UA is pinned to BrowserProfile (http.impersonate) — do not mix Firefox/Safari.
 user_agents:

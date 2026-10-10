@@ -50,6 +50,38 @@ def resilience_metric_lines(stats: Dict[str, Any], *, source: str) -> List[str]:
         lines.append("# TYPE scraper_transport_max_clients gauge")
         lines.append(f'scraper_transport_max_clients{{source="{src}"}} {max_clients}')
 
+    if "proxy_quarantine_events" in cm or "proxy_quarantined" in cm:
+        # Health-quarantine мёртвых прокси (см. ProxyPool): gauge «сколько URL сейчас
+        # выключено» + counters «сколько раз выключали / сколько раз не было живых».
+        lines.append("# HELP scraper_proxy_urls_total Proxy URLs configured for the source")
+        lines.append("# TYPE scraper_proxy_urls_total gauge")
+        lines.append(f'scraper_proxy_urls_total{{source="{src}"}} {int(cm.get("proxy_urls_total", 0) or 0)}')
+        lines.append("# HELP scraper_proxy_quarantined Proxy URLs currently quarantined")
+        lines.append("# TYPE scraper_proxy_quarantined gauge")
+        lines.append(f'scraper_proxy_quarantined{{source="{src}"}} {int(cm.get("proxy_quarantined", 0) or 0)}')
+        lines.append("# HELP scraper_proxy_quarantine_events_total Proxy URLs sent to quarantine")
+        lines.append("# TYPE scraper_proxy_quarantine_events_total counter")
+        lines.append(
+            f'scraper_proxy_quarantine_events_total{{source="{src}"}} '
+            f'{int(cm.get("proxy_quarantine_events", 0) or 0)}'
+        )
+        lines.append("# HELP scraper_proxy_quarantine_skips_total Picks that had to skip quarantined URLs")
+        lines.append("# TYPE scraper_proxy_quarantine_skips_total counter")
+        lines.append(
+            f'scraper_proxy_quarantine_skips_total{{source="{src}"}} '
+            f'{int(cm.get("proxy_quarantine_skips", 0) or 0)}'
+        )
+
+    if "proxy_failures_total" in cm:
+        # Счётчик connect-ошибок прокси из клиента (см. encar/client.py: mark_failure/mark_success).
+        # Нужен вместе с карантином: показывает, сколько раз пул вообще видел мёртвый URL.
+        lines.append("# HELP scraper_proxy_failures_total Proxy connect failures counted by the client")
+        lines.append("# TYPE scraper_proxy_failures_total counter")
+        lines.append(
+            f'scraper_proxy_failures_total{{source="{src}"}} '
+            f'{int(cm.get("proxy_failures_total", 0) or 0)}'
+        )
+
     age = float(pm.get("policy_session_age_seconds", stats.get("session_age_seconds", 0)) or 0)
     lines.append("# HELP scraper_session_age_seconds Age of current browser-derived session")
     lines.append("# TYPE scraper_session_age_seconds gauge")
