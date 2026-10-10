@@ -9,7 +9,11 @@ from scraper_pipeline.resilience.policy import (
     build_resilience_policy,
 )
 from scraper_pipeline.resilience.session_bundle import SessionBundle
-from scraper_pipeline.resilience.transport import AsyncHttpTransport, TransportResponse
+from scraper_pipeline.resilience.transport import (
+    AsyncHttpTransport,
+    TransportResponse,
+    resolve_transport_max_clients,
+)
 
 __all__ = [
     "AdaptiveConcurrencyGate",
@@ -20,4 +24,5 @@ __all__ = [
     "TransportResponse",
     "build_resilience_policy",
     "resolve_browser_profile",
+    "resolve_transport_max_clients",
 ]

@@ -291,6 +291,23 @@ async def run_scraper(
                 for i in range(concurrency)
             ]
 
+            # Живые метрики в Prometheus: *.prom пишется и в конце прогона, и раз в stats-тик (60 с) —
+            # иначе долгий прогон (сутки+) вообще не виден в дашбордах (пик пишется только на exit).
+            _prom_tp = (os.environ.get("ENCAR_PROMETHEUS_TEXTFILE") or "").strip() or str(
+                config.get("prometheus_textfile_path") or ""
+            ).strip()
+            _write_prom = None
+            if _prom_tp:
+                try:
+                    from scraper_pipeline.encar.scraper_prometheus import (
+                        write_encar_scraper_prometheus_textfile as _write_prom,
+                    )
+
+                    log.info("Encar Prometheus textfile → %s (обновление раз в 60 с)", _prom_tp)
+                except Exception as _pe:  # pragma: no cover - окружение/импорт
+                    log.warning("Encar Prometheus textfile недоступен: %s", _pe)
+                    _write_prom = None
+
             async def log_stats():
                 # Запускаем до enqueue: иначе при залипании на queue.put тишина в journal до часов.
                 first_wait = True
@@ -323,6 +340,17 @@ async def run_scraper(
                         stats.get("cars_with_user_info", 0),
                     )
                     _stats_reports += 1
+                    if _write_prom is not None:
+                        try:
+                            stats["client_metrics"] = httpm
+                            try:
+                                stats["transport_metrics"] = client.snapshot_transport_metrics()
+                                stats["policy_metrics"] = client.snapshot_policy_metrics()
+                            except Exception:
+                                pass
+                            _write_prom(_prom_tp, stats)
+                        except Exception as _pe:  # pragma: no cover - окружение/ФС
+                            log.warning("Encar Prometheus textfile (periodic): %s", _pe)
                     if (
                         _stats_reports == 1
                         and stats["processed"] == 0

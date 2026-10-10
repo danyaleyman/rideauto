@@ -57,6 +57,47 @@ def resolve_transport_backend(config: Mapping[str, Any]) -> str:
     return backend
 
 
+def resolve_transport_max_clients(
+    config: Mapping[str, Any], *, conn_limit: Optional[int] = None
+) -> int:
+    """
+    Сколько одновременных запросов держит curl_cffi-сессия (`AsyncSession(max_clients=...)`).
+
+    curl_cffi по умолчанию `max_clients=10` — и это потолок НА ВСЮ СЕССИЮ (у Encar один
+    `AsyncEncarClient` на все detail-воркеры), поэтому `http.concurrency > 10` не увеличивал
+    темп, сколько бы живых прокси ни было. Прод-замер 2026-10-10 (одинаковая нагрузка:
+    48 detail-запросов, conc=24, те же 22 KR-прокси): `AsyncSession()` → 2.2 req/s,
+    `max_clients=64` → 17.1 req/s, `max_clients=128` → 18.8 req/s.
+
+    `http.transport_max_clients`:
+      * > 0 — использовать как есть (ставим с запасом над `http.concurrency`);
+      * 0/пусто/нечисло — авто: `max(32, concurrency, conn_limit_per_host) * 2`.
+
+    Неположительные значения не поддерживаются: curl_cffi создаёт пул curl-хэндлов строго
+    по `max_clients` (`asyncio.LifoQueue(max_clients)` + `put_nowait` до `QueueFull`), поэтому
+    при `max_clients <= 0` пул не ограничен и `init_pool()` зацикливается.
+    """
+    http = config.get("http") if isinstance(config.get("http"), dict) else {}
+    if conn_limit is None:
+        try:
+            conn_limit = int(http.get("conn_limit_per_host", 10) or 10)
+        except (TypeError, ValueError):
+            conn_limit = 10
+    raw = http.get("transport_max_clients")
+    if raw not in (None, ""):
+        try:
+            val = int(raw)
+        except (TypeError, ValueError):
+            val = 0
+        if val > 0:
+            return val
+    try:
+        conc = int(http.get("concurrency", 0) or 0)
+    except (TypeError, ValueError):
+        conc = 0
+    return max(32, conc, int(conn_limit or 0)) * 2
+
+
 class AsyncHttpTransport:
     """
     Единый async HTTP слой для Encar/Che168.
@@ -83,6 +124,10 @@ class AsyncHttpTransport:
         self.timeout_connect = float(http.get("timeout_connect", 10) or 10)
         self.timeout_sock_read = float(http.get("timeout_sock_read", 25) or 25)
         self.conn_limit = int(http.get("conn_limit_per_host", 10) or 10)
+        # Явный потолок «в полёте» для curl_cffi-сессии (дефолт 10 невидимо резал темп).
+        self.transport_max_clients = resolve_transport_max_clients(
+            self.config, conn_limit=self.conn_limit
+        )
         self._curl_session: Any = None
         self._aio_session: Any = None
         self._metrics: Dict[str, int] = {
@@ -118,6 +163,7 @@ class AsyncHttpTransport:
             **self._metrics,
             "transport_backend": self.backend,
             "transport_impersonate": self.profile.impersonate,
+            "transport_max_clients": int(self.transport_max_clients),
         }
 
     def _metric_inc(self, key: str, by: int = 1) -> None:
@@ -127,12 +173,14 @@ class AsyncHttpTransport:
         if self.backend == "curl_cffi":
             from curl_cffi.requests import AsyncSession
 
-            self._curl_session = AsyncSession()
+            self._curl_session = AsyncSession(max_clients=self.transport_max_clients)
             self._metric_inc("transport_backend_curl_cffi", 0)  # mark presence
             self.log.info(
-                "Transport[%s]: curl_cffi impersonate=%s",
+                "Transport[%s]: curl_cffi impersonate=%s max_clients=%s (conn_limit_per_host=%s)",
                 self.source,
                 self.profile.impersonate,
+                self.transport_max_clients,
+                self.conn_limit,
             )
         else:
             import aiohttp

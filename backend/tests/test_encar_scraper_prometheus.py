@@ -43,3 +43,28 @@ def test_write_encar_prometheus_textfile() -> None:
         assert "encar_scraper_run_started_unixtime 1710000000" in text
         assert "encar_http_requests_total 210" in text
         assert "encar_http_circuit_breaker_short_circuit_total 5" in text
+
+
+def test_write_encar_prometheus_textfile_exposes_transport_max_clients() -> None:
+    """Периодический (раз в 60 с) *.prom должен содержать фактический потолок curl_cffi-сессии.
+
+    До фикса `AsyncSession(max_clients=10)` этот gauge показывал 10 и объяснял, почему
+    `http.concurrency` не давал прироста (см. deploy/docs/CATALOG_PIPELINE.md).
+    """
+    stats = {
+        "processed": 120,
+        "client_metrics": {"requests_ok": 900},
+        "transport_metrics": {
+            "transport_backend": "curl_cffi",
+            "transport_impersonate": "chrome131",
+            "transport_requests_ok": 900,
+            "transport_max_clients": 64,
+        },
+    }
+    with tempfile.TemporaryDirectory() as d:
+        p = str(Path(d) / "encar.prom")
+        write_encar_scraper_prometheus_textfile(p, stats)
+        text = Path(p).read_text(encoding="utf-8")
+        assert "encar_scraper_processed_total 120" in text
+        assert 'scraper_transport_max_clients{source="encar"} 64' in text
+        assert 'impersonate="chrome131"' in text

@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+import pytest
+
 from scraper_pipeline.resilience.browser_profile import (
     list_known_impersonates,
     normalize_impersonate,
@@ -25,7 +27,12 @@ from scraper_pipeline.resilience.challenge import (
 from scraper_pipeline.resilience.policy import AdaptiveConcurrencyGate, build_resilience_policy
 from scraper_pipeline.resilience.prometheus import resilience_metric_lines
 from scraper_pipeline.resilience.session_bundle import SessionBundle
-from scraper_pipeline.resilience.transport import resolve_transport_backend, split_proxy_url
+from scraper_pipeline.resilience.transport import (
+    AsyncHttpTransport,
+    resolve_transport_backend,
+    resolve_transport_max_clients,
+    split_proxy_url,
+)
 
 
 def test_normalize_impersonate_aliases() -> None:
@@ -55,6 +62,45 @@ def test_resolve_transport_backend() -> None:
     assert resolve_transport_backend({"http": {"transport": "curl_cffi"}}) == "curl_cffi"
     assert resolve_transport_backend({"http": {"transport": "aiohttp"}}) == "aiohttp"
     assert resolve_transport_backend({}) == "curl_cffi"
+
+
+def test_resolve_transport_max_clients_beats_curl_default() -> None:
+    # curl_cffi AsyncSession(max_clients=10) — потолок на всю сессию: без явного значения
+    # http.concurrency > 10 не даёт прироста (2.2 vs 17.1 req/s в прод-замере 2026-10-10).
+    # авто-правило: max(32, concurrency, conn_limit_per_host) * 2
+    assert resolve_transport_max_clients({"http": {"concurrency": 24}}, conn_limit=24) == 64
+    assert resolve_transport_max_clients({"http": {"transport_max_clients": 64}}, conn_limit=4) == 64
+    assert resolve_transport_max_clients({"http": {"transport_max_clients": 0}}, conn_limit=4) == 64
+    assert resolve_transport_max_clients({"http": {"transport_max_clients": "junk"}}, conn_limit=8) == 64
+    assert resolve_transport_max_clients({"http": {"concurrency": 48}}, conn_limit=48) == 96
+    assert resolve_transport_max_clients({}, conn_limit=10) == 64
+    # даже при дефолтном conn_limit правило даёт заметно больше curl_cffi-дефолта 10
+    assert resolve_transport_max_clients({}) > 10
+
+
+def test_transport_passes_max_clients_to_curl_session(monkeypatch) -> None:
+    curl_requests = pytest.importorskip("curl_cffi.requests", reason="curl_cffi not installed")
+
+    captured: dict = {}
+
+    class _FakeAsyncSession:
+        def __init__(self, *args, **kwargs) -> None:
+            captured.update(kwargs)
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(curl_requests, "AsyncSession", _FakeAsyncSession)
+    cfg = {"http": {"transport": "curl_cffi", "concurrency": 24, "conn_limit_per_host": 24}}
+    log = logging.getLogger("test.transport")
+
+    async def _run() -> None:
+        async with AsyncHttpTransport(cfg, log, source="encar") as transport:
+            assert transport.transport_max_clients == 64
+            assert transport.metrics_for_prometheus()["transport_max_clients"] == 64
+
+    asyncio.run(_run())
+    assert captured.get("max_clients") == 64
 
 
 def test_session_bundle_public_dict() -> None:

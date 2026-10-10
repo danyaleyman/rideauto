@@ -41,6 +41,15 @@ def resilience_metric_lines(stats: Dict[str, Any], *, source: str) -> List[str]:
         lines.append(f"# TYPE {mname} counter")
         lines.append(f'{mname}{{source="{src}"}} {val}')
 
+    max_clients = int(tm.get("transport_max_clients", cm.get("transport_max_clients", 0)) or 0)
+    if max_clients:
+        lines.append(
+            "# HELP scraper_transport_max_clients In-flight cap of the HTTP session "
+            "(curl_cffi max_clients)"
+        )
+        lines.append("# TYPE scraper_transport_max_clients gauge")
+        lines.append(f'scraper_transport_max_clients{{source="{src}"}} {max_clients}')
+
     age = float(pm.get("policy_session_age_seconds", stats.get("session_age_seconds", 0)) or 0)
     lines.append("# HELP scraper_session_age_seconds Age of current browser-derived session")
     lines.append("# TYPE scraper_session_age_seconds gauge")

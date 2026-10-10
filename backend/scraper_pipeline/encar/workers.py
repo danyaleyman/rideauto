@@ -30,6 +30,35 @@ async def _requeue_after_detail_transient_fail(
     await checkpoint.add_pending(car_id, car_type, ij)
 
 
+async def _detail_zero_fail_backoff(streak: int, http_cfg: dict) -> float:
+    """Пауза воркера, когда detail вернулся без HTTP-кода (`status=0`).
+
+    Прод-факт 2026-10-10: при открытом CB (или мёртвом прокси, curl error 28 = 35 с) воркеры
+    крутились без пауз — pop → fail → requeue — и выжигали 450–650 карточек за окно CB 90 с
+    (`detail_fail`/`cb_short` росли синхронно). Здесь экспоненциальный джиттер-бэкофф.
+
+    Накручивается на `http_cfg`:
+      * `detail_zero_fail_backoff_base_sec` (по умолчанию 1.0; 0 — выключить),
+      * `detail_zero_fail_backoff_max_sec` (по умолчанию 15.0).
+    Возвращает фактическую задержку (секунды) — удобно для тестов/логов.
+    """
+    try:
+        base = float(http_cfg.get("detail_zero_fail_backoff_base_sec", 1.0) or 0.0)
+    except (TypeError, ValueError):
+        base = 1.0
+    try:
+        cap = float(http_cfg.get("detail_zero_fail_backoff_max_sec", 15.0) or 0.0)
+    except (TypeError, ValueError):
+        cap = 15.0
+    if base <= 0 or cap <= 0:
+        return 0.0
+    delay = min(cap, base * (2 ** max(0, int(streak) - 1)))
+    delay = min(cap, delay * random.uniform(0.8, 1.2))
+    if delay > 0:
+        await asyncio.sleep(delay)
+    return delay
+
+
 async def _list_one_variant(
     client: AsyncEncarClient,
     checkpoint: CheckpointAsync,
@@ -51,6 +80,7 @@ async def _list_one_variant(
     log: logging.Logger,
     max_cars: int,
     stats_lock: Optional[asyncio.Lock],
+    pause_pending_above: int = 0,
 ) -> None:
     if isinstance(q_suffix, str) and q_suffix.strip() == "":
         q_suffix = ""
@@ -72,6 +102,31 @@ async def _list_one_variant(
     stale_full_pages = 0
     stall_jumps_used = 0
     while offset < max_offset:
+        if pause_pending_above > 0:
+            pend_now = await checkpoint.pending_count()
+            pause_rounds = 0
+            while pend_now >= pause_pending_above:
+                # Не спамим: при 32 срезах лог «каждые 20 с» дал бы ~1.6 строк/с.
+                # Пишем на первой итерации и далее раз в 5 минут.
+                if pause_rounds == 0 or pause_rounds % 15 == 0:
+                    log.info(
+                        "List pause: pending=%s >= %s — ждём разбор detail (пауза %.1f мин)",
+                        pend_now,
+                        pause_pending_above,
+                        pause_rounds * 20 / 60.0,
+                    )
+                pause_rounds += 1
+                # +jitter: иначе 32 среза просыпаются синхронно и дают залп запросов к list API.
+                await asyncio.sleep(20 + random.uniform(0.0, 3.0))
+                pend_now = await checkpoint.pending_count()
+            if pause_rounds:
+                log.info(
+                    "List resume: pending=%s < %s после %s пауз (%.1f мин)",
+                    pend_now,
+                    pause_pending_above,
+                    pause_rounds,
+                    pause_rounds * 20 / 60.0,
+                )
         if max_cars > 0 and stats_lock is not None:
             async with stats_lock:
                 saved_now = stats["saved"]
@@ -231,6 +286,12 @@ async def list_producer(
     list_max_parallel = max(1, int(http_cfg.get("list_max_parallel", 4)))
     list_fetch_sem = asyncio.Semaphore(list_max_parallel)
     list_stats_lock = asyncio.Lock()
+    try:
+        pause_pending_above = int(http_cfg.get("list_pause_when_pending_above", 0) or 0)
+    except (TypeError, ValueError):
+        pause_pending_above = 0
+    if pause_pending_above < 0:
+        pause_pending_above = 0
 
     work: List[Tuple[str, str, int, str]] = []
     for car_type in car_types:
@@ -270,6 +331,7 @@ async def list_producer(
             log,
             max_cars,
             stats_lock,
+            pause_pending_above=pause_pending_above,
         )
 
     if parallel and len(work) > 1:
@@ -318,6 +380,12 @@ async def detail_worker(
     stats.setdefault("endpoint_user_ok", 0)
     stats.setdefault("endpoint_user_fail", 0)
     rt_stats = EncarStats(enabled=True)
+    _http_cfg = _config.get("http", {}) if isinstance(_config.get("http"), dict) else {}
+    # Опциональные extras: `user` (GET /user/{Separation[0]}) на проде 2026-10-10 отдавал 404
+    # в 491/491 карточек → ≈1 бесполезный запрос на авто (≈27 % трафика при 3.7 req/car).
+    _fetch_user_extras = bool(_http_cfg.get("fetch_user_extras", False))
+    # Серия подряд `status=0` (нет HTTP-кода: мёртвый прокси / открытый CB) — для бэкоффа.
+    zero_fail_streak = 0
 
     def _sync_runtime_stats() -> None:
         snap = rt_stats.snapshot()
@@ -426,10 +494,13 @@ async def detail_worker(
             )
             stats["detail_fail"] += 1
             await _requeue_after_detail_transient_fail(checkpoint, car_id, car_type, item_from_list)
+            zero_fail_streak += 1
+            await _detail_zero_fail_backoff(zero_fail_streak, _http_cfg)
             queue.task_done()
             continue
         if d_status != 200 or not detail:
             if d_status in (404, 410):
+                zero_fail_streak = 0
                 await checkpoint.mark_collected(car_id)
                 stats["detail_gone"] += 1
                 log.info(
@@ -442,8 +513,23 @@ async def detail_worker(
                 log.warning("Worker %s car_id=%s detail failed status=%s", worker_id, car_id, d_status)
                 stats["detail_fail"] += 1
                 await _requeue_after_detail_transient_fail(checkpoint, car_id, car_type, item_from_list)
+                if int(d_status or 0) == 0:
+                    # Нет HTTP-кода = транспорт/CB. Без паузы воркер мгновенно разбирал очередь
+                    # (pop → fail → requeue) и выжигал сотни карточек за окно CB 90 с.
+                    zero_fail_streak += 1
+                    delay = await _detail_zero_fail_backoff(zero_fail_streak, _http_cfg)
+                    if delay and (zero_fail_streak == 3 or zero_fail_streak % 10 == 0):
+                        log.warning(
+                            "Worker %s: подряд %s detail без HTTP-кода (транспорт/CB) — пауза %.1f с",
+                            worker_id,
+                            zero_fail_streak,
+                            delay,
+                        )
+                else:
+                    zero_fail_streak = 0
             queue.task_done()
             continue
+        zero_fail_streak = 0
         source_meta: dict[str, dict[str, Any]] = {
             "detail": {
                 "status": int(d_status or 0),
@@ -461,16 +547,22 @@ async def detail_worker(
             seller_id = (sep_item.get("Separation") or [None])[0]
         if not seller_id and item_from_list.get("Separation"):
             seller_id = (item_from_list.get("Separation") or [None])[0]
+        # Полная докачка: http.fetch_detail_extras=false — только vehicle detail (быстрее).
+        # Extras (inspection/diagnosis/…) можно добрать вторым проходом.
+        fetch_extras = bool((_config.get("http") or {}).get("fetch_detail_extras", True))
         tasks = []
-        if plate:
-            tasks.append(("record", client.fetch_record(car_id, plate)))
-        # Диагностику кузова запрашиваем всегда: часть карточек Encar имеет report/diagnosis
-        # без DIAG2-фото, и иначе теряются панели/статусы для UI "Состояние кузова".
-        tasks.append(("diagnosis", client.fetch_diagnosis(car_id)))
-        tasks.append(("inspection", client.fetch_inspection(car_id)))
-        tasks.append(("sellingpoint", client.fetch_sellingpoint(car_id)))
-        if seller_id:
-            tasks.append(("user", client.fetch_user(seller_id)))
+        if fetch_extras:
+            if plate:
+                tasks.append(("record", client.fetch_record(car_id, plate)))
+            # Диагностику кузова запрашиваем всегда: часть карточек Encar имеет report/diagnosis
+            # без DIAG2-фото, и иначе теряются панели/статусы для UI "Состояние кузова".
+            tasks.append(("diagnosis", client.fetch_diagnosis(car_id)))
+            tasks.append(("inspection", client.fetch_inspection(car_id)))
+            tasks.append(("sellingpoint", client.fetch_sellingpoint(car_id)))
+            if seller_id and _fetch_user_extras:
+                tasks.append(("user", client.fetch_user(seller_id)))
+        else:
+            stats["extras_skipped"] = stats.get("extras_skipped", 0) + 1
         results = {}
         if tasks:
             extras_wall = float(_config.get("http", {}).get("detail_extras_wall_timeout_sec", 120))
