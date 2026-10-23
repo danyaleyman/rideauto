@@ -7,8 +7,9 @@
 
 Опционально: статический дамп `web/public/cars.json` (+ chunks в `web/public/data/`), см. --write-static-json.
 
-Память: дедуп хранит только (cars.id, car_id) на уникальный listing key; полный JSON подгружается
-батчами. Порция обработки — --process-batch-size (сборка + цены + upsert).
+Память: дедуп хранит только (cars.id, car_id) на уникальный listing key и читает таблицу через
+server-side (named) cursor порциями по itersize; полный JSON подгружается батчами.
+Порция обработки — --process-batch-size (сборка + цены + upsert).
 """
 from __future__ import annotations
 
@@ -340,7 +341,11 @@ def run_sync(
 
     static_sink: Optional[List[dict]] = None
     try:
-        with conn.cursor() as cur:
+        # Server-side (named) cursor: обычный psycopg2-курсор материализует ВЕСЬ результат
+        # на клиенте ещё до fetchmany (211k+ строк × JSONB ≈ 14 ГБ → OOM-killer на проде).
+        # Named cursor держит результат на сервере и отдаёт его порциями по itersize.
+        with conn.cursor(name="catalog_dedupe_scan") as cur:
+            cur.itersize = 500
             cur.execute(
                 """
                 SELECT id, car_id, data, raw, source_internal_id, needs_pricing_recompute
@@ -350,6 +355,7 @@ def run_sync(
             )
             # Только id победившей строки: не копируем JSON всех карточек в RAM (иначе OOM на ~300k+).
             best: Dict[str, Tuple[int, str]] = {}
+            n_scanned = 0
             while True:
                 chunk = cur.fetchmany(500)
                 if not chunk:
@@ -363,6 +369,9 @@ def run_sync(
                     prev = best.get(lk)
                     if prev is None or int(pg_id) > int(prev[0]):
                         best[lk] = (int(pg_id), str(car_id))
+                n_scanned += len(chunk)
+                if n_scanned % 50_000 < len(chunk):
+                    print(f"  … dedupe scan: {n_scanned} rows scanned", file=sys.stderr)
 
         ordered: List[Tuple[int, str]] = sorted(best.values(), key=lambda x: x[0])
         del best
@@ -440,12 +449,20 @@ def run_sync(
                     else:
                         try:
                             calc_usa.update_usa_car_with_prices(data)
-                            data.pop("price_on_request", None)
                             data.pop("price_calc_failed", None)
-                            data["pricing_tier"] = "full_customs"
-                            sync_usa_pricing_clean_block(data)
-                            price_ok += 1
-                            price_ok_usa += 1
+                            if data.get("pricing_tier") == "price_on_request" or data.get("price_on_request"):
+                                # Missing displacement/HP — exact customs refused (no 2000cc/0hp stubs).
+                                data["price_on_request"] = True
+                                data["pricing_tier"] = "price_on_request"
+                                clear_estimated_price_fields(data)
+                                sync_usa_pricing_clean_block(data)
+                                price_skipped_usa += 1
+                            else:
+                                data.pop("price_on_request", None)
+                                data["pricing_tier"] = "full_customs"
+                                sync_usa_pricing_clean_block(data)
+                                price_ok += 1
+                                price_ok_usa += 1
                         except Exception as e:
                             price_failed += 1
                             if i == 0:
@@ -794,7 +811,7 @@ def main() -> int:
         "--process-batch-size",
         type=int,
         default=500,
-        help="Сколько объявлений одновременно: сборка + расчёт цен + upsert (снижает пик RAM; дедуп по-прежнему держит весь каталог в памяти).",
+        help="Сколько объявлений одновременно: сборка + расчёт цен + upsert (снижает пик RAM; дедуп читает таблицу потоком через server-side cursor).",
     )
     p.add_argument(
         "--max-static-listings",

@@ -52,6 +52,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -347,8 +348,31 @@ def row_to_document(row: Dict[str, Any], *, clean_read_mode: bool = False) -> Di
         str(row.get("source") or "") if row.get("source") is not None else None,
         lj_dedupe if isinstance(lj_dedupe, dict) else {},
     )
+    # USA / Autotrader: catalog shows VDP-complete cards only (gallery + equipment).
+    if str(src or "").strip().lower() == "autotrader":
+        depth = ""
+        if isinstance(lj_dedupe, dict):
+            depth = str(lj_dedupe.get("autotrader_depth") or "").strip().lower()
+        doc["autotrader_depth"] = depth or "srp"
 
     return doc
+
+
+def _autotrader_catalog_ready(row: Dict[str, Any]) -> bool:
+    """Keep SRP stubs in Postgres, but do not publish them to the public catalog index."""
+    if str(row.get("source") or "").strip().lower() != "autotrader":
+        return True
+    lj = _listing_json_root(row)
+    if not isinstance(lj, dict):
+        return False
+    depth = str(lj.get("autotrader_depth") or "").strip().lower()
+    if depth == "vdp":
+        return True
+    images = lj.get("images")
+    features = lj.get("features")
+    n_img = len(images) if isinstance(images, list) else 0
+    n_feat = len(features) if isinstance(features, list) else 0
+    return n_img >= 3 and n_feat >= 5
 
 
 def load_settings(path: Path) -> Dict[str, Any]:
@@ -433,6 +457,80 @@ def iter_car_rows(
         conn.close()
 
 
+def wait_for_task_resilient(
+    client: Client,
+    task_uid: int,
+    *,
+    timeout_in_ms: int = 1_800_000,
+    retries: int = 6,
+) -> Any:
+    """wait_for_task with retries on HTTP 408 / transient timeouts.
+
+    Prod 2026-10-10: large dumps made Meili task polling return 408 while the task
+    later succeeded — aborting the whole sync left Encar ~100k behind the index.
+    """
+    last_err: Optional[BaseException] = None
+    for attempt in range(max(1, retries)):
+        try:
+            return client.wait_for_task(task_uid, timeout_in_ms=timeout_in_ms)
+        except MeilisearchApiError as e:
+            msg = str(e).lower()
+            if not ("408" in msg or "timeout" in msg or "timed out" in msg):
+                raise
+            last_err = e
+            # Task may already be done — one direct get avoids re-waiting forever.
+            try:
+                task = client.get_task(task_uid)
+                status = getattr(task, "status", None) or (
+                    task.get("status") if isinstance(task, dict) else None
+                )
+                if status == "succeeded":
+                    return task
+                if status == "failed":
+                    raise e
+            except MeilisearchApiError:
+                pass
+            delay = min(30.0, float(2**attempt))
+            print(
+                f"meili wait_for_task uid={task_uid} transient error "
+                f"(attempt {attempt + 1}/{retries}): {e}; sleep {delay:.0f}s",
+                flush=True,
+            )
+            time.sleep(delay)
+    assert last_err is not None
+    raise last_err
+
+
+def mark_outbox_covered(dsn: str, started_at: datetime) -> int:
+    """Пометить processed_at у строк outbox, покрытых полным проходом индекса.
+
+    Каждый upsert в cars триггером пишет в meili_sync_outbox, поэтому после полного
+    sync там остаётся ~по строке на машину. Инкрементальный обработчик на проде не
+    установлен (prod 2026-10-21: 354k pending с 10-08), из-за чего
+    catalog_meili_consistency.py всегда падает с HARD fail и пайплайн уходит в failed.
+    Всё, что попало в outbox до старта чтения PG, полный проход уже отправил в Meili.
+    """
+    conn = psycopg2.connect(dsn)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT to_regclass('public.meili_sync_outbox')")
+            if cur.fetchone()[0] is None:
+                return 0
+            cur.execute(
+                """
+                UPDATE meili_sync_outbox
+                SET processed_at = now()
+                WHERE processed_at IS NULL AND enqueued_at <= %s
+                """,
+                (started_at,),
+            )
+            n = int(cur.rowcount or 0)
+        conn.commit()
+    finally:
+        conn.close()
+    return n
+
+
 def push_batches(
     client: Client,
     uid: str,
@@ -446,8 +544,14 @@ def push_batches(
     index = client.index(uid)
     total = 0
     batch: List[Dict[str, Any]] = []
+    drop_ids: List[str] = []
 
     for row in iter_car_rows(dsn, since=since, batch_size=batch_size):
+        car_id = str(row.get("car_id") or "").strip()
+        if not _autotrader_catalog_ready(row):
+            if car_id:
+                drop_ids.append(car_id)
+            continue
         try:
             batch.append(row_to_document(row, clean_read_mode=clean_read_mode))
         except ValueError:
@@ -455,15 +559,23 @@ def push_batches(
         if len(batch) >= batch_size:
             task = index.add_documents(batch)
             if wait_each_batch:
-                client.wait_for_task(task.task_uid, timeout_in_ms=1_800_000)
+                wait_for_task_resilient(client, task.task_uid, timeout_in_ms=1_800_000)
             total += len(batch)
             batch.clear()
 
     if batch:
         task = index.add_documents(batch)
         if wait_each_batch:
-            client.wait_for_task(task.task_uid, timeout_in_ms=1_800_000)
+            wait_for_task_resilient(client, task.task_uid, timeout_in_ms=1_800_000)
         total += len(batch)
+
+    # Remove previously indexed Autotrader SRP stubs from the public catalog.
+    if drop_ids:
+        for i in range(0, len(drop_ids), max(100, batch_size)):
+            chunk = drop_ids[i : i + max(100, batch_size)]
+            task = index.delete_documents(chunk)
+            if wait_each_batch:
+                wait_for_task_resilient(client, task.task_uid, timeout_in_ms=1_800_000)
 
     return total
 
@@ -595,6 +707,7 @@ def main() -> None:
             return
 
         assert args.pg_dsn
+        sync_started_at = datetime.now(timezone.utc)
         n = push_batches(
             client,
             build_uid,
@@ -608,11 +721,14 @@ def main() -> None:
         if args.swap_into_live:
             print(f"swapping Meilisearch indexes {live_uid!r} <-> {build_uid!r}", flush=True)
             swap_task = client.swap_indexes([{"indexes": [live_uid, build_uid]}])
-            client.wait_for_task(swap_task.task_uid, timeout_in_ms=1_800_000)
+            wait_for_task_resilient(client, swap_task.task_uid, timeout_in_ms=1_800_000)
             print(
                 f"swap complete: index {live_uid!r} now serves the data built into {build_uid!r}",
                 flush=True,
             )
+        if since_dt is None:
+            covered = mark_outbox_covered(args.pg_dsn, sync_started_at)
+            print(f"meili outbox: marked {covered} rows covered by full sync", flush=True)
     except MeilisearchApiError as e:
         if "invalid_api_key" in str(e).lower():
             print("Meilisearch: invalid_api_key.", file=sys.stderr)
