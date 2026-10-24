@@ -31,7 +31,7 @@ export function CatalogClient({
 
   return (
     <>
-      <div className={siteBreadcrumbBarClass}>
+      <div className={`${siteBreadcrumbBarClass} hidden sm:flex`}>
         <Breadcrumb className="min-w-0 flex-1">
           <BreadcrumbList className="flex-wrap gap-x-1 gap-y-1 sm:flex-nowrap">
             {catalog.breadcrumbSegments.map((seg, i) => {
@@ -67,7 +67,7 @@ export function CatalogClient({
       />
 
       <CatalogMobileFilters catalog={catalog} />
-      <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-7">
+      <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-10 xl:gap-12">
         <CatalogFiltersAside catalog={catalog} />
         <CatalogResultsPanel catalog={catalog} />
       </div>

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
 import { type ReactNode, useMemo } from "react";
-import { motion, useReducedMotion, useScroll } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import "@/lib/preload-landing-models";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -54,7 +54,6 @@ function LandingButton({
   return (
     <motion.div
       className="inline-flex"
-      whileHover={{ y: -1 }}
       whileTap={{ scale: 0.99 }}
       transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
     >
@@ -74,7 +73,6 @@ function LandingButton({
 export function HomeLanding() {
   const { t } = useLocaleContext();
   const reduceMotion = useReducedMotion();
-  const { scrollYProgress } = useScroll();
 
   const processSteps = useMemo((): ProcessStep[] => {
     return [
@@ -147,10 +145,10 @@ export function HomeLanding() {
         body: (
           <Link
             href="/buy"
-            className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className={`${linkClass} mt-2 inline-flex items-center gap-1`}
           >
             {t("home.landing.step06Body")}
-            <ArrowRight className="h-4 w-4" aria-hidden />
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         ),
       },
@@ -159,26 +157,17 @@ export function HomeLanding() {
 
   return (
     <div className="relative isolate overflow-x-hidden bg-background text-foreground">
-      <motion.div
-        style={{ scaleX: scrollYProgress }}
-        className="fixed left-0 top-0 z-50 h-px w-full origin-left bg-foreground/25"
-        aria-hidden
-      />
-
-      <section className="relative flex min-h-[calc(100dvh-4rem)] items-center overflow-hidden bg-background py-12 sm:py-16 lg:min-h-[100dvh] lg:py-20">
+      <section className="relative flex items-center overflow-hidden bg-background py-10 sm:py-14 lg:min-h-[min(720px,calc(100dvh-3.5rem))] lg:py-16">
         <div className="relative z-10 mx-auto grid w-full max-w-[1440px] items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-12 lg:px-10">
           <motion.div
             className="lg:py-4"
-            initial={reduceMotion ? false : { opacity: 0, y: 32 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="inline-flex items-center gap-3 rounded-full border border-brand/25 bg-brand/5 px-4 py-2 text-caption uppercase tracking-[0.28em] text-brand">
-              <span className="h-px w-8 bg-brand/35" />
-              {LOGO}
-            </div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{LOGO}</p>
 
-            <h1 className="mt-6 max-w-xl text-[2rem] font-semibold leading-[1.08] tracking-[-0.04em] text-foreground sm:mt-7 sm:max-w-lg sm:text-4xl lg:text-[2.75rem] lg:leading-[1.06]">
+            <h1 className="mt-5 max-w-xl text-[2rem] font-semibold leading-[1.08] tracking-[-0.03em] text-foreground sm:mt-6 sm:max-w-lg sm:text-4xl lg:text-[2.75rem] lg:leading-[1.06]">
               {t("home.landing.heroTitle")}
             </h1>
 
@@ -216,14 +205,14 @@ export function HomeLanding() {
       <section id="company" className="bg-background py-16 sm:py-24" aria-label={t("home.landing.processAria")}>
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
           <motion.h2
-            className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-foreground sm:text-5xl lg:text-6xl"
+            className="max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl lg:text-5xl"
             initial={reduceMotion ? false : { opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
             {t("home.landing.processTitle")}
           </motion.h2>
-          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {processSteps.map((step, i) => (
               <motion.div
                 key={step.n}
@@ -231,20 +220,20 @@ export function HomeLanding() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="min-h-[220px] rounded-2xl border border-border bg-card p-5 shadow-sm"
+                className="border-t border-border pt-5"
               >
-                <div className="text-5xl font-semibold tracking-[-0.06em] text-muted-foreground/30" aria-hidden>
+                <div className="text-sm font-medium tabular-nums text-muted-foreground" aria-hidden>
                   {step.n}
                 </div>
-                <div className="mt-10 text-xl font-semibold text-foreground">{step.title}</div>
-                <div className="mt-3 text-sm leading-6 text-muted-foreground">{step.body}</div>
+                <div className="mt-3 text-lg font-semibold text-foreground">{step.title}</div>
+                <div className="mt-2 text-sm leading-6 text-muted-foreground">{step.body}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="border-t border-border bg-muted/25 py-20 sm:py-28">
+      <section className="border-t border-border bg-muted/40 py-20 sm:py-28">
         <motion.div
           className="mx-auto max-w-3xl px-4 text-center sm:px-6"
           initial={reduceMotion ? false : { opacity: 0, y: 16 }}

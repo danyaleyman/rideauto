@@ -51,7 +51,7 @@ export function CookieConsentBanner() {
       ref={barRef}
       role="dialog"
       aria-label={t("cookie.ariaLabel")}
-      className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-primary/25 bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md sm:p-4"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:p-4"
     >
       <div className="mx-auto flex max-w-[1100px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-foreground/90 [overflow-wrap:anywhere]">

@@ -1,11 +1,12 @@
 import { asStr, cleanScalarText, getPath, translateKoToRuText } from "@/lib/car-detail-data";
+import { displayAutotraderOptionRu, isAutotraderOptionNoise } from "@/lib/autotrader-options-display";
 import { displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
-
-const CYRILLIC_RE = /[\u0400-\u04FF]/;
 import {
   collectSelectedEncarOptions,
   displayEncarStandardOption,
 } from "@/lib/encar-options-display";
+
+const CYRILLIC_RE = /[\u0400-\u04FF]/;
 
 function parseJson(v: unknown): unknown {
   if (typeof v !== "string") return v;
@@ -43,17 +44,18 @@ function collectChinaHighlightLabels(d: Record<string, unknown>): string[] {
   return out;
 }
 
-/** Плоский список фич Autotrader (`features` / `features_by_group` / `ranked_features`). */
+/** Плоский список фич Autotrader (`features` / `features_by_group` / `ranked_features`), на русском. */
 export function collectAutotraderFeatureLabels(data: Record<string, unknown>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   const push = (raw: unknown) => {
     if (typeof raw !== "string") return;
     const t = cleanScalarText(raw);
-    // Autotrader labels are English; do not drop them via China field-noise heuristics.
-    if (!t || seen.has(t) || /^\d+$/.test(t) || /^[\W_]+$/.test(t)) return;
-    seen.add(t);
-    out.push(t);
+    if (!t || /^\d+$/.test(t) || /^[\W_]+$/.test(t) || isAutotraderOptionNoise(t)) return;
+    const ru = displayAutotraderOptionRu(t);
+    if (!ru || seen.has(ru)) return;
+    seen.add(ru);
+    out.push(ru);
   };
 
   const pushGroupMap = (group: unknown) => {

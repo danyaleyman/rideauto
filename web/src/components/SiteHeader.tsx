@@ -103,7 +103,7 @@ export function SiteHeader() {
           type="button"
           variant="outline"
           size="icon-sm"
-          className="rounded-full shadow-sm"
+          className="rounded-full"
           aria-label={t("header.theme")}
           aria-haspopup="menu"
           disabled={!mounted}
@@ -142,7 +142,7 @@ export function SiteHeader() {
             type="button"
             variant="outline"
             size="sm"
-            className="hidden max-w-[11rem] shrink-0 rounded-full shadow-sm sm:inline-flex"
+            className="hidden max-w-[11rem] shrink-0 rounded-full sm:inline-flex"
             aria-label={t("header.account")}
           >
             <UserRound className="size-4 shrink-0 opacity-80" aria-hidden />
@@ -174,7 +174,7 @@ export function SiteHeader() {
         </DropdownMenuContent>
       </DropdownMenu>
     ) : (
-      <Button size="sm" className="hidden shrink-0 rounded-full shadow-sm sm:inline-flex" asChild>
+      <Button size="sm" className="hidden shrink-0 rounded-full sm:inline-flex" asChild>
         <Link href="/login">{t("header.login")}</Link>
       </Button>
     );
@@ -192,7 +192,7 @@ export function SiteHeader() {
       <Button
         variant="outline"
         size="sm"
-        className="hidden shrink-0 rounded-full shadow-sm sm:inline-flex"
+        className="hidden shrink-0 rounded-full sm:inline-flex"
         asChild
       >
         <Link href="/contacts">{t("header.manager")}</Link>
@@ -205,14 +205,14 @@ export function SiteHeader() {
     <header
       className={`sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 ${siteHeaderSafeTopClass}`}
     >
-      <div className="mx-auto min-w-0 max-w-[1440px] px-3 py-2.5 sm:px-6 sm:py-3 lg:px-10">
+      <div className="mx-auto flex min-h-16 min-w-0 max-w-[1440px] flex-col justify-center px-3 py-2.5 sm:px-6 sm:py-3 lg:px-10">
         {/* Мобильная: бургер | Ride Auto по центру | Войти */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:hidden">
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="rounded-full shadow-sm"
+            className="rounded-full"
             aria-label={mobileMenuOpen ? t("header.menuClose") : t("header.menuOpen")}
             aria-expanded={mobileMenuOpen}
             aria-controls="site-mobile-nav"
@@ -231,7 +231,7 @@ export function SiteHeader() {
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                className="rounded-full shadow-sm"
+                className="rounded-full"
                 onClick={() => {
                   void logout();
                 }}
@@ -272,7 +272,7 @@ export function SiteHeader() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.985 }}
               transition={reduceMotion ? { duration: 0.01 } : { duration: 0.22, ease: MOTION_TOKENS.easeSoft }}
-              className="w-full rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm sm:hidden"
+              className="w-full rounded-xl border border-border bg-background p-3 sm:hidden"
               role="navigation"
               aria-label={t("header.mobileNavAria")}
             >
@@ -337,7 +337,7 @@ export function SiteHeader() {
                 </motion.div>
               </motion.nav>
 
-              <fieldset className="mt-3 rounded-xl border border-border/80 bg-muted/25 px-3 py-3">
+              <fieldset className="mt-3 rounded-lg border border-border px-3 py-3">
                 <legend className="px-1 text-sm font-medium text-foreground">{t("header.themeLabel")}</legend>
                 <div className="mt-2 flex flex-col gap-2">
                   {(
@@ -368,7 +368,7 @@ export function SiteHeader() {
               </fieldset>
 
               {!authenticated ? (
-                <p className="mt-3 rounded-xl border border-border/80 bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
+                <p className="mt-3 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
                   {t("header.favoritesLoginHint")}
                 </p>
               ) : null}

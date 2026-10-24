@@ -9,7 +9,10 @@ import type { CatalogSearchController } from "@/hooks/use-catalog-search-state";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { cn } from "@/lib/utils";
 
-/** Панель над выдачей: поиск, сортировка, плотность списка. */
+/**
+ * Панель над выдачей: поиск, сортировка, плотность списка.
+ * Плоская строка без контейнера; на < lg сортировка живёт в мобильной панели фильтров.
+ */
 export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchController }) {
   const { t } = useLocaleContext();
   const {
@@ -17,8 +20,6 @@ export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchContr
     qDraft,
     setQDraft,
     navigate,
-    loading,
-    search,
     catalogDensity,
     setCatalogDensity,
   } = catalog;
@@ -33,13 +34,13 @@ export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchContr
   return (
     <div
       className={cn(
-        "mb-4 flex min-w-0 flex-col gap-3 rounded-2xl border border-border/60 bg-muted/20 p-3 shadow-sm",
-        "sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5 lg:sticky lg:top-[calc(var(--site-header-height,3.5rem)+0.5rem)] lg:z-10 lg:backdrop-blur-md",
+        "mb-4 flex min-w-0 items-center gap-2 sm:gap-3",
+        "lg:sticky lg:top-[calc(var(--site-header-height,3.5rem)+0.01px)] lg:z-10 lg:-mx-2 lg:bg-background/95 lg:px-2 lg:py-2.5 lg:backdrop-blur",
       )}
       role="search"
       aria-label={t("catalog.toolbar.aria")}
     >
-      <div className="relative min-w-0 flex-1 basis-[min(100%,20rem)]">
+      <div className="relative min-w-0 flex-1">
         <Search
           className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
@@ -52,10 +53,7 @@ export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchContr
             if (e.key === "Escape" && hasQuery) clearSearch();
           }}
           placeholder={t("catalog.filters.searchPlaceholder")}
-          className={cn(
-            "h-10 min-w-0 border-border/80 bg-background ps-9 shadow-sm",
-            hasQuery ? "pe-28" : "pe-20",
-          )}
+          className={cn("h-10 min-w-0 ps-9", hasQuery ? "pe-24" : "pe-16")}
           aria-label={t("catalog.filters.searchLabel")}
         />
         {hasQuery ? (
@@ -63,7 +61,7 @@ export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchContr
             type="button"
             size="icon-sm"
             variant="ghost"
-            className="absolute end-[4.25rem] top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg text-muted-foreground hover:text-foreground"
+            className="absolute end-14 top-1/2 h-7 w-7 -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground"
             onClick={clearSearch}
             aria-label={t("catalog.filters.searchClear")}
             title={t("catalog.filters.searchClear")}
@@ -74,26 +72,20 @@ export function CatalogResultsToolbar({ catalog }: { catalog: CatalogSearchContr
         <Button
           type="button"
           size="sm"
-          className="absolute end-1 top-1/2 h-8 -translate-y-1/2 rounded-lg px-3 text-xs"
+          variant="ghost"
+          className="absolute end-1 top-1/2 h-8 -translate-y-1/2 rounded-md px-2.5 text-xs font-semibold"
           onClick={applySearch}
         >
           {t("catalog.filters.searchSubmit")}
         </Button>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ms-auto">
+      <div className="hidden shrink-0 items-center gap-2 lg:flex">
         <SortDropdown
           variant="toolbar"
           value={state.sort}
           onChange={(sort) => navigate({ ...state, sort, page: 1 })}
         />
         <CatalogDensityToggle value={catalogDensity} onChange={setCatalogDensity} />
-        {loading ? (
-          <span className="text-xs tabular-nums text-muted-foreground">{t("catalog.results.updating")}</span>
-        ) : (
-          <span className="hidden text-xs tabular-nums text-muted-foreground xl:inline">
-            {search.meta.total.toLocaleString("ru-RU")}
-          </span>
-        )}
       </div>
     </div>
   );

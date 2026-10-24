@@ -61,7 +61,7 @@ export function OrderLeadForm() {
   return (
     <section
       id="order-lead"
-      className="mt-10 scroll-mt-24 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm ring-1 ring-elevated-ring sm:p-8"
+      className="mt-10 scroll-mt-24 rounded-xl border border-border bg-card p-6 sm:p-8"
       aria-labelledby="order-lead-heading"
     >
       <h2 id="order-lead-heading" className="text-xl font-semibold tracking-tight text-foreground">

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { catalogCardAttributeChips, previewImageUrls } from "@/lib/catalog-client-utils";
+import {
+  catalogCardAttributeChips,
+  catalogCardMetaParts,
+  catalogCardPrimaryCommerce,
+  cardOverlayBadges,
+  previewImageUrls,
+} from "@/lib/catalog-client-utils";
 
 describe("catalogCardAttributeChips", () => {
   it("builds year, km, fuel, displacement and hp chips", () => {
@@ -32,6 +38,47 @@ describe("catalogCardAttributeChips", () => {
       2023,
     );
     expect(chips.some((c) => c.key === "cc")).toBe(false);
+  });
+});
+
+describe("catalogCardMetaParts", () => {
+  it("returns at most four plain facts without hp/cc", () => {
+    const parts = catalogCardMetaParts(
+      {
+        km_age: 42_000,
+        engine_type: "gasoline",
+        displacement_cc: 1600,
+        power_hp: 180,
+        transmission_type: "AT",
+      },
+      2021,
+    );
+    expect(parts.length).toBeLessThanOrEqual(4);
+    expect(parts.some((p) => /180/.test(p))).toBe(false);
+    expect(parts.some((p) => /1[.,]6/.test(p))).toBe(false);
+    expect(parts.join(" ")).toMatch(/42/);
+  });
+});
+
+describe("catalogCardPrimaryCommerce", () => {
+  it("prefers passable over land-only", () => {
+    const signal = catalogCardPrimaryCommerce(
+      { yearMonth: "202206" },
+      2022,
+      "korea_land_only",
+    );
+    expect(signal?.kind).toBe("passable");
+  });
+
+  it("falls back to no_customs when not passable", () => {
+    const signal = catalogCardPrimaryCommerce({ yearMonth: "201801" }, 2018, "korea_land_only");
+    expect(signal?.kind).toBe("no_customs");
+  });
+});
+
+describe("cardOverlayBadges", () => {
+  it("returns no year overlay badges", () => {
+    expect(cardOverlayBadges({ year: 2021 }, 2021, "korea")).toEqual([]);
   });
 });
 

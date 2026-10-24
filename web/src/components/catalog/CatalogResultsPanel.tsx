@@ -22,9 +22,8 @@ import {
   PaginationEllipsis,
   PaginationItem,
 } from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
-import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 
 export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchController }) {
   const { t, locale } = useLocaleContext();
@@ -74,17 +73,37 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
 
   return (
     <div className="min-w-0 flex-1">
-      <CatalogResultsToolbar catalog={catalog} />
-      <section
-        className="mb-5 rounded-3xl border border-border/50 bg-card/70 p-4 shadow-sm ring-1 ring-elevated-ring sm:mb-6 sm:p-5"
-        aria-labelledby="catalog-results-heading"
-      >
-        <h1
-          id="catalog-results-heading"
-          className="text-base font-semibold leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-lg md:text-xl"
-        >
-          {title}
-        </h1>
+      <section className="mb-4 min-w-0 sm:mb-5" aria-labelledby="catalog-results-heading">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1
+            id="catalog-results-heading"
+            className="text-xl font-semibold leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-2xl"
+          >
+            {title}
+          </h1>
+          <p className="min-w-0 text-sm leading-snug text-muted-foreground tabular-nums [overflow-wrap:anywhere]">
+            {t("catalog.results.totalLabel")}{" "}
+            <span className="font-medium text-foreground">
+              {search.meta.total.toLocaleString("ru-RU")}
+            </span>
+            {loading ? ` ${t("catalog.results.updating")}` : ""}
+            {!dailyNewLoading && dailyNewCount ? (
+              <span title={t("catalog.results.dailyNewTitle")}>
+                {" · "}
+                {carsAddedTodayLabel(dailyNewCount, locale)}
+              </span>
+            ) : null}
+          </p>
+          {openingCarId ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              {t("catalog.results.openingCard")}
+            </span>
+          ) : null}
+          <Suspense fallback={null}>
+            <LocaleSwitchLinks className="ms-auto shrink-0 text-xs text-muted-foreground" />
+          </Suspense>
+        </div>
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {err
             ? t("catalog.results.loadError", { message: err })
@@ -96,50 +115,15 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
                   page: state.page,
                 })}
         </p>
-        <div className="mt-3 flex min-w-0 flex-col gap-2.5">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="min-w-0 text-sm leading-snug text-muted-foreground [overflow-wrap:anywhere]">
-              {t("catalog.results.totalLabel")}{" "}
-              <span className="font-medium text-foreground">
-                {search.meta.total.toLocaleString("ru-RU")}
-              </span>
-              {loading ? t("catalog.results.updating") : ""}
-            </p>
-            <PriceBenchmarkInsight
-              variant="catalog"
-              data={priceBenchmarkQuery.data}
-              loading={priceBenchmarkQuery.isFetching && !priceBenchmarkQuery.data}
-              className="w-full min-w-0 basis-full"
-            />
-            {openingCarId ? (
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                {t("catalog.results.openingCard")}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {dailyNewLoading ? (
-              <Skeleton className="h-10 min-w-[12rem] flex-1 rounded-full sm:max-w-xs" />
-            ) : dailyNewCount !== null ? (
-              <span
-                className="inline-flex max-w-full min-h-10 items-center gap-1.5 rounded-full border border-white/20 bg-black/50 px-3 py-2 text-xs font-medium leading-snug text-white shadow-sm [overflow-wrap:anywhere]"
-                title={t("catalog.results.dailyNewTitle")}
-              >
-                <Sparkles className="size-3.5 shrink-0 opacity-85 text-white" aria-hidden />
-                {carsAddedTodayLabel(dailyNewCount, locale)}
-              </span>
-            ) : null}
-            <div className="ms-auto flex min-w-0 shrink-0 items-center justify-end">
-              <Suspense fallback={null}>
-                <LocaleSwitchLinks className="shrink-0 text-xs text-muted-foreground" />
-              </Suspense>
-            </div>
-          </div>
-        </div>
+        <PriceBenchmarkInsight
+          variant="catalog"
+          data={priceBenchmarkQuery.data}
+          loading={priceBenchmarkQuery.isFetching && !priceBenchmarkQuery.data}
+          className="mt-3 w-full min-w-0"
+        />
         {activeChips.length ? (
           <motion.div
-            className="mt-4 flex min-w-0 flex-wrap items-stretch gap-2"
+            className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5"
             layout
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
@@ -157,11 +141,12 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
                     type="button"
                     variant="secondary"
                     size="xs"
-                    className="h-auto min-h-10 max-w-full justify-start whitespace-normal rounded-full px-3 py-2 text-start text-xs font-normal [overflow-wrap:anywhere]"
+                    className="h-auto min-h-8 max-w-full justify-start gap-1 whitespace-normal rounded-full px-3 py-1.5 text-start text-xs font-normal [overflow-wrap:anywhere]"
                     onClick={() => removeChip(chip)}
                     title={t("catalog.results.removeChip")}
                   >
-                    {chip.label} ×
+                    {chip.label}
+                    <X className="size-3 opacity-60" aria-hidden />
                   </Button>
                 </motion.div>
               ))}
@@ -169,7 +154,8 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
             <Button
               type="button"
               size="xs"
-              className="h-auto min-h-10 shrink-0 rounded-full px-3 py-2"
+              variant="ghost"
+              className="h-auto min-h-8 shrink-0 rounded-full px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
               onClick={reset}
             >
               {t("catalog.results.resetAll")}
@@ -177,6 +163,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
           </motion.div>
         ) : null}
       </section>
+      <CatalogResultsToolbar catalog={catalog} />
 
       {useVirtualList ? (
         <CatalogVirtualResultsList
@@ -226,14 +213,14 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
       ) : null}
 
       {search.result.length === 0 && !loading && !err ? (
-        <div className="mx-auto mt-16 max-w-md rounded-2xl border border-border/60 bg-card/60 px-6 py-8 text-center shadow-sm ring-1 ring-elevated-ring">
+        <div className="mx-auto mt-16 max-w-md px-6 py-8 text-center">
           <p className="text-base font-medium text-foreground">{t("catalog.empty.title")}</p>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t("catalog.empty.hint")}</p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
-            <Button type="button" className="rounded-full" variant="secondary" onClick={reset}>
+            <Button type="button" variant="secondary" onClick={reset}>
               {t("catalog.empty.reset")}
             </Button>
-            <Button type="button" className="rounded-full" variant="outline" asChild>
+            <Button type="button" variant="outline" asChild>
               <a href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">
                 {t("catalog.empty.telegramCta")}
               </a>
@@ -249,7 +236,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
               type="button"
               variant="outline"
               size="sm"
-              className="min-h-11 gap-1 rounded-full ps-2 max-lg:px-3"
+              className="min-h-10 gap-1 ps-2 max-lg:px-3"
               disabled={state.page <= 1}
               aria-label={t("common.catalogPagePrev")}
               onClick={() => navigate({ ...state, page: state.page - 1 })}
@@ -267,9 +254,9 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
               <PaginationItem key={item}>
                 <Button
                   type="button"
-                  variant={state.page === item ? "outline" : "ghost"}
+                  variant={state.page === item ? "secondary" : "ghost"}
                   size="sm"
-                  className="min-w-9 rounded-full tabular-nums"
+                  className="min-w-9 tabular-nums"
                   onClick={() => navigate({ ...state, page: item })}
                   aria-label={t("common.pageN", { n: item })}
                   aria-current={state.page === item ? "page" : undefined}
@@ -284,7 +271,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
               type="button"
               variant="outline"
               size="sm"
-              className="min-h-11 gap-1 rounded-full pe-2 max-lg:px-3"
+              className="min-h-10 gap-1 pe-2 max-lg:px-3"
               disabled={!search.meta.next_cursor}
               aria-label={t("common.catalogPageNext")}
               onClick={() => navigate({ ...state, page: state.page + 1 })}

@@ -35,6 +35,7 @@ export function FacetMultiDropdown({
   disabled,
   labelFormatter,
   comparator,
+  testId,
 }: {
   label: string;
   rows: FacetRow[];
@@ -43,6 +44,8 @@ export function FacetMultiDropdown({
   disabled?: boolean;
   labelFormatter?: (row: FacetRow) => string;
   comparator?: (a: string, b: string) => number;
+  /** Стабильный селектор для e2e (catalog-facet-marks, …). */
+  testId?: string;
 }) {
   const { locale, t } = useLocaleContext();
   const [open, setOpen] = useState(false);
@@ -70,6 +73,7 @@ export function FacetMultiDropdown({
           variant="outline"
           disabled={disabled || !groupedRows.length}
           className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
+          data-testid={testId}
           aria-label={
             n > 0
               ? t("catalog.facets.facetAriaSelected", { label, n: String(n) })
@@ -135,6 +139,7 @@ export function ColorFacetDialog({
   onToggle,
   disabled,
   labelFormatter,
+  testId,
 }: {
   label: string;
   rows: FacetRow[];
@@ -142,6 +147,7 @@ export function ColorFacetDialog({
   onToggle: (values: string[]) => void;
   disabled?: boolean;
   labelFormatter?: (row: FacetRow) => string;
+  testId?: string;
 }) {
   const { locale, t } = useLocaleContext();
   const [open, setOpen] = useState(false);
@@ -170,6 +176,7 @@ export function ColorFacetDialog({
           variant="outline"
           disabled={disabled || !groupedRows.length}
           className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
+          data-testid={testId}
           aria-label={
             n > 0
               ? t("catalog.facets.colorAriaSelected", { label, n: String(n) })

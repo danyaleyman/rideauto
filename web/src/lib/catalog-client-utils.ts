@@ -266,20 +266,68 @@ export function catalogCardAttributeChips(
   return chips;
 }
 
-export function cardOverlayBadges(
+/** SRP meta line: year · km · fuel · transmission (max 4 facts, no chip cloud). */
+export function catalogCardMetaParts(
   data: Record<string, unknown>,
   yearNum?: number | null,
+  locale: AppLocale = "ru",
+): string[] {
+  const parts: string[] = [];
+  const ym = pickRegYearMonthDisplay(data as Record<string, unknown>);
+  if (ym) {
+    parts.push(ym);
+  } else if (yearNum != null && Number.isFinite(yearNum) && yearNum > 0) {
+    parts.push(String(Math.round(yearNum)));
+  } else {
+    const yearFromData =
+      parseListingCalendarYear(data.year) ??
+      parseListingCalendarYear(data.modelyear) ??
+      parseListingCalendarYear(data.year_name) ??
+      parseListingCalendarYear(data.first_registration_at);
+    if (yearFromData) parts.push(String(yearFromData));
+  }
+  const km = formatKm(data.km_age);
+  if (km) parts.push(km);
+  const fuelLabel = normalizeFuelLabel(asStr(data.engine_type) ?? asStr(data.fuel));
+  if (fuelLabel) parts.push(fuelLabel);
+  const transRaw =
+    asStr(data.transmission_type_ru) ??
+    asStr(data.transmission_type) ??
+    asStr(data.gearbox) ??
+    asStr(data.transmission);
+  const transLabel = transRaw ? canonicalTransmission(locale, transRaw) : null;
+  if (transLabel) parts.push(transLabel);
+  return parts.slice(0, 4);
+}
+
+export type CatalogCardCommerceKind = "passable" | "no_customs" | "high_rate";
+
+/** One decisive commerce badge for SRP (passable > land-only > high duty). */
+export function catalogCardPrimaryCommerce(
+  data: Record<string, unknown>,
+  yearNum: number | null | undefined,
+  pricingTier: string | null | undefined,
+): { kind: CatalogCardCommerceKind; passability: PassabilityStatus } | null {
+  const passability = carPassabilityStatus(data, yearNum);
+  if (passability === "passable") {
+    return { kind: "passable", passability };
+  }
+  if (pricingTier === "korea_land_only") {
+    return { kind: "no_customs", passability: passability ?? "old" };
+  }
+  if (passability === "young" || passability === "old") {
+    return { kind: "high_rate", passability };
+  }
+  return null;
+}
+
+/** Photo overlay year badges removed — year lives in the meta line. Kept for call-site compat. */
+export function cardOverlayBadges(
+  _data: Record<string, unknown>,
+  _yearNum?: number | null,
   _market: Market = "korea",
 ): string[] {
-  const out: string[] = [];
-  const yOverlay =
-    yearNum != null && Number.isFinite(yearNum) && yearNum > 0
-      ? Math.trunc(yearNum)
-      : parseListingCalendarYear(data.year) ??
-        parseListingCalendarYear(data.modelyear) ??
-        parseListingCalendarYear(data.year_name);
-  if (yOverlay != null && yOverlay > 0) out.push(String(yOverlay));
-  return out.slice(0, 4);
+  return [];
 }
 
 export const COLOR_SWATCH_BY_NAME: Array<{ re: RegExp; className: string }> = [

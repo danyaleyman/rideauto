@@ -47,9 +47,9 @@ export function CarPageBreadcrumbBar({ title, specsUrl }: { title: string; specs
       </Breadcrumb>
       {specsUrl ? (
         <Button
-          variant="outline"
+          variant="link"
           size="sm"
-          className="h-auto min-h-10 w-full shrink-0 whitespace-normal px-3 py-2 text-center text-xs shadow-sm sm:w-auto sm:text-sm"
+          className="h-auto shrink-0 px-0 text-xs text-muted-foreground hover:text-foreground sm:text-sm"
           asChild
         >
           <a href={specsUrl} target="_blank" rel="noopener noreferrer">
@@ -66,7 +66,7 @@ export function CarAvailabilityBanner({ availability }: { availability: CarListi
   if (availability === "sold") {
     return (
       <div
-        className="mb-4 rounded-2xl border border-red-900/35 bg-red-950/25 px-4 py-3 text-sm text-red-50 shadow-sm backdrop-blur-sm"
+        className="mb-4 rounded-lg border border-red-600/30 bg-red-600/10 px-4 py-3 text-sm text-red-900 dark:text-red-100"
         role="status"
       >
         {t("car.detail.soldBanner")}
@@ -76,7 +76,7 @@ export function CarAvailabilityBanner({ availability }: { availability: CarListi
   if (availability === "reserved") {
     return (
       <div
-        className="mb-4 rounded-2xl border border-amber-700/40 bg-amber-500/12 px-4 py-3 text-sm text-amber-950 shadow-sm backdrop-blur-sm dark:text-amber-50"
+        className="mb-4 rounded-lg border border-amber-600/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-50"
         role="status"
       >
         {t("car.detail.reservedBanner")}
@@ -91,10 +91,10 @@ export function CarDescriptionSection({ description }: { description: string }) 
   return (
     <section
       id="car-description"
-      className="scroll-mt-20 rounded-2xl border border-border/65 bg-card p-4 shadow-sm ring-1 ring-elevated-ring sm:scroll-mt-24 sm:rounded-3xl sm:p-6 lg:scroll-mt-32"
+      className="scroll-mt-20 sm:scroll-mt-24 lg:scroll-mt-32"
     >
       <h2 className="font-heading text-lg font-semibold tracking-tight">{t("car.detail.description")}</h2>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+      <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85 [overflow-wrap:anywhere]">
         {description}
       </p>
     </section>
@@ -121,7 +121,7 @@ export function CarSimilarSection({ similar }: { similar: SlimCar[] }) {
             <MotionStaggerItem key={car.id}>
               <Link
                 href={`/car/${encodeURIComponent(car.id)}`}
-                className="group block min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm ring-1 ring-elevated-ring transition-all hover:-translate-y-px hover:border-border hover:shadow-md active:scale-[0.99]"
+                className="group block min-w-0 overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] hover:border-foreground/20 hover:shadow-[0_6px_24px_-12px_rgba(15,23,42,0.25)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                   {img ? (
@@ -177,7 +177,7 @@ export function CarSimilarSection({ similar }: { similar: SlimCar[] }) {
                       })}
                     </ul>
                   ) : null}
-                  <p className="mt-2 break-words text-sm font-medium tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
+                  <p className="mt-2 break-words text-base font-semibold tabular-nums text-foreground [overflow-wrap:anywhere]">
                     {formatCatalogCardPriceLocale(locale, car.price, car.price_on_request)}
                   </p>
                 </div>

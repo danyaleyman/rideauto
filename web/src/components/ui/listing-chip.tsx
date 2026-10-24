@@ -15,20 +15,19 @@ const listingChipVariants = cva(
       tone: {
         neutral: cn(
           pillRadiusClass,
-          "border border-border/55 bg-background/55 text-foreground dark:bg-muted/20",
-          "max-sm:border-dashed max-sm:text-muted-foreground",
+          "bg-muted text-foreground",
         ),
         commerceAmber: cn(
           pillRadiusClass,
-          "border border-amber-500/35 bg-amber-500/[0.09] text-amber-950 dark:text-amber-100",
+          "bg-amber-500/15 text-amber-900 dark:bg-amber-400/15 dark:text-amber-100",
         ),
         commerceEmerald: cn(
           pillRadiusClass,
-          "border border-emerald-600/35 bg-emerald-600/[0.08] text-emerald-800 dark:text-emerald-200",
+          "bg-emerald-600/12 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
         ),
         commerceRed: cn(
           pillRadiusClass,
-          "border border-red-600/35 bg-red-600/[0.08] text-red-800 dark:text-red-200",
+          "bg-red-600/12 text-red-800 dark:bg-red-400/15 dark:text-red-200",
         ),
         overlay: cn(
           "rounded-2xl border border-white/20 bg-background/95 text-foreground shadow-sm",

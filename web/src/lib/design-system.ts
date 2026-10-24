@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 export const controlHeightClass = "h-10";
 
 /** Радиус полей, кнопок, dropdown-триггеров. */
-export const controlRadiusClass = "rounded-2xl";
+export const controlRadiusClass = "rounded-lg";
 
 /** Радиус панелей и карточек-контейнеров. */
-export const surfaceRadiusClass = "rounded-3xl";
+export const surfaceRadiusClass = "rounded-xl";
 
 /** Пилюли: чипы, market tabs, pagination. */
 export const pillRadiusClass = "rounded-full";
@@ -18,15 +18,18 @@ export const touchTargetClass =
 
 export const touchIconButtonClass = "size-11 sm:size-8";
 
-/** Семантическая обводка elevated-поверхностей (см. --elevated-ring в globals.css). */
-export const elevatedRingClass = "ring-1 ring-elevated-ring";
+/**
+ * Обводка «приподнятых» поверхностей. Одна тонкая граница — без shadow+ring
+ * одновременно (тройная обводка читается как визуальный шум).
+ */
+export const elevatedRingClass = "border border-border";
 
-export const elevatedSurfaceClass = cn("shadow-sm", elevatedRingClass);
+export const elevatedSurfaceClass = cn("bg-card", elevatedRingClass, surfaceRadiusClass);
 
 export const elevatedSurfaceHoverClass = cn(
-  "transition-[transform,box-shadow] duration-300 ease-out will-change-transform",
-  "hover:-translate-y-px hover:shadow-md",
-  "motion-reduce:transform-none motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+  "transition-[border-color,box-shadow] duration-200 ease-out",
+  "hover:border-foreground/20 hover:shadow-[0_6px_24px_-12px_rgba(15,23,42,0.25)]",
+  "motion-reduce:transition-none",
 );
 
 export const listingCardSurfaceClass = cn(
@@ -41,7 +44,7 @@ export const catalogListingThumbClass =
 export const catalogListingThumbFocusClass = cn(
   catalogListingThumbClass,
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-  "rounded-t-2xl md:rounded-s-2xl md:rounded-tr-none",
+  "rounded-t-xl md:rounded-s-xl md:rounded-tr-none",
 );
 
 export const siteHeaderSafeTopClass = "pt-[env(safe-area-inset-top)]";

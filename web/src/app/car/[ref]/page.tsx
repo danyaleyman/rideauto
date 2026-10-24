@@ -151,7 +151,7 @@ export default async function CarPage({ params }: PageProps) {
       <div className={siteContainerClass}>
         <MotionFadeUp>
           <div
-            className={`${siteBreadcrumbBarClass} flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4`}
+            className={`${siteBreadcrumbBarClass} flex-wrap justify-between gap-x-4 gap-y-2`}
           >
             <CarPageBreadcrumbBar
               title={title}
@@ -241,7 +241,7 @@ export default async function CarPage({ params }: PageProps) {
       {similar.length ? (
         <MotionFadeUp
           id="car-similar"
-          className="relative mx-auto mt-12 min-w-0 max-w-[1440px] scroll-mt-20 border-t border-border/60 px-3 pb-6 pt-8 sm:scroll-mt-24 sm:px-6 sm:pt-10 lg:scroll-mt-32 lg:px-10"
+          className="relative mx-auto mt-12 min-w-0 max-w-[1440px] scroll-mt-20 border-t border-border px-3 pb-6 pt-8 sm:scroll-mt-24 sm:px-6 sm:pt-10 lg:scroll-mt-32 lg:px-10"
         >
           <CarSimilarSection similar={similar} />
         </MotionFadeUp>

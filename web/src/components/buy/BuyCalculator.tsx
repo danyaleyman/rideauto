@@ -582,7 +582,7 @@ function SelectField({
       {label}
       <div className="relative mt-1">
         <select
-          className="h-9 w-full appearance-none rounded-3xl border border-transparent bg-input/50 px-3 pe-10 text-sm transition-[color,box-shadow,background-color] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+          className="h-9 w-full appearance-none rounded-lg border border-input bg-background px-3 pe-10 text-sm transition-[color,box-shadow,border-color] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         >
@@ -686,7 +686,7 @@ export function BuyCalculator() {
   }, [ageRange, calcNonce, cbrRates, currency, engineType, hpEd, hpIce, hpSingle, hybridType, price, purpose, volume]);
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm ring-1 ring-elevated-ring backdrop-blur-sm sm:p-6">
+    <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h3 className="text-xl font-semibold tracking-tight text-foreground">{t("buy.calc.title")}</h3>

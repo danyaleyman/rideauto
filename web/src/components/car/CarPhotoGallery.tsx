@@ -135,12 +135,14 @@ export default function CarPhotoGallery({
 
   return (
     <>
-      <section className="w-full max-w-full overflow-hidden rounded-2xl border border-border/70 bg-muted shadow-md ring-1 ring-elevated-ring sm:rounded-3xl">
+      <section className="w-full max-w-full overflow-hidden rounded-xl border border-border bg-muted">
         <div
           className={cn(
             "grid min-h-0 min-w-0 gap-2 lg:gap-3",
+            // Без min-h на lg главный кадр (lg:h-full) схлопывается в 0 при одном фото.
+            "lg:min-h-[min(58vh,640px)]",
             sideCap > 0
-              ? "lg:grid-cols-[minmax(0,1fr)_clamp(152px,17vw,216px)] lg:items-stretch lg:min-h-[min(58vh,640px)]"
+              ? "lg:grid-cols-[minmax(0,1fr)_clamp(152px,17vw,216px)] lg:items-stretch"
               : "lg:grid-cols-1",
           )}
         >

@@ -69,11 +69,11 @@ export function MarketDirectionsCarousel() {
   }, []);
 
   return (
-    <section className="border-y border-border bg-muted/25 py-16 sm:py-24" aria-label={t("home.markets.aria")}>
+    <section className="border-y border-border bg-muted/40 py-16 sm:py-24" aria-label={t("home.markets.aria")}>
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-[0.22em] text-muted-foreground">{t("home.markets.eyebrow")}</p>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{t("home.markets.eyebrow")}</p>
             <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl lg:text-5xl">
               {t("home.markets.title")}
             </h2>
@@ -109,7 +109,7 @@ export function MarketDirectionsCarousel() {
         </div>
 
         <motion.div className="mt-10 grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
-          <div className="relative bg-transparent">
+          <div className="relative">
             <AnimatePresence mode="wait">
               <motion.div
                 key={market.id}
@@ -123,10 +123,8 @@ export function MarketDirectionsCarousel() {
                   autoRotate={!pauseAutoRotate}
                   autoRotateDelayMs={ROTATE_PAUSE_MS}
                 />
-                <p className="mt-3 text-center text-xs text-muted-foreground">
+                <p className="mt-3 text-center text-xs text-muted-foreground/80">
                   {market.modelLabel}
-                  <span className="hidden sm:inline"> · {t("home.markets.rotateDesktop")}</span>
-                  <span className="sm:hidden"> · {t("home.markets.rotateMobile")}</span>
                 </p>
               </motion.div>
             </AnimatePresence>
@@ -153,14 +151,14 @@ export function MarketDirectionsCarousel() {
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                 className="flex h-full flex-col"
               >
-                <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">{t("home.markets.direction")}</p>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{t("home.markets.direction")}</p>
                 <h3 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-foreground sm:text-4xl">
                   {country}
                 </h3>
                 <ul className="mt-6 space-y-3">
                   {points.map((point) => (
                     <li key={point} className="flex gap-3 text-base leading-7 text-muted-foreground">
-                      <span className="mt-2.5 h-px w-6 shrink-0 bg-foreground/25" aria-hidden />
+                      <span className="mt-[0.8rem] size-1.5 shrink-0 rounded-full bg-foreground/40" aria-hidden />
                       {point}
                     </li>
                   ))}

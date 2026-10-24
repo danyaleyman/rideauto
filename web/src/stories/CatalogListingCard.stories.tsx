@@ -36,10 +36,10 @@ export const Available: Story = {
   },
 };
 
-export const Sold: Story = {
+export const Reserved: Story = {
   args: {
     catalog,
-    car: { ...storySlimCar, id: "story-sold", encar_listing_sold: true },
+    car: { ...storySlimCar, id: "story-reserved", encar_listing_reserved: true },
     idx: 1,
     preview,
   },

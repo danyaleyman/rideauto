@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion, useMotionValue, type PanInfo } from "framer-motion";
 import { SlidersHorizontal, X } from "lucide-react";
+import { SortDropdown } from "@/components/catalog/CatalogBlockWidgets";
 import { CatalogFiltersContent } from "@/components/catalog/CatalogFiltersContent";
 import type { CatalogSearchController } from "@/hooks/use-catalog-search-state";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
@@ -52,7 +53,7 @@ export function CatalogMobileFilters({ catalog }: { catalog: CatalogSearchContro
   return (
     <div
       className={cn(
-        "sticky z-20 -mx-3 mb-1 flex min-w-0 items-center gap-2 border-b border-border/50 bg-background/90 px-3 py-2.5 backdrop-blur-md",
+        "sticky z-20 -mx-3 mb-3 flex min-w-0 items-center gap-2 border-b border-border bg-background/95 px-3 py-2 backdrop-blur-md sm:-mx-6 sm:px-6",
         "top-[calc(var(--site-header-height,3.5rem)+env(safe-area-inset-top,0px))]",
         "lg:hidden",
       )}
@@ -60,11 +61,12 @@ export function CatalogMobileFilters({ catalog }: { catalog: CatalogSearchContro
       <Button
         type="button"
         variant="outline"
-        className="min-h-11 flex-1 justify-start gap-2 rounded-2xl px-3.5 font-normal"
+        className="h-10 min-w-0 flex-1 justify-start gap-2 px-3 font-medium"
+        data-testid="catalog-mobile-filters-open"
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        <SlidersHorizontal className="size-4 shrink-0 opacity-70" aria-hidden />
+        <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
         <span className="truncate">
           {t("catalog.filters.mobileTitle")}
           {activeCount > 0 ? (
@@ -72,12 +74,18 @@ export function CatalogMobileFilters({ catalog }: { catalog: CatalogSearchContro
           ) : null}
         </span>
       </Button>
+      <SortDropdown
+        variant="toolbar"
+        value={catalog.state.sort}
+        onChange={(sort) => catalog.navigate({ ...catalog.state, sort, page: 1 })}
+      />
       {activeCount > 0 ? (
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="min-h-11 shrink-0 rounded-2xl px-3 text-xs"
+          className="h-10 shrink-0 px-2.5 text-xs text-muted-foreground"
+          data-testid="catalog-mobile-filters-reset"
           onClick={() => catalog.reset()}
         >
           {t("catalog.filters.mobileReset")}
@@ -96,11 +104,11 @@ export function CatalogMobileFilters({ catalog }: { catalog: CatalogSearchContro
             }
           }}
           className={cn(
-            "flex h-[min(92dvh,var(--sheet-max-h,92vh))] max-h-[inherit] flex-col gap-0 overflow-hidden rounded-t-3xl border-0 p-0 shadow-xl",
+            "flex h-[min(92dvh,var(--sheet-max-h,92vh))] max-h-[inherit] flex-col gap-0 overflow-hidden rounded-t-2xl border-0 p-0 shadow-xl",
             "fixed inset-x-0 bottom-0 top-auto max-w-none",
             "!translate-x-0 !translate-y-0 start-0",
             "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-            "sm:max-w-lg sm:rounded-3xl sm:inset-x-auto sm:bottom-auto sm:start-1/2 sm:top-1/2 sm:!-translate-x-1/2 sm:!-translate-y-1/2",
+            "sm:max-w-lg sm:rounded-2xl sm:inset-x-auto sm:bottom-auto sm:start-1/2 sm:top-1/2 sm:!-translate-x-1/2 sm:!-translate-y-1/2",
           )}
           style={{ maxHeight: sheetMaxHeight, ["--sheet-max-h" as string]: `${sheetMaxHeight}px` }}
         >
@@ -148,8 +156,8 @@ export function CatalogMobileFilters({ catalog }: { catalog: CatalogSearchContro
             <DialogFooter className="shrink-0 border-t border-border/60 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <Button
                 type="button"
-                variant="secondary"
-                className="min-h-11 w-full rounded-2xl font-semibold"
+                className="min-h-11 w-full font-semibold"
+                data-testid="catalog-mobile-filters-apply"
                 onClick={() => setOpen(false)}
               >
                 {t("catalog.filters.mobileApplyCount", {

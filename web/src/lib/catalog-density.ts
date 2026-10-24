@@ -6,7 +6,12 @@ export function readCatalogDensity(): CatalogDensity {
   if (typeof window === "undefined") return "comfortable";
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    return v === "compact" ? "compact" : "comfortable";
+    if (v === "compact" || v === "comfortable") return v;
+    // No saved preference: compact by default on narrow viewports.
+    if (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 767px)").matches) {
+      return "compact";
+    }
+    return "comfortable";
   } catch {
     return "comfortable";
   }

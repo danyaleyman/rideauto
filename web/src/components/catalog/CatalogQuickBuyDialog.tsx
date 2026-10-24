@@ -92,7 +92,7 @@ export function CatalogQuickBuyDialog({
           type="button"
           variant={triggerVariant}
           size={triggerSize}
-          className={triggerClassName ?? "ms-auto rounded-full px-4 font-semibold shadow-sm"}
+          className={triggerClassName ?? "ms-auto px-4 font-semibold"}
         >
           {label}
         </Button>

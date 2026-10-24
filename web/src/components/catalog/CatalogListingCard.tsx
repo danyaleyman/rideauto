@@ -5,9 +5,8 @@ import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import type { MouseEvent } from "react";
 import {
-  cardOverlayBadges,
-  carPassabilityStatus,
-  catalogCardAttributeChips,
+  catalogCardMetaParts,
+  catalogCardPrimaryCommerce,
   shouldShowPendingNavigation,
 } from "@/lib/catalog-client-utils";
 import { buildCatalogCardDisplayData } from "@/lib/catalog-listing-card";
@@ -47,6 +46,12 @@ export type CatalogListingCardProps = {
   preview: string[];
 };
 
+function marketLabelKey(market: string): string {
+  if (market === "china") return "catalog.market.china";
+  if (market === "usa") return "catalog.market.usa";
+  return "catalog.market.korea";
+}
+
 export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListingCardProps) {
   const { t, locale } = useLocaleContext();
   const {
@@ -68,90 +73,79 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
 
   const { cardData, normalizedTitle } = buildCatalogCardDisplayData(car);
   const listedToday = isCatalogListedToday(car.catalog_created_at);
-  const attrChips = catalogCardAttributeChips(cardData, car.year_num, locale);
-  const passability = carPassabilityStatus(cardData, car.year_num);
-  const overlayBadges = cardOverlayBadges(cardData, car.year_num, state.market);
+  const metaParts = catalogCardMetaParts(cardData, car.year_num, locale);
+  const primaryCommerce = catalogCardPrimaryCommerce(cardData, car.year_num, car.pricing_tier);
   const listingSold = Boolean(car.encar_listing_sold || car.che168_listing_sold);
   const listingReserved = !listingSold && Boolean(car.encar_listing_reserved);
   const listingUnavailable = listingSold || listingReserved;
   const fav = authenticated && isFavorite(car.id);
   const showCopied = copiedId === car.id;
   const openingThisCard = openingCarId === car.id;
-  const commerceStatusBadges =
-    !listingUnavailable ? (
-      <>
-        {car.pricing_tier === "korea_land_only" ? (
-          <ListingChip tone="commerceAmber" size={compact ? "sm" : "md"}>
-            {t("catalog.card.noCustoms")}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex shrink-0"
-                  aria-label={t("catalog.card.noCustomsAria")}
-                >
-                  <CircleHelp className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[20rem]">
-                {t("catalog.card.noCustomsTip")}
-              </TooltipContent>
-            </Tooltip>
-          </ListingChip>
-        ) : null}
-        {passability === "passable" ? (
-          <ListingChip tone="commerceEmerald" size={compact ? "sm" : "md"}>
-            {t("catalog.card.passable")}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex shrink-0"
-                  aria-label={t("catalog.card.passableAria")}
-                >
-                  <CircleHelp className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t("catalog.card.passableTip")}</TooltipContent>
-            </Tooltip>
-          </ListingChip>
-        ) : passability === "young" ? (
-          <ListingChip tone="commerceAmber" size={compact ? "sm" : "md"}>
-            {t("catalog.card.highRate")}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex shrink-0"
-                  aria-label={t("catalog.card.youngAria")}
-                >
-                  <CircleHelp className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t("catalog.card.youngTip")}</TooltipContent>
-            </Tooltip>
-          </ListingChip>
-        ) : passability === "old" ? (
-          <ListingChip tone="commerceAmber" size={compact ? "sm" : "md"}>
-            {t("catalog.card.highRate")}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex shrink-0"
-                  aria-label={t("catalog.card.oldAria")}
-                >
-                  <CircleHelp className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">{t("catalog.card.oldTip")}</TooltipContent>
-            </Tooltip>
-          </ListingChip>
-        ) : null}
-      </>
+
+  const commerceBadge =
+    !listingUnavailable && primaryCommerce ? (
+      primaryCommerce.kind === "no_customs" ? (
+        <ListingChip tone="commerceAmber" size={compact ? "sm" : "md"}>
+          {t("catalog.card.noCustoms")}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex shrink-0"
+                aria-label={t("catalog.card.noCustomsAria")}
+              >
+                <CircleHelp className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[20rem]">
+              {t("catalog.card.noCustomsTip")}
+            </TooltipContent>
+          </Tooltip>
+        </ListingChip>
+      ) : primaryCommerce.kind === "passable" ? (
+        <ListingChip tone="commerceEmerald" size={compact ? "sm" : "md"}>
+          {t("catalog.card.passable")}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex shrink-0"
+                aria-label={t("catalog.card.passableAria")}
+              >
+                <CircleHelp className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{t("catalog.card.passableTip")}</TooltipContent>
+          </Tooltip>
+        </ListingChip>
+      ) : (
+        <ListingChip tone="commerceAmber" size={compact ? "sm" : "md"}>
+          {t("catalog.card.highRate")}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex shrink-0"
+                aria-label={
+                  primaryCommerce.passability === "young"
+                    ? t("catalog.card.youngAria")
+                    : t("catalog.card.oldAria")
+                }
+              >
+                <CircleHelp className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {primaryCommerce.passability === "young"
+                ? t("catalog.card.youngTip")
+                : t("catalog.card.oldTip")}
+            </TooltipContent>
+          </Tooltip>
+        </ListingChip>
+      )
     ) : null;
-  const buyTriggerClass =
-    "relative z-[2] shrink-0 rounded-full border-primary/25 bg-primary text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/92";
+
+  const buyTriggerClass = "relative z-[2] shrink-0 text-xs font-semibold";
   const carHref = `/car/${encodeURIComponent(car.id)}`;
   const markOpening = (e: MouseEvent<HTMLAnchorElement>) => {
     if (shouldShowPendingNavigation(e)) setOpeningCarId(car.id);
@@ -166,7 +160,6 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
         className={cn(
           "relative flex flex-col items-stretch gap-0 overflow-clip !py-0 data-[size=sm]:!py-0 md:flex-row",
           listingCardSurfaceClass,
-          "!shadow-sm hover:!shadow-md",
         )}
       >
         {/* Primary hit-area: whole card opens listing; actions sit above with z-[2]. */}
@@ -179,7 +172,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
         />
         {openingThisCard ? (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/65 backdrop-blur-[1px]">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
               {t("catalog.card.loading")}
             </span>
@@ -193,7 +186,6 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
               lqipSrc={proxiedCatalogThumbsByCar.get(car.id)?.lqip}
               alt={normalizedTitle}
               eager={idx < 4}
-              sold={listingUnavailable}
             />
             {listedToday ? (
               <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start bg-gradient-to-b from-black/55 via-black/25 to-transparent px-2 pb-6 pt-2">
@@ -202,54 +194,31 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
                 </ListingChip>
               </div>
             ) : null}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/50 via-black/20 to-transparent px-2 pb-2 pt-14">
-              <div className="flex flex-wrap items-center gap-1">
-                {overlayBadges.length ? (
-                  overlayBadges.map((b, i) => (
-                    <ListingChip
-                      key={`${car.id}-ob-${i}`}
-                      tone="overlay"
-                      size="sm"
-                      className="max-w-[10rem] truncate sm:max-w-[12rem]"
-                      title={b}
-                    >
-                      {b}
-                    </ListingChip>
-                  ))
-                ) : (
-                  <ListingChip tone="overlay" size="sm">
-                    {car.year_num ? `${car.year_num}` : "—"}
-                  </ListingChip>
-                )}
-                {listingSold ? (
-                  <ListingChip tone="overlayStatusSold" size="sm">
-                    {t("catalog.card.sold")}
-                  </ListingChip>
-                ) : listingReserved ? (
-                  <ListingChip tone="overlayStatusReserved" size="sm">
-                    {t("catalog.card.reserved")}
-                  </ListingChip>
-                ) : null}
+            {listingReserved ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/50 via-black/20 to-transparent px-2 pb-2 pt-10">
+                <ListingChip tone="overlayStatusReserved" size="sm">
+                  {t("catalog.card.reserved")}
+                </ListingChip>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
-        <div className="relative z-0 flex min-w-0 flex-1 flex-col justify-between gap-0 md:rounded-e-2xl">
-          <div
-            className={cn(
-              "flex items-start justify-between gap-2 border-b border-border/50 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3.5 md:px-5",
-              compact && "px-2.5 py-2 sm:px-3 sm:py-2.5",
-            )}
-          >
-            <p className="font-heading pointer-events-none line-clamp-2 min-w-0 flex-1 text-title-sm font-semibold sm:text-base">
+        <div
+          className={cn(
+            "relative z-0 flex min-w-0 flex-1 flex-col gap-1.5 p-3.5 sm:p-4 md:p-5",
+            compact && "gap-1 p-3 sm:p-3.5 md:p-4",
+          )}
+        >
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
+            <p className="font-heading pointer-events-none line-clamp-2 min-w-0 flex-1 text-base font-semibold leading-snug sm:text-[1.0625rem]">
               {normalizedTitle}
             </p>
-            <div className="relative z-[2] flex shrink-0 items-start gap-1.5 pt-px">
+            <div className="relative z-[2] -me-1 -mt-1 flex shrink-0 items-start gap-0.5">
               <Button
                 type="button"
-                variant="secondary"
+                variant="ghost"
                 size="icon-sm"
-                className={cn(touchIconButtonClass, "rounded-lg shadow-sm")}
+                className={cn(touchIconButtonClass, "rounded-md text-muted-foreground hover:text-foreground")}
                 title={showCopied ? t("catalog.card.copied") : t("catalog.card.copyLink")}
                 aria-label={showCopied ? t("catalog.card.linkCopied") : t("catalog.card.copyLink")}
                 onClick={(e) => {
@@ -275,9 +244,13 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
               </Button>
               <Button
                 type="button"
-                variant={inCompare ? "default" : "secondary"}
+                variant={inCompare ? "secondary" : "ghost"}
                 size="icon-sm"
-                className={cn(touchIconButtonClass, "rounded-lg shadow-sm")}
+                className={cn(
+                  touchIconButtonClass,
+                  "rounded-md",
+                  inCompare ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
                 title={
                   inCompare
                     ? t("car.purchase.compareRemove")
@@ -301,9 +274,13 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
               {authenticated ? (
                 <Button
                   type="button"
-                  variant={fav ? "default" : "secondary"}
+                  variant="ghost"
                   size="icon-sm"
-                  className={cn(touchIconButtonClass, "rounded-lg shadow-sm")}
+                  className={cn(
+                    touchIconButtonClass,
+                    "rounded-md",
+                    fav ? "text-red-600 hover:text-red-700" : "text-muted-foreground hover:text-foreground",
+                  )}
                   title={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavorite")}
                   aria-pressed={fav}
                   aria-label={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavoriteAria")}
@@ -318,55 +295,39 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
               ) : null}
             </div>
           </div>
-          <div
-            className={cn(
-              "pointer-events-none flex items-start px-3 pb-1.5 pt-1.5 sm:px-4 sm:pb-2 sm:pt-2.5 md:px-5 md:pt-3 lg:justify-start",
-              compact && "px-2.5 py-1 sm:px-3",
-            )}
+          <p
+            className="pointer-events-none min-w-0 text-[13px] leading-relaxed text-muted-foreground"
+            aria-label={t("catalog.card.attrList")}
           >
-            {attrChips.length ? (
-              <ul
-                className="flex min-w-0 flex-1 flex-wrap justify-start gap-1.5 md:gap-2 lg:max-w-xl"
-                aria-label={t("catalog.card.attrList")}
-              >
-                {attrChips.map((c) => {
-                  const Icon = c.Icon;
-                  return (
-                    <li key={c.key} className="min-w-0 max-w-full">
-                      <ListingChip tone="neutral" size={compact ? "sm" : "md"} className="normal-case">
-                        <Icon className="size-3 shrink-0 opacity-80" aria-hidden />
-                        <span className="min-w-0">{c.label}</span>
-                      </ListingChip>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
-          <div
-            className={cn(
-              "border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5 max-sm:bg-muted/30 max-sm:dark:bg-muted/20",
-              compact && "px-2.5 py-2 sm:px-3",
-            )}
-          >
-            {!listingUnavailable ? (
-              <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
-                <div className="pointer-events-none flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                  <span className="text-price block max-w-full truncate [overflow-wrap:anywhere] max-md:min-w-[5rem]">
-                    {formatCatalogCardPrice(car.price, car.price_on_request)}
-                  </span>
+            <span>{t(marketLabelKey(state.market))}</span>
+            {metaParts.map((part, i) => (
+              <span key={`${car.id}-meta-${i}`}>
+                <span className="mx-1.5 text-muted-foreground/50" aria-hidden>
+                  ·
+                </span>
+                {part}
+              </span>
+            ))}
+          </p>
+          {!listingUnavailable ? (
+            <div className={cn("mt-auto flex w-full min-w-0 flex-wrap items-center justify-between gap-2 pt-3", compact && "pt-2")}>
+              <div className="pointer-events-none flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <span className="block max-w-full truncate text-lg font-semibold tabular-nums tracking-tight [overflow-wrap:anywhere] max-md:min-w-[5rem] sm:text-xl">
+                  {formatCatalogCardPrice(car.price, car.price_on_request)}
+                </span>
+                {commerceBadge ? (
                   <div className="pointer-events-auto relative z-[2] flex min-w-0 flex-wrap items-center gap-1.5">
-                    {commerceStatusBadges}
+                    {commerceBadge}
                   </div>
-                </div>
-                <CatalogQuickBuyDialog
-                  carId={car.id}
-                  carTitle={normalizedTitle}
-                  triggerClassName={cn(buyTriggerClass, "ms-auto min-h-10")}
-                />
+                ) : null}
               </div>
-            ) : null}
-          </div>
+              <CatalogQuickBuyDialog
+                carId={car.id}
+                carTitle={normalizedTitle}
+                triggerClassName={cn(buyTriggerClass, "ms-auto h-9 px-4")}
+              />
+            </div>
+          ) : null}
         </div>
       </Card>
     </motion.li>

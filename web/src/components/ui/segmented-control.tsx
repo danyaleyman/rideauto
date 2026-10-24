@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import { controlHeightClass, pillRadiusClass } from "@/lib/design-system";
 
 export const segmentedControlBarClass =
-  "inline-flex w-full rounded-2xl border border-border/60 bg-muted/20 p-1.5";
+  "inline-flex w-full rounded-lg bg-muted p-1";
 
 export const segmentedControlButtonClass =
-  "flex-1 rounded-xl px-3.5 py-2 text-sm font-medium leading-none transition";
+  "flex-1 rounded-md px-3.5 py-2 text-sm font-medium leading-none transition";
 
 export type SegmentedControlItem<T extends string> = {
   value: T;
@@ -33,7 +33,7 @@ export function SegmentedControlScroll<T extends string>({
   return (
     <div
       className={cn(
-        "flex gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-border/60 bg-muted/20 p-1.5 [-webkit-overflow-scrolling:touch]",
+        "flex gap-1 overflow-x-auto overscroll-x-contain rounded-lg bg-muted p-1 [-webkit-overflow-scrolling:touch]",
         className,
       )}
       role="tablist"
@@ -50,10 +50,10 @@ export function SegmentedControlScroll<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(item.value)}
             className={cn(
-              "shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium leading-snug transition",
+              "shrink-0 whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium leading-snug transition",
               selected
                 ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+                : "text-foreground/70 hover:text-foreground",
             )}
           >
             {item.label}
@@ -92,7 +92,7 @@ export function SegmentedControl<T extends string>({
               segmentedControlButtonClass,
               selected
                 ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+                : "text-foreground/70 hover:text-foreground",
             )}
           >
             {item.label}
@@ -126,7 +126,7 @@ export function SegmentedControlPill<T extends string>({
   return (
     <div
       className={cn(
-        "relative grid w-full min-w-0 gap-0 bg-muted/70 p-1 ring-1 ring-border/50 dark:bg-muted/40",
+        "relative grid w-full min-w-0 gap-0 bg-muted p-1",
         controlHeightClass,
         pillRadiusClass,
         className,
@@ -143,7 +143,7 @@ export function SegmentedControlPill<T extends string>({
     >
       <div
         className={cn(
-          "pointer-events-none absolute top-1 bottom-1 rounded-full bg-background shadow-md ring-1 ring-elevated-ring transition-[inset-inline-start] duration-200 ease-out dark:bg-card",
+          "pointer-events-none absolute top-1 bottom-1 rounded-full bg-background shadow-sm transition-[inset-inline-start] duration-200 ease-out dark:bg-card",
         )}
         style={{ width: thumbWidth, insetInlineStart: thumbStart }}
         aria-hidden
@@ -160,7 +160,7 @@ export function SegmentedControlPill<T extends string>({
             className={cn(
               "relative z-10 min-w-0 px-1 py-2 text-sm font-medium leading-snug transition-colors [overflow-wrap:anywhere]",
               pillRadiusClass,
-              selected ? "text-foreground" : "text-muted-foreground",
+              selected ? "text-foreground" : "text-foreground/70",
             )}
             onClick={() => onChange(item.value)}
           >

@@ -50,12 +50,14 @@ function VehicleFacetFields({
   return (
     <div className="space-y-2">
       <FacetMultiDropdown
+        testId="catalog-facet-marks"
         label={t("catalog.filters.mark")}
         rows={facets.marks}
         selected={new Set(state.marks)}
         onToggle={(v) => toggle("marks", v)}
       />
       <FacetMultiDropdown
+        testId="catalog-facet-clusters"
         label={t("catalog.filters.cluster")}
         rows={facets.clusters ?? []}
         selected={new Set(state.clusters)}
@@ -63,6 +65,7 @@ function VehicleFacetFields({
         disabled={state.marks.length === 0}
       />
       <FacetMultiDropdown
+        testId="catalog-facet-models"
         label={t("catalog.filters.model")}
         rows={facets.models}
         selected={new Set(state.models)}
@@ -70,6 +73,7 @@ function VehicleFacetFields({
         disabled={state.marks.length === 0}
       />
       <FacetMultiDropdown
+        testId="catalog-facet-generations"
         label={t("catalog.filters.generation")}
         rows={facets.generations}
         selected={new Set(state.generations)}
@@ -77,6 +81,7 @@ function VehicleFacetFields({
         disabled={state.models.length === 0}
       />
       <FacetMultiDropdown
+        testId="catalog-facet-trims"
         label={t("catalog.filters.trim")}
         rows={facets.trims}
         selected={new Set(state.trims)}
@@ -98,16 +103,16 @@ function ConditionCheckboxes({ catalog }: { catalog: CatalogSearchController }) 
     { key: "new_only" as const, label: t("catalog.filters.newOnly") },
   ];
   return (
-    <div className="grid gap-2 sm:grid-cols-1">
+    <div className="grid gap-1">
       {items.map(({ key, label }) => (
         <label
           key={key}
-          className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border border-border/70 bg-background px-3 py-2.5 text-sm leading-snug shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/30"
+          className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-md py-1.5 text-sm leading-snug transition-colors hover:bg-muted/60"
         >
           <Checkbox
             checked={Boolean(state[key])}
             onCheckedChange={(v) => navigate({ ...state, [key]: Boolean(v), page: 1 })}
-            className="mt-0.5 shrink-0"
+            className="shrink-0"
           />
           <span>{label}</span>
         </label>
@@ -132,6 +137,7 @@ function TechFacetFields({ catalog }: { catalog: CatalogSearchController }) {
   return (
     <div className="space-y-2">
       <FacetMultiDropdown
+        testId="catalog-facet-body"
         label={t("catalog.filters.body")}
         rows={facets.bodies}
         selected={new Set(state.body)}
@@ -139,6 +145,7 @@ function TechFacetFields({ catalog }: { catalog: CatalogSearchController }) {
         labelFormatter={(row) => displayBodyType(locale, facetRowLabel(row)) ?? facetRowLabel(row)}
       />
       <FacetMultiDropdown
+        testId="catalog-facet-fuel"
         label={t("catalog.filters.fuel")}
         rows={facets.fuels}
         selected={new Set(state.fuel)}
@@ -152,6 +159,7 @@ function TechFacetFields({ catalog }: { catalog: CatalogSearchController }) {
         }}
       />
       <FacetMultiDropdown
+        testId="catalog-facet-transmission"
         label={t("catalog.filters.transmission")}
         rows={facets.transmissions}
         selected={new Set(state.trans)}
@@ -185,9 +193,9 @@ function ColorFields({ catalog }: { catalog: CatalogSearchController }) {
 
   return (
     <>
-      <div className="rounded-xl border border-border/60 bg-background p-3 shadow-sm">
-        <p className="text-xs font-medium text-muted-foreground">{t("catalog.filters.popularColors")}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
+      <div>
+        <p className="sr-only">{t("catalog.filters.popularColors")}</p>
+        <div className="flex flex-wrap gap-1.5">
           {popularColorRows.map((row) => {
             const vals = row.values.length ? row.values : [];
             const active = vals.some((v) => state.color.includes(v));
@@ -197,11 +205,11 @@ function ColorFields({ catalog }: { catalog: CatalogSearchController }) {
                 type="button"
                 variant={active ? "default" : "outline"}
                 size="xs"
-                className="min-h-9 rounded-full border-border/80 px-2.5 text-xs font-medium"
+                className="min-h-8 rounded-full px-2.5 text-xs font-medium"
                 onClick={() => toggle("color", vals)}
               >
                 <span
-                  className={cn("size-3 shrink-0 rounded-full", colorSwatchClass(row.label))}
+                  className={cn("size-3 shrink-0 rounded-full ring-1 ring-black/10", colorSwatchClass(row.label))}
                   aria-hidden
                 />
                 <span className="truncate">{row.label}</span>
@@ -211,6 +219,7 @@ function ColorFields({ catalog }: { catalog: CatalogSearchController }) {
         </div>
       </div>
       <ColorFacetDialog
+        testId="catalog-facet-colors"
         label={t("catalog.filters.allColors")}
         rows={facets.colors}
         selected={new Set(state.color)}
@@ -303,7 +312,7 @@ export function CatalogFiltersContent({
     <Accordion
       type="multiple"
       defaultValue={["vehicle", "condition"]}
-      className="overflow-visible rounded-2xl border border-border/70 bg-card/40 shadow-sm"
+      className="overflow-visible rounded-none border-0 border-t border-border"
     >
       <CatalogFilterAccordionSection
         value="vehicle"
@@ -353,7 +362,7 @@ export function CatalogFiltersContent({
   );
 
   const desktopFlatSections = (
-    <div className="hidden flex-col gap-3 lg:flex">
+    <div className="hidden flex-col divide-y divide-border border-t border-border lg:flex">
       <CatalogFilterFlatSection
         icon={CarFront}
         title={t("catalog.filters.vehicle")}
@@ -394,15 +403,25 @@ export function CatalogFiltersContent({
   );
 
   return (
-    <div className="flex max-w-full flex-col gap-3">
-      <MarketSegmentedControl market={state.market} onChange={switchMarket} />
-      <CatalogSavedSearches catalog={catalog} />
-      {rangesPanel}
+    <div className="flex max-w-full flex-col">
+      <div className="flex flex-col divide-y divide-border [&>section:first-child]:pt-0">
+        <MarketSegmentedControl market={state.market} onChange={switchMarket} />
+        {rangesPanel}
+      </div>
       <div className="lg:hidden">{accordionBlock}</div>
       {desktopFlatSections}
-      <Button type="button" variant="outline" className="w-full shrink-0 rounded-xl" onClick={reset}>
-        {t("catalog.filters.reset")}
-      </Button>
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full shrink-0"
+          data-testid="catalog-filters-reset"
+          onClick={reset}
+        >
+          {t("catalog.filters.reset")}
+        </Button>
+        <CatalogSavedSearches catalog={catalog} />
+      </div>
     </div>
   );
 }

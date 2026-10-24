@@ -20,7 +20,7 @@ export async function HomeTrustStrip() {
 
   return (
     <section
-      className="mt-10 rounded-2xl border border-border/60 bg-card/70 p-5 shadow-sm ring-1 ring-elevated-ring backdrop-blur-sm sm:mt-12 sm:p-6"
+      className="mt-10 border-t border-border pt-6 sm:mt-12 sm:pt-8"
       aria-labelledby="home-trust-heading"
     >
       <h2 id="home-trust-heading" className="sr-only">

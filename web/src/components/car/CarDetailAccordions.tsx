@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Check } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -26,6 +27,7 @@ import {
   collectSelectedEncarOptions,
   displayEncarStandardOption,
 } from "@/lib/encar-options-display";
+import { classifyAutotraderOptionGroup } from "@/lib/autotrader-options-display";
 import { classifyChinaOptionGroup, displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
 import { collectAutotraderFeatureLabels } from "@/lib/car-equipment-labels";
 import { formatPriceLabel } from "@/lib/format-price";
@@ -70,16 +72,14 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
     return <p className="text-sm text-muted-foreground">{t("car.accordions.noDataDot")}</p>;
   }
   return (
-    <dl className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
+    <dl className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
       {filtered.map((r, idx) => (
         <div
           key={`${r.label}-${idx}`}
-          className="rounded-2xl border border-border/45 bg-muted/15 px-3 py-2.5 transition-colors hover:bg-muted/25 md:grid md:grid-cols-[minmax(0,42%)_minmax(0,1fr)] md:gap-3 md:px-3.5 md:py-3"
+          className="grid grid-cols-[minmax(0,44%)_minmax(0,1fr)] gap-3 border-b border-border/70 py-2.5 text-sm last:border-b-0 md:[&:nth-last-child(2)]:border-b-0"
         >
-          <dt className="text-[11px] font-semibold tracking-wide text-muted-foreground md:pt-0.5">
-            {localizeLabel(r.label)}
-          </dt>
-          <dd className="mt-1 text-sm font-medium leading-snug [overflow-wrap:anywhere] text-foreground md:mt-0">
+          <dt className="text-muted-foreground">{localizeLabel(r.label)}</dt>
+          <dd className="font-medium leading-snug text-foreground [overflow-wrap:anywhere]">
             {localizeValue(r.value, t)}
           </dd>
         </div>
@@ -163,7 +163,7 @@ function BodyConditionSection({
   return (
     <div className="space-y-3">
       {encarAccident ? (
-        <div className="rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 text-xs leading-snug text-amber-950 dark:border-amber-900/55 dark:bg-amber-950/35 dark:text-amber-50">
+        <div className="rounded-lg bg-amber-500/10 px-3 py-2.5 text-xs leading-snug text-amber-950 dark:bg-amber-400/10 dark:text-amber-50">
           <p className="[overflow-wrap:anywhere]">{t("car.accordions.bodyAccidentWarn")}</p>
         </div>
       ) : null}
@@ -183,16 +183,16 @@ function BodyConditionSection({
           className="overflow-hidden"
         >
           {activeRows.length ? (
-            <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
               {activeRows.map((r, i) => (
-                <li key={`${activeTab}-${r.part}-${i}`} className="flex items-center justify-between gap-2 rounded-xl border border-border/50 px-3 py-2">
-                  <span className="text-sm">{r.part}</span>
-                  <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${bodyStatusColor(r.status)}`}>{r.status}</span>
+                <li key={`${activeTab}-${r.part}-${i}`} className="flex items-center justify-between gap-3 border-b border-border/70 py-2 text-sm last:border-b-0 md:[&:nth-last-child(2)]:border-b-0">
+                  <span>{r.part}</span>
+                  <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${bodyStatusColor(r.status)}`}>{r.status}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="rounded-xl border border-border/45 bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t("car.accordions.bodySectionClear", {
                 section: activeTab === "internal" ? t("car.accordions.bodyInternal") : t("car.accordions.bodyExternal"),
               })}
@@ -298,7 +298,7 @@ function AccidentCases({
           const paint = rubOrNone(a.paintingCost);
           const payout = rubOrNone(a.insuranceBenefit);
           return (
-            <li key={i} className="rounded-xl border border-border/50 bg-muted/15 p-3">
+            <li key={i} className="rounded-lg bg-muted/50 p-3">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 {date ? <Badge variant="secondary">{date}</Badge> : null}
                 <Badge variant="outline">{kind}</Badge>
@@ -419,10 +419,10 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
     <div className="space-y-4">
       <SpecGrid rows={rows} />
       {ownersCount > 0 ? (
-        <div className="rounded-xl border border-border/50 bg-muted/10 px-3 py-2">
-          <p className="text-xs text-muted-foreground">{t("car.accordions.ownersLabel")}</p>
-          <p className="text-sm font-medium">{t("car.accordions.ownersCount", { count: ownersCount })}</p>
-        </div>
+        <p className="text-sm">
+          <span className="text-muted-foreground">{t("car.accordions.ownersLabel")}: </span>
+          <span className="font-medium">{t("car.accordions.ownersCount", { count: ownersCount })}</span>
+        </p>
       ) : null}
       {Array.isArray(accidents) && accidents.length > 0 ? (
         <div className="space-y-3">
@@ -463,19 +463,18 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   );
 }
 
-function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
-  const { t } = useCarAccI18n();
-  const reduceMotion = useReducedMotion();
+function collectListingEquipmentEntries(
+  d: Record<string, unknown>,
+  extra: Record<string, unknown> | undefined,
+): Array<{ label: string; raw: string }> {
   const options = d.options as Record<string, unknown> | undefined;
-  const standard = options?.standard;
-  const codes = useMemo(() => (Array.isArray(standard) ? standard : []), [standard]);
+  const codes = Array.isArray(options?.standard) ? options.standard : [];
   const chinaRecommendedRaw = parseJson(
     d.options_real ?? d.che168_recommended_options ?? d.che168_options_enriched,
   );
-  const chinaRecommendedFallback = useMemo(() => collectChinaHighlightLabels(d), [d]);
-  const chinaRecommended = useMemo(() => {
-    if (!Array.isArray(chinaRecommendedRaw)) return chinaRecommendedFallback.map((label) => ({ label, raw: label }));
-    const out: Array<{ label: string; raw: string }> = [];
+  const chinaRecommendedFallback = collectChinaHighlightLabels(d);
+  let chinaRecommended: Array<{ label: string; raw: string }> = [];
+  if (Array.isArray(chinaRecommendedRaw)) {
     const seen = new Set<string>();
     for (const item of chinaRecommendedRaw) {
       const raw =
@@ -495,60 +494,64 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
         raw.trim();
       if (!isMeaningfulOptionLabel(ru) || seen.has(ru)) continue;
       seen.add(ru);
-      out.push({ label: ru, raw });
+      chinaRecommended.push({ label: ru, raw });
     }
-    return out.length
-      ? out
-      : chinaRecommendedFallback.map((label) => ({ label, raw: label }));
-  }, [chinaRecommendedRaw, chinaRecommendedFallback]);
+  }
+  if (!chinaRecommended.length) {
+    chinaRecommended = chinaRecommendedFallback.map((label) => ({ label, raw: label }));
+  }
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
   const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);
   const choicePhotos = getPath(sp, ["choiceOptionPhotos"]);
-  const selectedOptions = useMemo(
-    () => collectSelectedEncarOptions(uniquePhotos, choicePhotos, extra, d),
-    [uniquePhotos, choicePhotos, extra, d],
-  );
-  const selectedLabels = useMemo(() => {
+  const selectedOptions = collectSelectedEncarOptions(uniquePhotos, choicePhotos, extra, d);
+  const selectedLabels: string[] = [];
+  {
     const seen = new Set<string>();
-    const out: string[] = [];
     for (const row of selectedOptions) {
       const lb = cleanScalarText(row.label);
       if (!lb || /^Опция\s+\d+$/i.test(lb) || seen.has(lb)) continue;
       seen.add(lb);
-      out.push(lb);
+      selectedLabels.push(lb);
     }
     for (const c of codes) {
       const label = cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d));
       if (!label || /^Опция\s+\d+$/i.test(label) || seen.has(label)) continue;
       seen.add(label);
-      out.push(label);
+      selectedLabels.push(label);
     }
-    return out;
-  }, [selectedOptions, codes, uniquePhotos, choicePhotos, extra, d]);
-  const staticCodesAll = useMemo(
-    () =>
-      codes
-        .map((c) => cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)))
-        .filter((x): x is string => Boolean(x)),
-    [codes, uniquePhotos, choicePhotos, extra, d],
-  );
-  const autotraderLabels = useMemo(() => collectAutotraderFeatureLabels(d), [d]);
-  const allLabels = useMemo(() => {
-    const seen = new Set<string>();
-    const out: Array<{ label: string; raw: string }> = [];
-    const push = (label: string, raw = label) => {
-      const t = cleanScalarText(label);
-      if (!t || /^Опция\s+\d+$/i.test(t) || seen.has(t)) return;
-      seen.add(t);
-      out.push({ label: t, raw });
-    };
-    for (const row of chinaRecommended) push(row.label, row.raw);
-    for (const v of selectedLabels) push(v, v);
-    for (const v of staticCodesAll) push(v, v);
-    for (const v of autotraderLabels) push(v, v);
-    return out;
-  }, [chinaRecommended, selectedLabels, staticCodesAll, autotraderLabels]);
+  }
+  const staticCodesAll = codes
+    .map((c) => cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)))
+    .filter((x): x is string => Boolean(x));
+  const autotraderLabels = collectAutotraderFeatureLabels(d);
+
+  const seen = new Set<string>();
+  const out: Array<{ label: string; raw: string }> = [];
+  const push = (label: string, raw = label) => {
+    const cleaned = cleanScalarText(label);
+    if (!cleaned || /^Опция\s+\d+$/i.test(cleaned) || seen.has(cleaned)) return;
+    seen.add(cleaned);
+    out.push({ label: cleaned, raw });
+  };
+  for (const row of chinaRecommended) push(row.label, row.raw);
+  for (const v of selectedLabels) push(v, v);
+  for (const v of staticCodesAll) push(v, v);
+  for (const v of autotraderLabels) push(v, v);
+  return out;
+}
+
+function listingHasEquipment(
+  d: Record<string, unknown>,
+  extra: Record<string, unknown> | undefined,
+): boolean {
+  return collectListingEquipmentEntries(d, extra).length > 0;
+}
+
+function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
+  const { t } = useCarAccI18n();
+  const reduceMotion = useReducedMotion();
+  const allLabels = useMemo(() => collectListingEquipmentEntries(d, extra), [d, extra]);
   const hasAnyRenderedOptions = allLabels.length > 0;
 
   type OptGroupKey = "assist" | "interior" | "safety" | "comfort" | "media" | "other";
@@ -562,7 +565,9 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
       other: [],
     };
     for (const { label, raw } of allLabels) {
-      const key = classifyChinaOptionGroup(label, raw);
+      // Autotrader labels are already mapped to RU; try AT classifier first, then China/Encar.
+      const at = classifyAutotraderOptionGroup(label, raw);
+      const key = at !== "other" ? at : classifyChinaOptionGroup(label, raw);
       buckets[key].push(label);
     }
     return buckets;
@@ -608,10 +613,11 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
               className="overflow-hidden"
             >
-              <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-x-8 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
                 {activeItems.map((label, i) => (
-                  <li key={`${activeGroup}-${i}`} className="rounded-xl border border-border/55 bg-background px-3 py-2 text-xs leading-snug">
-                    {label}
+                  <li key={`${activeGroup}-${i}`} className="flex items-start gap-2 text-sm leading-snug">
+                    <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="min-w-0">{label}</span>
                   </li>
                 ))}
               </ul>
@@ -842,6 +848,26 @@ export function CarDetailAccordions({
   const defaultOpen = ["general"];
   const [openSections, setOpenSections] = useState<string[]>(defaultOpen);
 
+  const sourceKey = String(data.source ?? "").trim().toLowerCase();
+  const isChinaListing =
+    sourceKey === "che168" || sourceKey.includes("che168") || sourceKey.includes("china");
+  const isUsaListing =
+    sourceKey === "autotrader" || sourceKey.includes("autotrader") || sourceKey.includes("usa");
+  const isKoreaListing = !isChinaListing && !isUsaListing;
+
+  const showEquipment = useMemo(() => listingHasEquipment(data, extra), [data, extra]);
+  const showBody = useMemo(() => {
+    const hasPayload = hasStructuredBodyPayload(
+      bodyPanels,
+      outers,
+      bodyChanged,
+      paintPartTypes,
+      seriousTypes,
+      diagnosisItems,
+    );
+    return hasPayload || !isNegativeFlag(accident);
+  }, [bodyPanels, outers, bodyChanged, paintPartTypes, seriousTypes, diagnosisItems, accident]);
+
   const diagSections = useMemo(
     () =>
       [
@@ -852,6 +878,15 @@ export function CarDetailAccordions({
       ].filter((x) => x.rows.length > 0),
     [engineTransmission, chassis, electrical, additional, t],
   );
+  const showDiagnosis = diagSections.length > 0;
+  const showInsurance = Boolean(recordOpen && Object.keys(recordOpen).length > 0);
+  const diagnosisTitle = isKoreaListing
+    ? t("car.accordions.sectionDiagnosis")
+    : t("car.accordions.sectionDiagnosisDealer");
+  const insuranceTitle = isKoreaListing
+    ? t("car.accordions.sectionInsurance")
+    : t("car.accordions.sectionInsuranceHistory");
+
   const [activeDiagTab, setActiveDiagTab] = useState<string>(diagSections[0]?.key ?? "engine");
   const activeDiag = diagSections.find((x) => x.key === activeDiagTab) ?? diagSections[0];
   useEffect(() => {
@@ -867,56 +902,50 @@ export function CarDetailAccordions({
       type="multiple"
       value={openSections}
       onValueChange={setOpenSections}
-      className="mt-6 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm ring-1 ring-elevated-ring sm:rounded-3xl"
+      className="mt-6 max-w-full overflow-hidden rounded-none border-0 border-t border-border"
     >
-      <AccordionItem value="general" className="first:rounded-t-3xl">
-        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
+      <AccordionItem value="general">
+        <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
           {t("car.accordions.sectionGeneral")}
         </AccordionTrigger>
-        <AccordionContent className="px-4 sm:px-5">
+        <AccordionContent className="px-0">
           <SpecGrid rows={generalRows} />
         </AccordionContent>
       </AccordionItem>
 
-      <AccordionItem value="equipment">
-        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          {t("car.accordions.sectionEquipment")}
-        </AccordionTrigger>
-        <AccordionContent className="px-4 sm:px-5">
-          {openSections.includes("equipment") ? <EquipmentSection d={data} extra={extra} /> : null}
-        </AccordionContent>
-      </AccordionItem>
+      {/* Priority: overview → condition/history → equipment (options last). */}
+      {showBody ? (
+        <AccordionItem value="body">
+          <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
+            {t("car.accordions.sectionBody")}
+          </AccordionTrigger>
+          <AccordionContent className="px-0">
+            {openSections.includes("body") ? (
+              <div className="space-y-4">
+                <BodyConditionSection
+                  outers={outers}
+                  bodyPanels={bodyPanels}
+                  bodyChanged={bodyChanged}
+                  paintPartTypes={paintPartTypes}
+                  seriousTypes={seriousTypes}
+                  diagnosisItems={diagnosisItems}
+                  accident={accident}
+                  simpleRepair={simpleRepair}
+                />
+              </div>
+            ) : null}
+          </AccordionContent>
+        </AccordionItem>
+      ) : null}
 
-      <AccordionItem value="body">
-        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          {t("car.accordions.sectionBody")}
-        </AccordionTrigger>
-        <AccordionContent className="px-4 sm:px-5">
-          {openSections.includes("body") ? (
-            <div className="space-y-4">
-              <BodyConditionSection
-                outers={outers}
-                bodyPanels={bodyPanels}
-                bodyChanged={bodyChanged}
-                paintPartTypes={paintPartTypes}
-                seriousTypes={seriousTypes}
-                diagnosisItems={diagnosisItems}
-                accident={accident}
-                simpleRepair={simpleRepair}
-              />
-            </div>
-          ) : null}
-        </AccordionContent>
-      </AccordionItem>
-
-      <AccordionItem value="diagnosis">
-        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          {t("car.accordions.sectionDiagnosis")}
-        </AccordionTrigger>
-        <AccordionContent className="px-4 sm:px-5">
-          {openSections.includes("diagnosis") ? (
-            <div className="space-y-5">
-              {diagSections.length > 0 ? (
+      {showDiagnosis ? (
+        <AccordionItem value="diagnosis">
+          <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
+            {diagnosisTitle}
+          </AccordionTrigger>
+          <AccordionContent className="px-0">
+            {openSections.includes("diagnosis") ? (
+              <div className="space-y-5">
                 <div className="space-y-3">
                   <SegmentedControlScroll
                     value={activeDiagTab}
@@ -937,11 +966,14 @@ export function CarDetailAccordions({
                         transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
                         className="overflow-hidden"
                       >
-                        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                        <ul className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
                           {activeDiag.rows.map((row) => (
-                            <li key={`${activeDiag.key}-${row.label}`} className="rounded-lg border border-border/45 bg-background px-2.5 py-2">
-                              <p className="text-xs text-muted-foreground">{row.label}</p>
-                              <p className="mt-1 text-sm font-medium">{row.value}</p>
+                            <li
+                              key={`${activeDiag.key}-${row.label}`}
+                              className="grid grid-cols-[minmax(0,44%)_minmax(0,1fr)] gap-3 border-b border-border/70 py-2.5 text-sm last:border-b-0 md:[&:nth-last-child(2)]:border-b-0"
+                            >
+                              <span className="text-muted-foreground">{row.label}</span>
+                              <span className="font-medium [overflow-wrap:anywhere]">{row.value}</span>
                             </li>
                           ))}
                         </ul>
@@ -949,28 +981,35 @@ export function CarDetailAccordions({
                     ) : null}
                   </AnimatePresence>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">{t("car.accordions.diagUnavailable")}</p>
-              )}
-            </div>
-          ) : null}
-        </AccordionContent>
-      </AccordionItem>
+              </div>
+            ) : null}
+          </AccordionContent>
+        </AccordionItem>
+      ) : null}
 
-      <AccordionItem value="insurance">
-        <AccordionTrigger className="break-words py-4 ps-4 pe-10 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:bg-muted/30 hover:no-underline sm:ps-5 sm:pe-12">
-          {t("car.accordions.sectionInsurance")}
-        </AccordionTrigger>
-        <AccordionContent className="px-4 sm:px-5">
-          {openSections.includes("insurance") ? (
-            recordOpen && Object.keys(recordOpen).length > 0 ? (
+      {showInsurance ? (
+        <AccordionItem value="insurance">
+          <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
+            {insuranceTitle}
+          </AccordionTrigger>
+          <AccordionContent className="px-0">
+            {openSections.includes("insurance") && recordOpen ? (
               <RecordOpenSection ro={recordOpen} />
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("car.accordions.insUnavailable")}</p>
-            )
-          ) : null}
-        </AccordionContent>
-      </AccordionItem>
+            ) : null}
+          </AccordionContent>
+        </AccordionItem>
+      ) : null}
+
+      {showEquipment ? (
+        <AccordionItem value="equipment">
+          <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
+            {t("car.accordions.sectionEquipment")}
+          </AccordionTrigger>
+          <AccordionContent className="px-0">
+            {openSections.includes("equipment") ? <EquipmentSection d={data} extra={extra} /> : null}
+          </AccordionContent>
+        </AccordionItem>
+      ) : null}
 
     </Accordion>
     </CarAccI18nCtx.Provider>

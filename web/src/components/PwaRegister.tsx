@@ -31,7 +31,7 @@ export function PwaRegister() {
   if (!installEvt || dismissed) return null;
 
   return (
-    <div className="fixed bottom-20 end-4 z-40 max-w-xs rounded-2xl border border-border/80 bg-card p-3 shadow-lg sm:bottom-6">
+    <div className="fixed bottom-20 end-4 z-40 max-w-xs rounded-xl border border-border bg-card p-3 shadow-lg sm:bottom-6">
       <p className="text-sm font-medium">{t("pwa.install")}</p>
       <p className="mt-1 text-xs text-muted-foreground">{t("pwa.installHint")}</p>
       <div className="mt-3 flex gap-2">

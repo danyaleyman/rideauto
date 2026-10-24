@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import { MessageCircle } from "lucide-react";
 import type { CarListingAvailability } from "@/lib/car-listing-trust";
 import { useBottomChromeOffset } from "@/hooks/use-bottom-chrome-offset";
 import { CatalogQuickBuyDialog } from "@/components/catalog/CatalogQuickBuyDialog";
@@ -32,26 +33,22 @@ export function CarStickyMobileBar({
       ? t("car.purchase.statusHeading")
       : t("car.purchase.priceHeading");
 
+  const isAvailable = availability === "available";
   const stickyCtaClass =
-    "flex h-10 w-full shrink-0 items-center justify-center rounded-2xl px-4 text-center text-sm font-semibold shadow-sm transition-colors active:scale-[0.98] min-[420px]:w-auto min-[420px]:min-w-[9.5rem] min-[420px]:px-5";
-  const stickyBuyClass = cn(
-    stickyCtaClass,
-    "border border-primary/20 bg-primary text-primary-foreground hover:bg-primary/92",
-  );
+    "flex h-11 min-w-[7.5rem] shrink-0 items-center justify-center rounded-lg px-5 text-center text-sm font-semibold transition-colors";
+  const stickyBuyClass = cn(stickyCtaClass, "bg-primary text-primary-foreground hover:bg-primary/85");
+  // При доступном авто «Связаться» — компактная иконка рядом с главной CTA; иначе — единственная кнопка.
   const stickyContactClass = cn(
     stickyCtaClass,
-    availability === "available"
-      ? "h-9 border border-border/70 bg-background text-foreground shadow-none hover:bg-muted/60"
-      : "border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    "border border-input bg-background text-foreground hover:bg-muted",
+    isAvailable && "w-11 min-w-0 px-0",
   );
 
   return (
     <motion.div
       className={cn(
         "fixed inset-x-0 z-40 lg:hidden",
-        "border-t border-border/60 bg-background/95",
-        "shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.12)]",
-        "backdrop-blur-xl dark:shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.45)]",
+        "border-t border-border bg-background/95 backdrop-blur-xl",
         "pb-[max(0.65rem,env(safe-area-inset-bottom))]",
       )}
       style={{ bottom: cookieOffset }}
@@ -59,12 +56,12 @@ export function CarStickyMobileBar({
       animate={{ opacity: 1, y: 0 }}
       transition={reduceMotion ? { duration: 0.01 } : { duration: 0.24, ease: MOTION_TOKENS.easeSoft }}
     >
-      <div className="mx-auto flex max-w-lg flex-col gap-2.5 px-4 pt-3 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between min-[420px]:gap-3">
-        <div className="min-w-0 w-full flex-1 pb-0 min-[420px]:pb-0.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{caption}</p>
+      <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 pt-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="sr-only">{caption}</p>
           <p
             className={cn(
-              "text-lg font-bold leading-tight tracking-tight [overflow-wrap:anywhere] tabular-nums",
+              "truncate text-base font-semibold leading-tight tracking-tight tabular-nums min-[420px]:text-lg",
               availability === "sold"
                 ? "text-red-700 dark:text-red-300"
                 : availability === "reserved"
@@ -75,24 +72,29 @@ export function CarStickyMobileBar({
             {priceLine}
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 min-[420px]:w-auto min-[420px]:items-stretch">
-          {availability === "available" ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
+            <Link
+              href="/contacts"
+              className={stickyContactClass}
+              aria-label={isAvailable ? t("car.purchase.contactManager") : undefined}
+              title={isAvailable ? t("car.purchase.contactManager") : undefined}
+            >
+              {isAvailable ? <MessageCircle className="size-5" aria-hidden /> : t("contacts.manager")}
+            </Link>
+          </motion.div>
+          {isAvailable ? (
             <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
               <CatalogQuickBuyDialog
                 carId={carId}
                 carTitle={carTitle}
-                triggerLabel={t("car.purchase.buyCta")}
+                triggerLabel={t("catalog.quickBuy.trigger")}
                 triggerSize="default"
                 triggerVariant="default"
                 triggerClassName={stickyBuyClass}
               />
             </motion.div>
           ) : null}
-          <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
-            <Link href="/contacts" className={stickyContactClass}>
-              {availability === "available" ? t("car.purchase.contactManager") : t("contacts.manager")}
-            </Link>
-          </motion.div>
         </div>
       </div>
     </motion.div>

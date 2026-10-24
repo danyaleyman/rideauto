@@ -13,13 +13,13 @@ export function CatalogSavedSearches({ catalog }: { catalog: CatalogSearchContro
   const { items, saveCurrent, remove, hrefFor, notifyByEmail } = useSavedCatalogSearches();
 
   return (
-    <div className="flex min-w-0 flex-col gap-2 border-t border-border/60 pt-3">
+    <div className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="h-auto min-h-9 rounded-full gap-1.5 px-3 text-xs"
+          className="h-auto min-h-9 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => void saveCurrent(catalog.state)}
         >
           <Bookmark className="size-3.5 shrink-0" aria-hidden />

@@ -65,8 +65,8 @@ export function SortDropdown({
           type="button"
           variant="outline"
           className={cn(
-            "h-10 justify-between font-normal shadow-sm",
-            isToolbar ? "min-w-[10.5rem] max-w-full rounded-xl px-3" : "mt-2 w-full rounded-2xl",
+            "h-10 justify-between font-normal",
+            isToolbar ? "min-w-0 max-w-[11rem] shrink px-3 lg:min-w-[10.5rem]" : "mt-2 w-full",
           )}
           aria-label={t("catalog.widgets.sortAria", { label: active.label })}
         >
@@ -96,26 +96,23 @@ export function ListRowSkeleton() {
     <li>
       <Card
         size="sm"
-        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 shadow-sm ring-1 ring-elevated-ring md:flex-row"
+        className="flex flex-col items-stretch gap-0 overflow-hidden py-0 md:flex-row"
       >
         <Skeleton className="aspect-[4/3] w-full shrink-0 rounded-none md:w-72" />
-        <div className="flex min-w-0 flex-1 flex-col gap-0">
-          <div className="flex items-center justify-between gap-3 border-b border-border/50 px-3 py-3 sm:px-4 md:px-5">
-            <Skeleton className="h-4 w-[70%] rounded-md" />
-            <div className="flex items-center gap-1.5">
-              <Skeleton className="size-8 rounded-lg" />
-              <Skeleton className="size-8 rounded-lg" />
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 p-4 md:p-5">
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-5 w-[60%] rounded-md" />
+              <div className="flex items-center gap-1.5">
+                <Skeleton className="size-8 rounded-lg" />
+                <Skeleton className="size-8 rounded-lg" />
+              </div>
             </div>
+            <Skeleton className="h-3.5 w-[45%] rounded-md" />
           </div>
-          <div className="flex flex-1 items-start px-3 py-3 sm:px-4 md:px-5">
-            <div className="flex w-full flex-wrap gap-1.5">
-              <Skeleton className="h-6 w-24 rounded-xl" />
-              <Skeleton className="h-6 w-20 rounded-xl" />
-              <Skeleton className="h-6 w-28 rounded-xl" />
-            </div>
-          </div>
-          <div className="border-t border-border/50 px-3 py-2.5 sm:px-4 md:px-5">
-            <Skeleton className="h-8 w-28 rounded-lg" />
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-6 w-28 rounded-md" />
+            <Skeleton className="h-9 w-24 rounded-lg" />
           </div>
         </div>
       </Card>
@@ -282,15 +279,15 @@ export function RangeBlock({
   return (
     <>
       {market === "korea" ? (
-        <div className="mb-1 space-y-3 rounded-xl border border-border/80 bg-muted/15 px-3 py-3 dark:bg-muted/10">
+        <div className="mb-3 space-y-2.5">
           <div>
-            <span className="text-sm font-medium text-foreground">{t("catalog.widgets.pricingTitle")}</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("catalog.widgets.pricingTitle")}</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
                   variant="outline"
-                  className="mt-1.5 h-10 w-full justify-between rounded-2xl font-normal"
+                  className="mt-1.5 h-10 w-full justify-between font-normal"
                   aria-label={t("catalog.widgets.pricingAria", {
                     label:
                       pricingTierOptions.find((o) => o.value === (state.pricing_tier || "__any__"))?.label ??
@@ -324,13 +321,11 @@ export function RangeBlock({
           </div>
           <label
             className={cn(
-              "flex cursor-pointer items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm leading-snug shadow-sm",
-              state.pricing_tier === "full_customs"
-                ? "border-border/60 bg-muted/10 text-muted-foreground"
-                : "border-border bg-muted/20",
+              "flex cursor-pointer items-start justify-between gap-2 rounded-md py-1.5 text-sm leading-snug transition-colors hover:bg-muted/60",
+              state.pricing_tier === "full_customs" && "text-muted-foreground",
             )}
           >
-            <span className="inline-flex items-start gap-2">
+            <span className="inline-flex items-start gap-2.5">
               <Checkbox
                 checked={state.customs_included_only}
                 disabled={state.pricing_tier === "full_customs"}
@@ -367,7 +362,7 @@ export function RangeBlock({
           </label>
         </div>
       ) : null}
-      <div className="grid grid-cols-1 gap-2 text-sm min-[420px]:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 text-sm">
         <Input
           placeholder={t("catalog.widgets.priceFrom")}
           value={draft.price_from}
@@ -417,8 +412,8 @@ export function RangeBlock({
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
       </div>
-      <label className="mt-2 flex cursor-pointer items-start justify-between gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm leading-snug shadow-sm">
-        <span className="inline-flex items-start gap-2">
+      <label className="mt-2 flex cursor-pointer items-start justify-between gap-2 rounded-md py-1.5 text-sm leading-snug transition-colors hover:bg-muted/60">
+        <span className="inline-flex items-start gap-2.5">
           <Checkbox
             checked={draft.passable_only}
             onCheckedChange={(v) => setDraft((d) => ({ ...d, passable_only: Boolean(v) }))}
@@ -440,7 +435,7 @@ export function RangeBlock({
           <TooltipContent side="top">{t("catalog.widgets.passableTip")}</TooltipContent>
         </Tooltip>
       </label>
-      <Button type="button" onClick={apply} className="mt-2 w-full" size="sm">
+      <Button type="button" onClick={apply} variant="secondary" className="mt-3 w-full" size="sm">
         {t("catalog.widgets.applyRanges")}
       </Button>
     </>

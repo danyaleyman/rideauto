@@ -11,11 +11,12 @@
     "lh:ci": "lhci autorun --config=web/lighthouserc.desktop.cjs && lhci autorun --config=web/lighthouserc.mobile.cjs",
     "lh:ci:desktop": "lhci autorun --config=web/lighthouserc.desktop.cjs",
     "lh:ci:mobile": "lhci autorun --config=web/lighthouserc.mobile.cjs",
-    "test:e2e": "playwright test --grep-invert \"@visual\"",
-    "test:e2e:a11y": "playwright test e2e/a11y.spec.js",
-    "test:e2e:funnel": "playwright test e2e/lead-funnel.spec.js e2e/b2c-features.spec.js",
-    "test:e2e:staging": "playwright test",
-    "test:e2e:visual": "playwright test e2e/visual.spec.js e2e/visual-mobile.spec.js",
+    "test:e2e": "node ./node_modules/@playwright/test/cli.js test --grep-invert \"@visual\"",
+    "test:e2e:a11y": "node ./node_modules/@playwright/test/cli.js test e2e/a11y.spec.js",
+    "test:e2e:catalog": "node ./node_modules/@playwright/test/cli.js test e2e/catalog-filters.spec.js e2e/catalog-layout.spec.js",
+    "test:e2e:funnel": "node ./node_modules/@playwright/test/cli.js test e2e/lead-funnel.spec.js e2e/b2c-features.spec.js",
+    "test:e2e:staging": "node ./node_modules/@playwright/test/cli.js test",
+    "test:e2e:visual": "node ./node_modules/@playwright/test/cli.js test e2e/visual.spec.js e2e/visual-mobile.spec.js",
     "test:unit": "npm --prefix web run test:unit"
   }
 }

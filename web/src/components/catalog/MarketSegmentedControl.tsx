@@ -38,7 +38,8 @@ export function MarketSegmentedControl({
       <div
         role="radiogroup"
         aria-label={t("catalog.market.ariaLabel")}
-        className="grid grid-cols-3 gap-2"
+        data-testid="catalog-market"
+        className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1"
       >
         {items.map((item) => {
           const selected = market === item.value;
@@ -48,10 +49,13 @@ export function MarketSegmentedControl({
               type="button"
               role="radio"
               aria-checked={selected}
-              variant={selected ? "default" : "outline"}
+              variant="ghost"
+              data-testid={`catalog-market-${item.value}`}
               className={cn(
-                "h-11 w-full rounded-xl px-2 text-sm font-semibold",
-                selected && "shadow-sm",
+                "h-9 w-full rounded-md px-2 text-sm font-medium",
+                selected
+                  ? "bg-background text-foreground shadow-sm hover:bg-background"
+                  : "text-foreground/70 hover:bg-transparent hover:text-foreground",
               )}
               onClick={() => {
                 if (!selected) onChange(item.value);

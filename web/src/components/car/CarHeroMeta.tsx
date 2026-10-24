@@ -31,7 +31,7 @@ export function CarHeroMeta({
   const listingUnavailable = availability === "sold" || availability === "reserved";
 
   return (
-    <header className="mt-6 min-w-0 border-b border-border/60 pb-8 sm:mt-8">
+    <header className="mt-5 min-w-0 pb-2 sm:mt-6">
       {srcHuman ? (
         <p className="mb-2 break-words text-xs font-medium text-muted-foreground [overflow-wrap:anywhere]">
           {t("car.purchase.source", { name: srcHuman })}

@@ -24,7 +24,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { CarAdminPanel } from "@/components/car/CarAdminPanel";
 import { PriceBenchmarkInsight } from "@/components/catalog/PriceBenchmarkInsight";
 import { useCarPriceBenchmarkQuery } from "@/hooks/use-car-price-benchmark";
@@ -104,17 +103,17 @@ export function CarPurchaseSidebar({
   return (
     <motion.aside
       id="car-order-panel"
-      className="relative max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-md ring-1 ring-elevated-ring sm:rounded-3xl sm:p-6 lg:sticky lg:top-24"
+      className="relative max-w-full overflow-hidden rounded-xl border border-border bg-card p-5 sm:p-6 lg:sticky lg:top-[calc(var(--site-header-height,3.5rem)+1.5rem)]"
       initial={reduceMotion ? false : { opacity: 0, y: MOTION_TOKENS.offsets.fadeUpSm }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: MOTION_TOKENS.easeSoft }}
     >
       <h2 className="sr-only">{t("car.purchase.panelSr")}</h2>
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {listingUnavailable ? t("car.purchase.statusHeading") : t("car.purchase.priceHeading")}
       </p>
-      <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums sm:text-3xl md:text-[2rem]">
+      <p className="mt-1 break-words text-3xl font-semibold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] tabular-nums">
         {availability === "sold"
           ? t("car.purchase.sold")
           : availability === "reserved"
@@ -125,19 +124,19 @@ export function CarPurchaseSidebar({
                 ? formatPriceLabel(priceRub)
                 : priceOnRequestLabel(locale)}
       </p>
-      <p className="mt-3 line-clamp-3 text-sm font-semibold leading-snug text-foreground sm:line-clamp-2">
+      <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-foreground">
         {title}
       </p>
-      {(updatedLabel || createdLabel) ? (
-        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-          {updatedLabel ? <p>{t("car.purchase.updated", { date: updatedLabel })}</p> : null}
-          {createdLabel ? <p>{t("car.purchase.catalogAdded", { date: createdLabel })}</p> : null}
-        </div>
-      ) : null}
-      {sourceLabel ? (
-        <Badge variant="secondary" className="mt-3 rounded-full px-3 py-1 text-xs font-medium">
-          {t("car.purchase.source", { name: carSourceDisplayName(sourceLabel) })}
-        </Badge>
+      {(updatedLabel || createdLabel || sourceLabel) ? (
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          {[
+            sourceLabel ? t("car.purchase.source", { name: carSourceDisplayName(sourceLabel) }) : null,
+            updatedLabel ? t("car.purchase.updated", { date: updatedLabel }) : null,
+            createdLabel ? t("car.purchase.catalogAdded", { date: createdLabel }) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
       ) : null}
 
       <PriceBenchmarkInsight
@@ -146,9 +145,28 @@ export function CarPurchaseSidebar({
         loading={priceBenchmarkQuery.isFetching && !priceBenchmarkQuery.data}
       />
 
-      <div className="mt-5 flex min-w-0 flex-wrap gap-2">
+      {/* До lg те же CTA живут в CarStickyMobileBar — не дублируем их в карточке цены. */}
+      <div className="mt-5 hidden flex-col gap-2 lg:flex">
+        {availability === "available" ? (
+          <CatalogQuickBuyDialog
+            carId={carId}
+            carTitle={title}
+            triggerLabel={t("car.purchase.buyCta")}
+            triggerSize="lg"
+            triggerVariant="default"
+            triggerClassName="w-full text-title-sm font-semibold"
+          />
+        ) : null}
+        <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
+          <Button variant="outline" size="lg" className="w-full text-title-sm font-medium" asChild>
+            <Link href="/contacts">{t("car.purchase.contactManager")}</Link>
+          </Button>
+        </motion.div>
+      </div>
+
+      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1 lg:mt-4">
         {sourceUrl ? (
-          <Button variant="outline" size="icon-sm" className="rounded-xl shadow-sm" asChild>
+          <Button variant="ghost" size="icon-sm" className="rounded-md text-muted-foreground hover:text-foreground" asChild>
             <a
               href={sourceUrl}
               target="_blank"
@@ -162,9 +180,9 @@ export function CarPurchaseSidebar({
         ) : null}
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon-sm"
-          className="rounded-xl shadow-sm"
+          className="rounded-md text-muted-foreground hover:text-foreground"
           title={copied ? t("car.purchase.linkCopied") : t("car.purchase.copyLink")}
           aria-label={copied ? t("car.purchase.linkCopied") : t("car.purchase.copyListingLink")}
           onClick={() => {
@@ -182,9 +200,9 @@ export function CarPurchaseSidebar({
         </Button>
         <Button
           type="button"
-          variant={inCompare ? "default" : "outline"}
+          variant={inCompare ? "secondary" : "ghost"}
           size="icon-sm"
-          className="rounded-xl shadow-sm"
+          className={inCompare ? "rounded-md" : "rounded-md text-muted-foreground hover:text-foreground"}
           title={
             inCompare
               ? t("car.purchase.compareRemove")
@@ -204,9 +222,9 @@ export function CarPurchaseSidebar({
         {authenticated ? (
           <Button
             type="button"
-            variant={fav ? "default" : "outline"}
+            variant="ghost"
             size="icon-sm"
-            className="rounded-xl shadow-sm"
+            className={fav ? "rounded-md text-red-600 hover:text-red-700" : "rounded-md text-muted-foreground hover:text-foreground"}
             title={fav ? t("car.purchase.inFavorites") : t("car.purchase.addFavorite")}
             aria-label={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavoriteAria")}
             aria-pressed={fav}
@@ -217,36 +235,16 @@ export function CarPurchaseSidebar({
             <Heart className={fav ? "size-4 fill-current" : "size-4"} aria-hidden />
           </Button>
         ) : null}
-      </div>
-
-      <div className="mt-6 flex flex-col gap-2.5">
-        {availability === "available" ? (
-          <CatalogQuickBuyDialog
-            carId={carId}
-            carTitle={title}
-            triggerLabel={t("car.purchase.buyCta")}
-            triggerSize="default"
-            triggerVariant="default"
-            triggerClassName="w-full text-title-sm font-semibold shadow-sm"
-          />
-        ) : null}
-        <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
-          <Button
-            variant="outline"
-            className="w-full text-title-sm font-semibold"
-            asChild
-          >
-            <Link href="/contacts">{t("car.purchase.contactManager")}</Link>
-          </Button>
-        </motion.div>
 
         <Dialog>
           <DialogTrigger asChild>
-            <motion.div {...(reduceMotion ? {} : MOTION_PRESETS.pressable)}>
-              <Button variant="outline" className="w-full font-medium">
-                {t("car.purchase.priceBreakdown")}
-              </Button>
-            </motion.div>
+            <Button
+              variant="link"
+              size="sm"
+              className="ms-auto h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              {t("car.purchase.priceBreakdown")}
+            </Button>
           </DialogTrigger>
           <DialogContent
             className="flex max-h-[min(92vh,44rem)] flex-col gap-4 overflow-hidden sm:max-h-none sm:max-w-lg sm:overflow-visible"
@@ -260,17 +258,16 @@ export function CarPurchaseSidebar({
               {breakdownRows.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("car.purchase.breakdownEmpty")}</p>
               ) : (
-                <ul className="space-y-3 text-sm">
+                <ul className="divide-y divide-border text-sm">
                   {breakdownRows.map((row) => (
-                    <li
-                      key={row.label}
-                      className="flex flex-col gap-0.5 rounded-xl border border-border/60 bg-muted/25 px-3 py-2"
-                    >
-                      <span className="text-muted-foreground">{row.label}</span>
-                      <span className="font-semibold tabular-nums text-foreground">{row.value}</span>
+                    <li key={row.label} className="flex flex-col gap-0.5 py-2.5">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-muted-foreground">{row.label}</span>
+                        <span className="font-semibold tabular-nums text-foreground">{row.value}</span>
+                      </div>
                       {row.note ? <span className="text-xs text-muted-foreground">{row.note}</span> : null}
                       {row.subRows && row.subRows.length > 0 ? (
-                        <ul className="mt-1 space-y-1.5 border-t border-border/50 pt-2">
+                        <ul className="mt-1 space-y-1.5 ps-3">
                           {row.subRows.map((sub) => (
                             <li
                               key={`${row.label}-${sub.label}`}
@@ -292,8 +289,10 @@ export function CarPurchaseSidebar({
             </p>
           </DialogContent>
         </Dialog>
+      </div>
 
-        {carData ? (
+      {carData ? (
+        <div className="mt-4">
           <CarAdminPanel
             carId={carId}
             title={title}
@@ -303,8 +302,8 @@ export function CarPurchaseSidebar({
             priceOnRequest={priceOnRequest}
             publishedAt={sourceUpdatedAt ?? catalogCreatedAt ?? null}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </motion.aside>
   );
 }

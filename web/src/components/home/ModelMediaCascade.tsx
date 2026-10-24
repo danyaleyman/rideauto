@@ -155,6 +155,11 @@ export function ModelMediaCascade({
       transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className={FRAME_CLASS}>
+        {/* Мягкая «тень от пола», чтобы модель не висела в воздухе. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-[12%] bottom-[6%] z-0 h-[10%] rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.16)_0%,rgba(0,0,0,0.06)_45%,transparent_72%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.5)_0%,rgba(0,0,0,0.2)_45%,transparent_72%)]"
+        />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={media.image}
