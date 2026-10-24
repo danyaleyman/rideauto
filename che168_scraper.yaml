@@ -72,6 +72,14 @@ che168:
     sticky_session: true
   respect_rate_limit_headers: true
   rate_limit_sleep_cap_sec: 60
+  # Circuit breaker транспорта. Дефолт (12 обрывов → пауза 90 с) на полном обходе
+  # замораживает ВСЕ запросы: sticky-proxy при 24 параллельных коннектах рвёт часть
+  # соединений (curl 56 "Connection closed abruptly"), и 12 таких обрывов подряд
+  # останавливали прогон на 1.5 минуты (замер 2026-10-24: cb_short ≈ 19 % запросов).
+  # Обрывы транзиентны и ретраятся (id возвращается в pending), поэтому порог выше,
+  # а пауза короче.
+  circuit_breaker_fail_streak: 40
+  circuit_breaker_open_sec: 15
   # Если API отдаёт цену в «万元», включите true (иначе оставьте false и смотрите che168_price_raw).
   assume_price_in_wan_yuan: true
   # pagesize: API отдаёт максимум 100 (pagesize=200 → пустая выдача, проверено 2026-10-24).
