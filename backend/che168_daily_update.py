@@ -8,6 +8,7 @@ import argparse
 import asyncio
 import os
 import random
+import signal
 import subprocess
 import sys
 import time
@@ -294,6 +295,15 @@ async def discover_new_cars(
         new_limit,
         total_added,
     )
+    if new_limit and total_added >= new_limit:
+        # Раньше лимит молча обрывал обход: бренды после точки останова не проверялись вовсе.
+        log.warning(
+            "Che168 daily discover: достигнут new_cars_limit=%s — часть новых лотов/брендов "
+            "не проверена в этом цикле (new_list_pages_per_run=%s, брендов=%s)",
+            new_limit,
+            pages,
+            len(candidate_ids),
+        )
     return total_added
 
 
@@ -381,17 +391,81 @@ async def remove_sold_postgres(
     return int(removed)
 
 
-def run_only_pending(config_path: str, log) -> bool:
+def _kill_process_group(proc: subprocess.Popen, log) -> None:
+    """Убить дочерний процесс вместе с внуками (Playwright/Chromium, postgres_catalog_sync)."""
+    pgid = None
+    try:
+        pgid = os.getpgid(proc.pid)
+    except Exception:
+        pgid = None
+    if pgid is not None and hasattr(os, "killpg"):
+        try:
+            os.killpg(pgid, signal.SIGTERM)
+            log.warning("Sent SIGTERM to process group pgid=%s (pid=%s)", pgid, proc.pid)
+        except Exception as e:  # pragma: no cover - зависит от прав
+            log.warning("killpg(SIGTERM) failed pgid=%s: %s", pgid, e)
+    try:
+        proc.wait(timeout=30)
+        return
+    except Exception:
+        pass
+    if pgid is not None and hasattr(os, "killpg"):
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+            log.error("Sent SIGKILL to process group pgid=%s (pid=%s) — не завершился за 30 с", pgid, proc.pid)
+        except Exception as e:  # pragma: no cover
+            log.error("killpg(SIGKILL) failed pgid=%s: %s", pgid, e)
+    try:
+        proc.kill()
+    except Exception:
+        pass
+
+
+def run_only_pending(config_path: str, log, du: Optional[dict] = None) -> bool:
+    """
+    Запустить `che168_scraper --only-pending` и дождаться результата.
+
+    - only_pending_timeout_sec (по умолчанию 0) — жёсткий таймаут; по истечении
+      убивается вся process group (иначе зависший Chromium/PG-sync держит цикл сутками).
+    - skip_catalog_sync (по умолчанию true) — ставит SKIP_POSTGRES_CATALOG_SYNC=1:
+      локализация/цены/Meili обновляются отдельным rideauto-catalog-pipeline.timer.
+    """
+    daily = du if isinstance(du, dict) else {}
     scraper_script = Path(__file__).resolve().parent / "che168_scraper.py"
     cfg_abs = str(Path(config_path).expanduser().resolve())
     cmd = [sys.executable, str(scraper_script), "--config", cfg_abs, "--only-pending"]
-    log.info("Running: %s", " ".join(cmd))
+    timeout_sec = int(daily.get("only_pending_timeout_sec", 0) or 0)
+    skip_catalog_sync = bool(daily.get("skip_catalog_sync", True))
+    env = dict(os.environ)
+    if skip_catalog_sync:
+        env["SKIP_POSTGRES_CATALOG_SYNC"] = "1"
+    log.info(
+        "Running: %s (timeout=%ss skip_catalog_sync=%s)",
+        " ".join(cmd),
+        timeout_sec if timeout_sec > 0 else "none",
+        skip_catalog_sync,
+    )
     try:
-        r = subprocess.run(cmd, capture_output=False)
-        return r.returncode == 0
+        # start_new_session=True -> своя process group, чтобы убивать вместе с внуками.
+        proc = subprocess.Popen(cmd, env=env, start_new_session=True)
+    except Exception as e:
+        log.exception("Subprocess failed to start: %s", e)
+        return False
+    try:
+        rc = proc.wait(timeout=timeout_sec if timeout_sec > 0 else None)
+    except subprocess.TimeoutExpired:
+        log.error(
+            "Che168 --only-pending превысил таймаут %ss (pid=%s) — убиваю process group",
+            timeout_sec,
+            proc.pid,
+        )
+        _kill_process_group(proc, log)
+        return False
     except Exception as e:
         log.exception("Subprocess failed: %s", e)
+        _kill_process_group(proc, log)
         return False
+    return rc == 0
 
 
 async def run_one_cycle(config_path: str, config: dict, log) -> bool:
@@ -445,7 +519,7 @@ async def run_one_cycle(config_path: str, config: dict, log) -> bool:
     if prom:
         _write_daily_prometheus_textfile(prom, cycle_stats, log)
 
-    ok = run_only_pending(config_path, log)
+    ok = run_only_pending(config_path, log, du)
     if ok:
         _notify_slack(
             f"*Che168 daily update*: OK\nnew={cycle_stats['new_cars_added']} sold_removed={cycle_stats['sold_cars_removed']} pending={cycle_stats['pending_queue_size']}",

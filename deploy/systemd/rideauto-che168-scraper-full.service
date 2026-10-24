@@ -1,5 +1,5 @@
 [Unit]
-Description=RideAuto Che168 mass scraper (full catalog, segmentation price x year)
+Description=RideAuto Che168 mass scraper (full catalog walk, 639 brands)
 After=network-online.target
 Wants=network-online.target
 Documentation=file:/opt/rideauto/deploy/DEPLOY_PRODUCTION.md

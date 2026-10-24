@@ -74,18 +74,26 @@ che168:
   rate_limit_sleep_cap_sec: 60
   # Если API отдаёт цену в «万元», включите true (иначе оставьте false и смотрите che168_price_raw).
   assume_price_in_wan_yuan: true
-  search_pagesize: 20
+  # pagesize: API отдаёт максимум 100 (pagesize=200 → пустая выдача, проверено 2026-10-24).
+  # pagesize=100 уменьшает бюджет полного обхода каталога в 5 раз (11 893 → ~2 379 страниц).
+  search_pagesize: 100
   search_sort: 0
   vehicle_list: 1
-  # Segmentation: Che168 /search pageindex пагинация упирается в ~50-100 страниц.
-  # Чтобы вытащить весь каталог, дробим поиск на много маленьких сегментов.
-  search_pagination_mode: auto  # auto | pageindex | offset
-  # Segmentation: полный прогон включается флагом CLI (--segmentation / --full),
-  # daily-update по умолчанию её не использует (use_segmentation: false).
+  # Пагинация Che168 /search (проверено 2026-10-24 на globalapi.che168.com/api/v1):
+  #   * pageindex работает на любую глубину (page=1000 отдаёт данные) — лимита «50-100 страниц» нет;
+  #   * страницы стабильны и не пересекаются (повтор page=1 → те же infoid), offset-пагинация не поддерживается;
+  #   * price_min/price_max/year_min/year_max, price=, year=, startyear/endyear API ИГНОРИРУЕТ
+  #     (totalcount не меняется) — поэтому price×year сегментация даёт 80 одинаковых проходов.
+  search_pagination_mode: pageindex  # offset у Che168 не поддерживается (пустая выдача)
+  # Полнота каталога достигается обычным обходом брендов до pagecount (639 брендов ≈ 2 379 страниц),
+  # а не сегментацией. Сегментация выключена; включать только если Che168 начнёт поддерживать фильтры.
   # Чекпоинт бренда/сегмента, дошедший до конца выдачи, автоматически
   # сбрасывается в начало (reset_offset_on_complete), чтобы новые лоты в «голове»
   # выдачи попадали в каталог и при неполном проходе.
   reset_offset_on_complete: true
+  # ВНИМАНИЕ: держать enabled=false. API не фильтрует по цене/году, поэтому сегментация
+  # умножает один и тот же проход на 80 (10 цен × 8 годов) без прироста покрытия.
+  # Блок оставлен на случай, если Che168 включит фильтры (тогда проверить totalcount по сегменту).
   segmentation:
     enabled: false
     strategy: "price_x_year"
@@ -220,21 +228,30 @@ daily_update:
   timezone: Asia/Yekaterinburg
   run_at_hour: 1
   run_at_minute: 30
-  # Daily discover читает «голову» выдачи (страницы 1..N), там появляется всё новое.
-  # Полный обход каталога — отдельный weekly full-run (rideauto-che168-scraper-full.timer,
-  # backend/che168_scraper.py --segmentation).
-  new_list_pages_per_run: 5
-  new_cars_limit: 300
+  # Daily discover: «голова» выдачи каждого бренда, страницы 1..N × pagesize(100).
+  # 3 × 100 × 639 брендов ≈ 191 700 слотов/сутки ≈ 82% каталога (235k) — новые лоты
+  # подхватываются в течение суток. Полный обход (все страницы + детали) — weekly full-run
+  # (rideauto-che168-scraper-full.timer, backend/che168_scraper.py без --segmentation).
+  new_list_pages_per_run: 3
+  # 0 = без лимита. Лимит режет discover молча (часть брендов вообще не проверяется),
+  # поэтому ставим заведомо большой потолок и логируем срабатывание.
+  new_cars_limit: 3000
   # 0 = все бренды из GET /brand (иначе берётся ротирующееся окно из N брендов).
   new_brand_sample: 0
   # true — продолжать daily discover с сохранённой страницы (по умолчанию всегда с 1-й:
   # иначе новые лоты в начале выдачи никогда не проверяются).
   new_resume_from_checkpoint: false
-  # Incremental daily mode: by default no segmentation (full crawler can use its own strategy).
+  # Incremental daily mode: без сегментации (API не поддерживает фильтры цены/года).
   use_segmentation: false
   # Если segmentation.enabled=true: сколько сегментов price×year пытаться на бренд за один daily run.
-  # Ограничивает нагрузку daily-update (не делает мини-full-scan).
   new_discovery_segments_per_brand: 10
+  # Шаг `--only-pending` (докачка деталей): жёсткий таймаут в секундах, 0 = без лимита.
+  # Без него зависший Playwright/PG-sync держал цикл сутками и daily «тихо» не завершался.
+  only_pending_timeout_sec: 10800
+  # postgres_catalog_sync (локализация mark/model + цены + Meili) идёт отдельным
+  # rideauto-catalog-pipeline.timer (03:30). В daily не дублируем: полный sync на 140k+ строк
+  # занимает десятки минут и раньше вешал цикл. Поставить false, чтобы вернуть sync в daily.
+  skip_catalog_sync: true
   sold_check_sample: 500
   sold_check_retry_attempts: 3
   sold_delete_batch_size: 50

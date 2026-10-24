@@ -99,8 +99,9 @@ async def run_scraper(
 ) -> None:
     config = load_config(config_path)
     if force_segmentation:
-        # Полный прогон: /search отдаёт не больше ~50-100 страниц на запрос, поэтому
-        # весь каталог достаётся только дроблением на сегменты price×year.
+        # Опция оставлена для случая, если Che168 начнёт фильтровать по цене/году.
+        # Сейчас (проверено 2026-10-24) фильтры price_min/price_max/year_* API игнорирует,
+        # а pageindex работает на любую глубину — полный каталог берётся обычным обходом брендов.
         ch_section = config.get("che168")
         if not isinstance(ch_section, dict):
             ch_section = {}

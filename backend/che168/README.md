@@ -42,31 +42,52 @@ python che168_daily_update.py --config ../che168_scraper.yaml --once
 Глубина daily discover: `daily_update.new_list_pages_per_run` страниц с **начала** выдачи
 (там появляются новые лоты) по **всем** брендам из `GET /brand` (`new_brand_sample: 0`;
 `>0` — ротирующееся окно брендов, курсор в `scraper_checkpoint_state` `daily_brand_cursor`).
+При `search_pagesize: 100` это `3 × 100 × 639 ≈ 191 700` слотов/сутки ≈ 82% каталога.
+`new_cars_limit` (по умолчанию 3000) — предохранитель: при срабатывании в лог уходит
+**warning** («часть брендов не проверена»), а не тихое усечение.
 Если шаг `--only-pending` падает, цикл завершается с кодом **1** (а не молча «зелёным»).
+Шаг `--only-pending` ограничен `daily_update.only_pending_timeout_sec` (10800 = 3 ч):
+по таймауту убивается вся process group (Playwright/Chromium + внуки), цикл считается
+неуспешным. `daily_update.skip_catalog_sync: true` выставляет `SKIP_POSTGRES_CATALOG_SYNC=1`
+(локализация/цены/Meili — отдельный `rideauto-catalog-pipeline.timer`, 03:30).
 
-## Полный обход каталога (сегментация)
+## Полный обход каталога
 
-`/search` отдаёт не больше ~50–100 страниц на один запрос, поэтому простой обход по брендам
-видит лишь часть каталога (на проде 09–10.10.2025 — ~143k строк из ~235k, ≈60%).
-Полный каталог достаётся дроблением на сегменты **price × year**:
+Замеры API `/search` (2026-10-24, `globalapi.che168.com/api/v1/search`):
+
+| Проверка | Результат |
+| --- | --- |
+| `pageindex=1000` | отдаёт данные — лимита «50–100 страниц» нет |
+| повтор `pageindex=1` | те же `infoid` — страницы стабильны |
+| страницы 1/2/3/195 (pagesize=100) | не пересекаются |
+| `pagesize=100` / `pagesize=200` | 100 ✓ / пустая выдача |
+| `price_min/price_max`, `price=`, `startyear/endyear`, `year_*` | `totalcount` не меняется — **фильтры игнорируются** |
+| `offset`/`limit` | пустая выдача — offset-пагинация не поддерживается |
+
+Поэтому полный каталог берётся **обычным обходом брендов до `pagecount`**:
+639 брендов ≈ **2 379 страниц** при `search_pagesize: 100` (было 11 893 при 20).
+Сегментация `price × year` выключена (`che168.segmentation.enabled: false`): фильтры
+игнорируются, поэтому 10 × 8 сегментов давали 80 одинаковых проходов без прироста покрытия.
 
 ```bash
 # Полный обход без лимита (на проде — через systemd, см. ниже)
-python che168_scraper.py --config ../che168_scraper.yaml --segmentation --max-cars 0
+python che168_scraper.py --config ../che168_scraper.yaml --max-cars 0
 
 # Начать каталог с нуля: сбросить чекпоинты brand_*/segment_*
-python che168_scraper.py --config ../che168_scraper.yaml --segmentation --reset-offsets
+python che168_scraper.py --config ../che168_scraper.yaml --reset-offsets
 ```
 
-- Флаг `--segmentation` (`--full`) включает `che168.segmentation` без правки YAML
-  (сегменты заданы в `che168_scraper.yaml`: 10 ценовых × 8 годовых).
-- Чекпоинт бренда/сегмента, дошедший до конца выдачи, автоматически сбрасывается в начало
+- `--segmentation` (`--full`) принудительно включает `che168.segmentation` — держать
+  выключенным, пока API не начнёт фильтровать по цене/году.
+- Чекпоинт бренда, дошедший до конца выдачи, автоматически сбрасывается в начало
   (`che168.reset_offset_on_complete: true`) — иначе новые объявления в «голове» выдачи
   больше никогда не сканируются.
 - На проде: `deploy/scripts/run_che168_scraper_full_host.sh`,
   юниты `rideauto-che168-scraper-full.service` + `rideauto-che168-scraper-full.timer`
   (еженедельно, `Sun 06:00 Asia/Yekaterinburg`, `Persistent=true`).
   Ручной запуск: `systemctl start rideauto-che168-scraper-full.service`.
+  `CHE168_FULL_SEGMENTATION=1` — включить сегментацию (по умолчанию выключена),
+  `CHE168_FULL_RESET_OFFSETS=1` — начать обход с первой страницы.
 
 Секреты и устройство:
 

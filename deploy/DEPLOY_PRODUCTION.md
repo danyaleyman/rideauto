@@ -149,8 +149,8 @@ sudo systemctl enable --now rideauto-che168-auto-update.timer
 sudo systemctl enable --now rideauto-che168-scraper-full.timer
 ```
 
-- `rideauto-che168-auto-update.timer` — ежедневно 02:00 (discover «головы» выдачи по всем брендам + sold + `--only-pending`). При падении шага `--only-pending` unit завершается с кодом 1.
-- `rideauto-che168-scraper-full.timer` — еженедельно, `Sun 06:00 Asia/Yekaterinburg`: полный обход каталога с сегментацией `price × year` (`--segmentation`), потому что `/search` отдаёт максимум ~50–100 страниц на запрос и без сегментации в БД попадает только ~60% объявлений.
+- `rideauto-che168-auto-update.timer` — ежедневно 02:00 (discover «головы» выдачи по всем брендам + sold + `--only-pending`). При падении шага `--only-pending` (или по таймауту `daily_update.only_pending_timeout_sec`, по умолчанию 3 ч, с убийством process group) unit завершается с кодом 1.
+- `rideauto-che168-scraper-full.timer` — еженедельно, `Sun 06:00 Asia/Yekaterinburg`: полный обход каталога обычным обходом брендов (`pageindex` до `pagecount`). Замеры 2026-10-24: `pageindex` работает на любую глубину, страницы стабильны и не пересекаются, `pagesize` максимум 100 → полный каталог ≈ **2 379 страниц** на 639 брендов. Сегментация `price × year` **не нужна**: API игнорирует `price_*`/`year_*` фильтры (10 × 8 сегментов = 80 одинаковых проходов). Включить обратно можно через `CHE168_FULL_SEGMENTATION=1`.
 - Обоим юнитам нужен `MemoryDenyWriteExecute=no`: Playwright/Chromium bootstrap (V8 JIT) не запускается при запрете исполняемых анонимных страниц памяти.
 - Ручной запуск полного прогона: `sudo systemctl start rideauto-che168-scraper-full.service`
   (или `bash deploy/scripts/run_che168_scraper_full_host.sh 0`).
