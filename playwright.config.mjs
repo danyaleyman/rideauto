@@ -31,6 +31,8 @@ export default defineConfig({
   reporter: "list",
   snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{projectName}/{arg}{ext}",
   use: {
+    // Сайт выбирает язык по Accept-Language; тесты написаны под RU-копирайт и RU-ссылки (/car/… без /en/).
+    locale: "ru-RU",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },

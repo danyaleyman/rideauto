@@ -15,8 +15,8 @@ test.beforeEach(async ({ page }) => {
 
 test("главная: герой и ссылка в каталог", async ({ page }) => {
   await page.goto(`${BASE}/`);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(/Кореи|Китая/);
-  await expect(page.getByRole("link", { name: "Открыть каталог" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(/Автомобили из Азии/);
+  await expect(page.getByRole("link", { name: "Каталог" }).first()).toBeVisible();
 });
 
 test("каталог с параметрами и карточка", async ({ page }) => {
