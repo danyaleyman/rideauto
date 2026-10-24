@@ -23,7 +23,12 @@
       "loadError": "Ошибка загрузки: {message}",
       "loading": "Загрузка результатов каталога.",
       "liveCount": "Найдено {total} объявлений. На странице показано {shown}. Страница {page}.",
-      "listLabel": "Список объявлений"
+      "listLabel": "Список объявлений",
+      "tablePhoto": "Фото",
+      "tableCar": "Автомобиль",
+      "tableYear": "Год",
+      "tableMileage": "Пробег",
+      "tablePrice": "Цена"
     },
     "error": {
       "title": "Не удалось загрузить каталог",
@@ -260,10 +265,11 @@
       "leadPhone": "Контактный номер: {phone}",
       "contactCall": "Звонок по телефону"
     },
-    "density": {
-      "aria": "Плотность списка каталога",
-      "comfortable": "Обычный",
-      "compact": "Компакт"
+    "view": {
+      "aria": "Вид каталога",
+      "list": "Список",
+      "tile": "Плитка",
+      "table": "Таблица"
     }
   },
   "car": {
@@ -754,6 +760,13 @@
       "ctaTitle": "Подберём автомобиль под ваш запрос",
       "ctaLead": "Оставьте заявку в каталоге или напишите в Telegram — обсудим бюджет, сроки и варианты из Азии.",
       "ctaCatalog": "Подобрать авто",
+      "photoSlot": "Фото — {step}",
+      "statCatalogValue": "2 000+",
+      "statCatalogLabel": "авто в каталоге",
+      "statMarketsValue": "3",
+      "statMarketsLabel": "рынка",
+      "statTermValue": "30–45 дн.",
+      "statTermLabel": "типичный срок",
       "step01Title": "Профиль",
       "step01Body": "Фиксируем бюджет, класс автомобиля и сценарий владения. Подписываем",
       "step01Joiner": "и",
@@ -776,7 +789,8 @@
     "markets": {
       "aria": "Наши направления",
       "eyebrow": "Наши направления",
-      "title": "Корея, Китай и Япония",
+      "title": "Корея, Китай и США",
+      "photoSlot": "Фото — {country}",
       "catalogPrefix": "Каталог —",
       "prev": "Предыдущее направление",
       "next": "Следующее направление",
@@ -819,7 +833,8 @@
     "channel": "Канал",
     "vk": "ВКонтакте",
     "avito": "Avito",
-    "companyProfile": "Профиль компании"
+    "companyProfile": "Профиль компании",
+    "writeCta": "Написать менеджеру"
   },
   "gallery": {
     "open": "Открыть галерею фото",

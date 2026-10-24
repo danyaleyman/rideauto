@@ -29,7 +29,7 @@ export function createStoryCatalogMock(
     isFavorite: () => false,
     toggleFavorite: async () => {},
     proxiedCatalogThumbsByCar: new Map(),
-    catalogDensity: "comfortable" as const,
+    catalogDensity: "list" as const,
     setCatalogDensity: () => {},
   };
   return { ...base, ...overrides } as CatalogSearchController;

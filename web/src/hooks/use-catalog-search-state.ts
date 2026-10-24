@@ -63,7 +63,7 @@ export function useCatalogSearchState({
   const [qDraft, setQDraft] = useState(state.q);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openingCarId, setOpeningCarId] = useState<string | null>(null);
-  const [catalogDensity, setCatalogDensityState] = useState<CatalogDensity>("comfortable");
+  const [catalogDensity, setCatalogDensityState] = useState<CatalogDensity>("list");
   const resultsListRef = useRef<HTMLUListElement>(null);
   const prevCatalogPageRef = useRef<number | null>(null);
   const { toggle: toggleFavorite, isFavorite } = useFavorites();

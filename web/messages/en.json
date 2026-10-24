@@ -23,7 +23,12 @@
       "loadError": "Load error: {message}",
       "loading": "Loading catalog results.",
       "liveCount": "Found {total} listings. Showing {shown} on this page. Page {page}.",
-      "listLabel": "Listing results"
+      "listLabel": "Listing results",
+      "tablePhoto": "Photo",
+      "tableCar": "Car",
+      "tableYear": "Year",
+      "tableMileage": "Mileage",
+      "tablePrice": "Price"
     },
     "error": {
       "title": "Could not load catalog",
@@ -260,10 +265,11 @@
       "leadPhone": "Phone: {phone}",
       "contactCall": "Phone call"
     },
-    "density": {
-      "aria": "Catalog list density",
-      "comfortable": "Comfortable",
-      "compact": "Compact"
+    "view": {
+      "aria": "Catalog view",
+      "list": "List",
+      "tile": "Tiles",
+      "table": "Table"
     }
   },
   "car": {
@@ -754,6 +760,13 @@
       "ctaTitle": "We will find a car for your request",
       "ctaLead": "Submit a request in the catalog or message us on Telegram — we will discuss budget, timing and options from Asia.",
       "ctaCatalog": "Find a car",
+      "photoSlot": "Photo — {step}",
+      "statCatalogValue": "2,000+",
+      "statCatalogLabel": "cars in catalog",
+      "statMarketsValue": "3",
+      "statMarketsLabel": "markets",
+      "statTermValue": "30–45 days",
+      "statTermLabel": "typical timeline",
       "step01Title": "Brief",
       "step01Body": "We align on budget, vehicle class and ownership goals. We sign the",
       "step01Joiner": "and",
@@ -776,7 +789,8 @@
     "markets": {
       "aria": "Our markets",
       "eyebrow": "Our markets",
-      "title": "Korea, China and Japan",
+      "title": "Korea, China and the USA",
+      "photoSlot": "Photo — {country}",
       "catalogPrefix": "Catalog —",
       "prev": "Previous market",
       "next": "Next market",
@@ -819,7 +833,8 @@
     "channel": "Channel",
     "vk": "VK",
     "avito": "Avito",
-    "companyProfile": "Company profile"
+    "companyProfile": "Company profile",
+    "writeCta": "Message the manager"
   },
   "gallery": {
     "open": "Open photo gallery",

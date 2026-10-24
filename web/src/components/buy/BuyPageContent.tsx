@@ -1,6 +1,5 @@
 "use client";
 
-import { MessageCircle, ClipboardCheck, Ship, Landmark } from "lucide-react";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { BuyCalculatorLazy } from "@/components/buy/BuyCalculatorLazy";
 import { OrderLeadForm } from "@/components/buy/OrderLeadForm";
@@ -8,72 +7,43 @@ import { MotionFadeUp } from "@/components/ui/motion";
 
 export function BuyPageContent() {
   const { t } = useLocaleContext();
+  const steps = [
+    { id: "buy-step-1", text: t("buy.step1") },
+    { id: "buy-step-2", text: t("buy.step2") },
+    { id: "buy-step-3", text: t("buy.step3") },
+    { id: "buy-step-4", text: t("buy.step4") },
+  ] as const;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <MotionFadeUp>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t("buy.h1")}</h1>
         <p className="mt-3 max-w-3xl text-muted-foreground">{t("buy.lead")}</p>
-        <nav aria-label={t("buy.navAria")} className="mt-6 flex max-w-2xl flex-wrap gap-2 text-sm font-medium">
-          <a
-            href="#buy-steps"
-            className="rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-primary/5"
-          >
+        <nav aria-label={t("buy.navAria")} className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <a href="#buy-steps" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
             {t("buy.navSteps")}
           </a>
-          <a
-            href="#order-lead"
-            className="rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-primary/5"
-          >
+          <a href="#order-lead" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
             {t("buy.navForm")}
           </a>
-          <a
-            href="#buy-calculator"
-            className="rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-primary/5"
-          >
+          <a href="#buy-calculator" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
             {t("buy.navCalculator")}
           </a>
         </nav>
       </MotionFadeUp>
 
       <MotionFadeUp delay={0.04}>
-        <section id="buy-steps" aria-labelledby="buy-steps-heading" className="mt-8 scroll-mt-24">
+        <section id="buy-steps" aria-labelledby="buy-steps-heading" className="mt-10 scroll-mt-24">
           <h2 id="buy-steps-heading" className="sr-only">
             {t("buy.stepsSr")}
           </h2>
-          <ol className="grid list-none gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 text-sm text-foreground sm:grid-cols-2 sm:p-6">
-            <li id="buy-step-1" className="flex gap-3 rounded-xl bg-background/40 p-3 sm:p-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                <MessageCircle className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="font-medium leading-snug">{t("buy.step1")}</p>
-              </div>
-            </li>
-            <li id="buy-step-2" className="flex gap-3 rounded-xl bg-background/40 p-3 sm:p-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                <ClipboardCheck className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="font-medium leading-snug">{t("buy.step2")}</p>
-              </div>
-            </li>
-            <li id="buy-step-3" className="flex gap-3 rounded-xl bg-background/40 p-3 sm:p-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                <Ship className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="font-medium leading-snug">{t("buy.step3")}</p>
-              </div>
-            </li>
-            <li id="buy-step-4" className="flex gap-3 rounded-xl bg-background/40 p-3 sm:p-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                <Landmark className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="font-medium leading-snug">{t("buy.step4")}</p>
-              </div>
-            </li>
+          <ol className="grid list-none gap-x-10 gap-y-8 sm:grid-cols-2">
+            {steps.map((step, i) => (
+              <li key={step.id} id={step.id} className="border-t border-border pt-4">
+                <p className="text-sm font-medium tabular-nums text-muted-foreground">{String(i + 1).padStart(2, "0")}</p>
+                <p className="mt-2 text-sm leading-6 text-foreground">{step.text}</p>
+              </li>
+            ))}
           </ol>
         </section>
       </MotionFadeUp>

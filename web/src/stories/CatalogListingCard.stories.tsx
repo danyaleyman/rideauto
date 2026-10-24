@@ -45,9 +45,9 @@ export const Reserved: Story = {
   },
 };
 
-export const Compact: Story = {
+export const Tile: Story = {
   args: {
-    catalog: createStoryCatalogMock({ catalogDensity: "compact" }),
+    catalog: createStoryCatalogMock({ catalogDensity: "tile" }),
     car: storySlimCar,
     idx: 0,
     preview,

@@ -19,8 +19,9 @@ export function CatalogDensityToggle({
   const options = useMemo(
     () =>
       [
-        { id: "comfortable" as const, label: t("catalog.density.comfortable") },
-        { id: "compact" as const, label: t("catalog.density.compact") },
+        { id: "list" as const, label: t("catalog.view.list"), desktopOnly: false },
+        { id: "tile" as const, label: t("catalog.view.tile"), desktopOnly: false },
+        { id: "table" as const, label: t("catalog.view.table"), desktopOnly: true },
       ] as const,
     [t],
   );
@@ -33,14 +34,17 @@ export function CatalogDensityToggle({
         className,
       )}
       role="group"
-      aria-label={t("catalog.density.aria")}
+      aria-label={t("catalog.view.aria")}
+      data-testid="catalog-view-toggle"
     >
       {options.map((opt) => (
         <button
           key={opt.id}
           type="button"
+          data-testid={`catalog-view-${opt.id}`}
           className={cn(
             "h-full rounded-md px-3 text-xs font-medium transition-colors",
+            opt.desktopOnly && "hidden lg:inline-flex",
             value === opt.id
               ? "bg-background text-foreground shadow-sm"
               : "text-foreground/70 hover:text-foreground",

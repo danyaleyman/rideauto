@@ -1,62 +1,82 @@
 "use client";
 
-import { MotionFadeUp, MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
+import { MotionFadeUp } from "@/components/ui/motion";
+import { Button } from "@/components/ui/button";
 import { useLocaleContext } from "@/components/LocaleProvider";
 
 export function ContactsPageClient() {
   const { t } = useLocaleContext();
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       <MotionFadeUp>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t("contacts.title")}</h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">{t("contacts.lead")}</p>
       </MotionFadeUp>
 
-      <MotionStagger className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <MotionStaggerItem>
-          <article className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">{t("contacts.telegram")}</h2>
-            <p className="mt-2 text-sm">
-              {t("contacts.manager")}:{" "}
-              <a className="text-primary underline-offset-2 hover:underline" href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">
+      <MotionFadeUp delay={0.04}>
+        <dl className="mt-10 divide-y divide-border border-t border-border">
+          <div className="grid grid-cols-1 gap-1 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6">
+            <dt className="text-sm text-muted-foreground">{t("contacts.telegram")}</dt>
+            <dd className="min-w-0 text-sm leading-6 text-foreground">
+              <span className="text-muted-foreground">{t("contacts.manager")}: </span>
+              <a
+                className="underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+                href="https://t.me/nikits15"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 @nikits15
               </a>
-            </p>
-            <p className="mt-1 text-sm">
-              {t("contacts.channel")}:{" "}
-              <a className="text-primary underline-offset-2 hover:underline" href="https://t.me/worldrideauto" target="_blank" rel="noopener noreferrer">
+              <span className="text-muted-foreground"> · {t("contacts.channel")}: </span>
+              <a
+                className="underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+                href="https://t.me/worldrideauto"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 @worldrideauto
               </a>
-            </p>
-          </article>
-        </MotionStaggerItem>
-        <MotionStaggerItem>
-          <article className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">{t("contacts.vk")}</h2>
-            <p className="mt-2 text-sm">
-              <a className="text-primary underline-offset-2 hover:underline" href="https://vk.com/ride_auto" target="_blank" rel="noopener noreferrer">
+            </dd>
+          </div>
+          <div className="grid grid-cols-1 gap-1 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6">
+            <dt className="text-sm text-muted-foreground">{t("contacts.vk")}</dt>
+            <dd className="min-w-0 text-sm leading-6">
+              <a
+                className="underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+                href="https://vk.com/ride_auto"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 vk.com/ride_auto
               </a>
-            </p>
-          </article>
-        </MotionStaggerItem>
-        <MotionStaggerItem>
-          <article className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">{t("contacts.avito")}</h2>
-            <p className="mt-2 text-sm">
+            </dd>
+          </div>
+          <div className="grid grid-cols-1 gap-1 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6">
+            <dt className="text-sm text-muted-foreground">{t("contacts.avito")}</dt>
+            <dd className="min-w-0 text-sm leading-6">
               <a
-                className="text-primary underline-offset-2 hover:underline"
+                className="underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
                 href="https://www.avito.ru/brands/8a805bbde7bfbfcc9b9e810b88bb4382?src=sharing"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 {t("contacts.companyProfile")}
               </a>
-            </p>
-          </article>
-        </MotionStaggerItem>
-      </MotionStagger>
+            </dd>
+          </div>
+        </dl>
+      </MotionFadeUp>
+
+      <MotionFadeUp delay={0.08}>
+        <div className="mt-8">
+          <Button asChild className="h-11 px-5">
+            <a href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">
+              {t("contacts.writeCta")}
+            </a>
+          </Button>
+        </div>
+      </MotionFadeUp>
     </div>
   );
 }

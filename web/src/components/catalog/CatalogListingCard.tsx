@@ -67,7 +67,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
     proxiedCatalogThumbsByCar,
     catalogDensity,
   } = catalog;
-  const compact = catalogDensity === "compact";
+  const tile = catalogDensity === "tile";
   const { toggle: toggleCompare, isInCompare, full: compareFull } = useCompareCars();
   const inCompare = isInCompare(car.id);
 
@@ -85,7 +85,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
   const commerceBadge =
     !listingUnavailable && primaryCommerce ? (
       primaryCommerce.kind === "no_customs" ? (
-        <ListingChip tone="commerceAmber" size={compact ? "sm" : "md"}>
+        <ListingChip tone="commerceAmber" size={tile ? "sm" : "md"}>
           {t("catalog.card.noCustoms")}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -103,7 +103,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
           </Tooltip>
         </ListingChip>
       ) : primaryCommerce.kind === "passable" ? (
-        <ListingChip tone="commerceEmerald" size={compact ? "sm" : "md"}>
+        <ListingChip tone="commerceEmerald" size={tile ? "sm" : "md"}>
           {t("catalog.card.passable")}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -119,7 +119,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
           </Tooltip>
         </ListingChip>
       ) : (
-        <ListingChip tone="commerceAmber" size={compact ? "sm" : "md"}>
+        <ListingChip tone="commerceAmber" size={tile ? "sm" : "md"}>
           {t("catalog.card.highRate")}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -158,7 +158,8 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
         data-density={catalogDensity}
         size="sm"
         className={cn(
-          "relative flex flex-col items-stretch gap-0 overflow-clip !py-0 data-[size=sm]:!py-0 md:flex-row",
+          "relative flex flex-col items-stretch gap-0 overflow-clip !py-0 data-[size=sm]:!py-0",
+          !tile && "md:flex-row",
           listingCardSurfaceClass,
         )}
       >
@@ -178,7 +179,13 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
             </span>
           </div>
         ) : null}
-        <div className={cn(catalogListingThumbFocusClass, "pointer-events-none relative z-0")}>
+        <div
+          className={cn(
+            catalogListingThumbFocusClass,
+            "pointer-events-none relative z-0",
+            tile && "aspect-[16/10] md:w-full md:rounded-s-none md:rounded-t-xl",
+          )}
+        >
           <div className="relative size-full">
             <CatalogCardImage
               images={preview}
@@ -206,7 +213,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
         <div
           className={cn(
             "relative z-0 flex min-w-0 flex-1 flex-col gap-1.5 p-3.5 sm:p-4 md:p-5",
-            compact && "gap-1 p-3 sm:p-3.5 md:p-4",
+            tile && "gap-1 p-3 sm:p-3.5 md:p-4",
           )}
         >
           <div className="flex items-start justify-between gap-2 sm:gap-3">
@@ -310,7 +317,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
             ))}
           </p>
           {!listingUnavailable ? (
-            <div className={cn("mt-auto flex w-full min-w-0 flex-wrap items-center justify-between gap-2 pt-3", compact && "pt-2")}>
+            <div className={cn("mt-auto flex w-full min-w-0 flex-wrap items-center justify-between gap-2 pt-3", tile && "pt-2")}>
               <div className="pointer-events-none flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <span className="block max-w-full truncate text-lg font-semibold tabular-nums tracking-tight [overflow-wrap:anywhere] max-md:min-w-[5rem] sm:text-xl">
                   {formatCatalogCardPrice(car.price, car.price_on_request)}

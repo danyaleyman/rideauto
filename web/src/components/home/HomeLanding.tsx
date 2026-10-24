@@ -1,7 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
+import { MarketDirectionsCarousel } from "@/components/home/MarketDirectionsCarousel";
+import { PhotoPlaceholder } from "@/components/ui/photo-placeholder";
 import { type ReactNode, useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import "@/lib/preload-landing-models";
@@ -20,19 +21,6 @@ const HANDOVER_URL =
 
 const linkClass =
   "font-medium text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground";
-
-const MarketDirectionsCarousel = dynamic(
-  () =>
-    import("@/components/home/MarketDirectionsCarousel").then((m) => m.MarketDirectionsCarousel),
-  {
-    ssr: false,
-    loading: () => (
-      <section className="border-y border-border bg-muted/25 py-16 sm:py-24" aria-hidden>
-        <div className="mx-auto h-[480px] max-w-[1440px] animate-pulse px-4 sm:px-6 lg:px-10" />
-      </section>
-    ),
-  },
-);
 
 type ProcessStep = {
   n: string;
@@ -222,6 +210,10 @@ export function HomeLanding() {
                 transition={{ delay: i * 0.05 }}
                 className="border-t border-border pt-5"
               >
+                <PhotoPlaceholder
+                  label={t("home.landing.photoSlot", { step: step.title })}
+                  className="mb-4"
+                />
                 <div className="text-sm font-medium tabular-nums text-muted-foreground" aria-hidden>
                   {step.n}
                 </div>
@@ -246,6 +238,22 @@ export function HomeLanding() {
           <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
             {t("home.landing.ctaLead")}
           </p>
+          <dl className="mx-auto mt-10 grid max-w-xl grid-cols-3 gap-4 border-y border-border py-5 text-start sm:text-center">
+            {(
+              [
+                ["home.landing.statCatalogValue", "home.landing.statCatalogLabel"],
+                ["home.landing.statMarketsValue", "home.landing.statMarketsLabel"],
+                ["home.landing.statTermValue", "home.landing.statTermLabel"],
+              ] as const
+            ).map(([valueKey, labelKey]) => (
+              <div key={labelKey}>
+                <dt className="text-xs leading-5 text-muted-foreground">{t(labelKey)}</dt>
+                <dd className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-foreground sm:text-xl">
+                  {t(valueKey)}
+                </dd>
+              </div>
+            ))}
+          </dl>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <LandingButton href="/catalog" className="bg-foreground text-background hover:bg-foreground/90">
               {t("home.landing.ctaCatalog")}

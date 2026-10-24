@@ -7,7 +7,9 @@ import { PER_PAGE } from "@/lib/catalog-url";
 import { featureFlags } from "@/lib/feature-flags";
 import type { CatalogSearchController } from "@/hooks/use-catalog-search-state";
 import { CatalogListingCard } from "@/components/catalog/CatalogListingCard";
+import { CatalogResultsTable } from "@/components/catalog/CatalogResultsTable";
 import { CatalogVirtualResultsList } from "@/components/catalog/CatalogVirtualResultsList";
+import { resolveCatalogView } from "@/lib/catalog-density";
 import { LocaleSwitchLinks } from "@/components/LocaleSwitchLinks";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { cardListVariants, ListRowSkeleton } from "@/components/catalog/CatalogBlockWidgets";
@@ -61,7 +63,9 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  const catalogView = resolveCatalogView(catalogDensity, wideViewport);
   const useVirtualList =
+    catalogView === "list" &&
     featureFlags.enableCatalogVirtualList &&
     catalogCarsDisplay.length >= featureFlags.catalogVirtualListMinItems &&
     !reduceMotion &&
@@ -172,18 +176,21 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
           cars={catalogCarsDisplay}
           className={listPerfClass}
         />
+      ) : catalogView === "table" ? (
+        <CatalogResultsTable catalog={catalog} cars={catalogCarsDisplay} />
       ) : (
         <motion.ul
           ref={resultsListRef}
           aria-label={t("catalog.results.listLabel")}
           className={cn(
             "flex scroll-mt-28 flex-col gap-3 md:scroll-mt-32",
+            catalogView === "tile" && "sm:grid sm:grid-cols-2 sm:gap-3 xl:grid-cols-3",
             listPerfClass,
           )}
           variants={reduceMotion ? undefined : cardListVariants}
           initial={reduceMotion ? false : "hidden"}
           animate={reduceMotion ? undefined : "show"}
-          key={key}
+          key={`${key}-${catalogView}`}
         >
           {catalogCarsDisplay.map((car, idx) => (
             <CatalogListingCard

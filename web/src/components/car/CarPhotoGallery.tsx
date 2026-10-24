@@ -135,7 +135,7 @@ export default function CarPhotoGallery({
 
   return (
     <>
-      <section className="w-full max-w-full overflow-hidden rounded-xl border border-border bg-muted">
+      <section className="w-full max-w-full overflow-hidden">
         <div
           className={cn(
             "grid min-h-0 min-w-0 gap-2 lg:gap-3",
