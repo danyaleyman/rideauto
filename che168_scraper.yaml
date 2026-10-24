@@ -266,6 +266,13 @@ daily_update:
   sold_check_delay_min: 0.4
   sold_check_delay_max: 1.2
   advisory_lock_id: 4242
+  # Не запускать daily-цикл, если прямо сейчас идёт полный обход (он делает то же самое:
+  # discover по брендам + разбор pending) — иначе два процесса конкурируют за sticky-прокси
+  # и удваивают curl 56. Верхняя граница полного прогона — TimeoutStartSec=24h в юните,
+  # поэтому зависший прогон не блокирует daily навсегда.
+  # Отключить: skip_if_full_run_active: false или env CHE168_DAILY_SKIP_IF_FULL_RUNNING=0.
+  skip_if_full_run_active: true
+  full_run_unit: rideauto-che168-scraper-full.service
   prometheus_textfile_path: ""
   slack_webhook: ""
   slack_bot_token: ""

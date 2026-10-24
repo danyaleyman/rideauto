@@ -151,6 +151,8 @@ sudo systemctl enable --now rideauto-che168-scraper-full.timer
 
 - `rideauto-che168-auto-update.timer` — ежедневно 02:00 (discover «головы» выдачи по всем брендам + sold + `--only-pending`). При падении шага `--only-pending` (или по таймауту `daily_update.only_pending_timeout_sec`, по умолчанию 3 ч, с убийством process group) unit завершается с кодом 1.
 - `rideauto-che168-scraper-full.timer` — еженедельно, `Sun 06:00 Asia/Yekaterinburg`: полный обход каталога обычным обходом брендов (`pageindex` до `pagecount`). Замеры 2026-10-24: `pageindex` работает на любую глубину, страницы стабильны и не пересекаются, `pagesize` максимум 100 → полный каталог ≈ **2 379 страниц** на 639 брендов. Сегментация `price × year` **не нужна**: API игнорирует `price_*`/`year_*` фильтры (10 × 8 сегментов = 80 одинаковых проходов). Включить обратно можно через `CHE168_FULL_SEGMENTATION=1`.
+  Полный прогон ограничен `TimeoutStartSec=24h` в юните (норма 4–8 ч): зависший прогон убивается таймаутом, прогресс брендов и pending берутся из PostgreSQL при следующем запуске.
+- Пересечение daily и полного прогона: `daily_update.skip_if_full_run_active: true` — если `rideauto-che168-scraper-full.service` активен, daily-цикл пишет warning в лог, отправляет Slack-сообщение «skipped» и завершается с кодом 0 (полный обход сам делает discover и разбирает pending). Отключить: `skip_if_full_run_active: false` или `CHE168_DAILY_SKIP_IF_FULL_RUNNING=0` в `/etc/default/rideauto`.
 - Обоим юнитам нужен `MemoryDenyWriteExecute=no`: Playwright/Chromium bootstrap (V8 JIT) не запускается при запрете исполняемых анонимных страниц памяти.
 - Ручной запуск полного прогона: `sudo systemctl start rideauto-che168-scraper-full.service`
   (или `bash deploy/scripts/run_che168_scraper_full_host.sh 0`).

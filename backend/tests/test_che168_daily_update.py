@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 import subprocess
 from pathlib import Path
+
+import pytest
 
 import che168_daily_update
 from che168_daily_update import (
     _chunked,
     _external_infoid_from_car_id,
     _select_brand_window,
+    _skip_for_full_run,
     _write_daily_prometheus_textfile,
+    run_one_cycle,
     run_only_pending,
 )
 
@@ -162,3 +167,72 @@ def test_run_only_pending_timeout_kills_process_group(tmp_path: Path, monkeypatc
     assert proc.wait_timeouts[0] == 5
     assert proc.killed is True
     assert "превысил таймаут 5s" in log.text()
+
+
+def _patch_full_run(monkeypatch, active: bool) -> list[str]:
+    """Подмена проверки systemd + Slack; возвращает список юнитов, которые проверяли."""
+    checked: list[str] = []
+    monkeypatch.setattr(che168_daily_update, "_unit_is_active", lambda u: checked.append(u) or active)
+    monkeypatch.setattr(che168_daily_update, "_notify_slack", lambda *a, **k: None)
+    monkeypatch.delenv("CHE168_DAILY_SKIP_IF_FULL_RUNNING", raising=False)
+    return checked
+
+
+def test_skip_for_full_run_when_unit_active(monkeypatch) -> None:
+    checked = _patch_full_run(monkeypatch, True)
+    log = _LogStub()
+
+    assert _skip_for_full_run({"daily_update": {}}, log) is True
+    assert checked == [che168_daily_update._FULL_RUN_UNIT_DEFAULT]
+    assert f"{che168_daily_update._FULL_RUN_UNIT_DEFAULT} активен" in log.text()
+
+
+def test_skip_for_full_run_when_unit_inactive(monkeypatch) -> None:
+    _patch_full_run(monkeypatch, False)
+
+    assert _skip_for_full_run({"daily_update": {}}, _LogStub()) is False
+
+
+def test_skip_for_full_run_respects_config_unit_name(monkeypatch) -> None:
+    checked = _patch_full_run(monkeypatch, True)
+    cfg = {"daily_update": {"full_run_unit": "custom-full.service"}}
+
+    assert _skip_for_full_run(cfg, _LogStub()) is True
+    assert checked == ["custom-full.service"]
+
+
+def test_skip_for_full_run_disabled_in_config(monkeypatch) -> None:
+    checked = _patch_full_run(monkeypatch, True)
+
+    assert _skip_for_full_run({"daily_update": {"skip_if_full_run_active": False}}, _LogStub()) is False
+    assert checked == []
+
+
+def test_skip_for_full_run_disabled_by_env(monkeypatch) -> None:
+    checked = _patch_full_run(monkeypatch, True)
+    monkeypatch.setenv("CHE168_DAILY_SKIP_IF_FULL_RUNNING", "0")
+
+    assert _skip_for_full_run({"daily_update": {"skip_if_full_run_active": True}}, _LogStub()) is False
+    assert checked == []
+
+
+def test_run_one_cycle_skips_without_touching_db(monkeypatch) -> None:
+    """Активный полный обход: цикл завершается успешно, не трогая PostgreSQL и pending."""
+    _patch_full_run(monkeypatch, True)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    _patch_popen(monkeypatch, returncode=0)
+    log = _LogStub()
+
+    assert asyncio.run(run_one_cycle("cfg.yaml", {"daily_update": {}}, log)) is True
+    assert _FakePopen.instances == []  # --only-pending не запускался
+    assert "пропущен" in log.text()
+
+
+def test_run_one_cycle_proceeds_when_full_run_inactive(monkeypatch) -> None:
+    """Без активного полного обхода цикл идёт дальше и падает на отсутствии DSN."""
+    _patch_full_run(monkeypatch, False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    with pytest.raises(ValueError, match="DATABASE_URL|dsn"):
+        asyncio.run(run_one_cycle("cfg.yaml", {"daily_update": {}}, _LogStub()))
+

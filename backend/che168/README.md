@@ -79,9 +79,21 @@ python che168_scraper.py --config ../che168_scraper.yaml --reset-offsets
 
 - `--segmentation` (`--full`) принудительно включает `che168.segmentation` — держать
   выключенным, пока API не начнёт фильтровать по цене/году.
+- Полный прогон в проде ограничен `TimeoutStartSec=24h` (норма 4–8 ч): зависший обход
+  убивается таймаутом, а прогресс (`brand_*` чекпоинты + pending в PostgreSQL) переносится
+  на следующий запуск. Пока он активен, `che168_daily_update.py` пропускает свой цикл
+  (`daily_update.skip_if_full_run_active: true`), чтобы два процесса не конкурировали
+  за sticky-прокси.
 - Чекпоинт бренда, дошедший до конца выдачи, автоматически сбрасывается в начало
   (`che168.reset_offset_on_complete: true`) — иначе новые объявления в «голове» выдачи
   больше никогда не сканируются.
+- Circuit breaker транспорта: `che168.circuit_breaker_fail_streak: 40` /
+  `circuit_breaker_open_sec: 15` вместо дефолтных 12 / 90 с. На полном обходе sticky-proxy
+  при 24 коннектах (`SCRAPER_HTTP_CONCURRENCY` в `/etc/default/rideauto`) периодически
+  рвёт соединения (curl 56 «Connection closed abruptly»), и дефолтный порог 12 обрывов
+  подряд замораживал **все** запросы на 90 с (замер 2026-10-24: `cb_short` ≈ 19 % запросов,
+  `detail_fail` = 3833 за 10 минут). Обрывы транзиентны: `detail_fail` возвращает `infoid`
+  в pending, данные не теряются — поэтому пауза короткая, а порог высокий.
 - На проде: `deploy/scripts/run_che168_scraper_full_host.sh`,
   юниты `rideauto-che168-scraper-full.service` + `rideauto-che168-scraper-full.timer`
   (еженедельно, `Sun 06:00 Asia/Yekaterinburg`, `Persistent=true`).

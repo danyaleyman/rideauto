@@ -31,6 +31,59 @@ from scraper_pipeline.che168.workers import (
 )
 
 
+_FULL_RUN_UNIT_DEFAULT = "rideauto-che168-scraper-full.service"
+
+
+def _unit_is_active(unit: str) -> bool:
+    """True, если systemd-юнит активен. Нет systemd / ошибка → False (fail-open)."""
+    u = str(unit or "").strip()
+    if not u:
+        return False
+    try:
+        res = subprocess.run(
+            ["systemctl", "is-active", "--quiet", u],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return int(getattr(res, "returncode", 1) or 0) == 0
+
+
+def _skip_for_full_run(config: dict, log) -> bool:
+    """
+    Не запускать daily-цикл, если прямо сейчас идёт полный обход каталога.
+
+    Полный прогон (`rideauto-che168-scraper-full.service`) делает то же самое — discover
+    по брендам и разбор pending — поэтому параллельный daily только дублирует запросы
+    и конкурирует за sticky-прокси (curl 56). Верхняя граница полного прогона задана
+    `TimeoutStartSec` в юните, так что зависший прогон не блокирует daily навсегда.
+    Отключить проверку: `daily_update.skip_if_full_run_active: false` или
+    env `CHE168_DAILY_SKIP_IF_FULL_RUNNING=0`.
+    """
+    du = _daily_cfg(config)
+    enabled = du.get("skip_if_full_run_active", True)
+    if isinstance(enabled, str):
+        enabled = enabled.strip().lower() not in ("0", "false", "no", "off", "")
+    env_override = str(os.environ.get("CHE168_DAILY_SKIP_IF_FULL_RUNNING", "")).strip().lower()
+    if env_override in ("0", "false", "no", "off"):
+        enabled = False
+    if not enabled:
+        return False
+    unit = str(du.get("full_run_unit") or _FULL_RUN_UNIT_DEFAULT).strip()
+    if not _unit_is_active(unit):
+        return False
+    log.warning(
+        "Che168 daily update: %s активен — полный обход уже сканирует каталог и разбирает "
+        "pending, daily-цикл пропущен (CHE168_DAILY_SKIP_IF_FULL_RUNNING=0 отключает проверку)",
+        unit,
+    )
+    _notify_slack(f"*Che168 daily update*: skipped — {unit} активен (идёт полный обход)", config, log)
+    return True
+
+
 def _postgres_dsn(config: dict) -> str:
     storage_cfg = config.get("storage", {}) or {}
     dsn = (storage_cfg.get("postgres") or {}).get("dsn") or ""
@@ -469,7 +522,9 @@ def run_only_pending(config_path: str, log, du: Optional[dict] = None) -> bool:
 
 
 async def run_one_cycle(config_path: str, config: dict, log) -> bool:
-    """Один цикл daily-update. True = успех, False = шаг --only-pending упал."""
+    """Один цикл daily-update. True = успех (в т.ч. «пропущено»), False = шаг --only-pending упал."""
+    if _skip_for_full_run(config, log):
+        return True
     checkpoint_cfg = config.get("checkpoint", {})
     max_pending = int(checkpoint_cfg.get("max_pending_ids", 500000))
     scope = str(checkpoint_cfg.get("scope", "che168")).strip() or "che168"

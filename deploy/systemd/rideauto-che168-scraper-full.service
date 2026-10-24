@@ -17,8 +17,10 @@ Environment=SKIP_FRONTEND_EXPORT=1
 EnvironmentFile=-/etc/default/rideauto
 # Аргумент 0 = без лимита --max-cars (полный каталог Che168).
 ExecStart=/bin/bash /opt/rideauto/deploy/scripts/run_che168_scraper_full_host.sh 0
-# Полный обход идёт часами: не обрывать по таймауту старта (0 = отключить).
-TimeoutStartSec=0
+# Верхняя граница полного обхода: норма 4–8 ч (замер 24.10.2026: ~250 лотов/мин на 148k+),
+# 24 ч — страховка от «тихого» зависания. Убийство по таймауту безопасно: прогресс брендов и
+# pending-очередь персистентны (checkpoint в PostgreSQL), повторный запуск продолжит с места.
+TimeoutStartSec=24h
 TimeoutStopSec=300
 Restart=no
 NoNewPrivileges=true
