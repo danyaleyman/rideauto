@@ -157,6 +157,8 @@ async def run_autotrader_ingest(
     max_cars = int(at.get("max_cars") or config.get("max_cars") or 0) or 0
     start_page = int(at.get("start_page") or 1)
     fetch_vdp = bool(at.get("fetch_vdp", True))
+    require_vdp = bool(at.get("require_vdp", fetch_vdp))
+    vdp_retries = max(1, int(at.get("vdp_retries", 3) or 3))
     delay_min = float(http.get("list_page_delay_min", at.get("list_page_delay_min", 0.5)))
     delay_max = float(http.get("list_page_delay_max", at.get("list_page_delay_max", 1.5)))
     detail_conc = int(http.get("concurrency") or at.get("detail_concurrency") or 3)
@@ -214,21 +216,37 @@ async def run_autotrader_ingest(
             depth = "srp"
             listing = card
             if fetch_vdp:
-                async with sem:
-                    try:
-                        vhtml = await client.fetch_vdp(lid)
-                        vparsed = parse_vdp_page(vhtml, listing_id=lid)
-                        if vparsed.get("ok") and vparsed.get("listing"):
-                            listing = vparsed["listing"]
-                            depth = "vdp"
-                            st.details_ok += 1
-                        else:
-                            st.details_fail += 1
-                            st.errors.append(f"vdp empty {lid}")
-                    except Exception as e:
-                        st.details_fail += 1
-                        st.errors.append(f"vdp {lid}: {e}")
-                        lg.warning("Autotrader VDP %s failed: %s", lid, e)
+                vdp_ok = False
+                last_err: Optional[BaseException] = None
+                for attempt in range(1, vdp_retries + 1):
+                    async with sem:
+                        try:
+                            vhtml = await client.fetch_vdp(lid)
+                            vparsed = parse_vdp_page(vhtml, listing_id=lid)
+                            if vparsed.get("ok") and vparsed.get("listing"):
+                                listing = vparsed["listing"]
+                                depth = "vdp"
+                                vdp_ok = True
+                                st.details_ok += 1
+                                break
+                            last_err = RuntimeError("vdp empty")
+                        except Exception as e:
+                            last_err = e
+                            lg.warning(
+                                "Autotrader VDP %s attempt %s/%s failed: %s",
+                                lid,
+                                attempt,
+                                vdp_retries,
+                                e,
+                            )
+                    if attempt < vdp_retries:
+                        await asyncio.sleep(random.uniform(delay_min, delay_max))
+                if not vdp_ok:
+                    st.details_fail += 1
+                    st.errors.append(f"vdp {lid}: {last_err}")
+                    if require_vdp:
+                        st.skipped += 1
+                        return
 
             if not isinstance(listing, dict):
                 st.skipped += 1

@@ -14,6 +14,8 @@ def test_parse_engine_cc_supports_t_label():
     assert parse_engine_cc("1.5T") == 1500
     assert parse_engine_cc("2.0L") == 2000
     assert parse_engine_cc(1998) == 1998
+    assert parse_engine_cc(1.5) == 1500
+    assert parse_engine_cc("1.5") == 1500
 
 
 def test_china_price_calc_uses_required_static_costs():

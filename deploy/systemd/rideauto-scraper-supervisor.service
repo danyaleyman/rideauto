@@ -1,0 +1,37 @@
+[Unit]
+Description=RideAuto scraper supervisor (restart scrapers until catalogs fill)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/rideauto
+Environment=PYTHONUNBUFFERED=1
+Environment=ROOT=/opt/rideauto
+Environment=WRA_SUPERVISOR_INTERVAL_SEC=120
+Environment=WRA_SUPERVISOR_STALL_SEC=900
+Environment=WRA_SUPERVISOR_CATALOG_EVERY_SEC=1800
+# sequential: Korea → China → USA (one market at a time). Override in /etc/default/rideauto.
+Environment=WRA_SUPERVISOR_MODE=sequential
+Environment=WRA_SUPERVISOR_ORDER=encar,che168,autotrader
+# Autotrader: split list+detail (SRP и VDP в разных процессах) — стабильнее на Akamai.
+Environment=WRA_SUPERVISOR_AT_SPLIT=1
+# Autotrader phase pin (optional): all | list | detail | only-pending.
+# Environment=WRA_SUPERVISOR_AT_PHASE=all
+EnvironmentFile=-/etc/default/rideauto
+ExecStart=/opt/rideauto/.venv/bin/python /opt/rideauto/deploy/scripts/rideauto_scraper_supervisor.py
+Restart=always
+RestartSec=20
+TimeoutStartSec=0
+# Страховка (хост 16 ГБ). Каталог-пайплайн запускается супервизором в ОТДЕЛЬНОМ
+# systemd-scope с MemoryMax (см. catalog_scope_cmd() в rideauto_scraper_supervisor.py),
+# поэтому этот лимит его не касается. Но если что-то всё же утечёт именно в cgroup
+# супервизора, OOM убьёт виновника локально (cgroup-OOM), а OOMPolicy=continue не
+# даст systemd остановить юнит: раньше OOM-килл в этом cgroup валил unit и давал
+# десятки рестартов (Restart=always).
+MemoryMax=8G
+OOMPolicy=continue
+
+[Install]
+WantedBy=multi-user.target

@@ -455,8 +455,13 @@ def parse_engine_cc(v: Any) -> int:
     if v is None or v == "":
         return 0
     if isinstance(v, (int, float)):
-        iv = int(v)
-        return iv if iv > 0 else 0
+        fv = float(v)
+        if fv <= 0:
+            return 0
+        # Autotrader displacementUOM etc.: liters as float (1.6, 2.0). Already-cc if >= 30.
+        if fv < 30:
+            return int(round(fv * 1000))
+        return int(round(fv))
     s = str(v).strip().replace(",", ".")
     if not s:
         return 0
@@ -469,6 +474,13 @@ def parse_engine_cc(v: Any) -> int:
             liters = float(num)
             cc = int(round(liters * 1000))
             return cc if cc > 0 else 0
+        # Bare decimal liters: "1.6", "2.0" (no L/T suffix).
+        if "." in up:
+            num = "".join(ch for ch in up if ch.isdigit() or ch == ".")
+            if num.count(".") == 1 and num not in (".",):
+                liters = float(num)
+                if 0 < liters < 30:
+                    return int(round(liters * 1000))
         digits = "".join(ch for ch in up if ch.isdigit())
         if not digits:
             return 0

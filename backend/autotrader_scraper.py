@@ -131,6 +131,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--max-pages", type=int, default=None)
     p.add_argument("--max-cars", type=int, default=None)
     p.add_argument(
+        "--phase",
+        choices=("all", "list", "detail"),
+        default=None,
+        help=(
+            "all = discovery + detail (default, cfg autotrader.phase); "
+            "list = только discovery (SRP → scraper_pending_ids); "
+            "detail = только разбор pending (нужен Postgres)"
+        ),
+    )
+    p.add_argument(
+        "--only-pending",
+        action="store_true",
+        help="Alias для --phase detail (разобрать scraper_pending_ids, без SRP)",
+    )
+    p.add_argument(
         "--srp-html",
         default=None,
         help="Offline: path to saved SRP HTML (no network / Akamai)",
@@ -158,6 +173,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             config.setdefault("autotrader", {})["max_cars"] = args.max_cars
         log = setup_logging(config)
 
+        # CLI phase (--phase / --only-pending) overrides autotrader.phase from YAML.
+        at = config.setdefault("autotrader", {})
+        phase_cli = args.phase or ("detail" if args.only_pending else None)
+        if phase_cli:
+            at["phase"] = phase_cli
+
         # Offline fixtures stay on the async path.
         if args.srp_html:
             asyncio.run(
@@ -172,8 +193,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
             return 0
 
-        # Live Autotrader: Playwright browser ingest (Akamai). curl_cffi alone is not enough.
-        at = config.setdefault("autotrader", {})
+        # Live Autotrader: two-phase ingest (SRP discovery → pending queue → VDP detail).
         fetch_mode = str(at.get("fetch_mode") or "playwright").strip().lower()
         if fetch_mode in ("playwright", "browser", "pw"):
             from scraper_pipeline.autotrader.browser_ingest import run_autotrader_browser_ingest
@@ -185,7 +205,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                 config["storage"] = storage
             saver, _backend = build_car_saver(config)
             try:
-                stats = run_autotrader_browser_ingest(saver, config, logger=log)
+                stats = run_autotrader_browser_ingest(
+                    saver,
+                    config,
+                    logger=log,
+                    phase=phase_cli,
+                    only_pending=args.only_pending,
+                )
                 log.info("Autotrader browser ingest done: %s", stats.as_dict())
             finally:
                 close = getattr(saver, "close", None)

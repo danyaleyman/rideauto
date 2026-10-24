@@ -1,0 +1,34 @@
+[Unit]
+Description=RideAuto Che168 mass scraper (full catalog, segmentation price x year)
+After=network-online.target
+Wants=network-online.target
+Documentation=file:/opt/rideauto/deploy/DEPLOY_PRODUCTION.md
+# Вручную: systemctl start rideauto-che168-scraper-full.service
+# Не включайте в автозагрузку (systemctl enable), если не нужен старт после reboot.
+
+[Service]
+Type=simple
+User=rideauto
+Group=rideauto
+WorkingDirectory=/opt/rideauto
+Environment=PYTHONUNBUFFERED=1
+Environment=SKIP_POSTGRES_CATALOG_SYNC=1
+Environment=SKIP_FRONTEND_EXPORT=1
+EnvironmentFile=-/etc/default/rideauto
+# Аргумент 0 = без лимита --max-cars (полный каталог Che168).
+ExecStart=/bin/bash /opt/rideauto/deploy/scripts/run_che168_scraper_full_host.sh 0
+# Полный обход идёт часами: не обрывать по таймауту старта (0 = отключить).
+TimeoutStartSec=0
+TimeoutStopSec=300
+Restart=no
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/rideauto
+LockPersonality=true
+# Playwright/Chromium bootstrap (V8 JIT) не работает под MemoryDenyWriteExecute=true.
+MemoryDenyWriteExecute=no
+
+[Install]
+WantedBy=multi-user.target

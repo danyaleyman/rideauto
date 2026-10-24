@@ -60,9 +60,16 @@ if [[ "${WRA_CATALOG_PIPELINE_SKIP_PG:-0}" != "1" ]]; then
   set -e
   _write_job_metrics "wra_postgres_catalog_sync" "$PG_EC" "$t0"
   if [[ "$PG_EC" -ne 0 ]]; then
-    echo "catalog_pipeline: postgres_catalog_sync failed exit=$PG_EC — Meili stage skipped" >&2
-    _write_job_metrics "wra_catalog_pipeline" "$PG_EC" "$PIPELINE_START"
-    exit "$PG_EC"
+    # Prod 2026-10-10: PG stage often dies SIGTERM/OOM (rc 137 / -15) under MemoryMax=12G.
+    # Skipping Meili left search ~100k behind Postgres after a full Encar dump.
+    # Default: continue to Meili so the public index still catches up.
+    if [[ "${WRA_CATALOG_PIPELINE_CONTINUE_ON_PG_FAIL:-1}" == "1" ]]; then
+      echo "catalog_pipeline: postgres_catalog_sync failed exit=$PG_EC — continuing to Meili (CONTINUE_ON_PG_FAIL=1)" >&2
+    else
+      echo "catalog_pipeline: postgres_catalog_sync failed exit=$PG_EC — Meili stage skipped" >&2
+      _write_job_metrics "wra_catalog_pipeline" "$PG_EC" "$PIPELINE_START"
+      exit "$PG_EC"
+    fi
   fi
 fi
 

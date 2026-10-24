@@ -12,5 +12,11 @@ EnvironmentFile=-/etc/default/rideauto
 # Prefer blue/green: set WRA_MEILISEARCH_INDEX=cars_build WRA_MEILI_LIVE_INDEX=cars WRA_MEILI_SWAP_INTO_LIVE=1
 ExecStart=/bin/bash /opt/rideauto/deploy/scripts/run_catalog_pipeline_host.sh
 TimeoutStartSec=8h
+# postgres_catalog_sync держит весь каталог в RAM (~12–14 ГБ при 250k машин).
+# 2026-10-10: MemoryMax=12G стабильно ловил OOM (anon-rss≈12.5G → rc=-15 / Result=oom-kill).
+# 14G + swap: PG-стадия чаще доживает; при fail пайплайн всё равно идёт в Meili
+# (WRA_CATALOG_PIPELINE_CONTINUE_ON_PG_FAIL=1 в run_catalog_pipeline_host.sh).
+MemoryHigh=12G
+MemoryMax=14G
 NoNewPrivileges=true
 PrivateTmp=true

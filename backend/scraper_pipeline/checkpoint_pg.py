@@ -101,6 +101,23 @@ class Checkpoint:
     def set_last_offset(self, car_type: str, offset: int) -> None:
         self.set_state(f"list_offset_{car_type}", str(offset))
 
+    def reset_list_offsets(self) -> int:
+        """Сбросить все чекпоинты выдачи (brand_* и segment_*) — прогон начнёт каталог заново."""
+        if not self._conn:
+            return 0
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM scraper_checkpoint_state
+                WHERE scope = %s
+                  AND (key LIKE 'brand!_%%' ESCAPE '!' OR key LIKE 'segment!_%%' ESCAPE '!')
+                """,
+                (self.scope,),
+            )
+            deleted = int(cur.rowcount or 0)
+        self._conn.commit()
+        return deleted
+
     def add_pending(self, car_id: str, car_type: str, item_json: Optional[str] = None) -> bool:
         if not self._conn:
             return False
@@ -295,3 +312,6 @@ class CheckpointAsync:
 
     async def set_last_offset(self, car_type: str, offset: int) -> None:
         await self._run(lambda cp: cp.set_last_offset(car_type, offset))
+
+    async def reset_list_offsets(self) -> int:
+        return await self._run(lambda cp: cp.reset_list_offsets())

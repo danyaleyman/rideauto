@@ -1,19 +1,27 @@
 # Autotrader USA — отдельный конфиг (не смешивать с Encar / Che168).
 # Сессия: Playwright bootstrap → cookie cache → curl_cffi HTTP (без ручных Cookie каждый раз).
-# Опционально: AUTOTRADER_COOKIE / AUTOTRADER_PROXY_URL (residential для Akamai).
+# Прокси: AUTOTRADER_PROXY_URL(S); если пусто — подхватывается ENCAR_PROXY_URLS (один FloppyData-пул).
+# На DE-4 не поднимать параллельно с полным дампом Encar.
 
 checkpoint:
   scope: autotrader
 
 http:
-  concurrency: 3
+  concurrency: 4
   timeout_total: 45
   timeout_connect: 15
   timeout_sock_read: 35
-  list_page_delay_min: 0.6
-  list_page_delay_max: 1.8
+  list_page_delay_min: 0.4
+  list_page_delay_max: 1.2
   transport: curl_cffi
   impersonate: chrome131
+
+# Health-quarantine мёртвых прокси (общий ProxyPool). URL — из env (см. session.py).
+proxy:
+  enabled: true
+  rotation: round_robin
+  failure_threshold: 3
+  quarantine_sec: 120
 
 storage:
   backend: postgres
@@ -29,24 +37,67 @@ autotrader:
   auto_bootstrap: true
   skip_playwright_bootstrap: false
   bootstrap_start_url: https://www.autotrader.com/cars-for-sale/all-cars
-  # Residential proxy recommended for Akamai (как Encar FloppyData):
-  # bootstrap_proxy_url: http://USER:PASS@host:port
-  # or env AUTOTRADER_PROXY_URL / AUTOTRADER_BOOTSTRAP_PROXY_URL
+  # Residential US proxy (Akamai). Env предпочтительнее YAML:
+  # AUTOTRADER_PROXY_URL / AUTOTRADER_PROXY_URLS=http://u:p@host:port,...
   bootstrap_proxy_url: ""
   session_file: /var/lib/rideauto/autotrader_session.json
-  session_max_age_sec: 21600
+  # Слабая/битая cookie-сессия (после challenge) не должна жить часами.
+  session_max_age_sec: 1800
   playwright_headless: true
-  playwright_timeout_ms: 90000
-  playwright_post_load_wait_ms: 4000
-  challenge_retries: 2
+  # Longer budgets: VDP gallery/features otherwise time out and cars fall back to SRP (1 photo).
+  playwright_timeout_ms: 120000
+  playwright_post_load_wait_ms: 5000
+  challenge_retries: 3
   # playwright = fetch SRP/VDP inside Chromium (needed for Akamai + residential proxy)
   # http = curl_cffi after cookie bootstrap (often blocked again by Akamai)
   fetch_mode: playwright
   fetch_vdp: true
+  # Do not save SRP-only stubs when VDP is required (keep trying instead of catalog noise).
+  require_vdp: true
+  vdp_retries: 3
   start_page: 1
-  max_pages: 2
-  max_cars: 50
-  detail_concurrency: 3
+  # 0 = без потолка (как Encar/Che168 max_cars: 0).
+  max_pages: 0
+  max_cars: 0
+  # 2 sticky VDP-воркера — безопаснее по RAM/Akamai на DE-4 (16G).
+  detail_concurrency: 2
+  detail_concurrency_force: false
+  # Отдельный Chromium+egress на воркера; при challenge ротируется только этот слот.
+  sticky_browser_slots: true
+
+  # --- Двухфазный контур (discovery → scraper_pending_ids → detail) -------------
+  # Prod: WRA_SUPERVISOR_AT_SPLIT=1 → list + detail раздельно (см. supervisor).
+  phase: all
+  # Пауза SRP, пока pending не просядет (0 = не паузить).
+  list_pause_when_pending_above: 10000
+  # Сколько id забирать из очереди за одну итерацию detail-воркеров.
+  pending_batch_size: 300
+  # Сколько секунд ждать пустой очереди (SPLIT detail ждёт list столько же).
+  pending_idle_sec: 600
+  # Сколько прогонов VDP допускается на карточку, прежде чем выкинуть её из очереди.
+  vdp_max_attempts: 3
+  # Попытки внутри одного прогона (браузерные страницы падают пачками при Akamai).
+  srp_retries: 5
+  # Сколько fail-циклов hold+recover на одной странице до сброса streak (не выход!).
+  srp_stall_pages_limit: 4
+  # Возобновлять SRP-курсор из scraper_checkpoint_state (не начинать с page=1).
+  resume_cursor: true
+
+  # --- Транспорт ---------------------------------------------------------------
+  # true = сначала curl_cffi с cookies из Playwright; challenge → браузер → revive HTTP.
+  http_first: true
+  # Сколько подряд HTTP-промахов (challenge/ошибка) до отключения HTTP-пути.
+  http_fail_disable: 4
+  # Потолок одного HTTP-запроса, сек.
+  http_timeout_sec: 40
+  http_max_revives: 6
+
+  # --- Сохранение --------------------------------------------------------------
+  # Буфер bulk_save: одна транзакция на пачку (как у Encar), а не на карточку.
+  save_batch_size: 80
+  save_flush_sec: 1.5
+  # SRP-стаб вместо потери карточки, если VDP так и не отдался (требует require_vdp: false).
+  stub_on_vdp_fail: false
 
 logging:
   level: INFO

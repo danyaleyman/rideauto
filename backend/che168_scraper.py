@@ -94,8 +94,22 @@ async def run_scraper(
     config_path: str = "che168_scraper.yaml",
     max_cars_override: Optional[int] = None,
     only_pending: bool = False,
+    force_segmentation: bool = False,
+    reset_offsets: bool = False,
 ) -> None:
     config = load_config(config_path)
+    if force_segmentation:
+        # Полный прогон: /search отдаёт не больше ~50-100 страниц на запрос, поэтому
+        # весь каталог достаётся только дроблением на сегменты price×year.
+        ch_section = config.get("che168")
+        if not isinstance(ch_section, dict):
+            ch_section = {}
+            config["che168"] = ch_section
+        seg_section = ch_section.get("segmentation")
+        if not isinstance(seg_section, dict):
+            seg_section = {}
+            ch_section["segmentation"] = seg_section
+        seg_section["enabled"] = True
     run_id = time.strftime("ch168-%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
     _dev = (os.environ.get("CHE168_DEVICE_ID") or os.environ.get("CHE168_DEVICEID") or "").strip()
     if _dev:
@@ -142,6 +156,9 @@ async def run_scraper(
     checkpoint = CheckpointAsync(dsn=cp_dsn, scope=scope, max_pending=max_pending)
     await checkpoint.connect()
     log.info("Che168 checkpoint scope=%s", scope)
+    if reset_offsets:
+        deleted = await checkpoint.reset_list_offsets()
+        log.info("Che168: сброшено чекпоинтов выдачи=%s (полный обход каталога с начала)", deleted)
 
     saver, backend = None, ""
     try:
@@ -479,12 +496,26 @@ def main() -> None:
     p.add_argument("--config", default=str(_default_config), help="YAML конфиг (по умолчанию корень репозитория)")
     p.add_argument("--max-cars", type=int, default=None, metavar="N")
     p.add_argument("--only-pending", action="store_true")
+    p.add_argument(
+        "--segmentation",
+        "--full",
+        dest="segmentation",
+        action="store_true",
+        help="Принудительно включить сегментацию price×year (полный обход каталога)",
+    )
+    p.add_argument(
+        "--reset-offsets",
+        action="store_true",
+        help="Сбросить чекпоинты выдачи (brand_*/segment_*) и обойти каталог с начала",
+    )
     args = p.parse_args()
     asyncio.run(
         run_scraper(
             config_path=args.config,
             max_cars_override=args.max_cars,
             only_pending=args.only_pending,
+            force_segmentation=args.segmentation,
+            reset_offsets=args.reset_offsets,
         )
     )
 

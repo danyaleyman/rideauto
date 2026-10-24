@@ -80,6 +80,12 @@ che168:
   # Segmentation: Che168 /search pageindex пагинация упирается в ~50-100 страниц.
   # Чтобы вытащить весь каталог, дробим поиск на много маленьких сегментов.
   search_pagination_mode: auto  # auto | pageindex | offset
+  # Segmentation: полный прогон включается флагом CLI (--segmentation / --full),
+  # daily-update по умолчанию её не использует (use_segmentation: false).
+  # Чекпоинт бренда/сегмента, дошедший до конца выдачи, автоматически
+  # сбрасывается в начало (reset_offset_on_complete), чтобы новые лоты в «голове»
+  # выдачи попадали в каталог и при неполном проходе.
+  reset_offset_on_complete: true
   segmentation:
     enabled: false
     strategy: "price_x_year"
@@ -170,7 +176,7 @@ che168:
     mark_aliases: {}
     model_aliases: {}
   # true = перед прогоном Chromium + куки; при proxy.enabled — тот же proxy.urls[0] (см. bootstrap_proxy_url).
-  playwright_bootstrap_on_start: false
+  playwright_bootstrap_on_start: true
   bootstrap_start_url: https://global.che168.com/
   # После загрузки страницы — GET /search в том же browser context (закрепляет куки к API).
   playwright_api_warmup: true
@@ -214,9 +220,16 @@ daily_update:
   timezone: Asia/Yekaterinburg
   run_at_hour: 1
   run_at_minute: 30
-  new_list_pages_per_run: 10
+  # Daily discover читает «голову» выдачи (страницы 1..N), там появляется всё новое.
+  # Полный обход каталога — отдельный weekly full-run (rideauto-che168-scraper-full.timer,
+  # backend/che168_scraper.py --segmentation).
+  new_list_pages_per_run: 5
   new_cars_limit: 300
-  new_brand_sample: 25
+  # 0 = все бренды из GET /brand (иначе берётся ротирующееся окно из N брендов).
+  new_brand_sample: 0
+  # true — продолжать daily discover с сохранённой страницы (по умолчанию всегда с 1-й:
+  # иначе новые лоты в начале выдачи никогда не проверяются).
+  new_resume_from_checkpoint: false
   # Incremental daily mode: by default no segmentation (full crawler can use its own strategy).
   use_segmentation: false
   # Если segmentation.enabled=true: сколько сегментов price×year пытаться на бренд за один daily run.

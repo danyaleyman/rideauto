@@ -332,6 +332,10 @@ async def list_producer_che168(
     max_fail = max(1, int(http_cfg.get("list_max_fail_streak", 25)))
     brand_parallel = max(1, int(ch.get("list_brand_parallel", 2)))
     brand_fetch_attempts = max(1, int(ch.get("brand_fetch_max_attempts", 5)))
+    # Полный проход бренда (выдача кончилась) => вернуть чекпоинт в начало,
+    # иначе новые объявления в «голове» выдачи (sort=0) больше никогда не сканируются
+    # и каталог «замерзает» на уровне первого прогона.
+    reset_on_complete = bool(ch.get("reset_offset_on_complete", True))
 
     brand_ids_cfg: List[int] = []
     raw_brands = ch.get("brand_ids")
@@ -409,6 +413,7 @@ async def list_producer_che168(
                     page = start_page
                 stale_full_pages = 0
                 fail_streak = 0
+                pass_completed = False
                 while True:
                     if stop_event and stop_event.is_set():
                         log.info("Che168 list producer: stop_event, brand=%s", brand_id)
@@ -416,10 +421,12 @@ async def list_producer_che168(
                     if pagination_mode == "offset":
                         if max_page and off >= (max_page + 1) * pagesize:
                             log.info("Che168 brand=%s: reached max_offset (max_page=%s)", brand_id, max_page)
+                            pass_completed = True
                             break
                     else:
                         if max_page and page > max_page:
                             log.info("Che168 brand=%s: достигнут max_pageindex=%s", brand_id, max_page)
+                            pass_completed = True
                             break
                     if max_cars > 0 and stats_lock is not None:
                         async with stats_lock:
@@ -489,6 +496,7 @@ async def list_producer_che168(
                             locals().get("page"),
                             locals().get("off"),
                         )
+                        pass_completed = True
                         break
 
                     to_add: List[Tuple[str, str, Any]] = []
@@ -510,6 +518,7 @@ async def list_producer_che168(
                             locals().get("page"),
                                 stall_limit,
                             )
+                            pass_completed = True
                             break
                     else:
                         stale_full_pages = 0
@@ -533,12 +542,21 @@ async def list_producer_che168(
                     )
                     if pagination_mode != "offset" and pc_limit is not None and page >= pc_limit:
                         log.info("Che168 brand=%s: последняя страница по API pagecount=%s", brand_id, pc_limit)
+                        pass_completed = True
                         break
                     if pagination_mode == "offset":
                         off += pagesize
                     else:
                         page += 1
                     await asyncio.sleep(random.uniform(delay_min, delay_max))
+
+                if pass_completed and reset_on_complete:
+                    await checkpoint.set_last_offset(ck_key, 0 if pagination_mode == "offset" else 1)
+                    log.info(
+                        "Che168 brand=%s: полный проход завершён — чекпоинт %s сброшен на начало",
+                        brand_id,
+                        ck_key,
+                    )
 
         results = await asyncio.gather(*[_crawl_one_brand(b) for b in brand_ids], return_exceptions=True)
         for i, r in enumerate(results):
@@ -590,6 +608,7 @@ async def list_producer_che168(
 
             stale_full_pages = 0
             fail_streak = 0
+            pass_completed = False
             while True:
                 if stop_event and stop_event.is_set():
                     log.info(
@@ -609,10 +628,12 @@ async def list_producer_che168(
                             max_page,
                             pagesize,
                         )
+                        pass_completed = True
                         break
                 else:
                     if max_page and page > max_page:
                         log.info("Che168 brand=%s: reached max_pageindex=%s", brand_id, max_page)
+                        pass_completed = True
                         break
 
                 if max_cars > 0 and stats_lock is not None:
@@ -701,6 +722,7 @@ async def list_producer_che168(
                         locals().get("page"),
                         locals().get("off"),
                     )
+                    pass_completed = True
                     break
 
                 to_add: List[Tuple[str, str, Any]] = []
@@ -724,6 +746,7 @@ async def list_producer_che168(
                             locals().get("off"),
                             stall_limit,
                         )
+                        pass_completed = True
                         break
                 else:
                     stale_full_pages = 0
@@ -757,6 +780,7 @@ async def list_producer_che168(
                         segment_key,
                         pc_limit,
                     )
+                    pass_completed = True
                     break
 
                 if pagination_mode == "offset":
@@ -765,6 +789,15 @@ async def list_producer_che168(
                     page += 1
 
                 await asyncio.sleep(random.uniform(delay_min, delay_max))
+
+            if pass_completed and reset_on_complete:
+                await checkpoint.set_last_offset(ck_key, 0 if pagination_mode == "offset" else 1)
+                log.info(
+                    "Che168 brand=%s seg=%s: полный проход завершён — чекпоинт %s сброшен на начало",
+                    brand_id,
+                    segment_key,
+                    ck_key,
+                )
 
     tasks = []
     for brand_id in brand_ids:

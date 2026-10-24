@@ -27,7 +27,7 @@ from market_pricing_shared import (
 
 logger = logging.getLogger(__name__)
 
-USA_PRICING_RULES_VERSION = "2026.10.06"
+USA_PRICING_RULES_VERSION = "2026.10.09"
 FREIGHT_USD_DEFAULT = 1500.0
 BROKER_RUB_DEFAULT = 86_000.0
 BANK_TRANSFER_RATE = 0.01  # ~1% на перевод USD
@@ -58,6 +58,60 @@ def age_years_for_customs(car_data: Dict[str, Any]) -> int:
     if y is None:
         return 5
     return int(age_years_car(y))
+
+
+def _fill_hybrid_power_specs(car_data: Dict[str, Any]) -> None:
+    """Уточнить составляющие гибрида после собственного подбора мощности."""
+    try:
+        from catalog_export_utils import fill_hybrid_power_from_specs
+
+        fill_hybrid_power_from_specs(car_data)
+    except ImportError:
+        pass
+
+
+def enrich_usa_power_if_needed(car_data: Dict[str, Any]) -> None:
+    """
+    Fill power_hp/power for Autotrader cards when VDP has no horsepower.
+
+    Порядок: NHTSA vPIC по VIN (заводское значение) → data/us_engine_map.json →
+    общие слои hp_catalog/power_lookup (fill_power_from_external).
+    """
+    if not isinstance(car_data, dict):
+        return
+    try:
+        from us_power import fill_usa_power
+
+        if fill_usa_power(car_data):
+            _fill_hybrid_power_specs(car_data)
+            return
+    except ImportError:
+        pass
+    try:
+        from catalog_export_utils import fill_power_from_external
+
+        fill_power_from_external(car_data)
+    except ImportError:
+        pass
+
+
+def usa_has_customs_inputs(car_data: Dict[str, Any]) -> bool:
+    """
+    True when we can compute full RF customs without stubs.
+    ICE/hybrid: displacement_cc + power_hp required.
+    EV: power_hp (peak / 30-min) required; cc not used.
+    """
+    if not isinstance(car_data, dict):
+        return False
+    fuel = classify_fuel(car_data)
+    enrich_usa_power_if_needed(car_data)
+    if fuel == "electric":
+        from market_pricing_shared import parse_power_hp
+
+        hp = parse_power_hp(car_data)
+        return hp is not None and hp > 0
+    engine_cc, power = ice_engine_inputs(car_data, fuel)
+    return engine_cc > 0 and power is not None and float(power) > 0
 
 
 def sync_usa_pricing_clean_block(data: Dict[str, Any]) -> None:
@@ -91,7 +145,12 @@ def usa_json_suggests_pricing_resync(data: Dict[str, Any]) -> bool:
     if parse_price_usd(data) <= 0:
         return False
     pc = data.get("pricing_clean") if isinstance(data.get("pricing_clean"), dict) else {}
-    return str(pc.get("pricing_rules_version") or "") != USA_PRICING_RULES_VERSION
+    if str(pc.get("pricing_rules_version") or "") != USA_PRICING_RULES_VERSION:
+        return True
+    # Re-try POR cars once displacement/HP become available (re-ingest / hp_catalog).
+    if data.get("usa_customs_inputs_missing") or data.get("pricing_tier") == "price_on_request":
+        return usa_has_customs_inputs(data)
+    return False
 
 
 class PriceCalculatorUsa:
@@ -150,6 +209,13 @@ class PriceCalculatorUsa:
         if price_usd <= 0:
             raise ValueError("price_usd is missing or non-positive")
 
+        enrich_usa_power_if_needed(car_data)
+        if not usa_has_customs_inputs(car_data):
+            raise ValueError(
+                "USA customs inputs incomplete: need displacement_cc and power_hp "
+                "(or EV power); refusing stub 2000cc / 0hp"
+            )
+
         usd_rub, eur_rub = self._get_fx_rates_cached(cfg)
         car_value_rub = price_usd * usd_rub
         freight_rub = freight_usd * usd_rub
@@ -202,6 +268,15 @@ class PriceCalculatorUsa:
         }
 
     def update_usa_car_with_prices(self, car_data: Dict[str, Any]) -> Dict[str, Any]:
+        enrich_usa_power_if_needed(car_data)
+        if not usa_has_customs_inputs(car_data):
+            car_data["price_on_request"] = True
+            car_data["pricing_tier"] = "price_on_request"
+            car_data["price_calc_failed"] = False
+            car_data["usa_customs_inputs_missing"] = True
+            sync_usa_pricing_clean_block(car_data)
+            return car_data
+
         prices = self.calculate_total_cost_usa(car_data)
         car_data["price_rub_estimate"] = prices["price_rub"]
         car_data["freight_usd"] = prices["freight_usd"]
@@ -223,4 +298,6 @@ class PriceCalculatorUsa:
         car_data["commission_rate_default"] = prices.get("commission_rate_default")
         car_data["price_on_request"] = False
         car_data["pricing_tier"] = "full_customs"
+        car_data.pop("usa_customs_inputs_missing", None)
+        sync_usa_pricing_clean_block(car_data)
         return car_data

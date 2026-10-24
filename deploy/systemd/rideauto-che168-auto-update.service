@@ -9,13 +9,27 @@ User=rideauto
 Group=rideauto
 WorkingDirectory=/opt/rideauto
 Environment=PYTHONUNBUFFERED=1
+# Дневной апдейт НЕ гоняет собственный postgres_catalog_sync (~14 ГБ в RAM):
+# каталог принадлежит единственному пайплайну rideauto-catalog-pipeline.timer
+# (ADR 0004, deploy/docs/SCALE.md). che168_scraper.py проверяет SKIP_FRONTEND_EXPORT,
+# encar_scraper.py — SKIP_POSTGRES_CATALOG_SYNC.
+# Строки стоят ДО EnvironmentFile, чтобы /etc/default/rideauto мог переопределить (SKIP_*=0).
+Environment=SKIP_POSTGRES_CATALOG_SYNC=1
+Environment=SKIP_FRONTEND_EXPORT=1
 EnvironmentFile=-/etc/default/rideauto
 ExecStart=/opt/rideauto/.venv/bin/python /opt/rideauto/backend/che168_daily_update.py --once --config /opt/rideauto/che168_scraper.yaml
 TimeoutStartSec=24h
+# Страховка от утечек в самом скрапере (и на случай SKIP_*=0 в /etc/default/rideauto).
+MemoryHigh=3G
+MemoryMax=6G
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
 ReadWritePaths=/opt/rideauto
 LockPersonality=true
-MemoryDenyWriteExecute=true
+# ВАЖНО: шаг `che168_scraper.py --only-pending` поднимает Playwright/Chromium
+# для bootstrap-сессии, а V8 JIT требует исполняемых анонимных страниц памяти.
+# С MemoryDenyWriteExecute=true Chromium падает на старте, pending-очередь не
+# разгружается, а daily-update молча деградирует (инцидент 10.10.2025).
+MemoryDenyWriteExecute=no

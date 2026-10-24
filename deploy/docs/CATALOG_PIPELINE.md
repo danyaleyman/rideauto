@@ -35,9 +35,11 @@ WRA_MEILI_PREFLIGHT_GATE=true
 
 | Кто запускает | Как ограничен |
 |---|---|
-| `rideauto-catalog-pipeline.service` (timer 03:30) | `MemoryHigh=10G`, `MemoryMax=12G` |
-| супервизор скраперов (финальный sync) | отдельный `systemd-run --scope --property=MemoryMax=12G` (`WRA_SUPERVISOR_CATALOG_MEM_MAX`) |
+| `rideauto-catalog-pipeline.service` (timer 03:30) | `MemoryHigh=12G`, `MemoryMax=14G` |
+| супервизор скраперов (финальный / periodic kick) | по умолчанию **meili-only** (`WRA_SUPERVISOR_CATALOG_SKIP_PG=1`): без 14‑ГБ PG-стадии; маркер `logs/supervisor_state/final_sync.done` не даёт гонять sync на каждом `Restart=always` |
 | дневные `rideauto-*-auto-update.service` | свой sync не гоняют вообще (`Environment=SKIP_POSTGRES_CATALOG_SYNC=1` / `SKIP_FRONTEND_EXPORT=1`) |
+
+**Инцидент 2026-10-10 (полный Encar dump):** `postgres_catalog_sync` в scope/`MemoryMax=12G` стабильно ловил cgroup-OOM (`rc=-15` / SIGTERM, anon-rss≈12.5G). Супервизор после `COMPLETE` делал `exit 0` → systemd `Restart=always` → снова COMPLETE → снова OOM. Meili оставался ~157k при PG ~257k. Фиксы: idle после COMPLETE, meili-only final sync, `CONTINUE_ON_PG_FAIL=1` в оркестраторе, confirm-ticks для COMPLETE, retry на Meili `wait_for_task` 408.
 
 ADR 0004: каталог синхронизирует **только** catalog-pipeline (timer) — дневные апдейты
 не должны поднимать 14-ГБ sync внутри своего юнита.

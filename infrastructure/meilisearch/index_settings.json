@@ -37,6 +37,7 @@
     "transmission",
     "drive_type",
     "source",
+    "autotrader_depth",
     "encar_listing_sold",
     "che168_listing_sold",
     "insurance_cases",

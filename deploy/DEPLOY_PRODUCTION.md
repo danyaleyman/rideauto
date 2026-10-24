@@ -137,6 +137,24 @@ sudo nginx -t && sudo systemctl reload nginx
 
 3. **Сайт** — Next (`web/`); **API** — FastAPI, Postgres + Meilisearch. Китай — отдельная цепочка **Che168** (`source=che168` в БД; см. `backend/che168/README.md`). Микрокэш nginx для **`/api/cars`** может отдавать устаревший ответ до ~60 s.
 
+### Che168 (Китай): daily + weekly full
+
+```bash
+sudo cp deploy/systemd/rideauto-che168-auto-update.service /etc/systemd/system/
+sudo cp deploy/systemd/rideauto-che168-auto-update.timer /etc/systemd/system/
+sudo cp deploy/systemd/rideauto-che168-scraper-full.service /etc/systemd/system/
+sudo cp deploy/systemd/rideauto-che168-scraper-full.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now rideauto-che168-auto-update.timer
+sudo systemctl enable --now rideauto-che168-scraper-full.timer
+```
+
+- `rideauto-che168-auto-update.timer` — ежедневно 02:00 (discover «головы» выдачи по всем брендам + sold + `--only-pending`). При падении шага `--only-pending` unit завершается с кодом 1.
+- `rideauto-che168-scraper-full.timer` — еженедельно, `Sun 06:00 Asia/Yekaterinburg`: полный обход каталога с сегментацией `price × year` (`--segmentation`), потому что `/search` отдаёт максимум ~50–100 страниц на запрос и без сегментации в БД попадает только ~60% объявлений.
+- Обоим юнитам нужен `MemoryDenyWriteExecute=no`: Playwright/Chromium bootstrap (V8 JIT) не запускается при запрете исполняемых анонимных страниц памяти.
+- Ручной запуск полного прогона: `sudo systemctl start rideauto-che168-scraper-full.service`
+  (или `bash deploy/scripts/run_che168_scraper_full_host.sh 0`).
+
 Если systemd не знает `Asia/Yekaterinburg` в `OnCalendar`, либо обновите systemd, либо задайте UTC-эквивалент: **00:00 Екатеринбурга (UTC+5) = 19:00 UTC предыдущего календарного дня** (запись вида `OnCalendar=*-*-* 19:00:00` в **UTC** требует сдвига при переходе ЛО‑времени — предпочтительно починить timezone в таймере).
 
 ## 5) Права на файлы

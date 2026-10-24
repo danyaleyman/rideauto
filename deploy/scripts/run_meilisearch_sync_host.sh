@@ -59,7 +59,16 @@ case "${WRA_MEILI_SWAP_INTO_LIVE:-}" in
     ;;
 esac
 
-exec /usr/bin/python3 "$SYNC_PY" \
+PY="${PYTHON:-}"
+if [[ -z "$PY" ]]; then
+  if [[ -x "$ROOT/.venv/bin/python" ]]; then
+    PY="$ROOT/.venv/bin/python"
+  else
+    PY=/usr/bin/python3
+  fi
+fi
+
+exec "$PY" "$SYNC_PY" \
   --pg-dsn "$PG_DSN" \
   --meili-url "$MEILI_URL" \
   ${MEILI_KEY:+--meili-key "$MEILI_KEY"} \

@@ -72,6 +72,23 @@ def test_normalize_vdp_listing(vdp_listing: dict) -> None:
     assert car["body_type"] == "SUV"
     assert car["dealer_city"] == "Hyannis"
     assert car["dealer_state"] == "MA"
+    # displacementUOM=1.6 liters → exact cc for customs (no 2000 stub)
+    assert car["displacement_cc"] == 1600
+    assert car["engine_volume"] == 1600
+    assert car["parser_schema_version"] == "autotrader.normalized.v2"
+
+
+def test_extract_displacement_and_hp_from_engine_text() -> None:
+    from scraper_pipeline.autotrader.parser import extract_displacement_cc, extract_horsepower
+
+    listing = {
+        "engine": {"name": "2.0L Turbo 250 HP"},
+        "specifications": {},
+    }
+    cc, label = extract_displacement_cc(listing)
+    assert cc == 2000
+    assert label and "2" in label
+    assert extract_horsepower(listing) == 250.0
 
 
 def test_challenge_html_detection() -> None:
@@ -79,6 +96,9 @@ def test_challenge_html_detection() -> None:
 
     assert is_autotrader_challenge_html("<html>akamai-block error</html>", status=200)
     assert is_autotrader_challenge_html("x", status=403)
+    assert is_autotrader_challenge_html("<html>short interstitial</html>", status=200)
     assert not is_autotrader_challenge_html(
         '<script id="__NEXT_DATA__" type="application/json">{}</script>', status=200
     )
+    # Длинный HTML без маркеров и без NEXT_DATA — не форсируем challenge (может быть offline stub).
+    assert not is_autotrader_challenge_html("<html>" + ("x" * 20_000) + "</html>", status=200)

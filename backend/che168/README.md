@@ -39,6 +39,35 @@ Daily update цикл (discover + remove sold + `--only-pending`):
 python che168_daily_update.py --config ../che168_scraper.yaml --once
 ```
 
+Глубина daily discover: `daily_update.new_list_pages_per_run` страниц с **начала** выдачи
+(там появляются новые лоты) по **всем** брендам из `GET /brand` (`new_brand_sample: 0`;
+`>0` — ротирующееся окно брендов, курсор в `scraper_checkpoint_state` `daily_brand_cursor`).
+Если шаг `--only-pending` падает, цикл завершается с кодом **1** (а не молча «зелёным»).
+
+## Полный обход каталога (сегментация)
+
+`/search` отдаёт не больше ~50–100 страниц на один запрос, поэтому простой обход по брендам
+видит лишь часть каталога (на проде 09–10.10.2025 — ~143k строк из ~235k, ≈60%).
+Полный каталог достаётся дроблением на сегменты **price × year**:
+
+```bash
+# Полный обход без лимита (на проде — через systemd, см. ниже)
+python che168_scraper.py --config ../che168_scraper.yaml --segmentation --max-cars 0
+
+# Начать каталог с нуля: сбросить чекпоинты brand_*/segment_*
+python che168_scraper.py --config ../che168_scraper.yaml --segmentation --reset-offsets
+```
+
+- Флаг `--segmentation` (`--full`) включает `che168.segmentation` без правки YAML
+  (сегменты заданы в `che168_scraper.yaml`: 10 ценовых × 8 годовых).
+- Чекпоинт бренда/сегмента, дошедший до конца выдачи, автоматически сбрасывается в начало
+  (`che168.reset_offset_on_complete: true`) — иначе новые объявления в «голове» выдачи
+  больше никогда не сканируются.
+- На проде: `deploy/scripts/run_che168_scraper_full_host.sh`,
+  юниты `rideauto-che168-scraper-full.service` + `rideauto-che168-scraper-full.timer`
+  (еженедельно, `Sun 06:00 Asia/Yekaterinburg`, `Persistent=true`).
+  Ручной запуск: `systemctl start rideauto-che168-scraper-full.service`.
+
 Секреты и устройство:
 
 - `che168.deviceid`: при пустом значении в YAML скрейпер **сгенерирует случайный UUID** (`ensure_che168_deviceid`); для стабильной долгой сессии лучше задать свой или `CHE168_DEVICE_ID`.

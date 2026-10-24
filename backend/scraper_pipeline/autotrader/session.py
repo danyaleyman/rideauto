@@ -35,7 +35,7 @@ AUTOTRADER_COOKIE_NAME_PREFIXES: Tuple[str, ...] = (
 
 
 def _autotrader_proxy_url_list(config: dict) -> list[str]:
-    """Ordered unique proxy URLs: explicit bootstrap → AUTOTRADER_PROXY_URL(S) → proxy.urls."""
+    """Ordered unique proxy URLs: bootstrap → AUTOTRADER_* → proxy.urls → ENCAR fallback."""
     out: list[str] = []
     seen: set[str] = set()
 
@@ -49,7 +49,8 @@ def _autotrader_proxy_url_list(config: dict) -> list[str]:
         s = str(raw).strip()
         if not s:
             return
-        for part in s.split(","):
+        # Разделители как у Encar: запятая / ; / | / перевод строки.
+        for part in s.replace("\n", ",").replace(";", ",").replace("|", ",").split(","):
             u = part.strip()
             # typo guard: http://://user:pass@host
             if u.startswith("http://://"):
@@ -68,14 +69,59 @@ def _autotrader_proxy_url_list(config: dict) -> list[str]:
     _add(os.environ.get("AUTOTRADER_PROXY_URL"))
     _add(os.environ.get("AUTOTRADER_PROXY_URLS"))
     px = config.get("proxy") or {}
-    if px.get("enabled"):
+    # URLs из proxy.urls берём всегда (если заданы); enabled=false только глушит
+    # чужие источники, но не явный список для USA.
+    if px.get("enabled") is not False:
         _add(px.get("urls"))
+    elif px.get("urls"):
+        _add(px.get("urls"))
+    # Ops: один FloppyData-пул на DE-4 (ENCAR_PROXY_URLS в /etc/default/rideauto).
+    # Если USA-список пуст или короче — добираем корейский пул (без дублей).
+    before = len(out)
+    _add(os.environ.get("ENCAR_PROXY_URLS"))
+    _add(os.environ.get("ENCAR_PROXY_URL"))
+    if len(out) > before and before == 0:
+        log.info(
+            "autotrader: using ENCAR_PROXY_URLS fallback (%d proxies)",
+            len(out),
+        )
     return out
 
 
 def _pick_autotrader_bootstrap_proxy_url(config: dict) -> Optional[str]:
     urls = _autotrader_proxy_url_list(config)
     return urls[0] if urls else None
+
+
+def build_autotrader_proxy_pool(config: dict):
+    """ProxyPool с health-quarantine для USA (sticky slots / bootstrap / rotate).
+
+    Knobs (``proxy.*`` или ``autotrader.proxy_*``):
+    ``failure_threshold`` (default 3), ``quarantine_sec`` (default 180),
+    ``rotation`` (round_robin|random).
+    """
+    from scraper_pipeline.common.proxy_pool import ProxyPool
+
+    at = config.get("autotrader") or {}
+    px = config.get("proxy") or {}
+
+    def _num(*keys: str, default: float) -> float:
+        for key in keys:
+            for src in (at, px):
+                if key in src and src.get(key) not in (None, ""):
+                    try:
+                        return float(src.get(key))
+                    except (TypeError, ValueError):
+                        continue
+        return float(default)
+
+    rotation = str(at.get("proxy_rotation") or px.get("rotation") or "round_robin").strip().lower()
+    return ProxyPool(
+        _autotrader_proxy_url_list(config),
+        rotation=rotation or "round_robin",
+        failure_threshold=int(_num("failure_threshold", "proxy_failure_threshold", default=3)),
+        quarantine_sec=float(_num("quarantine_sec", "proxy_quarantine_sec", default=180.0)),
+    )
 
 
 def collect_autotrader_cookies(ck_list: list) -> Dict[str, str]:
@@ -133,6 +179,12 @@ def load_cached_session(config: dict, log_: logging.Logger) -> Optional[SessionB
         return None
     if not bundle.cookies:
         return None
+    if len(bundle.cookies) < 20:
+        log_.info(
+            "Autotrader session cache weak cookies=%s — ignore, re-bootstrap",
+            len(bundle.cookies),
+        )
+        return None
     log_.info(
         "Autotrader session cache hit age=%.0fs cookies=%s path=%s",
         bundle.age_seconds,
@@ -145,6 +197,15 @@ def load_cached_session(config: dict, log_: logging.Logger) -> Optional[SessionB
 def save_cached_session(config: dict, bundle: SessionBundle, log_: logging.Logger) -> None:
     path = session_cache_path(config)
     if not path:
+        return
+    n_cookies = len(bundle.cookies or {})
+    # После challenge Playwright часто отдаёт ~10 cookie без _abck — такой кэш
+    # отравляет следующие рестарты list (вечный Akamai на page=N).
+    if n_cookies < 20:
+        log_.warning(
+            "Autotrader session cache NOT saved (cookies=%s < 20) — weak/challenge session",
+            n_cookies,
+        )
         return
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -161,7 +222,7 @@ def save_cached_session(config: dict, bundle: SessionBundle, log_: logging.Logge
             path.chmod(0o600)
         except OSError:
             pass
-        log_.info("Autotrader session cache saved %s cookies=%s", path, len(bundle.cookies))
+        log_.info("Autotrader session cache saved %s cookies=%s", path, n_cookies)
     except OSError as e:
         log_.warning("Autotrader session cache write failed: %s", e)
 

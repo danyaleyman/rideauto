@@ -92,6 +92,16 @@ def _car_cc(car_data: Dict[str, Any]) -> Optional[int]:
     return None
 
 
+def normalize_cc_100(cc: Optional[int]) -> Optional[int]:
+    """Номинальный объём: 3496 → 3500, 2384 → 2400 (каталоги США задают cc кратно 100)."""
+    if cc is None:
+        return None
+    try:
+        return int(round(int(cc) / 100.0) * 100)
+    except (TypeError, ValueError):
+        return None
+
+
 def _fuel_bucket(engine_type: Any) -> Optional[str]:
     if engine_type is None or str(engine_type).strip() == "":
         return None
@@ -349,19 +359,25 @@ def _entry_specificity(entry: Dict[str, Any]) -> int:
     return score
 
 
-def resolve_engine_hp(
+def resolve_hp_from_entries(
     car_data: Dict[str, Any],
+    entries: List[Dict[str, Any]],
     *,
+    source_label: str = "engine_map",
+    normalize_cc: bool = False,
+    cc_override: Optional[int] = None,
     record_source: bool = False,
 ) -> Optional[int]:
     """
-    Подобрать HP по engine_map.json. При record_source=True выставляет:
-    power_source='engine_map', power_estimated=True (если нашли значение).
+    Подбор HP по произвольному списку записей того же формата, что engine_map.json
+    (make/model_substrings/cc/fuel/year_min/year_max/priority).
+
+    source_label   — значение power_source при record_source=True.
+    normalize_cc   — сравнивать объём по номиналу (кратно 100): 3496 → 3500.
+                     Нужно для рынка США: каталоги задают cc номинально, а VIN даёт точный объём.
+    cc_override    — готовый объём машины (когда вызывающий умеет разобрать его точнее, чем _car_cc).
     """
-    if not isinstance(car_data, dict):
-        return None
-    entries = _load_engine_map()
-    if not entries:
+    if not isinstance(car_data, dict) or not entries:
         return None
 
     make_en = _canonical_make_en(car_data)
@@ -370,7 +386,9 @@ def resolve_engine_hp(
     )
     model_blob = _model_blob(car_data)
     year = _car_year(car_data)
-    cc = _car_cc(car_data)
+    cc = cc_override if cc_override is not None else _car_cc(car_data)
+    if normalize_cc:
+        cc = normalize_cc_100(cc)
     turbo = detect_turbo(car_data)
     fuel = _fuel_bucket(car_data.get("engine_type"))
     car_motor = extract_motor_code(car_data)
@@ -427,7 +445,25 @@ def resolve_engine_hp(
             best_hp = hp
 
     if best_hp is not None and record_source:
-        car_data["power_source"] = "engine_map"
+        car_data["power_source"] = source_label
         car_data["power_estimated"] = True
 
     return best_hp
+
+
+def resolve_engine_hp(
+    car_data: Dict[str, Any],
+    *,
+    record_source: bool = False,
+) -> Optional[int]:
+    """
+    Подобрать HP по engine_map.json. При record_source=True выставляет:
+    power_source='engine_map', power_estimated=True (если нашли значение).
+    """
+    return resolve_hp_from_entries(
+        car_data,
+        _load_engine_map(),
+        source_label="engine_map",
+        normalize_cc=False,
+        record_source=record_source,
+    )

@@ -52,8 +52,14 @@ def is_autotrader_challenge_html(html: str, *, status: int = 200) -> bool:
         "robot or spider",
         "captcha",
         "/_sec/cp_challenge",
+        "challenges.cloudflare.com",
+        "attention required",
+        "blocked",
     )
-    return any(m in low for m in markers)
+    if any(m in low for m in markers):
+        return True
+    # Короткий HTML без Next.js — почти всегда interstitial Akamai (~3–8 KB).
+    return len(html) < 12_000
 
 
 class AsyncAutotraderClient:
@@ -96,6 +102,10 @@ class AsyncAutotraderClient:
         self._cookies_map = dict(at.get("_session_cookies") or {})
         self._ua = str(at.get("user_agent") or self._ua or self._profile.user_agent)
         self._proxy = str(at.get("_session_proxy_url") or at.get("proxy_url") or "").strip() or None
+
+    def reload_session(self) -> None:
+        """Перечитать cookies/UA/прокси из config (после браузерного bootstrap)."""
+        self._apply_session_from_config()
 
     async def open(self) -> None:
         if self._opened:

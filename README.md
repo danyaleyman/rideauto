@@ -111,9 +111,12 @@ npm run test:unit                     # unit-тесты
 ```bash
 npm ci
 npm run test:e2e                      # Playwright (без visual)
+npm run test:e2e:catalog              # фильтры каталога + geometry (overflow/hover)
 npm run test:unit                     # unit web
 npm run lint:js                       # eslint web
 ```
+
+Каталог UI e2e крутится на mock API (`e2e/serve-mock-api.mjs`) + Next `:24173`: проверяет каскад mark→model/URL/reset, mobile sheet и геометрию (кнопки не 0×0, dropdown в viewport, hover не прыгает). PNG `@visual` — отдельно (`npm run test:e2e:visual`).
 
 ### Backend / API
 
@@ -163,7 +166,7 @@ bash deploy/scripts/diagnose_nightly_updates.sh
 ```
 
 Конфиги скраперов: [`scraper_config.yaml`](scraper_config.yaml), [`che168_scraper.yaml`](che168_scraper.yaml), [`autotrader_scraper.yaml`](autotrader_scraper.yaml).  
-США (Autotrader): `python backend/autotrader_scraper.py --max-pages 2` (нужна cookie-сессия, см. `docs/research/USA_AUTOTRADER_PIPELINE.md`).
+США (Autotrader): `AUTOTRADER_PROXY_URL` (residential) + `python backend/autotrader_scraper.py` (`fetch_vdp`/`require_vdp`, см. `docs/research/USA_AUTOTRADER_PIPELINE.md`). SRP-only в Meili не публикуются.
 Локальные секреты/лимиты: `*.local.yaml` (в git не попадают).
 
 ### Деплой и обслуживание сервера

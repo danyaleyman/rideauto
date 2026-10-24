@@ -2,7 +2,34 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from che168_daily_update import _chunked, _external_infoid_from_car_id, _write_daily_prometheus_textfile
+from che168_daily_update import (
+    _chunked,
+    _external_infoid_from_car_id,
+    _select_brand_window,
+    _write_daily_prometheus_textfile,
+)
+
+
+def test_select_brand_window_all_brands_when_no_limit() -> None:
+    ids = [1, 2, 3, 4]
+    assert _select_brand_window(ids, 0, 0) == (ids, 0)
+    assert _select_brand_window(ids, 10, 3) == (ids, 0)
+
+
+def test_select_brand_window_rotates() -> None:
+    ids = list(range(1, 11))
+    first, cursor = _select_brand_window(ids, 4, 0)
+    assert first == [1, 2, 3, 4]
+    assert cursor == 4
+    second, cursor2 = _select_brand_window(ids, 4, cursor)
+    assert second == [5, 6, 7, 8]
+    third, cursor3 = _select_brand_window(ids, 4, cursor2)
+    assert third == [9, 10, 1, 2]  # окно заворачивается по кругу
+    assert cursor3 == 2
+
+
+def test_select_brand_window_empty() -> None:
+    assert _select_brand_window([], 5, 0) == ([], 0)
 
 
 def test_external_infoid_from_car_id() -> None:

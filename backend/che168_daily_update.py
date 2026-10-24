@@ -135,6 +135,26 @@ def seconds_until(when: datetime) -> float:
     return (when - datetime.now(when.tzinfo)).total_seconds()
 
 
+def _select_brand_window(
+    all_ids: Sequence[int], max_brands: int, cursor: int
+) -> tuple[list[int], int]:
+    """
+    Окно брендов для daily discover.
+
+    max_brands <= 0 или нечего резать -> все бренды, курсор 0.
+    Иначе — ротирующееся окно: без ротации бренды за пределами первых N
+    не проверяются никогда (было: только первые 25 из 639).
+    """
+    ids = list(all_ids)
+    if not ids:
+        return [], 0
+    if max_brands <= 0 or len(ids) <= max_brands:
+        return ids, 0
+    start = cursor % len(ids)
+    rotated = ids[start:] + ids[:start]
+    return rotated[:max_brands], (start + max_brands) % len(ids)
+
+
 async def discover_new_cars(
     client: AsyncChe168Client,
     checkpoint: CheckpointAsync,
@@ -143,14 +163,19 @@ async def discover_new_cars(
 ) -> int:
     du = _daily_cfg(config)
     ch = config.get("che168", {}) if isinstance(config.get("che168"), dict) else {}
-    pages = int(du.get("new_list_pages_per_run", 10) or 10)
+    pages = max(1, int(du.get("new_list_pages_per_run", 10) or 10))
     new_limit = int(du.get("new_cars_limit", 0) or 0)
     pagesize = int(ch.get("search_pagesize", 20) or 20)
     sort = int(ch.get("search_sort", 0) or 0)
     vehicle_list = int(ch.get("vehicle_list", 1) or 1)
     delay_min = float(du.get("new_check_delay_min", 0.4) or 0.4)
     delay_max = float(du.get("new_check_delay_max", 1.2) or 1.2)
-    max_brands = max(1, int(du.get("new_brand_sample", 25) or 25))
+    # 0 = все бренды из /brand. Раньше брали первые 25 из 639 — бренды из хвоста
+    # списка не проверялись никогда (новые лоты у них не появлялись в каталоге).
+    max_brands = max(0, int(du.get("new_brand_sample", 0) or 0))
+    # Daily discover берёт «голову» выдачи (страницы 1..N) — там появляется всё новое.
+    # Продолжение с чекпоинта оставлено опцией для отладки/ручных прогонов.
+    resume_from_checkpoint = bool(du.get("new_resume_from_checkpoint", False))
 
     seg_cfg = ch.get("segmentation") if isinstance(ch.get("segmentation"), dict) else {}
     # Daily discover is usually incremental and should stay lightweight by default.
@@ -180,8 +205,19 @@ async def discover_new_cars(
         return 0
     configured = ch.get("brand_ids") if isinstance(ch.get("brand_ids"), list) else []
     configured_ids = [int(x) for x in configured if str(x).strip().isdigit()]
-    candidate_ids: list[int] = configured_ids or [bid for r in rows if (bid := che168_brand_id(r)) is not None]
-    candidate_ids = candidate_ids[:max_brands]
+    all_ids: list[int] = configured_ids or [bid for r in rows if (bid := che168_brand_id(r)) is not None]
+    candidate_ids: list[int] = all_ids
+    if max_brands > 0 and len(all_ids) > max_brands:
+        cursor = int(await checkpoint.get_last_offset("daily_brand_cursor") or 0)
+        candidate_ids, next_cursor = _select_brand_window(all_ids, max_brands, cursor)
+        await checkpoint.set_last_offset("daily_brand_cursor", next_cursor % len(all_ids))
+        log.info(
+            "Che168 daily discover: brand window cursor=%s size=%s of %s next_cursor=%s",
+            cursor % len(all_ids),
+            max_brands,
+            len(all_ids),
+            next_cursor,
+        )
 
     for brand_id in candidate_ids:
         if new_limit and total_added >= new_limit:
@@ -191,9 +227,11 @@ async def discover_new_cars(
                 break
             segment_key = str(segment.get("key") or "default").strip()
             ck_key = f"daily_brand_{brand_id}_segment_{segment_key}_page"
-            start_page = int(await checkpoint.get_last_offset(ck_key) or 1)
-            if start_page < 1:
-                start_page = 1
+            start_page = 1
+            if resume_from_checkpoint:
+                start_page = int(await checkpoint.get_last_offset(ck_key) or 1)
+                if start_page < 1:
+                    start_page = 1
 
             for page in range(start_page, start_page + pages):
                 if new_limit and total_added >= new_limit:
@@ -244,7 +282,8 @@ async def discover_new_cars(
                         added,
                         total_added,
                     )
-                await checkpoint.set_last_offset(ck_key, page + 1)
+                if resume_from_checkpoint:
+                    await checkpoint.set_last_offset(ck_key, page + 1)
                 await asyncio.sleep(random.uniform(delay_min, delay_max))
 
     log.info(
@@ -355,7 +394,8 @@ def run_only_pending(config_path: str, log) -> bool:
         return False
 
 
-async def run_one_cycle(config_path: str, config: dict, log) -> None:
+async def run_one_cycle(config_path: str, config: dict, log) -> bool:
+    """Один цикл daily-update. True = успех, False = шаг --only-pending упал."""
     checkpoint_cfg = config.get("checkpoint", {})
     max_pending = int(checkpoint_cfg.get("max_pending_ids", 500000))
     scope = str(checkpoint_cfg.get("scope", "che168")).strip() or "che168"
@@ -378,7 +418,7 @@ async def run_one_cycle(config_path: str, config: dict, log) -> None:
     if not got_lock:
         log.warning("Another che168 daily_update is running (lock_id=%s), skipping", lock_id)
         lock_conn.close()
-        return
+        return True
 
     checkpoint = CheckpointAsync(dsn=dsn, scope=scope, max_pending=max_pending)
     await checkpoint.connect()
@@ -413,11 +453,18 @@ async def run_one_cycle(config_path: str, config: dict, log) -> None:
             log,
         )
     else:
+        log.error(
+            "Che168 daily update: шаг --only-pending завершился с ошибкой "
+            "(new=%s pending=%s) — цикл считается неуспешным",
+            cycle_stats["new_cars_added"],
+            cycle_stats["pending_queue_size"],
+        )
         _notify_slack(
             f"*Che168 daily update*: FAILED\nnew={cycle_stats['new_cars_added']} sold_removed={cycle_stats['sold_cars_removed']} pending={cycle_stats['pending_queue_size']}\nStep `che168_scraper --only-pending` returned non-zero.",
             config,
             log,
         )
+    return ok
 
 
 def main() -> None:
@@ -436,7 +483,10 @@ def main() -> None:
     run_at_minute = int(du.get("run_at_minute", 30))
 
     if args.once:
-        asyncio.run(run_one_cycle(args.config, config, log))
+        ok = asyncio.run(run_one_cycle(args.config, config, log))
+        if not ok:
+            log.error("Che168 daily cycle FAILED — см. лог che168_scraper --only-pending выше")
+            sys.exit(1)
         return
 
     log.info("Che168 daily scheduler: run at %02d:%02d %s", run_at_hour, run_at_minute, tz_name)
@@ -447,8 +497,8 @@ def main() -> None:
             log.info("Next run at %s (in %.0f s)", next_run.isoformat(), wait)
             time.sleep(wait)
         log.info("Starting Che168 daily cycle")
-        asyncio.run(run_one_cycle(args.config, config, log))
-        log.info("Che168 daily cycle finished")
+        ok = asyncio.run(run_one_cycle(args.config, config, log))
+        log.info("Che168 daily cycle finished ok=%s", ok)
 
 
 if __name__ == "__main__":

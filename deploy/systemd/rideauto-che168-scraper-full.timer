@@ -1,0 +1,12 @@
+[Unit]
+Description=Run RideAuto Che168 (China) full catalog scraper weekly
+
+[Timer]
+# Воскресенье 06:00 Екатеринбург — после ночных job'ов (daily 02:00, dedupe 04:15,
+# sitemap 04:30, parser-audit 05:10), чтобы не конкурировать за Postgres/API.
+OnCalendar=Sun *-*-* 06:00:00 Asia/Yekaterinburg
+Persistent=true
+Unit=rideauto-che168-scraper-full.service
+
+[Install]
+WantedBy=timers.target

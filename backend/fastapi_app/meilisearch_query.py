@@ -176,6 +176,7 @@ def build_meilisearch_filter(
     elif src == "che168":
         clauses.append('source = "che168"')
     elif src in ("autotrader", "usa") or reg == "usa":
+        # Public USA catalog is filled only with VDP-ready docs (SRP stubs stay in Postgres).
         clauses.append('source = "autotrader"')
     elif src == "china" or reg == "china":
         clauses.append('source = "che168"')

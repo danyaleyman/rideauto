@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 import urllib.parse
 from typing import Any, Dict, Optional, Protocol, Tuple
@@ -35,9 +36,14 @@ def playwright_proxy_config(proxy_url: Optional[str]) -> Optional[Dict[str, str]
 
 def _pick_che168_bootstrap_proxy_url(config: dict) -> Optional[str]:
     ch = config.get("che168", {}) or {}
-    manual = str(ch.get("bootstrap_proxy_url") or "").strip()
-    if manual:
-        return manual
+    for key in ("bootstrap_proxy_url", "proxy_url"):
+        manual = str(ch.get(key) or "").strip()
+        if manual:
+            return manual
+    for env_key in ("CHE168_BOOTSTRAP_PROXY_URL", "CHE168_PROXY_URL", "CHE168_PROXY_URLS"):
+        raw = (os.environ.get(env_key) or "").strip()
+        if raw:
+            return raw.split(",")[0].strip()
     px = config.get("proxy", {}) or {}
     if px.get("enabled"):
         urls = px.get("urls") or []
