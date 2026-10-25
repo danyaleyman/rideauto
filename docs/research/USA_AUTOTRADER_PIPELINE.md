@@ -248,4 +248,28 @@ docker exec rideauto-postgres-1 psql -U wra -d wra -tAc \
 
 Замер после правок (прод, 2026-10-25 11:48–11:51 MSK): 4 блока по HTTP (без Chromium) → HTTP-гейт отключился → 4 блока браузером → `проход закрыт`, `coverage: slices=1 processed=1 ids=0 blocked=1`, весь проход **168 с** вместо часов ретраев.
 
+### Почему дело не в отсутствии US-IP (замер 2026-10-25 12:20 MSK)
+
+- `var/_us_pool_matrix.py` по всем 22 кредам FloppyData: **7 выходят из US** (PA, OR, GA, NC, MN, NJ), остальные — CA/MX/GB/DE/KR/AU;
+- `var/_us_srp_check.py`: все 7 US-выходов × 2 отпечатка (`chrome131`, `safari17_2_ios`) → `200`, **3 760–3 762 B**, `page unavailable` — блок одинаковый, IP-пул просто «прожжён» Akamai;
+- `var/_us_geo_matrix.py`: Smart Parameters FloppyData (`USER-type-residential-country-US[-session-X]`, синтаксис из их доков `proxies/basics.mdx`) на текущих сабюзерах дают **`407 CONNECT tunnel failed`** — шлюз принимает только базовый username. Значит `type-mobile` / `state` / `session` через эти креды недоступны, и «переехать на mobile» без ключа нельзя.
+
+Что нужно запросить/сделать (в порядке цены и трудозатрат):
+
+| Вариант | Что нужно | Замечания |
+|---------|-----------|-----------|
+| FloppyData **mobile** US (доверие выше residential) | Client API key → `POST /v2/proxy/rotating/connections` `{type:"mobile",country:"US"}` **или** сабюзер с разрешёнными smart params | ключ: `app.floppydata.com/api-keys`; в `.env` положить `AUTOTRADER_PROXY_URLS=<connectionString>` |
+| FloppyData **Web Unlocker / Web Data** | тот же ключ, `POST /v1/webUnlocker` / `POST /v2/web-data/fetch` `{url, countryCode:"US", difficulty:"high"}` | даёт готовый HTML в обход Akamai; тариф отдельный, нужен новый транспорт в `_HttpGate` |
+| Сторонний scraping API | аккаунт (ZenRows/ScraperAPI/Bright Data…) | тот же транспорт, ключ в `.env` |
+| Другой US-пул | список прокси | проверить `var/_us_srp_check.py` до подключения |
+
+Готовые диагностические скрипты (запускать на проде с `set -a; . /etc/default/rideauto; . /opt/rideauto/.env; set +a`):
+
+```bash
+.venv/bin/python var/_us_pool_matrix.py   # какие креды дают US и принимают ли smart params
+.venv/bin/python var/_us_srp_check.py     # отдаёт ли SRP через US-выходы (WAF/OK)
+.venv/bin/python var/_us_geo_matrix.py    # матрица smart-параметров по одной паре кредов
+```
+
+
 
