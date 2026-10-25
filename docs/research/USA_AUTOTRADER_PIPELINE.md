@@ -211,6 +211,9 @@ Akamai (`_abck`, `bm_*`). Канон для прода:
 | Квота на срез | `segment_max_pages` | 12 стр × 25 лотов ≈ 300 лотов/срез за проход (VDP — узкое место); 72 среза ≈ 21.6k лотов/проход |
 | Телеметрия покрытия | лог + `scraper_checkpoint_state` | `SRP[<name>] срез закрыт … coverage=..%`, `Autotrader coverage: slices … ids … total … coverage … truncated … blocked … gaps`; ключи `srp_coverage_pct`, `srp_ids_total`, `srp_total_all`, `srp_truncated_slices`, `srp_blocked_slices` |
 | WAF back-off | `block_abort_after` (8) | страница `page unavailable` = блок (не капча/не глубина): после 8 подряд проход закрывается (`WAF-BLOCKED`), курсоры не сдвигаются |
+| Классификация блока | `client.is_autotrader_waf_block()`, `AutotraderWafBlock` | проверяется **до** challenge и на транспортном уровне (`_HttpGate`, `_BrowserPool.goto`): HTTP-блок не поднимает Chromium, браузерный — не тратит challenge-ретраи на страницу |
+| Пауза после блока | `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` (3600) | supervisor распознаёт закрытый блоком проход (`list_pages_ok=0` + `srp_waf_blocks>0` в последней статистике) и не перезапускает его каждую минуту; `pending>0` при этом поднимает только detail |
+
 | Повторный проход США | `WRA_SUPERVISOR_AT_RERUN_SEC` (86400) | после COMPLETE рынок перезапускается через сутки (маркер `autotrader.complete` истекает), а не «навсегда» |
 
 ### Как проверить покрытие
@@ -241,5 +244,8 @@ docker exec rideauto-postgres-1 psql -U wra -d wra -tAc \
 - отпечатки curl_cffi `chrome131/124/120/110`, `edge101`, `safari17_2_ios` — **0/20** успешных SRP;
 - Playwright (headless Chromium + US-прокси): `page.goto` по SRP не завершается за 75–90 с; прогрев главной → SRP не помогает.
 
-Вывод: контур и контроль покрытия готовы, но **нужен рабочий egress/отпечаток** — US mobile/residential-пул, который проходит Akamai на autotrader.com (или scraping API поверх Autotrader). Пока его нет, США физически не могут наполниться; при этом контур больше не крутит recover вхолостую: блок → закрытие прохода → повтор через `WRA_SUPERVISOR_AT_RERUN_SEC`.
+Вывод: контур и контроль покрытия готовы, но **нужен рабочий egress/отпечаток** — US mobile/residential-пул, который проходит Akamai на autotrader.com (или scraping API поверх Autotrader). Пока его нет, США физически не могут наполниться; при этом контур больше не крутит recover вхолостую: блок классифицируется на транспортном уровне, проход закрывается за ~3 мин (`WAF-BLOCKED`, 8 блоков подряд), а supervisor не перезапускает его каждую минуту — пауза `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` (1 ч) и суточный `WRA_SUPERVISOR_AT_RERUN_SEC`.
+
+Замер после правок (прод, 2026-10-25 11:48–11:51 MSK): 4 блока по HTTP (без Chromium) → HTTP-гейт отключился → 4 блока браузером → `проход закрыт`, `coverage: slices=1 processed=1 ids=0 blocked=1`, весь проход **168 с** вместо часов ретраев.
+
 

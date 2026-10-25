@@ -173,7 +173,16 @@ sudo systemctl enable --now rideauto-scraper-supervisor.service
 - Покрытие выдачи контролируется срезами `autotrader.segmentation` (price × year): в логе прогона строка `Autotrader coverage: slices=… ids=… total=… coverage=…% truncated=… blocked=…`; те же числа лежат в `scraper_checkpoint_state` (`scope=autotrader`, ключи `srp_*`). Подробности и замеры — `docs/research/USA_AUTOTRADER_PIPELINE.md`, «Покрытие выдачи США».
 - Диагностика выдачи без записи в очередь:
   `sudo -u root /opt/rideauto/.venv/bin/python /opt/rideauto/backend/autotrader_scraper.py --config /opt/rideauto/autotrader_scraper.yaml --probe-url 'https://www.autotrader.com/cars-for-sale/all-cars'`
-- **Актуальный блокер (2026-10-25):** Akamai WAF отдаёт `page unavailable` на SRP/VDP со всех выходов (прямой IP + 22 прокси FloppyData) и всех отпечатков (0/20). При блоке проход закрывается (`WAF-BLOCKED`), курсоры не сдвигаются, повтор — через `WRA_SUPERVISOR_AT_RERUN_SEC`. Для наполнения нужен рабочий US-egress/отпечаток или scraping API.
+- **Актуальный блокер (2026-10-25):** Akamai WAF отдаёт `page unavailable` на SRP/VDP со всех выходов (прямой IP + 22 прокси FloppyData) и всех отпечатков (0/20). При блоке проход закрывается (`WAF-BLOCKED`), курсоры не сдвигаются. Такой проход **не перезапускается каждую минуту**: supervisor видит в статистике последнего list-прохода `list_pages_ok=0` + `srp_waf_blocks>0` и ставит паузу `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` (по умолчанию **3600 с**), подробности — в `docs/research/USA_AUTOTRADER_PIPELINE.md`. Для наполнения нужен рабочий US-egress/отпечаток или scraping API.
+- Переменные блока США в `/etc/default/rideauto`:
+
+  | Переменная | По умолчанию | Смысл |
+  |------------|--------------|-------|
+  | `WRA_SUPERVISOR_AT_SPLIT` | `1` | list и detail отдельными процессами |
+  | `WRA_SUPERVISOR_AT_RERUN_SEC` | `86400` | новый проход после COMPLETE (0 = никогда) |
+  | `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` | `3600` | пауза после прохода, закрытого WAF-блоком |
+  | `WRA_SUPERVISOR_AT_IDLE_STOP` | `3` | idle-финишей до COMPLETE (когда pending не читается) |
+
 
 Если systemd не знает `Asia/Yekaterinburg` в `OnCalendar`, либо обновите systemd, либо задайте UTC-эквивалент: **00:00 Екатеринбурга (UTC+5) = 19:00 UTC предыдущего календарного дня** (запись вида `OnCalendar=*-*-* 19:00:00` в **UTC** требует сдвига при переходе ЛО‑времени — предпочтительно починить timezone в таймере).
 

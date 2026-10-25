@@ -59,3 +59,32 @@ def test_load_complete_markers(tmp_path: Path):
     mod.load_complete_markers(markets, tmp_path)
     assert markets[0].complete is True
     assert markets[1].complete is False
+
+
+def test_last_list_pass_waf_blocked(tmp_path: Path):
+    """WAF-аборт распознаётся только по последнему проходу, а не по всей истории."""
+    mod = _load()
+    ok_line = (
+        "2026-10-25 10:00:00,000 [INFO] autotrader_scraper: Autotrader ingest done "
+        "phase=list за 300.0 c: {'list_pages_ok': 24, 'srp_waf_blocks': 0, 'saved': 300}"
+    )
+    waf_line = (
+        "2026-10-25 11:51:22,715 [INFO] autotrader_scraper: Autotrader ingest done "
+        "phase=list за 168.2 c: {'list_pages_ok': 0, 'srp_waf_blocks': 8, 'saved': 0}"
+    )
+    p = tmp_path / "autotrader_scraper.log"
+    p.write_text(waf_line + "\n", encoding="utf-8")
+    assert mod.last_list_pass_waf_blocked(p) is True
+    # успешный проход после блока снимает признак
+    p.write_text(waf_line + "\n" + ok_line + "\n", encoding="utf-8")
+    assert mod.last_list_pass_waf_blocked(p) is False
+    # WAF без нулевого list_pages_ok — это частичные блоки, проход не закрыт
+    p.write_text(
+        waf_line.replace("'list_pages_ok': 0", "'list_pages_ok': 3") + "\n", encoding="utf-8"
+    )
+    assert mod.last_list_pass_waf_blocked(p) is False
+    # нет строки статистики list-прохода
+    p.write_text("2026-10-25 11:00:00,000 [INFO] x: y\n", encoding="utf-8")
+    assert mod.last_list_pass_waf_blocked(p) is False
+    assert mod.last_list_pass_waf_blocked(None) is False
+

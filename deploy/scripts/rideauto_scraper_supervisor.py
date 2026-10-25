@@ -52,6 +52,10 @@ AT_IDLE_STOP = int(os.environ.get("WRA_SUPERVISOR_AT_IDLE_STOP", "3"))
 # AT_RERUN_SEC начинается новый (курсоры SRP-срезов сбрасываются на голову выдачи).
 # 0 = старое поведение (COMPLETE навсегда).
 AT_RERUN_SEC = int(os.environ.get("WRA_SUPERVISOR_AT_RERUN_SEC", "86400"))
+# WAF-блок (Akamai `page unavailable`): проход закрывается намеренно — с этого
+# egress данных не будет. Крутить его заново каждую минуту бессмысленно, поэтому
+# после блока ждём AT_WAF_BACKOFF_SEC, не дожидаясь суточного AT_RERUN_SEC.
+AT_WAF_BACKOFF_SEC = int(os.environ.get("WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC", "3600"))
 # parallel (default) | sequential — one market at a time in WRA_SUPERVISOR_ORDER
 MODE = (os.environ.get("WRA_SUPERVISOR_MODE") or "parallel").strip().lower()
 ORDER = [
@@ -268,6 +272,41 @@ def log_mentions_done(path: Optional[Path]) -> bool:
             re.I,
         )
     )
+
+
+def read_log_tail(path: Optional[Path], limit: int = 200_000) -> str:
+    """Хвост лога: общий autotrader_scraper.log растёт быстро, читаем с конца."""
+    if not path or not path.is_file():
+        return ""
+    try:
+        with path.open("rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            fh.seek(max(0, size - limit))
+            return fh.read().decode("utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
+def last_list_pass_waf_blocked(path: Optional[Path]) -> bool:
+    """Последний list-проход закрылся именно из-за WAF (а не из-за конца выдачи).
+
+    Признак — финальная строка статистики `Autotrader ingest done phase=list`:
+    ни одной успешной SRP-страницы и при этом счётчик WAF-блоков > 0.
+    Такой проход не имеет смысла перезапускать сразу: блок держится по egress.
+    """
+    tail = read_log_tail(path)
+    if not tail:
+        return False
+    lines = re.findall(r"Autotrader ingest done phase=list[^\n]*", tail)
+    if not lines:
+        return False
+    line = lines[-1]
+    ok = re.search(r"'list_pages_ok':\s*(\d+)", line)
+    waf = re.search(r"'srp_waf_blocks':\s*(\d+)", line)
+    if not ok or not waf:
+        return False
+    return int(ok.group(1)) == 0 and int(waf.group(1)) > 0
 
 
 def ensure_meili_helper() -> Path:
@@ -609,6 +648,7 @@ def main() -> int:
             detail_pids = _autotrader_phase_pids("detail") if at_split else []
             running = bool(pids_for(m.pattern))
             latest = latest_log(m.log_glob)
+            waf_stop = m.name == "autotrader" and last_list_pass_waf_blocked(latest)
 
             # Completion heuristics: require pending=0 for COMPLETE_CONFIRM_TICKS
             # consecutive ticks so a transient empty queue mid-dump cannot fake COMPLETE.
@@ -638,7 +678,7 @@ def main() -> int:
                     f"tick={m.complete_ticks}/{COMPLETE_CONFIRM_TICKS}"
                 )
 
-            if at_split and running:
+            if at_split and running and not waf_stop:
                 # SPLIT: list и detail живут раздельно — поднимаем упавший хвост,
                 # не убивая живой discovery.
                 stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
@@ -652,6 +692,39 @@ def main() -> int:
                     _start_autotrader_phase("detail", stamp)
                     m.last_progress_ts = now
                     time.sleep(2)
+
+            if not running and waf_stop:
+                # Проход закрыт WAF-блоком: с этого egress страниц не будет.
+                # Сразу перезапускать бессмысленно — ждём AT_WAF_BACKOFF_SEC.
+                if pending > 0 and at_split:
+                    log(
+                        "autotrader: WAF-BLOCKED list, но pending>0 — "
+                        f"поднимаем только detail (pending={pending})"
+                    )
+                    _start_autotrader_phase(
+                        "detail", time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+                    )
+                    m.last_progress_ts = now
+                    time.sleep(2)
+                    continue
+                if pending > 0:
+                    log(f"autotrader: WAF-BLOCKED, pending={pending} — проход не крутим")
+                    time.sleep(2)
+                    continue
+                m.complete = True
+                m.complete_ticks = COMPLETE_CONFIRM_TICKS
+                backoff = AT_WAF_BACKOFF_SEC if AT_WAF_BACKOFF_SEC > 0 else AT_RERUN_SEC
+                m.next_run_ts = now + backoff
+                log(
+                    "autotrader: WAF-BLOCKED — пауза до "
+                    f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(m.next_run_ts))} "
+                    f"(WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC={AT_WAF_BACKOFF_SEC}); "
+                    "нужен рабочий US egress/отпечаток"
+                )
+                complete_marker_path(STATE_DIR, m.name).write_text(
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), encoding="utf-8"
+                )
+                continue
 
             if not running:
                 # Autotrader finished cleanly with no growth → count idle finishes
