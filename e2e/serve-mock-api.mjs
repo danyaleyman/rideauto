@@ -17,7 +17,7 @@ const CARS = [
     data: {
       mark: "Hyundai",
       model: "Solaris",
-      cluster: "Solaris",
+      cluster: "RB",
       year: "2020",
       km_age: 50000,
       engine_type: "Petrol",
@@ -38,7 +38,7 @@ const CARS = [
     data: {
       mark: "Hyundai",
       model: "Accent",
-      cluster: "Accent",
+      cluster: "RB",
       year: "2019",
       km_age: 60000,
       engine_type: "Petrol",
@@ -58,7 +58,7 @@ const CARS = [
     data: {
       mark: "Kia",
       model: "Rio",
-      cluster: "Rio",
+      cluster: "UB",
       year: "2021",
       km_age: 32000,
       engine_type: "Petrol",
@@ -78,7 +78,7 @@ const CARS = [
     data: {
       mark: "BYD",
       model: "Seal",
-      cluster: "Seal",
+      cluster: "Ocean",
       year: "2023",
       km_age: 12000,
       engine_type: "Electric",
@@ -101,7 +101,7 @@ const CARS = [
     data: {
       mark: "Toyota",
       model: "Camry",
-      cluster: "Camry",
+      cluster: "XV",
       year: "2021",
       km_age: 28000,
       engine_type: "Petrol",

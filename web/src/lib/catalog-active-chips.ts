@@ -93,16 +93,52 @@ export function buildCatalogActiveChips(
   return chips;
 }
 
+function selectedParentLabels(
+  values: string[],
+  facetLabelByValue: Map<string, string>,
+): string[] {
+  return values.map((v) => facetLabelByValue.get(v) ?? normalizeCatalogDisplayLabel(v) ?? v);
+}
+
+function stripParentLabels(label: string, parents: string[]): string {
+  let out = label;
+  for (const parent of parents) {
+    const p = parent.trim();
+    if (!p) continue;
+    out = trimFacetLabelMinusGeneration(out, p);
+  }
+  return out;
+}
+
+export function facetLabelSetsEqual(a: FacetRow[], b: FacetRow[]): boolean {
+  if (!a.length || !b.length) return false;
+  const norm = (row: FacetRow) =>
+    facetRowLabel(row).toLowerCase().replace(/\s+/g, " ").trim();
+  const sa = new Set(a.map(norm).filter(Boolean));
+  const sb = new Set(b.map(norm).filter(Boolean));
+  if (sa.size !== sb.size || sa.size === 0) return false;
+  for (const x of sa) if (!sb.has(x)) return false;
+  return true;
+}
+
+export function childFacetLabelFormatter(
+  parents: string[],
+): (row: FacetRow) => string {
+  return (row) => stripParentLabels(facetRowLabel(row), parents);
+}
+
 export function trimFacetLabelFormatter(
   state: CatalogUrlState,
   facetLabelByValue: Map<string, string>,
 ): (row: FacetRow) => string {
   return (row) => {
     const base = facetRowLabel(row);
-    if (state.generations.length !== 1) return base;
-    const genVal = state.generations[0];
-    const genLbl =
-      facetLabelByValue.get(genVal) ?? normalizeCatalogDisplayLabel(genVal) ?? genVal;
-    return trimFacetLabelMinusGeneration(base, genLbl);
+    const parents = [
+      ...selectedParentLabels(state.marks, facetLabelByValue),
+      ...selectedParentLabels(state.clusters, facetLabelByValue),
+      ...selectedParentLabels(state.models, facetLabelByValue),
+      ...selectedParentLabels(state.generations, facetLabelByValue),
+    ];
+    return stripParentLabels(base, parents);
   };
 }

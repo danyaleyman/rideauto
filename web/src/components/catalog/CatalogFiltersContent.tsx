@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CatalogSearchController } from "@/hooks/use-catalog-search-state";
 import { colorSwatchClass, facetRowLabel } from "@/lib/catalog-client-utils";
+import { childFacetLabelFormatter, facetLabelSetsEqual } from "@/lib/catalog-active-chips";
 import { fuelSortRank, normalizeFuelLabel } from "@/lib/car-detail-data";
 import {
   colorFilterSummary,
@@ -35,7 +36,7 @@ function VehicleFacetFields({
   catalog: CatalogSearchController;
 }) {
   const { t, locale } = useLocaleContext();
-  const { state, facets, toggle, trimFacetLabelFormatterFn } = catalog;
+  const { state, facets, toggle, trimFacetLabelFormatterFn, facetLabelByValue } = catalog;
 
   if (!facets) {
     return (
@@ -47,6 +48,16 @@ function VehicleFacetFields({
     );
   }
 
+  const hideCluster = facetLabelSetsEqual(facets.clusters ?? [], facets.models);
+  const hideGeneration = facetLabelSetsEqual(facets.generations, facets.trims);
+  const parentLabels = [
+    ...state.marks.map((v) => facetLabelByValue.get(v) ?? v),
+    ...state.clusters.map((v) => facetLabelByValue.get(v) ?? v),
+    ...state.models.map((v) => facetLabelByValue.get(v) ?? v),
+  ];
+  const modelFormatter = childFacetLabelFormatter(state.marks.map((v) => facetLabelByValue.get(v) ?? v));
+  const generationFormatter = childFacetLabelFormatter(parentLabels);
+
   return (
     <div className="space-y-2">
       <FacetMultiDropdown
@@ -56,14 +67,16 @@ function VehicleFacetFields({
         selected={new Set(state.marks)}
         onToggle={(v) => toggle("marks", v)}
       />
-      <FacetMultiDropdown
-        testId="catalog-facet-clusters"
-        label={t("catalog.filters.cluster")}
-        rows={facets.clusters ?? []}
-        selected={new Set(state.clusters)}
-        onToggle={(v) => toggle("clusters", v)}
-        disabled={state.marks.length === 0}
-      />
+      {hideCluster ? null : (
+        <FacetMultiDropdown
+          testId="catalog-facet-clusters"
+          label={t("catalog.filters.cluster")}
+          rows={facets.clusters ?? []}
+          selected={new Set(state.clusters)}
+          onToggle={(v) => toggle("clusters", v)}
+          disabled={state.marks.length === 0}
+        />
+      )}
       <FacetMultiDropdown
         testId="catalog-facet-models"
         label={t("catalog.filters.model")}
@@ -71,22 +84,26 @@ function VehicleFacetFields({
         selected={new Set(state.models)}
         onToggle={(v) => toggle("models", v)}
         disabled={state.marks.length === 0}
+        labelFormatter={modelFormatter}
       />
-      <FacetMultiDropdown
-        testId="catalog-facet-generations"
-        label={t("catalog.filters.generation")}
-        rows={facets.generations}
-        selected={new Set(state.generations)}
-        onToggle={(v) => toggle("generations", v)}
-        disabled={state.models.length === 0}
-      />
+      {hideGeneration ? null : (
+        <FacetMultiDropdown
+          testId="catalog-facet-generations"
+          label={t("catalog.filters.generation")}
+          rows={facets.generations}
+          selected={new Set(state.generations)}
+          onToggle={(v) => toggle("generations", v)}
+          disabled={state.models.length === 0}
+          labelFormatter={generationFormatter}
+        />
+      )}
       <FacetMultiDropdown
         testId="catalog-facet-trims"
         label={t("catalog.filters.trim")}
         rows={facets.trims}
         selected={new Set(state.trims)}
         onToggle={(v) => toggle("trims", v)}
-        disabled={state.generations.length === 0}
+        disabled={hideGeneration ? state.models.length === 0 : state.generations.length === 0}
         labelFormatter={trimFacetLabelFormatterFn}
       />
     </div>

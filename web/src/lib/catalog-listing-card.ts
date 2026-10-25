@@ -42,14 +42,10 @@ export function buildCatalogCardDisplayData(car: SlimCar): {
     che168_params_raw: cardDataRaw.che168_params_raw,
   };
   const cardData = enrichChe168CarSpecs(merged);
-  const normalizedTitle =
-    buildNormalizedCarTitle(
-      cardData.mark,
-      cardData.model,
-      cardData.generation ?? cardData.configuration,
-      cardData.source,
-    ) ||
+  const normalizedTitle = (
+    buildNormalizedCarTitle(cardData.mark, cardData.model, cardData.generation, cardData.source) ||
     normalizeCatalogDisplayLabel(car.title) ||
-    car.id;
+    car.id
+  ).replace(/\s*·\s*/g, " ");
   return { cardData, normalizedTitle };
 }

@@ -37,4 +37,19 @@ describe("buildCatalogCardDisplayData", () => {
     const { cardData } = buildCatalogCardDisplayData(car);
     expect(cardData.power_hp).toBe(253);
   });
+
+  it("uses short China title instead of commercial configuration dump", () => {
+    const car: SlimCar = {
+      id: "che168-1",
+      title: "QQ New Energy Little Ant 2022 Sweet Pink Edition",
+      data: {
+        source: "che168",
+        mark: "QQ New Energy",
+        model: "Little Ant",
+        configuration:
+          "QQ New Energy Little Ant 2022 Sweet Pink Edition Half Sugar Version NCM Lithium 30kW 301km",
+      },
+    };
+    expect(buildCatalogCardDisplayData(car).normalizedTitle).toBe("QQ New Energy Little Ant");
+  });
 });

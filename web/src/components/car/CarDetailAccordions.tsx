@@ -14,6 +14,7 @@ import {
   asStr,
   cleanScalarText,
   buildNormalizedCarTitle,
+  polishChinaTrimLabel,
   formatHumanDate,
   formatKm,
   normalizeFuelLabel,
@@ -772,19 +773,19 @@ export function CarDetailAccordions({
 
   push(
     t("car.accordions.fieldTitle"),
-    buildNormalizedCarTitle(
-      data.mark,
-      data.model,
-      data.generation ?? data.configuration ?? data.gradeName,
-      data.source,
-    ) ??
+    buildNormalizedCarTitle(data.mark, data.model, data.generation, data.source) ??
       joinUniqueSpecs(data.mark, data.model, data.generation),
   );
-  const trimLine =
+  const trimRaw =
     asStr(data.configuration) ??
     asStr(data.gradeName) ??
     asStr((data as Record<string, unknown>).trim_name) ??
     asStr((data as Record<string, unknown>).trim);
+  const chinaSrc = String(asStr(data.source) ?? "").toLowerCase();
+  const trimLine =
+    chinaSrc === "che168" || chinaSrc === "china"
+      ? polishChinaTrimLabel(trimRaw, data.mark, data.model)
+      : trimRaw;
   push(t("car.accordions.fieldTrim"), trimLine);
   push(t("car.accordions.fieldYearMonth"), pickRegYearMonthDisplay(data as Record<string, unknown>));
   push(

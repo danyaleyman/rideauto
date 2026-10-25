@@ -72,7 +72,7 @@ export function FacetMultiDropdown({
           type="button"
           variant="outline"
           disabled={disabled || !groupedRows.length}
-          className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
+          className="h-10 w-full justify-between gap-2 rounded-lg px-3.5 font-normal"
           data-testid={testId}
           aria-label={
             n > 0
@@ -99,7 +99,7 @@ export function FacetMultiDropdown({
             placeholder={t("catalog.facets.search")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-10 rounded-2xl"
+            className="h-10 rounded-lg"
             onFocus={(e) => scrollFocusedFieldIntoView(e.currentTarget)}
             onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
@@ -175,7 +175,7 @@ export function ColorFacetDialog({
           type="button"
           variant="outline"
           disabled={disabled || !groupedRows.length}
-          className="h-10 w-full justify-between gap-2 rounded-2xl px-3.5 font-normal"
+          className="h-10 w-full justify-between gap-2 rounded-lg px-3.5 font-normal"
           data-testid={testId}
           aria-label={
             n > 0
@@ -223,7 +223,7 @@ export function ColorFacetDialog({
                       type="button"
                       variant={active ? "default" : "outline"}
                       size="sm"
-                      className="h-auto min-h-10 w-full min-w-0 flex-col items-stretch justify-center gap-1 rounded-2xl px-3 py-2.5 text-center font-normal shadow-sm"
+                      className="h-auto min-h-10 w-full min-w-0 flex-col items-stretch justify-center gap-1 rounded-lg px-3 py-2.5 text-center font-normal shadow-sm"
                       onClick={() => onToggle(r.values)}
                     >
                       <span

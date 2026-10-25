@@ -67,7 +67,7 @@ export function carHeading(raw: Record<string, unknown>): string {
   const heading = buildNormalizedCarTitle(
     d.mark,
     d.model,
-    d.generation ?? d.configuration,
+    d.generation,
     asStr(d.source) ?? asStr(raw.source),
   );
   if (heading) return heading.replace(/\s*·\s*/g, " ");

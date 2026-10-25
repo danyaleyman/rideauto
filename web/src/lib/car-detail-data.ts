@@ -50,12 +50,37 @@ const CHINA_TOKEN_FIXES: Array<[RegExp, string]> = [
   [/\bjin\s*kou\b/gi, "Import"],
 ];
 
+const CHINA_SPEC_TAIL_RE =
+  /\b(20\d{2}|19\d{2}|\d(?:\.\d)?T(SI)?|\d{2,4}\s*kW|\d{2,4}(?:\.\d+)?\s*kWh|\d{2,4}\s*km|NCM|LFP|Lithium|Automatic|Manual|CVT|DSG|AT|MT|2WD|4WD|FWD|RWD|AWD|EREV|Facelift|Import|China\s*V+|National\s*V+)\b/i;
+
+function dedupeRepeatedPrefix(v: string): string {
+  const tokens = v.split(/\s+/).filter(Boolean);
+  for (let len = Math.floor(tokens.length / 2); len >= 1; len--) {
+    const left = tokens.slice(0, len).join(" ").toLowerCase();
+    const right = tokens.slice(len, len * 2).join(" ").toLowerCase();
+    if (left === right) {
+      return [...tokens.slice(0, len), ...tokens.slice(len * 2)].join(" ");
+    }
+  }
+  return v;
+}
+
+function shortenChinaBrand(v: string): string {
+  const paren = v.match(/^([A-Z]{2,6})\s*\(([^)]+)\)$/);
+  if (paren) return paren[1];
+  return v;
+}
+
 function cleanupChinaNamePart(v: string, role: "mark" | "model" | "generation"): string {
   let s = v;
   for (const [rx, repl] of CHINA_SUBSTRING_FIXES) s = s.replace(rx, repl);
   for (const [rx, repl] of CHINA_TOKEN_FIXES) s = s.replace(rx, repl);
+  if (role === "mark") {
+    const short = shortenChinaBrand(s.trim());
+    if (short) return short;
+  }
   s = s.replace(/[()[\]{}]+/g, " ").replace(CJK_RE, " ").replace(/\s+/g, " ").trim();
-  s = s.replace(/^([A-Za-z0-9&-]+)\s+\1\b/i, "$1").trim();
+  s = dedupeRepeatedPrefix(s);
   if (role === "model") {
     s = s.replace(/\b20\d{2}\b.*$/i, "").trim();
     s = s.replace(/\b\d(?:\.\d)?T\b.*$/i, "").trim();
@@ -69,6 +94,52 @@ function cleanupChinaNamePart(v: string, role: "mark" | "model" | "generation"):
     s = s.replace(/\s+/g, " ").trim();
   }
   return s;
+}
+
+/** Полное коммерческое имя Che168: год, мотор, запас хода — не заголовок. */
+export function isChinaSpecDump(v: unknown): boolean {
+  const s = asStr(v);
+  if (!s) return false;
+  const words = s.split(/\s+/).filter(Boolean);
+  return words.length >= 5 && CHINA_SPEC_TAIL_RE.test(s);
+}
+
+function stripLeadingLabel(child: string, parent: string): string {
+  return trimFacetLabelMinusGeneration(child, parent);
+}
+
+/**
+ * Комплектация Китая без повторённой марки/модели и хвоста TSI/kW/км.
+ * Пустой результат не возвращаем — оставляем короткий хвост исходника.
+ */
+export function polishChinaTrimLabel(raw: unknown, mark?: unknown, model?: unknown): string | null {
+  const src = asStr(raw);
+  if (!src) return null;
+  let s = dedupeRepeatedPrefix(src.replace(/\s+/g, " ").trim());
+  const mk = asStr(mark);
+  const mo = asStr(model);
+  if (mk) {
+    s = stripLeadingLabel(s, mk);
+    const short = shortenChinaBrand(mk);
+    if (short !== mk) s = stripLeadingLabel(s, short);
+  }
+  if (mo) s = stripLeadingLabel(s, mo);
+  s = s.replace(/^\b(20\d{2}|19\d{2})\b(?:\s+Model)?\s*/i, "").trim();
+  s = s
+    .replace(/\b\d(?:\.\d)?T(SI)?\b/gi, " ")
+    .replace(/\b\d{2,4}\s*kW\b/gi, " ")
+    .replace(/\b\d{2,4}(?:\.\d+)?\s*kWh\b/gi, " ")
+    .replace(/\b\d{2,4}\s*km\b/gi, " ")
+    .replace(/\b(NCM|LFP)\s*(Lithium)?\b/gi, " ")
+    .replace(/\b(Automatic|Manual|CVT|DSG|\bAT\b|\bMT\b)\b/gi, " ")
+    .replace(/\b(2WD|4WD|FWD|RWD|AWD)\b/gi, " ")
+    .replace(/\b(China|National)\s*V+\b/gi, " ")
+    .replace(/\b\d{3,4}\s*mm\s*Wheelbase\b/gi, " ")
+    .replace(/\b(Diesel|Gasoline|Integrated|Double\s*Row|Square\s*Door)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (s) return s;
+  return src.split(/\s+/).slice(-3).join(" ");
 }
 
 const KO_TO_RU_TERMS: [string, string][] = [
@@ -417,21 +488,24 @@ export function buildNormalizedCarTitle(
   const chinaLike =
     sourceS === "che168" ||
     sourceS === "china" ||
-    [markS, modelS, genS].some((x) => CJK_RE.test(x) || CHINA_HINT_RE.test(x));
+    [markS, modelS, genS].some((x) => CJK_RE.test(x) || CHINA_HINT_RE.test(x)) ||
+    isChinaSpecDump(genS) ||
+    isChinaSpecDump(modelS);
   if (!chinaLike) return joinUniqueSpecs(markS, modelS, genS);
+  const genForTitle = genS && !isChinaSpecDump(genS) ? genS : "";
   if (markS && modelS) {
     const mk = markS.toLowerCase().trim();
     const mo = modelS.toLowerCase().trim();
     if (mo === mk || mo.startsWith(`${mk} `) || mo.startsWith(`${mk}·`)) {
       const mModel = cleanupChinaNamePart(modelS, "model");
-      const mGen = cleanupChinaNamePart(genS, "generation");
-      return joinUniqueSpecs(mModel || modelS, mGen || genS);
+      const mGen = genForTitle ? cleanupChinaNamePart(genForTitle, "generation") : "";
+      return joinUniqueSpecs(mModel || modelS, mGen);
     }
   }
   const m1 = cleanupChinaNamePart(markS, "mark");
   const m2 = cleanupChinaNamePart(modelS, "model");
-  const m3 = cleanupChinaNamePart(genS, "generation");
-  const parts = [m1 || markS, m2 || modelS, m3 || genS].filter(Boolean) as string[];
+  const m3 = genForTitle ? cleanupChinaNamePart(genForTitle, "generation") : "";
+  const parts = [m1 || markS, m2 || modelS, m3].filter(Boolean) as string[];
 
   const norm = (s: string): string =>
     s
