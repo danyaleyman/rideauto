@@ -115,7 +115,7 @@ class _FakeTransport:
         return None
 
 
-def _cfg(**seg: Any) -> Any:
+def _cfg(_at: Optional[Dict[str, Any]] = None, **seg: Any) -> Any:
     at: Dict[str, Any] = {
         "srp_retries": 1,
         "srp_stall_pages_limit": 1,
@@ -123,6 +123,8 @@ def _cfg(**seg: Any) -> Any:
         "list_page_delay_max": 0,
         "segmentation": seg,
     }
+    if _at:
+        at.update(_at)
     return _cfg_from_config({"autotrader": at})
 
 
@@ -289,4 +291,42 @@ async def test_walk_segment_quota_keeps_cursor(monkeypatch) -> None:
     assert res["quota"] is True
     # при квоте курсор НЕ сбрасывается — следующий проход идёт глубже
     assert cp.offsets["srp:p0-5000"] == 2
+
+
+
+WAF_PAGE = (
+    "<html><head><title>Autotrader - page unavailable</title></head><body>"
+    "We're sorry for any inconvenience, but the site is currently unavailable. "
+    "Incident Number: 18.5cce0b17.1792913180.5869fec"
+    "</body></html>"
+)
+
+
+def test_is_autotrader_waf_block() -> None:
+    from scraper_pipeline.autotrader.client import is_autotrader_waf_block
+
+    assert is_autotrader_waf_block(WAF_PAGE) is True
+    assert is_autotrader_waf_block(_srp_html(["1"], total=10)) is False
+    assert is_autotrader_waf_block("") is False
+
+
+async def test_walk_segment_aborts_on_waf_block_and_keeps_cursor(monkeypatch) -> None:
+    cfg = _cfg(_at={"block_abort_after": 2}, depth_cap_pages=0, reset_cursor_on_complete=True)
+    cp = _FakeCheckpoint()
+    rt = _FakeRuntime(cfg, cp)
+    rt.answers = [WAF_PAGE, WAF_PAGE]
+    monkeypatch.setattr(bi, "_Transport", _FakeTransport)
+
+    async def emit(items: List[Any]) -> int:
+        raise AssertionError("при WAF-блоке в очередь ничего не попадает")
+
+    res = await _walk_segment(
+        rt, emit, {"name": "p0-8000", "query": {"minPrice": 0, "maxPrice": 8000}, "depth": 0}
+    )
+
+    assert res["blocked"] is True
+    assert rt.st.srp_waf_blocks == 2
+    assert rt.stop.is_set()  # проход закрыт, а не бесконечный recover
+    # курсор не сброшен: данных не было, следующий прогон продолжит с того же места
+    assert "srp:p0-8000" not in cp.offsets
 

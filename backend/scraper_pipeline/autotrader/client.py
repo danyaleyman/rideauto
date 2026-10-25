@@ -62,6 +62,20 @@ def is_autotrader_challenge_html(html: str, *, status: int = 200) -> bool:
     return len(html) < 12_000
 
 
+def is_autotrader_waf_block(html: str) -> bool:
+    """Akamai WAF «page unavailable» (Incident Number) — это блок, не капча и не конец выдачи.
+
+    Такой ответ приходит на SRP/VDP/REST при заблокированном отпечатке или IP:
+    ретраи с тем же профилем бесполезны, нужен другой egress/отпечаток.
+    """
+    if not html:
+        return False
+    low = html.lower()
+    if "__next_data__" in low:
+        return False
+    return "page unavailable" in low or "incident number" in low
+
+
 class AsyncAutotraderClient:
     def __init__(
         self,

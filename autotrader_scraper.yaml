@@ -83,6 +83,51 @@ autotrader:
   # Возобновлять SRP-курсор из scraper_checkpoint_state (не начинать с page=1).
   resume_cursor: true
 
+  # --- Покрытие национальной выдачи (срезы) ------------------------------------
+  # Autotrader показывает ~3.4-3.5 млн лотов, но пагинация упирается в потолок
+  # глубины: дальние страницы отдают HTML без __NEXT_DATA__ (Akamai «конец выдачи»).
+  # Поэтому каталог идёт СРЕЗАМИ price × year: у каждого свой фильтр и свой курсор
+  # (srp:<name>), а в конце каждого среза пишется строка
+  #   `SRP[<name>] срез закрыт: pages=.. ids=.. total=.. coverage=..%`
+  # и общая `Autotrader coverage: slices=.. ids=.. total=.. coverage=..% truncated=.. gaps=..`.
+  # Пустой/низкий coverage = срез недобран (проверять по логам, не «на глаз»).
+  segmentation:
+    enabled: true
+    strategy: price_x_year
+    price_segments:
+      - [0, 8000]
+      - [8000, 12000]
+      - [12000, 16000]
+      - [16000, 20000]
+      - [20000, 25000]
+      - [25000, 30000]
+      - [30000, 40000]
+      - [40000, 50000]
+      - [50000, 60000]
+      - [60000, 80000]
+      - [80000, 120000]
+      - [120000, 250000]
+    year_segments:
+      - [1980, 2009]
+      - [2010, 2014]
+      - [2015, 2017]
+      - [2018, 2020]
+      - [2021, 2023]
+      - [2024, 2026]
+    # Квота страниц на срез за прогон (0 = идти в глубину до потолка сайта).
+    # 12 стр × 25 лотов ≈ 300 лотов на срез → ~21.6k лотов за проход (VDP — узкое место).
+    segment_max_pages: 12
+    segment_checkpoints: true
+    reset_cursor_on_complete: true
+    # Потолок глубины одного среза; 0 = без ограничения (квоты достаточно).
+    depth_cap_pages: 0
+    depth_limit_streak: 2
+    # Дробление слишком широких срезов (имеет смысл при segment_max_pages: 0).
+    adaptive_split: false
+    max_split_depth: 3
+    min_coverage_ratio: 0.85
+    max_segments: 200
+
   # --- Транспорт ---------------------------------------------------------------
   # true = сначала curl_cffi с cookies из Playwright; challenge → браузер → revive HTTP.
   http_first: true

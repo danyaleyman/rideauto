@@ -36,6 +36,7 @@ from urllib.parse import urlencode
 from scraper_pipeline.autotrader.client import (
     AsyncAutotraderClient,
     is_autotrader_challenge_html,
+    is_autotrader_waf_block,
 )
 from scraper_pipeline.autotrader.parser import (
     car_id_for_listing,
@@ -66,6 +67,10 @@ log = logging.getLogger(__name__)
 SRP_CURSOR_KEY = "all"
 # Общий car_type для pending-очереди Autotrader.
 AT_CAR_TYPE = "autotrader"
+
+
+class _WafBlockError(RuntimeError):
+    """Akamai WAF: `page unavailable` (Incident Number) — блок, не капча и не конец выдачи."""
 
 _PHASE_ALIASES = {
     "all": "all",
@@ -140,6 +145,9 @@ class _AtCfg:
     min_coverage_ratio: float = 0.85
     adaptive_split: bool = True
     max_split_depth: int = 3
+    # Сколько подряд WAF-блоков («page unavailable») терпим, прежде чем закрыть проход:
+    # при жёстком блоке ретраи бессмысленны — лучше выйти и вернуться позже.
+    block_abort_after: int = 8
 
     @property
     def do_list(self) -> bool:
@@ -289,6 +297,7 @@ def _cfg_from_config(
         cfg.min_coverage_ratio = 0.85
     cfg.adaptive_split = bool(seg.get("adaptive_split", True))
     cfg.max_split_depth = max(0, int(seg.get("max_split_depth") if seg.get("max_split_depth") is not None else 3))
+    cfg.block_abort_after = max(1, _int(at.get("block_abort_after"), default=8))
     # require_vdp=true означает «SRP-стаб не сохраняем», поэтому stub_on_vdp_fail
     # имеет силу только когда require_vdp выключен.
     cfg.stub_on_give_up = _bool("stub_on_vdp_fail", False) and not cfg.require_vdp
@@ -1141,11 +1150,13 @@ async def _walk_segment(
     pages_done = 0
     fail_streak = 0
     parse_fail_streak = 0
+    blocked_streak = 0
     stale_pages = 0
     ids_seen: Set[str] = set()
     total_count: Optional[int] = None
     truncated = False
     quota_hit = False
+    blocked = False
     prev_ids: Set[str] = set()
     pause_above = int(cfg.list_pause_when_pending_above or 0)
     summary: Dict[str, Any] = {
@@ -1207,6 +1218,10 @@ async def _walk_segment(
                     html = await tr.fetch(url)
                     if not html:
                         raise RuntimeError("пустой HTML")
+                    if is_autotrader_waf_block(html):
+                        raise _WafBlockError(
+                            f"WAF block (page unavailable), len={len(html)}"
+                        )
                     if is_autotrader_challenge_html(html):
                         raise RuntimeError(f"Akamai challenge HTML (len={len(html)})")
                     candidate = parse_srp_page(html)
@@ -1236,6 +1251,29 @@ async def _walk_segment(
                 tr.page = None
                 rt.next_srp_url = None
                 msg = str(last_err or "")
+                if isinstance(last_err, _WafBlockError):
+                    blocked_streak += 1
+                    await rt.bump("srp_waf_blocks")
+                    lg.warning(
+                        "SRP[%s] page=%s: WAF-блок `page unavailable` (%s/%s подряд)",
+                        name,
+                        page,
+                        blocked_streak,
+                        cfg.block_abort_after,
+                    )
+                    if blocked_streak >= cfg.block_abort_after:
+                        lg.error(
+                            "Autotrader: WAF блокирует выдачу (%s блоков подряд) — проход закрыт. "
+                            "Нужен рабочий egress/отпечаток (US residential/mobile или scraping API), "
+                            "код и срезы при этом в порядке",
+                            blocked_streak,
+                        )
+                        await rt.note_error("waf: page unavailable — проход закрыт")
+                        blocked = True
+                        rt.stop.set()
+                        break
+                    await asyncio.sleep(min(60.0, 5.0 * blocked_streak))
+                    continue
                 # «Нет __NEXT_DATA__» на глубокой странице — это потолок пагинации,
                 # а не сбой сети: ретраи и recover тут бесполезны.
                 depth_like = ("parse failed" in msg) or ("__NEXT_DATA__" in msg)
@@ -1294,6 +1332,7 @@ async def _walk_segment(
             rt.srp_pages_total += 1
             fail_streak = 0
             parse_fail_streak = 0
+            blocked_streak = 0
             ids = [str(x) for x in (parsed.get("active_ids") or [])]
             inventory = parsed.get("inventory") or {}
             nxt = parsed.get("next_page_url")
@@ -1422,11 +1461,12 @@ async def _walk_segment(
     finally:
         await tr.close()
 
-    exhausted = not truncated and not quota_hit
+    exhausted = not truncated and not quota_hit and not blocked
     # Курсор: закрытый срез (или упёршийся в потолок) на следующем прогоне снова
     # начинается с головы выдачи — новые лоты появляются в начале, а не в хвосте.
     # При квоте курсор НЕ сбрасываем: следующий прогон продолжает глубже.
-    if cp is not None and cfg.reset_cursor_on_complete and not quota_hit:
+    # При WAF-блоке курсор тоже не трогаем: данных не было, продолжать некуда.
+    if cp is not None and cfg.reset_cursor_on_complete and not quota_hit and not blocked:
         try:
             await cp.set_last_offset(cursor_key, 0)
             await rt.bump("srp_cursor_resets")
@@ -1442,6 +1482,7 @@ async def _walk_segment(
             "total": total_count,
             "truncated": truncated,
             "quota": quota_hit,
+            "blocked": blocked,
             "coverage_pct": coverage,
         }
     )
@@ -1452,7 +1493,7 @@ async def _walk_segment(
         len(ids_seen),
         total_count,
         coverage if coverage is not None else "n/a",
-        "TRUNCATED " if truncated else "",
+        "WAF-BLOCKED " if blocked else ("TRUNCATED " if truncated else ""),
         "QUOTA" if quota_hit else ("OK" if exhausted else ""),
     )
     await _store_state(cp, f"srp_ids:{name}", len(ids_seen))
@@ -1496,6 +1537,7 @@ async def _discovery_phase(
     ids_total = 0
     total_sum = 0
     truncated_any = 0
+    blocked_any = 0
     gaps = 0
     processed = 0
     while queue and not rt.stop.is_set():
@@ -1532,6 +1574,7 @@ async def _discovery_phase(
         ids_total += int(res.get("ids") or 0)
         total_sum += int(res.get("total") or 0)
         truncated_any += 1 if res.get("truncated") else 0
+        blocked_any += 1 if res.get("blocked") else 0
         cov = res.get("coverage_pct")
         if (
             cov is not None
@@ -1555,19 +1598,21 @@ async def _discovery_phase(
     rt.st.srp_total_seen = int(total_sum)
     rt.st.srp_coverage_pct = float(cov_all or 0.0)
     lg.info(
-        "Autotrader coverage: slices=%s processed=%s ids=%s total=%s coverage=%s%% truncated=%s gaps=%s",
+        "Autotrader coverage: slices=%s processed=%s ids=%s total=%s coverage=%s%% truncated=%s blocked=%s gaps=%s",
         len(done),
         processed,
         ids_total,
         total_sum,
         cov_all if cov_all is not None else "n/a",
         truncated_any,
+        blocked_any,
         gaps,
     )
     await _store_state(rt.checkpoint, "srp_coverage_pct", cov_all if cov_all is not None else "")
     await _store_state(rt.checkpoint, "srp_ids_total", ids_total)
     await _store_state(rt.checkpoint, "srp_total_all", total_sum)
     await _store_state(rt.checkpoint, "srp_truncated_slices", truncated_any)
+    await _store_state(rt.checkpoint, "srp_blocked_slices", blocked_any)
     await _store_state(rt.checkpoint, "srp_coverage_gaps", gaps)
 
 

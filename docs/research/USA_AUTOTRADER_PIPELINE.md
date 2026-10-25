@@ -150,6 +150,7 @@ Akamai (`_abck`, `bm_*`). Канон для прода:
 | Entrypoint + YAML | `backend/autotrader_scraper.py`, `autotrader_scraper.yaml` | ✅ |
 | Parser tests | `backend/tests/test_autotrader_parser.py` | ✅ |
 | Supervisor (3 рынка, `pending_*`) | `deploy/scripts/rideauto_scraper_supervisor.py` + systemd unit | ✅ |
+| Покрытие SRP: срезы / потолок глубины / телеметрия | `browser_ingest.build_segments`, `_walk_segment`, `runtime_stats` | ✅ (2026-10-25) |
 | Pricing USA | `backend/priceusa.py` + hooks in catalog sync | ✅ |
 | HP-библиотека США | `backend/us_power.py`, `data/us_engine_map.json` | ✅ |
 | Catalog `region=usa` | Meili filter, URL/market maps, SEO/i18n | ✅ |
@@ -184,3 +185,61 @@ Akamai (`_abck`, `bm_*`). Канон для прода:
 
 - Daily update / prometheus / live checker
 - Пополнять RU-маппинг по живым VDP (хвост unmapped EN)
+- **Egress США**: US mobile/residential-пул или scraping API, проходящий Akamai (сейчас блок, см. «Покрытие выдачи США»)
+- Проверить `autotrader.srp_num_records: 100` на живой выдаче, когда она откроется (сейчас 25 лотов/стр)
+
+## Покрытие выдачи США (замер 2026-10-25)
+
+### Почему каталог США «срезался»
+
+| Симптом | Факт из прод-логов / БД |
+|---------|--------------------------|
+| Каталог почти пуст | `cars` (`source=autotrader`) = **675** при `total` выдачи **3 468 733** (fixture) / **3 523 823** (прод, окт.) — 0.02 % |
+| Курсор SRP не сбрасывался | `list_offset_all` рос 13 → 748 → 778, после рестарта обход сразу упирался в «конец выдачи»; голова выдачи (новые лоты) не сканировалась |
+| Потолок глубины считался сбоем сети | страницы 773–778 отдают HTML без `__NEXT_DATA__` → 5 ретраев + `recover_access` на каждую; прогон = 6 «мёртвых» страниц, `list_pages_ok=0` |
+| Покрытие никто не считал | `ids/total` не логировался; «каталог стабилизировался» печаталось при живых 3.4 млн лотов |
+| США «замирали» навсегда | supervisor помечал `autotrader.complete` после первого прохода и больше рынок не поднимал (`AT_IDLE_STOP`) |
+
+### Что теперь в коде
+
+| Механизм | Где | Поведение |
+|----------|-----|-----------|
+| Срезы SRP (`make` × `price` × `year`) | `autotrader.segmentation`, `build_segments()` | фильтры + отдельный курсор `srp:<name>` на срез; `max_segments` ограничивает |
+| Адаптивное дробление | `split_segment()`, `adaptive_split` | срез шире `depth_cap_pages × page_size` дробится по цене, затем по годам (до `max_split_depth`) |
+| Потолок глубины | `depth_limit_streak` | 2 страницы подряд без `__NEXT_DATA__` = конец выдачи среза (без 5 ретраев и recover), срез помечается `TRUNCATED` |
+| Возврат курсора | `reset_cursor_on_complete` | закрытый срез на следующем проходе начинается с 1-й страницы (свежие лоты в голове); при квоте курсор идёт глубже |
+| Квота на срез | `segment_max_pages` | 12 стр × 25 лотов ≈ 300 лотов/срез за проход (VDP — узкое место); 72 среза ≈ 21.6k лотов/проход |
+| Телеметрия покрытия | лог + `scraper_checkpoint_state` | `SRP[<name>] срез закрыт … coverage=..%`, `Autotrader coverage: slices … ids … total … coverage … truncated … blocked … gaps`; ключи `srp_coverage_pct`, `srp_ids_total`, `srp_total_all`, `srp_truncated_slices`, `srp_blocked_slices` |
+| WAF back-off | `block_abort_after` (8) | страница `page unavailable` = блок (не капча/не глубина): после 8 подряд проход закрывается (`WAF-BLOCKED`), курсоры не сдвигаются |
+| Повторный проход США | `WRA_SUPERVISOR_AT_RERUN_SEC` (86400) | после COMPLETE рынок перезапускается через сутки (маркер `autotrader.complete` истекает), а не «навсегда» |
+
+### Как проверить покрытие
+
+```bash
+# 1) Что реально отдаёт выдача (ничего не пишет в очередь и не трогает курсор)
+.venv/bin/python backend/autotrader_scraper.py --config autotrader_scraper.yaml \
+  --probe-url 'https://www.autotrader.com/cars-for-sale/all-cars' \
+  --probe-url 'https://www.autotrader.com/cars-for-sale/all-cars?minPrice=0&maxPrice=20000&startYear=2015&endYear=2026'
+
+# 2) Покрытие в логе прогона
+grep -aE 'SRP\[|Autotrader coverage' logs/autotrader_*.log | tail -30
+
+# 3) Покрытие в чекпоинте
+docker exec rideauto-postgres-1 psql -U wra -d wra -tAc \
+  "select key, value from scraper_checkpoint_state where scope='autotrader' and key like 'srp_%'"
+```
+
+Норма: `coverage` по срезу ≥ `min_coverage_ratio` (85 %) либо явный `QUOTA`/`TRUNCATED`.
+`WAF-BLOCKED` в строке среза = выдача не отдалась вообще (см. блокер ниже).
+
+### Блокер (инфраструктура): Akamai WAF, замер 2026-10-25 09:50–10:20 MSK
+
+- `GET /cars-for-sale/all-cars` → `200`, **3 761 B**, `<title>Autotrader - page unavailable</title>`, тело «Incident Number: 18.5cce…» — WAF-блок, не капча;
+- то же для `/cars-for-sale/vehicle/{id}` и `/rest/lsc/modelinfo/{id}` (1 из 3 VDP-запросов прошёл: 510 437 B с `__NEXT_DATA__` — блок вероятностный);
+- `robots.txt` → `200 / 19 675 B` на всех выходах (сеть и прокси живы);
+- egress: прямой выход прод-хоста (DE) **и** 22 сессии FloppyData (US 6, CA 3, KR 5, GB 2, MX 1, AU 1, DE 1, 3 таймаута) — одинаковый блок;
+- отпечатки curl_cffi `chrome131/124/120/110`, `edge101`, `safari17_2_ios` — **0/20** успешных SRP;
+- Playwright (headless Chromium + US-прокси): `page.goto` по SRP не завершается за 75–90 с; прогрев главной → SRP не помогает.
+
+Вывод: контур и контроль покрытия готовы, но **нужен рабочий egress/отпечаток** — US mobile/residential-пул, который проходит Akamai на autotrader.com (или scraping API поверх Autotrader). Пока его нет, США физически не могут наполниться; при этом контур больше не крутит recover вхолостую: блок → закрытие прохода → повтор через `WRA_SUPERVISOR_AT_RERUN_SEC`.
+

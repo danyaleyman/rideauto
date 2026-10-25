@@ -158,6 +158,23 @@ sudo systemctl enable --now rideauto-che168-scraper-full.timer
 - Ручной запуск полного прогона: `sudo systemctl start rideauto-che168-scraper-full.service`
   (или `bash deploy/scripts/run_che168_scraper_full_host.sh 0`).
 
+### США (Autotrader): supervisor + повторные проходы
+
+США идут не таймером, а долгоживущим **`rideauto-scraper-supervisor.service`** (та же логика stall/COMPLETE, что у Кореи/Китая):
+
+```bash
+sudo cp deploy/systemd/rideauto-scraper-supervisor.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now rideauto-scraper-supervisor.service
+```
+
+- `WRA_SUPERVISOR_ORDER=autotrader`, `WRA_SUPERVISOR_MODE=sequential`, `WRA_SUPERVISOR_AT_SPLIT=1` (list + detail отдельными процессами) — задаётся в `/etc/default/rideauto`.
+- Полный проход США **конечен**: после `pending=0` supervisor ставит COMPLETE и маркер `autotrader.complete`. Чтобы каталог обновлялся, рынок перезапускается через `WRA_SUPERVISOR_AT_RERUN_SEC` (по умолчанию **86400 с = 24 ч**); маркер старше периода игнорируется и удаляется. `WRA_SUPERVISOR_AT_RERUN_SEC=0` — прежнее поведение («залили и забыли»).
+- Покрытие выдачи контролируется срезами `autotrader.segmentation` (price × year): в логе прогона строка `Autotrader coverage: slices=… ids=… total=… coverage=…% truncated=… blocked=…`; те же числа лежат в `scraper_checkpoint_state` (`scope=autotrader`, ключи `srp_*`). Подробности и замеры — `docs/research/USA_AUTOTRADER_PIPELINE.md`, «Покрытие выдачи США».
+- Диагностика выдачи без записи в очередь:
+  `sudo -u root /opt/rideauto/.venv/bin/python /opt/rideauto/backend/autotrader_scraper.py --config /opt/rideauto/autotrader_scraper.yaml --probe-url 'https://www.autotrader.com/cars-for-sale/all-cars'`
+- **Актуальный блокер (2026-10-25):** Akamai WAF отдаёт `page unavailable` на SRP/VDP со всех выходов (прямой IP + 22 прокси FloppyData) и всех отпечатков (0/20). При блоке проход закрывается (`WAF-BLOCKED`), курсоры не сдвигаются, повтор — через `WRA_SUPERVISOR_AT_RERUN_SEC`. Для наполнения нужен рабочий US-egress/отпечаток или scraping API.
+
 Если systemd не знает `Asia/Yekaterinburg` в `OnCalendar`, либо обновите systemd, либо задайте UTC-эквивалент: **00:00 Екатеринбурга (UTC+5) = 19:00 UTC предыдущего календарного дня** (запись вида `OnCalendar=*-*-* 19:00:00` в **UTC** требует сдвига при переходе ЛО‑времени — предпочтительно починить timezone в таймере).
 
 ## 5) Права на файлы

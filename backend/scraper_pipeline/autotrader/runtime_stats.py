@@ -40,6 +40,7 @@ class AutotraderStats:
     srp_total_seen: int = 0
     srp_coverage_pct: float = 0.0
     srp_cursor_resets: int = 0
+    srp_waf_blocks: int = 0
 
     def as_dict(self) -> dict:
         return {
@@ -70,5 +71,6 @@ class AutotraderStats:
             "srp_total_seen": self.srp_total_seen,
             "srp_coverage_pct": round(float(self.srp_coverage_pct or 0.0), 2),
             "srp_cursor_resets": self.srp_cursor_resets,
+            "srp_waf_blocks": self.srp_waf_blocks,
             "errors": list(self.errors[-20:]),
         }

@@ -48,6 +48,10 @@ COMPLETE_CONFIRM_TICKS = max(1, int(os.environ.get("WRA_SUPERVISOR_COMPLETE_CONF
 FINAL_SYNC_MARKER = "final_sync.done"
 # Stop restarting Autotrader after N consecutive clean finishes with almost no new saves.
 AT_IDLE_STOP = int(os.environ.get("WRA_SUPERVISOR_AT_IDLE_STOP", "3"))
+# Autotrader — не «залитый однажды» рынок: полный проход закрывается, но через
+# AT_RERUN_SEC начинается новый (курсоры SRP-срезов сбрасываются на голову выдачи).
+# 0 = старое поведение (COMPLETE навсегда).
+AT_RERUN_SEC = int(os.environ.get("WRA_SUPERVISOR_AT_RERUN_SEC", "86400"))
 # parallel (default) | sequential — one market at a time in WRA_SUPERVISOR_ORDER
 MODE = (os.environ.get("WRA_SUPERVISOR_MODE") or "parallel").strip().lower()
 ORDER = [
@@ -186,6 +190,8 @@ class Market:
     idle_finishes: int = 0
     complete: bool = False
     complete_ticks: int = 0
+    # Когда снова запускать рынок после COMPLETE (0 = никогда, как у Encar/Che168).
+    next_run_ts: float = 0.0
 
 
 def complete_marker_path(state_dir: Path, market: str) -> Path:
@@ -200,10 +206,27 @@ def load_complete_markers(markets: List[Market], state_dir: Path) -> None:
     """Restore COMPLETE from disk so Restart=always does not re-scrape finished markets."""
     for m in markets:
         p = complete_marker_path(state_dir, m.name)
-        if p.is_file():
-            m.complete = True
-            m.complete_ticks = COMPLETE_CONFIRM_TICKS
-            log(f"{m.name}: COMPLETE (marker {p.name})")
+        if not p.is_file():
+            continue
+        if m.name == "autotrader" and AT_RERUN_SEC > 0:
+            # Маркер старше периода повторного прохода → США снова в работе,
+            # иначе каталог «замерзал» навсегда после первого полного прохода.
+            try:
+                stamp = p.read_text(encoding="utf-8").strip()
+                done_ts = time.mktime(time.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ"))
+            except (OSError, ValueError):
+                done_ts = p.stat().st_mtime
+            if time.time() - done_ts >= AT_RERUN_SEC:
+                try:
+                    p.unlink()
+                except OSError:
+                    pass
+                log(f"{m.name}: COMPLETE marker стух (>{AT_RERUN_SEC}s) — рынок снова в работе")
+                continue
+            m.next_run_ts = done_ts + AT_RERUN_SEC
+        m.complete = True
+        m.complete_ticks = COMPLETE_CONFIRM_TICKS
+        log(f"{m.name}: COMPLETE (marker {p.name})")
 
 
 def market_ready_for_complete(
@@ -550,6 +573,22 @@ def main() -> int:
                     kill_pattern(m.pattern)
 
         for m in markets:
+            if (
+                m.complete
+                and m.name == "autotrader"
+                and AT_RERUN_SEC > 0
+                and now >= m.next_run_ts
+            ):
+                # США обновляются проходами: закрытый проход → новый через AT_RERUN_SEC.
+                m.complete = False
+                m.complete_ticks = 0
+                m.idle_finishes = 0
+                m.last_progress_ts = now
+                try:
+                    complete_marker_path(STATE_DIR, m.name).unlink()
+                except OSError:
+                    pass
+                log("autotrader: старт нового прохода (COMPLETE истёк)")
             if m.complete:
                 continue
             if sequential and focus is not None and m.name != focus.name:
@@ -581,6 +620,8 @@ def main() -> int:
             )
             if note_complete_tick(m, ready, COMPLETE_CONFIRM_TICKS):
                 m.complete = True
+                if m.name == "autotrader" and AT_RERUN_SEC > 0:
+                    m.next_run_ts = now + AT_RERUN_SEC
                 log(
                     f"{m.name}: COMPLETE pending=0 "
                     f"(confirmed {COMPLETE_CONFIRM_TICKS} ticks) → next"
@@ -620,6 +661,8 @@ def main() -> int:
                     log(f"autotrader: clean finish idle={m.idle_finishes}/{AT_IDLE_STOP} count={count}")
                     if m.idle_finishes >= AT_IDLE_STOP:
                         m.complete = True
+                        if AT_RERUN_SEC > 0:
+                            m.next_run_ts = now + AT_RERUN_SEC
                         log("autotrader: COMPLETE (idle finishes)")
                         STATE_DIR.joinpath("autotrader.complete").write_text(
                             time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), encoding="utf-8"
