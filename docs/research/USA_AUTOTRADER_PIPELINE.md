@@ -263,7 +263,7 @@ docker exec rideauto-postgres-1 psql -U wra -d wra -tAc \
 | Сторонний scraping API | аккаунт (ZenRows/ScraperAPI/Bright Data…) | тот же транспорт, ключ в `.env` |
 | Другой US-пул | список прокси | проверить `var/_us_srp_check.py` до подключения |
 
-Готовые диагностические скрипты (запускать на проде с `set -a; . /etc/default/rideauto; . /opt/rideauto/.env; set +a`):
+Готовые диагностические скрипты (лежат в `var/` — каталог не в git, на хост копируются вручную; запуск с `set -a; . /etc/default/rideauto; . /opt/rideauto/.env; set +a`):
 
 ```bash
 .venv/bin/python var/_us_pool_matrix.py   # какие креды дают US и принимают ли smart params
