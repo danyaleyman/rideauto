@@ -29,6 +29,17 @@ class AutotraderStats:
     vdp_via_browser: int = 0
     http_disabled_after: int = 0
     extract_paths: Dict[str, int] = field(default_factory=dict)
+    # --- Покрытие выдачи (срезы SRP) -------------------------------------------
+    # Сколько срезов обошли, сколько разбили на подобьё, где упёрлись в потолок
+    # глубины и насколько сошлось с total из выдачи (coverage = ids/total).
+    srp_slices: int = 0
+    srp_slices_split: int = 0
+    srp_depth_truncated: int = 0
+    coverage_gap_slices: int = 0
+    srp_ids_unique: int = 0
+    srp_total_seen: int = 0
+    srp_coverage_pct: float = 0.0
+    srp_cursor_resets: int = 0
 
     def as_dict(self) -> dict:
         return {
@@ -51,5 +62,13 @@ class AutotraderStats:
             "vdp_via_browser": self.vdp_via_browser,
             "http_disabled_after": self.http_disabled_after,
             "extract_paths": dict(self.extract_paths),
+            "srp_slices": self.srp_slices,
+            "srp_slices_split": self.srp_slices_split,
+            "srp_depth_truncated": self.srp_depth_truncated,
+            "coverage_gap_slices": self.coverage_gap_slices,
+            "srp_ids_unique": self.srp_ids_unique,
+            "srp_total_seen": self.srp_total_seen,
+            "srp_coverage_pct": round(float(self.srp_coverage_pct or 0.0), 2),
+            "srp_cursor_resets": self.srp_cursor_resets,
             "errors": list(self.errors[-20:]),
         }

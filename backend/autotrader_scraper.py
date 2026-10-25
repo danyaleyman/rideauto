@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -131,6 +132,27 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--max-pages", type=int, default=None)
     p.add_argument("--max-cars", type=int, default=None)
     p.add_argument(
+        "--start-page",
+        type=int,
+        default=None,
+        help="SRP: стартовая страница (ops: точечная проверка глубины выдачи)",
+    )
+    p.add_argument(
+        "--num-records",
+        type=int,
+        default=None,
+        help="SRP: размер страницы (numRecords); 0/пусто = как отдаёт сайт (25)",
+    )
+    p.add_argument(
+        "--probe-url",
+        action="append",
+        default=None,
+        help=(
+            "Диагностика: SRP URL (можно повторять). Печатает total/ids/inventory/next "
+            "и завершается, ничего не пишет в очередь."
+        ),
+    )
+    p.add_argument(
         "--phase",
         choices=("all", "list", "detail"),
         default=None,
@@ -173,6 +195,19 @@ def main(argv: Optional[List[str]] = None) -> int:
             config.setdefault("autotrader", {})["max_cars"] = args.max_cars
         log = setup_logging(config)
 
+        # Диагностика выдачи: ничего не пишет в очередь и не трогает курсор.
+        if args.probe_url:
+            from scraper_pipeline.autotrader.browser_ingest import run_autotrader_srp_probe
+
+            rows = run_autotrader_srp_probe(
+                config,
+                list(args.probe_url),
+                num_records=args.num_records,
+                logger=log,
+            )
+            print(json.dumps(rows, ensure_ascii=False, indent=2))
+            return 0
+
         # CLI phase (--phase / --only-pending) overrides autotrader.phase from YAML.
         at = config.setdefault("autotrader", {})
         phase_cli = args.phase or ("detail" if args.only_pending else None)
@@ -211,6 +246,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     logger=log,
                     phase=phase_cli,
                     only_pending=args.only_pending,
+                    start_page=args.start_page,
+                    num_records=args.num_records,
+                    max_pages=args.max_pages,
+                    max_cars=args.max_cars,
                 )
                 log.info("Autotrader browser ingest done: %s", stats.as_dict())
             finally:

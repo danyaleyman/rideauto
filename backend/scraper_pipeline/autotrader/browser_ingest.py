@@ -23,12 +23,14 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import logging
 import random
 import time
-from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Tuple
+from collections import deque
+from dataclasses import dataclass, field
+from typing import Any, Awaitable, Callable, Deque, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlencode
 
 from scraper_pipeline.autotrader.client import (
@@ -120,6 +122,24 @@ class _AtCfg:
     list_pause_when_pending_above: int = 0
     # Sticky Chromium на воркера (свой egress/прокси); false = один общий контекст.
     sticky_browser_slots: bool = True
+    # --- Покрытие выдачи: срезы и потолок глубины -------------------------------
+    seg_enabled: bool = False
+    seg_strategy: str = "price_x_year"
+    price_segments: List[Tuple[int, int]] = field(default_factory=list)
+    year_segments: List[Tuple[int, int]] = field(default_factory=list)
+    make_codes: List[str] = field(default_factory=list)
+    max_segments: int = 400
+    segment_checkpoints: bool = True
+    # Квота страниц на срез (0 = без квоты, идём в глубину до потолка).
+    segment_max_pages: int = 0
+    reset_cursor_on_complete: bool = True
+    # Потолок глубины: сколько страниц среза вообще имеет смысл листать.
+    depth_cap_pages: int = 100
+    # Сколько «страница без __NEXT_DATA__» подряд считаем потолком глубины.
+    depth_limit_streak: int = 2
+    min_coverage_ratio: float = 0.85
+    adaptive_split: bool = True
+    max_split_depth: int = 3
 
     @property
     def do_list(self) -> bool:
@@ -148,6 +168,15 @@ class _AtCfg:
     def vdp_url(self, listing_id: str) -> str:
         return f"{self.base}/cars-for-sale/vehicle/{listing_id}"
 
+    def segment_url(self, query: Dict[str, Any], page: int) -> str:
+        """URL среза SRP: фильтры (make/price/year) + страница + размер страницы."""
+        q: Dict[str, Any] = {k: v for k, v in (query or {}).items() if v not in (None, "")}
+        q["page"] = int(page)
+        if self.num_records > 0:
+            q["numRecords"] = int(self.num_records)
+        path = (self.start_url or f"{self.base}/cars-for-sale/all-cars").split("?", 1)[0]
+        return f"{path}?{urlencode(q)}"
+
 
 def _cfg_from_config(
     config: dict,
@@ -157,6 +186,7 @@ def _cfg_from_config(
     start_page: Optional[int] = None,
     max_pages: Optional[int] = None,
     max_cars: Optional[int] = None,
+    num_records: Optional[int] = None,
 ) -> _AtCfg:
     at = config.get("autotrader") or {}
     http = config.get("http") or {}
@@ -221,7 +251,11 @@ def _cfg_from_config(
         vdp_delay_max=_float(at.get("vdp_delay_max"), default=0.35),
         save_batch=max(1, _int(at.get("save_batch_size"), default=64)),
         save_flush_sec=max(0.0, _float(at.get("save_flush_sec"), default=2.0)),
-        num_records=max(0, _int(at.get("srp_num_records"), default=0)),
+        num_records=(
+            max(0, int(num_records))
+            if num_records is not None
+            else max(0, _int(at.get("srp_num_records"), default=0))
+        ),
         use_checkpoint=_bool("use_checkpoint", True),
         resume_cursor=_bool("resume_cursor", True),
         list_pause_when_pending_above=max(
@@ -229,6 +263,32 @@ def _cfg_from_config(
         ),
         sticky_browser_slots=_bool("sticky_browser_slots", True),
     )
+    # --- покрытие выдачи: срезы (make/price/year) и контроль глубины -------------
+    seg = at.get("segmentation")
+    if not isinstance(seg, dict):
+        seg = {}
+    cfg.seg_enabled = _bool("segmentation_enabled", False) or bool(seg.get("enabled"))
+    if cfg.seg_enabled and not seg:
+        # Включили галкой без блока — берём дефолтную стратегию (price × year).
+        seg = {"enabled": True}
+    cfg.seg_strategy = str(seg.get("strategy") or "price_x_year").strip().lower()
+    cfg.price_segments = _parse_range_pairs(seg.get("price_segments") or [])
+    cfg.year_segments = _parse_range_pairs(seg.get("year_segments") or [])
+    cfg.make_codes = [
+        str(m).strip().upper() for m in (seg.get("make_codes") or []) if str(m).strip()
+    ]
+    cfg.max_segments = max(1, int(seg.get("max_segments") or 400))
+    cfg.segment_checkpoints = bool(seg.get("segment_checkpoints", True))
+    cfg.segment_max_pages = max(0, int(seg.get("segment_max_pages") or 0))
+    cfg.reset_cursor_on_complete = bool(seg.get("reset_cursor_on_complete", True))
+    cfg.depth_cap_pages = max(0, int(seg.get("depth_cap_pages") or 0))
+    cfg.depth_limit_streak = max(1, int(seg.get("depth_limit_streak") or 2))
+    try:
+        cfg.min_coverage_ratio = float(seg.get("min_coverage_ratio", 0.85))
+    except (TypeError, ValueError):
+        cfg.min_coverage_ratio = 0.85
+    cfg.adaptive_split = bool(seg.get("adaptive_split", True))
+    cfg.max_split_depth = max(0, int(seg.get("max_split_depth") if seg.get("max_split_depth") is not None else 3))
     # require_vdp=true означает «SRP-стаб не сохраняем», поэтому stub_on_vdp_fail
     # имеет силу только когда require_vdp выключен.
     cfg.stub_on_give_up = _bool("stub_on_vdp_fail", False) and not cfg.require_vdp
@@ -256,6 +316,7 @@ def run_autotrader_browser_ingest(
     start_page: Optional[int] = None,
     max_pages: Optional[int] = None,
     max_cars: Optional[int] = None,
+    num_records: Optional[int] = None,
     logger: Optional[logging.Logger] = None,
     stats: Optional[AutotraderStats] = None,
 ) -> AutotraderStats:
@@ -266,6 +327,7 @@ def run_autotrader_browser_ingest(
         start_page=start_page,
         max_pages=max_pages,
         max_cars=max_cars,
+        num_records=num_records,
         logger=logger,
         stats=stats,
     )
@@ -720,6 +782,13 @@ class _Runtime:
         self.stop = asyncio.Event()
         self.next_srp_url: Optional[str] = None
         self._last_cookie_sync = 0.0
+        # Срезы SRP (make/price/year) и счётчик просмотренных страниц по всем срезам.
+        self.seg_cfg: Dict[str, Any] = (
+            config.get("autotrader", {}).get("segmentation")
+            if isinstance(config.get("autotrader"), dict)
+            else None
+        ) or {}
+        self.srp_pages_total = 0
 
     async def bump(self, field: str, n: int = 1) -> None:
         if n == 0:
@@ -889,39 +958,217 @@ class _Transport:
 
 
 
-async def _discovery_phase(
-    rt: _Runtime,
-    emit: Optional[Callable[[List[Tuple[str, str, Optional[dict]]]], Awaitable[int]]] = None,
-) -> None:
-    """Фаза 1: SRP-страницы → очередь.
+# ---------------------------------------------------------------- срезы SRP
+#
+# Национальная выдача Autotrader — миллионы лотов, а пагинация упирается в
+# потолок глубины (дальние страницы отдают HTML без ``__NEXT_DATA__``).
+# Поэтому каталог обходится **срезами** (make / price / year): у каждого свой
+# фильтр, свой курсор в чекпоинте и своя проверка «собрали всё, что показывает
+# выдача» (``ids / total``). Без этого получается «срез» как в Корее/Китае:
+# первые N тысяч лотов есть, остального нет, и это никак не видно.
 
-    ``emit`` кладёт очередную страницу в pending (Postgres) или в память;
-    возвращает число реально новых карточек (нужно для детектора стабилизации).
+_SEG_STRATEGIES = {
+    "price",
+    "year",
+    "price_x_year",
+    "make",
+    "make_price",
+    "make_year",
+    "make_price_year",
+    "make_price_x_year",
+}
+
+
+def _parse_range_pairs(raw: Any) -> List[Tuple[int, int]]:
+    """Диапазоны из YAML: ``[[0, 5000], ...]`` / ``[{min, max}]`` / ``["0-5000"]``."""
+    out: List[Tuple[int, int]] = []
+    if not isinstance(raw, (list, tuple)):
+        return out
+    for item in raw:
+        lo: Optional[int] = None
+        hi: Optional[int] = None
+        try:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                lo, hi = int(item[0]), int(item[1])
+            elif isinstance(item, dict):
+                lo = int(item["min"]) if item.get("min") is not None else 0
+                hi = int(item["max"]) if item.get("max") is not None else 0
+            elif isinstance(item, str) and "-" in item:
+                a, b = item.split("-", 1)
+                lo, hi = int(a), int(b)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if lo is None or hi is None or hi <= lo:
+            continue
+        out.append((lo, hi))
+    return out
+
+
+def _seg_name(query: Dict[str, Any]) -> str:
+    """Имя среза = ключ курсора (``srp:<name>``). Стабильно между прогонами."""
+    parts: List[str] = []
+    make = str(query.get("makeCode") or "").strip().lower()
+    if make:
+        parts.append(make)
+    if "minPrice" in query:
+        parts.append(f"p{query['minPrice']}-{query['maxPrice']}")
+    if "startYear" in query:
+        parts.append(f"y{query['startYear']}-{query['endYear']}")
+    return "_".join(parts) or "all"
+
+
+def build_segments(seg_cfg: Any) -> List[Dict[str, Any]]:
+    """Срезы SRP из ``autotrader.segmentation``; пустой список = обход без срезов."""
+    if not isinstance(seg_cfg, dict) or not bool(seg_cfg.get("enabled")):
+        return []
+    strategy = str(seg_cfg.get("strategy") or "price_x_year").strip().lower()
+    if strategy not in _SEG_STRATEGIES:
+        log.warning(
+            "Autotrader segmentation: неизвестная стратегия %s (ожидалось %s) — срезы выключены",
+            strategy,
+            sorted(_SEG_STRATEGIES),
+        )
+        return []
+    max_segments = max(1, int(seg_cfg.get("max_segments") or 400))
+
+    prices = _parse_range_pairs(seg_cfg.get("price_segments") or [])
+    years = _parse_range_pairs(seg_cfg.get("year_segments") or [])
+    makes = [str(m).strip().upper() for m in (seg_cfg.get("make_codes") or []) if str(m).strip()]
+
+    axes: List[List[Dict[str, Any]]] = []
+    if strategy.startswith("make"):
+        if not makes:
+            log.warning(
+                "Autotrader segmentation: strategy=%s без make_codes — срезы выключены", strategy
+            )
+            return []
+        axes.append([{"makeCode": m} for m in makes])
+    if "price" in strategy:
+        if not prices:
+            log.warning(
+                "Autotrader segmentation: strategy=%s без price_segments — срезы выключены",
+                strategy,
+            )
+            return []
+        axes.append([{"minPrice": lo, "maxPrice": hi} for lo, hi in prices])
+    if "year" in strategy:
+        if not years:
+            log.warning(
+                "Autotrader segmentation: strategy=%s без year_segments — срезы выключены",
+                strategy,
+            )
+            return []
+        axes.append([{"startYear": lo, "endYear": hi} for lo, hi in years])
+    if not axes:
+        return []
+
+    segments: List[Dict[str, Any]] = []
+    for combo in itertools.product(*axes):
+        query: Dict[str, Any] = {}
+        for part in combo:
+            query.update(part)
+        segments.append({"name": _seg_name(query), "query": query, "depth": 0})
+        if len(segments) >= max_segments:
+            break
+    return segments
+
+
+def split_segment(seg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Разбить срез пополам: сначала цена, потом годы (makeCode не делится)."""
+    query = dict(seg.get("query") or {})
+    depth = int(seg.get("depth") or 0) + 1
+    lo, hi = query.get("minPrice"), query.get("maxPrice")
+    if isinstance(lo, int) and isinstance(hi, int) and hi - lo > 1:
+        mid = (lo + hi) // 2
+        out: List[Dict[str, Any]] = []
+        for a, b in ((lo, mid), (mid, hi)):
+            sub = dict(query)
+            sub["minPrice"], sub["maxPrice"] = a, b
+            out.append({"name": _seg_name(sub), "query": sub, "depth": depth})
+        return out
+    ya, yb = query.get("startYear"), query.get("endYear")
+    if isinstance(ya, int) and isinstance(yb, int) and yb - ya >= 1:
+        mid = (ya + yb) // 2
+        out = []
+        for a, b in ((ya, mid), (mid + 1, yb)):
+            sub = dict(query)
+            sub["startYear"], sub["endYear"] = a, b
+            out.append({"name": _seg_name(sub), "query": sub, "depth": depth})
+        return out
+    return []
+
+
+def _coverage_pct(ids: int, total: Optional[int]) -> Optional[float]:
+    if not total or total <= 0:
+        return None
+    return round(100.0 * float(ids) / float(total), 2)
+
+
+async def _store_state(cp: Optional[CheckpointAsync], key: str, value: Any) -> None:
+    if cp is None:
+        return
+    try:
+        await cp.set_state(key, str(value))
+    except Exception as e:  # noqa: BLE001 — телеметрия не должна ронять обход
+        log.debug("set_state(%s) не прошёл: %s", key, e)
+async def _walk_segment(
+    rt: _Runtime,
+    emit: Optional[Callable[[List[Tuple[str, str, Optional[dict]]]], Awaitable[int]]],
+    seg: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Обойти один срез выдачи: страницы → pending, с контролем покрытия.
+
+    Возвращает сводку среза: сколько страниц/уникальных id, какой ``total``
+    показывала выдача, упёрлись ли в потолок глубины и надо ли дробить срез.
     """
     cfg, lg, cp = rt.cfg, rt.lg, rt.checkpoint
-    tr = _Transport(rt, "srp", use_srp_page=True)
+    name = str(seg.get("name") or "all")
+    query = dict(seg.get("query") or {})
+    legacy = not query
+    cursor_key = SRP_CURSOR_KEY if legacy else f"srp:{name}"
+    use_cursor = cfg.resume_cursor and (legacy or cfg.segment_checkpoints)
     page = cfg.start_page
-    if cfg.resume_cursor:
+    if use_cursor and cp is not None:
         try:
-            cursor = int(await cp.get_last_offset(SRP_CURSOR_KEY) or 0)
+            cursor = int(await cp.get_last_offset(cursor_key) or 0)
         except Exception:
             cursor = 0
         if cursor > page:
             page = cursor
-            lg.info("Autotrader discovery: продолжаем с page=%s (курсор чекпоинта)", page)
+            lg.info("Autotrader discovery[%s]: продолжаем с page=%s (курсор чекпоинта)", name, page)
+
+    tr = _Transport(rt, "srp", use_srp_page=True)
     pages_done = 0
-    stale_full = 0
+    fail_streak = 0
+    parse_fail_streak = 0
+    stale_pages = 0
+    ids_seen: Set[str] = set()
+    total_count: Optional[int] = None
+    truncated = False
+    quota_hit = False
     prev_ids: Set[str] = set()
     pause_above = int(cfg.list_pause_when_pending_above or 0)
+    summary: Dict[str, Any] = {
+        "name": name,
+        "pages": 0,
+        "ids": 0,
+        "total": None,
+        "truncated": False,
+        "quota": False,
+        "split": False,
+        "depth": int(seg.get("depth") or 0),
+        "coverage_pct": None,
+    }
     try:
         while not rt.stop.is_set():
-            if cfg.max_pages > 0 and pages_done >= cfg.max_pages:
+            if cfg.max_pages > 0 and rt.srp_pages_total >= cfg.max_pages:
                 lg.info("Autotrader discovery: достигнут max_pages=%s", cfg.max_pages)
                 break
             if cfg.max_cars > 0 and await rt.saved() >= cfg.max_cars:
                 lg.info("Autotrader discovery: max_cars=%s достигнут", cfg.max_cars)
                 break
 
+            # Притормозить discovery, если detail-воркеры не успевают разбирать очередь.
             if pause_above > 0 and cp is not None:
                 try:
                     pend_now = int(await cp.pending_count() or 0)
@@ -931,7 +1178,8 @@ async def _discovery_phase(
                 while pend_now >= pause_above and not rt.stop.is_set():
                     if pause_rounds == 0 or pause_rounds % 15 == 0:
                         lg.info(
-                            "Autotrader list pause: pending=%s >= %s — ждём detail",
+                            "Autotrader list pause[%s]: pending=%s >= %s — ждём detail",
+                            name,
                             pend_now,
                             pause_above,
                         )
@@ -943,12 +1191,13 @@ async def _discovery_phase(
                         break
                 if pause_rounds:
                     lg.info(
-                        "Autotrader list resume: pending=%s после %s пауз",
+                        "Autotrader list resume[%s]: pending=%s после %s пауз",
+                        name,
                         pend_now,
                         pause_rounds,
                     )
 
-            url = cfg.srp_url(page, rt.next_srp_url)
+            url = cfg.srp_url(page, rt.next_srp_url) if legacy else cfg.segment_url(query, page)
             parsed: Optional[Dict[str, Any]] = None
             last_err: Optional[BaseException] = None
             for attempt in range(1, cfg.srp_retries + 1):
@@ -959,37 +1208,70 @@ async def _discovery_phase(
                     if not html:
                         raise RuntimeError("пустой HTML")
                     if is_autotrader_challenge_html(html):
-                        raise RuntimeError(
-                            f"Akamai challenge HTML (len={len(html)})"
-                        )
+                        raise RuntimeError(f"Akamai challenge HTML (len={len(html)})")
                     candidate = parse_srp_page(html)
                     if not candidate.get("ok"):
                         raise RuntimeError("SRP parse failed (нет __NEXT_DATA__/inventory)")
                     parsed = candidate
                     last_err = None
                     break
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — классифицируем ниже
                     last_err = e
-                    lg.warning("SRP page=%s попытка %s/%s: %s", page, attempt, cfg.srp_retries, e)
+                    lg.warning(
+                        "SRP[%s] page=%s попытка %s/%s: %s",
+                        name,
+                        page,
+                        attempt,
+                        cfg.srp_retries,
+                        e,
+                    )
                     # Transport.fetch уже ротирует sticky-слот при browser fail —
                     # здесь НЕ поднимаем второй Chromium (иначе OOM-шторм на DE-4).
                     tr.page = None
                     await asyncio.sleep(random.uniform(cfg.delay_min * 2, cfg.delay_max * 3))
+
             if parsed is None or last_err is not None:
                 await rt.bump("list_pages_fail")
-                await rt.note_error(f"srp page={page}: {last_err}")
-                stale_full += 1
+                await rt.note_error(f"srp {name} page={page}: {last_err}")
+                tr.page = None
+                rt.next_srp_url = None
+                msg = str(last_err or "")
+                # «Нет __NEXT_DATA__» на глубокой странице — это потолок пагинации,
+                # а не сбой сети: ретраи и recover тут бесполезны.
+                depth_like = ("parse failed" in msg) or ("__NEXT_DATA__" in msg)
+                if depth_like:
+                    parse_fail_streak += 1
+                    lg.warning(
+                        "SRP[%s] page=%s: выдача не парсится (%s/%s подряд) — похоже на потолок глубины",
+                        name,
+                        page,
+                        parse_fail_streak,
+                        cfg.depth_limit_streak,
+                    )
+                    page += 1
+                    pages_done += 1
+                    rt.srp_pages_total += 1
+                    if parse_fail_streak >= cfg.depth_limit_streak:
+                        truncated = True
+                        lg.warning(
+                            "SRP[%s]: потолок глубины (page=%s, total=%s, собрано id=%s) — срез закрыт",
+                            name,
+                            page,
+                            total_count,
+                            len(ids_seen),
+                        )
+                        break
+                    continue
+                fail_streak += 1
                 lg.error(
-                    "SRP page=%s не удалась за %s попыток — hold+recover (fail_streak %s/%s)",
+                    "SRP[%s] page=%s не удалась за %s попыток — hold+recover (fail_streak %s/%s)",
+                    name,
                     page,
                     cfg.srp_retries,
-                    stale_full,
+                    fail_streak,
                     cfg.srp_stall_pages,
                 )
-                rt.next_srp_url = None
-                tr.page = None
-                # Не двигаем page/cursor при challenge. Cool-down + force bootstrap.
-                cool = min(180.0, 20.0 + float(stale_full) * 15.0)
+                cool = min(180.0, 20.0 + float(fail_streak) * 15.0)
                 lg.info(
                     "Autotrader discovery: cool-down %.0fs then recover (stay on page=%s)",
                     cool,
@@ -997,89 +1279,296 @@ async def _discovery_phase(
                 )
                 await asyncio.sleep(cool)
                 await rt.recover_access(tr.slot_key)
-                if stale_full >= cfg.srp_stall_pages:
+                if fail_streak >= cfg.srp_stall_pages:
                     # Не выходим из discovery — сбрасываем streak после recover,
                     # иначе supervisor-рестарт крутит тот же мёртвый session cache.
                     lg.warning(
                         "Autotrader discovery: fail_streak=%s — streak reset after recover, stay on page=%s",
-                        stale_full,
+                        fail_streak,
                         page,
                     )
-                    stale_full = 0
+                    fail_streak = 0
                 continue
 
             await rt.bump("list_pages_ok")
+            rt.srp_pages_total += 1
+            fail_streak = 0
+            parse_fail_streak = 0
             ids = [str(x) for x in (parsed.get("active_ids") or [])]
             inventory = parsed.get("inventory") or {}
             nxt = parsed.get("next_page_url")
-            rt.next_srp_url = str(nxt) if nxt else None
+            if parsed.get("total_count") is not None:
+                try:
+                    total_count = int(parsed.get("total_count"))
+                except (TypeError, ValueError):
+                    pass
+            if legacy:
+                rt.next_srp_url = str(nxt) if nxt else None
             lg.info(
-                "SRP page=%s ids=%s total=%s inventory=%s next=%s",
+                "SRP[%s] page=%s ids=%s total=%s inventory=%s next=%s",
+                name,
                 page,
                 len(ids),
-                parsed.get("total_count"),
+                total_count,
                 len(inventory),
-                bool(rt.next_srp_url),
+                bool(nxt),
             )
+
+            page_size = max(len(ids), len(inventory), int(cfg.num_records or 0), 25)
+            # Предпроверка: срез шире потолка глубины — дробим сразу, не тратя страницы.
+            if (
+                not legacy
+                and page == cfg.start_page
+                and cfg.adaptive_split
+                and cfg.depth_cap_pages > 0
+                and total_count
+                and int(seg.get("depth") or 0) < cfg.max_split_depth
+                and total_count > cfg.depth_cap_pages * page_size
+            ):
+                lg.warning(
+                    "SRP срез %s: total=%s > %s стр × %s лотов — дробим до обхода",
+                    name,
+                    total_count,
+                    cfg.depth_cap_pages,
+                    page_size,
+                )
+                summary.update(
+                    {"split": True, "pages": pages_done, "ids": len(ids_seen), "total": total_count}
+                )
+                return summary
+
             if not ids:
-                stale_full += 1
+                stale_pages += 1
                 lg.info(
-                    "SRP page=%s без id — stall %s/%s",
+                    "SRP[%s] page=%s без id — stall %s/%s",
+                    name,
                     page,
-                    stale_full,
+                    stale_pages,
                     cfg.srp_stall_pages,
                 )
-                if stale_full >= cfg.srp_stall_pages:
-                    lg.info("SRP: каталог исчерпан (пустые страницы подряд)")
+                if stale_pages >= cfg.srp_stall_pages:
+                    lg.info("SRP[%s]: каталог исчерпан (пустые страницы подряд)", name)
                     break
                 rt.next_srp_url = None
                 page += 1
                 pages_done += 1
-                try:
-                    await cp.set_last_offset(SRP_CURSOR_KEY, page)
-                except Exception:
-                    pass
+                if cp is not None:
+                    try:
+                        await cp.set_last_offset(cursor_key, page)
+                    except Exception:
+                        pass
                 continue
 
+            ids_seen.update(ids)
             await rt.bump("listings_seen", len(ids))
-            items: List[Tuple[str, str, Optional[dict]]] = []
-            for lid in ids:
-                items.append((car_id_for_listing(lid), AT_CAR_TYPE, _srp_stub_payload(lid, inventory.get(lid))))
+            items: List[Tuple[str, str, Optional[dict]]] = [
+                (car_id_for_listing(lid), AT_CAR_TYPE, _srp_stub_payload(lid, inventory.get(lid)))
+                for lid in ids
+            ]
             added = 0
             if emit is not None:
                 try:
                     added = int(await emit(items) or 0)
-                except Exception as e:
-                    await rt.note_error(f"srp page={page} emit: {e}")
-                    lg.warning("SRP page=%s: постановка в очередь не прошла: %s", page, e)
+                except Exception as e:  # noqa: BLE001 — очередь может быть недоступна
+                    await rt.note_error(f"srp {name} page={page} emit: {e}")
+                    lg.warning("SRP[%s] page=%s: постановка в очередь не прошла: %s", name, page, e)
             await rt.bump("ids_queued", added)
 
             same_as_prev = bool(prev_ids) and set(ids) == prev_ids
             prev_ids = set(ids)
             if added == 0 and (same_as_prev or len(ids) >= 20):
-                stale_full += 1
+                stale_pages += 1
                 lg.info(
-                    "SRP page=%s: новых id 0 (стабильных страниц %s/%s)",
+                    "SRP[%s] page=%s: новых id 0 (стабильных страниц %s/%s)",
+                    name,
                     page,
-                    stale_full,
+                    stale_pages,
                     cfg.srp_stall_pages,
                 )
-                if stale_full >= cfg.srp_stall_pages:
-                    lg.info("Autotrader discovery: каталог стабилизировался — стоп")
+                if stale_pages >= cfg.srp_stall_pages:
+                    lg.info("Autotrader discovery[%s]: каталог стабилизировался — стоп", name)
                     break
             else:
-                stale_full = 0
+                stale_pages = 0
 
             pages_done += 1
             page += 1
             if cp is not None:
                 try:
-                    await cp.set_last_offset(SRP_CURSOR_KEY, page)
+                    await cp.set_last_offset(cursor_key, page)
                 except Exception as e:
-                    lg.debug("set_last_offset(%s) не прошёл: %s", page, e)
+                    lg.debug("set_last_offset(%s, %s) не прошёл: %s", cursor_key, page, e)
+            if cfg.segment_max_pages > 0 and pages_done >= cfg.segment_max_pages:
+                quota_hit = True
+                lg.info(
+                    "SRP[%s]: квота %s страниц среза достигнута (ids=%s, total=%s)",
+                    name,
+                    cfg.segment_max_pages,
+                    len(ids_seen),
+                    total_count,
+                )
+                break
+            if cfg.depth_cap_pages > 0 and pages_done >= cfg.depth_cap_pages:
+                truncated = True
+                lg.warning(
+                    "SRP[%s]: потолок %s страниц среза (ids=%s, total=%s) — глубже выдача не отдаёт",
+                    name,
+                    cfg.depth_cap_pages,
+                    len(ids_seen),
+                    total_count,
+                )
+                break
             await asyncio.sleep(random.uniform(cfg.delay_min, cfg.delay_max))
     finally:
         await tr.close()
+
+    exhausted = not truncated and not quota_hit
+    # Курсор: закрытый срез (или упёршийся в потолок) на следующем прогоне снова
+    # начинается с головы выдачи — новые лоты появляются в начале, а не в хвосте.
+    # При квоте курсор НЕ сбрасываем: следующий прогон продолжает глубже.
+    if cp is not None and cfg.reset_cursor_on_complete and not quota_hit:
+        try:
+            await cp.set_last_offset(cursor_key, 0)
+            await rt.bump("srp_cursor_resets")
+            lg.info("Autotrader discovery[%s]: курсор сброшен на 1 (следующий проход с головы)", name)
+        except Exception as e:  # noqa: BLE001
+            lg.debug("reset cursor(%s) не прошёл: %s", cursor_key, e)
+
+    coverage = _coverage_pct(len(ids_seen), total_count)
+    summary.update(
+        {
+            "pages": pages_done,
+            "ids": len(ids_seen),
+            "total": total_count,
+            "truncated": truncated,
+            "quota": quota_hit,
+            "coverage_pct": coverage,
+        }
+    )
+    lg.info(
+        "SRP[%s] срез закрыт: pages=%s ids=%s total=%s coverage=%s%% %s%s",
+        name,
+        pages_done,
+        len(ids_seen),
+        total_count,
+        coverage if coverage is not None else "n/a",
+        "TRUNCATED " if truncated else "",
+        "QUOTA" if quota_hit else ("OK" if exhausted else ""),
+    )
+    await _store_state(cp, f"srp_ids:{name}", len(ids_seen))
+    if total_count:
+        await _store_state(cp, f"srp_total:{name}", total_count)
+    if truncated:
+        await _store_state(cp, f"srp_truncated:{name}", 1)
+    return summary
+
+
+async def _discovery_phase(
+    rt: _Runtime,
+    emit: Optional[Callable[[List[Tuple[str, str, Optional[dict]]]], Awaitable[int]]] = None,
+) -> None:
+    """Фаза 1: SRP → очередь. Обход идёт по срезам (или одним национальным).
+
+    ``emit`` кладёт очередную страницу в pending (Postgres) или в память;
+    возвращает число реально новых карточек (нужно для детектора стабилизации).
+    """
+    cfg, lg = rt.cfg, rt.lg
+    segments = build_segments(rt.seg_cfg) if cfg.seg_enabled else []
+    if segments:
+        lg.info(
+            "Autotrader discovery: срезов=%s strategy=%s depth_cap=%s quota_pages=%s split<=%s",
+            len(segments),
+            (rt.seg_cfg or {}).get("strategy"),
+            cfg.depth_cap_pages,
+            cfg.segment_max_pages or "inf",
+            cfg.max_split_depth,
+        )
+    else:
+        lg.info(
+            "Autotrader discovery: без срезов (segmentation=%s) — национальная выдача, "
+            "покрытие ограничено потолком пагинации сайта",
+            "on" if cfg.seg_enabled else "off",
+        )
+        segments = [{"name": "all", "query": {}, "depth": 0}]
+
+    queue: Deque[Dict[str, Any]] = deque(segments)
+    done: List[Dict[str, Any]] = []
+    ids_total = 0
+    total_sum = 0
+    truncated_any = 0
+    gaps = 0
+    processed = 0
+    while queue and not rt.stop.is_set():
+        if cfg.max_pages > 0 and rt.srp_pages_total >= cfg.max_pages:
+            lg.info("Autotrader discovery: достигнут max_pages=%s", cfg.max_pages)
+            break
+        if cfg.max_cars > 0 and await rt.saved() >= cfg.max_cars:
+            lg.info("Autotrader discovery: max_cars=%s достигнут", cfg.max_cars)
+            break
+        seg = queue.popleft()
+        processed += 1
+        res = await _walk_segment(rt, emit, seg)
+        if res.get("split"):
+            kids = split_segment(seg)
+            depth = int(seg.get("depth") or 0)
+            if kids and depth < cfg.max_split_depth:
+                queue.extendleft(reversed(kids))
+                await rt.bump("srp_slices_split")
+                lg.warning(
+                    "SRP срез %s: total=%s не влезает в потолок — делю на %s (%s)",
+                    res.get("name"),
+                    res.get("total"),
+                    len(kids),
+                    ", ".join(k["name"] for k in kids),
+                )
+                continue
+            if not kids:
+                lg.error(
+                    "SRP срез %s: total=%s, но дробить нечем (нет price/year) — покрытие ограничено",
+                    res.get("name"),
+                    res.get("total"),
+                )
+        done.append(res)
+        ids_total += int(res.get("ids") or 0)
+        total_sum += int(res.get("total") or 0)
+        truncated_any += 1 if res.get("truncated") else 0
+        cov = res.get("coverage_pct")
+        if (
+            cov is not None
+            and not res.get("quota")
+            and cov < float(cfg.min_coverage_ratio) * 100.0
+        ):
+            gaps += 1
+            await rt.bump("coverage_gap_slices")
+            lg.warning(
+                "SRP срез %s: покрытие %.2f%% < %.0f%% (ids=%s, total=%s, truncated=%s)",
+                res.get("name"),
+                cov,
+                float(cfg.min_coverage_ratio) * 100.0,
+                res.get("ids"),
+                res.get("total"),
+                bool(res.get("truncated")),
+            )
+
+    cov_all = _coverage_pct(ids_total, total_sum)
+    rt.st.srp_ids_unique = int(ids_total)
+    rt.st.srp_total_seen = int(total_sum)
+    rt.st.srp_coverage_pct = float(cov_all or 0.0)
+    lg.info(
+        "Autotrader coverage: slices=%s processed=%s ids=%s total=%s coverage=%s%% truncated=%s gaps=%s",
+        len(done),
+        processed,
+        ids_total,
+        total_sum,
+        cov_all if cov_all is not None else "n/a",
+        truncated_any,
+        gaps,
+    )
+    await _store_state(rt.checkpoint, "srp_coverage_pct", cov_all if cov_all is not None else "")
+    await _store_state(rt.checkpoint, "srp_ids_total", ids_total)
+    await _store_state(rt.checkpoint, "srp_total_all", total_sum)
+    await _store_state(rt.checkpoint, "srp_truncated_slices", truncated_any)
+    await _store_state(rt.checkpoint, "srp_coverage_gaps", gaps)
 
 
 # ------------------------------------------------------------------ обработка карточки
@@ -1435,6 +1924,7 @@ async def _run_autotrader_browser_ingest_async(
     start_page: Optional[int] = None,
     max_pages: Optional[int] = None,
     max_cars: Optional[int] = None,
+    num_records: Optional[int] = None,
     logger: Optional[logging.Logger] = None,
     stats: Optional[AutotraderStats] = None,
 ) -> AutotraderStats:
@@ -1447,6 +1937,7 @@ async def _run_autotrader_browser_ingest_async(
         start_page=start_page,
         max_pages=max_pages,
         max_cars=max_cars,
+        num_records=num_records,
     )
 
     checkpoint: Optional[CheckpointAsync] = None
@@ -1525,4 +2016,109 @@ async def _run_autotrader_browser_ingest_async(
         st.as_dict(),
     )
     return st
+
+
+
+# ------------------------------------------------------------------ диагностика SRP
+
+
+async def _probe_phase(rt: _Runtime, urls: List[str]) -> List[Dict[str, Any]]:
+    """Прогнать диагностические SRP-URL через тот же транспорт, что и discovery.
+
+    Нужен, чтобы на живом сайте измерять: сколько id реально отдаёт страница,
+    какой ``total`` у среза и на какой глубине выдача перестаёт парситься
+    (потолок пагинации). Ничего не пишет в очередь и не трогает курсор.
+    """
+    cfg, lg = rt.cfg, rt.lg
+    tr = _Transport(rt, "srp", use_srp_page=True)
+    rows: List[Dict[str, Any]] = []
+    try:
+        for url in urls:
+            row: Dict[str, Any] = {"url": url, "ok": False}
+            html: Optional[str] = None
+            last_err: Optional[str] = None
+            for attempt in range(1, cfg.srp_retries + 1):
+                try:
+                    got = await tr.fetch(url)
+                    if not got:
+                        raise RuntimeError("пустой HTML")
+                    if is_autotrader_challenge_html(got):
+                        raise RuntimeError(f"Akamai challenge HTML (len={len(got)})")
+                    html = got
+                    last_err = None
+                    break
+                except Exception as e:  # noqa: BLE001 — диагностика: любую ошибку логируем
+                    last_err = f"{type(e).__name__}: {e}"
+                    await asyncio.sleep(min(10.0, 1.2 * attempt))
+            if html is None:
+                row["error"] = last_err
+                lg.warning("Autotrader probe %s: %s", url, last_err)
+                rows.append(row)
+                continue
+            parsed = parse_srp_page(html)
+            row.update(
+                {
+                    "ok": bool(parsed.get("ok")),
+                    "html_len": len(html),
+                    "has_next_data": "__NEXT_DATA__" in html,
+                    "ids": len(parsed.get("active_ids") or []),
+                    "inventory": len(parsed.get("inventory") or {}),
+                    "total": parsed.get("total_count"),
+                    "next": bool(parsed.get("next_page_url")),
+                }
+            )
+            lg.info("Autotrader probe %s", json.dumps(row, ensure_ascii=False))
+            rows.append(row)
+    finally:
+        await tr.close()
+    return rows
+
+
+async def _run_autotrader_srp_probe_async(
+    config: dict,
+    urls: List[str],
+    *,
+    num_records: Optional[int] = None,
+    logger: Optional[logging.Logger] = None,
+    stats: Optional[AutotraderStats] = None,
+) -> List[Dict[str, Any]]:
+    lg = logger or log
+    st = stats or AutotraderStats()
+    cfg = _cfg_from_config(config, num_records=num_records)
+    rt = _Runtime(cfg, config, st, lg, None)
+    if cfg.http_first:
+        try:
+            bundle = await asyncio.to_thread(ensure_autotrader_session, config, lg)
+            apply_session_bundle_to_autotrader_config(config, bundle, lg)
+        except Exception as e:  # noqa: BLE001 — диагностика не должна падать на сессии
+            lg.warning("Autotrader probe: сессия из кэша/PW не взята (%s) — идём браузером", e)
+    try:
+        return await _probe_phase(rt, urls)
+    finally:
+        await rt.close()
+
+
+def run_autotrader_srp_probe(
+    config: dict,
+    urls: List[str],
+    *,
+    num_records: Optional[int] = None,
+    logger: Optional[logging.Logger] = None,
+    stats: Optional[AutotraderStats] = None,
+) -> List[Dict[str, Any]]:
+    """Sync-обёртка диагностики SRP (безопасна внутри и вне активного event loop)."""
+    kwargs: Dict[str, Any] = dict(
+        num_records=num_records,
+        logger=logger,
+        stats=stats,
+    )
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_run_autotrader_srp_probe_async(config, urls, **kwargs))
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        fut = pool.submit(lambda: asyncio.run(_run_autotrader_srp_probe_async(config, urls, **kwargs)))
+        return fut.result()
 

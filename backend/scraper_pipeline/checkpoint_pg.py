@@ -313,5 +313,12 @@ class CheckpointAsync:
     async def set_last_offset(self, car_type: str, offset: int) -> None:
         await self._run(lambda cp: cp.set_last_offset(car_type, offset))
 
+    async def get_state(self, key: str) -> Optional[str]:
+        """Произвольный ключ ``scraper_checkpoint_state`` (телеметрия покрытия и т.п.)."""
+        return await self._run(lambda cp: cp.get_state(key))
+
+    async def set_state(self, key: str, value: str) -> None:
+        await self._run(lambda cp: cp.set_state(key, value))
+
     async def reset_list_offsets(self) -> int:
         return await self._run(lambda cp: cp.reset_list_offsets())
