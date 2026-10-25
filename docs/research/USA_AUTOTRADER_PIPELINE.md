@@ -212,7 +212,7 @@ Akamai (`_abck`, `bm_*`). Канон для прода:
 | Телеметрия покрытия | лог + `scraper_checkpoint_state` | `SRP[<name>] срез закрыт … coverage=..%`, `Autotrader coverage: slices … ids … total … coverage … truncated … blocked … gaps`; ключи `srp_coverage_pct`, `srp_ids_total`, `srp_total_all`, `srp_truncated_slices`, `srp_blocked_slices` |
 | WAF back-off | `block_abort_after` (8) | страница `page unavailable` = блок (не капча/не глубина): после 8 подряд проход закрывается (`WAF-BLOCKED`), курсоры не сдвигаются |
 | Классификация блока | `client.is_autotrader_waf_block()`, `AutotraderWafBlock` | проверяется **до** challenge и на транспортном уровне (`_HttpGate`, `_BrowserPool.goto`): HTTP-блок не поднимает Chromium, браузерный — не тратит challenge-ретраи на страницу |
-| Пауза после блока | `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` (3600) | supervisor распознаёт закрытый блоком проход (`list_pages_ok=0` + `srp_waf_blocks>0` в последней статистике) и не перезапускает его каждую минуту; `pending>0` при этом поднимает только detail |
+| Пауза после блока | `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` (3600) | supervisor распознаёт закрытый блоком проход (`list_pages_ok=0` + `srp_waf_blocks>0` в последней статистике) и не перезапускает его каждую минуту; `pending>0` при этом поднимает только detail. Пауза пишется маркером `autotrader.waf_pause` и переживает рестарт юнита (не превращается в суточную), а «all markets complete» больше не уводит процесс в вечный idle — повторный проход стартует сам |
 
 | Повторный проход США | `WRA_SUPERVISOR_AT_RERUN_SEC` (86400) | после COMPLETE рынок перезапускается через сутки (маркер `autotrader.complete` истекает), а не «навсегда» |
 
@@ -247,6 +247,9 @@ docker exec rideauto-postgres-1 psql -U wra -d wra -tAc \
 Вывод: контур и контроль покрытия готовы, но **нужен рабочий egress/отпечаток** — US mobile/residential-пул, который проходит Akamai на autotrader.com (или scraping API поверх Autotrader). Пока его нет, США физически не могут наполниться; при этом контур больше не крутит recover вхолостую: блок классифицируется на транспортном уровне, проход закрывается за ~3 мин (`WAF-BLOCKED`, 8 блоков подряд), а supervisor не перезапускает его каждую минуту — пауза `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` (1 ч) и суточный `WRA_SUPERVISOR_AT_RERUN_SEC`.
 
 Замер после правок (прод, 2026-10-25 11:48–11:51 MSK): 4 блока по HTTP (без Chromium) → HTTP-гейт отключился → 4 блока браузером → `проход закрыт`, `coverage: slices=1 processed=1 ids=0 blocked=1`, весь проход **168 с** вместо часов ретраев.
+
+Цикл повторов проверен на проде 2026-10-25 12:24–12:30 MSK с временным `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC=120`: `WAF-пауза (marker autotrader.waf_pause) до 12:24:05` → `старт нового прохода (COMPLETE истёк)` → блок за 3 мин → `пауза до 12:27:43` → снова старт. Рестарт юнита сохраняет дедлайн паузы (не 24 ч), «all markets complete» не уводит в вечный idle.
+
 
 ### Почему дело не в отсутствии US-IP (замер 2026-10-25 12:20 MSK)
 

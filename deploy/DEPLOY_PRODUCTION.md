@@ -181,7 +181,7 @@ sudo systemctl enable --now rideauto-scraper-supervisor.service
   |------------|--------------|-------|
   | `WRA_SUPERVISOR_AT_SPLIT` | `1` | list и detail отдельными процессами |
   | `WRA_SUPERVISOR_AT_RERUN_SEC` | `86400` | новый проход после COMPLETE (0 = никогда) |
-  | `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` | `3600` | пауза после прохода, закрытого WAF-блоком |
+  | `WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC` | `3600` | пауза после прохода, закрытого WAF-блоком (маркер `logs/supervisor_state/autotrader.waf_pause`, переживает рестарт) |
   | `WRA_SUPERVISOR_AT_IDLE_STOP` | `3` | idle-финишей до COMPLETE (когда pending не читается) |
 
 
