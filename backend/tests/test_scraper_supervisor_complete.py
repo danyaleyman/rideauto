@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -87,4 +88,55 @@ def test_last_list_pass_waf_blocked(tmp_path: Path):
     p.write_text("2026-10-25 11:00:00,000 [INFO] x: y\n", encoding="utf-8")
     assert mod.last_list_pass_waf_blocked(p) is False
     assert mod.last_list_pass_waf_blocked(None) is False
+
+
+def test_next_scheduled_run(tmp_path: Path):
+    """Вечный idle допустим только когда повторов не ждём."""
+    mod = _load()
+    at = mod.Market(name="autotrader", pattern="a", log_glob="a*.log", start_cmd=["true"])
+    encar = mod.Market(name="encar", pattern="e", log_glob="e*.log", start_cmd=["true"])
+    assert mod.next_scheduled_run([at, encar]) == 0.0
+    at.next_run_ts = 1_000_000.0
+    assert mod.next_scheduled_run([at, encar]) == 1_000_000.0
+    # чужие рынки не участвуют (у них нет повторов)
+    encar.next_run_ts = 5.0
+    assert mod.next_scheduled_run([at, encar]) == 1_000_000.0
+
+
+def test_waf_pause_marker_survives_restart(tmp_path: Path):
+    """После WAF-блока пауза восстанавливается как AT_WAF_BACKOFF_SEC, а не сутки."""
+    mod = _load()
+    at = mod.Market(name="autotrader", pattern="a", log_glob="a*.log", start_cmd=["true"])
+    mod.write_markers(tmp_path, "autotrader", waf_pause=True)
+    assert (tmp_path / "autotrader.complete").is_file()
+    assert (tmp_path / "autotrader.waf_pause").is_file()
+
+    mod.load_complete_markers([at], tmp_path)
+    assert at.complete is True
+    assert at.next_run_ts > 0
+    expected = mod.marker_ts(tmp_path / "autotrader.waf_pause") + mod.AT_WAF_BACKOFF_SEC
+    assert abs(at.next_run_ts - expected) < 2
+
+    # нормальный COMPLETE снимает WAF-маркер (пауза = AT_RERUN_SEC)
+    at2 = mod.Market(name="autotrader", pattern="a", log_glob="a*.log", start_cmd=["true"])
+    mod.write_markers(tmp_path, "autotrader", waf_pause=False)
+    assert not (tmp_path / "autotrader.waf_pause").is_file()
+    mod.load_complete_markers([at2], tmp_path)
+    assert abs(at2.next_run_ts - (mod.marker_ts(tmp_path / "autotrader.complete") + mod.AT_RERUN_SEC)) < 2
+
+
+def test_waf_pause_marker_expires(tmp_path: Path):
+    """Просроченная WAF-пауза удаляется, рынок снова в работе."""
+    mod = _load()
+    at = mod.Market(name="autotrader", pattern="a", log_glob="a*.log", start_cmd=["true"])
+    old = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - mod.AT_WAF_BACKOFF_SEC - 60)
+    )
+    for name in ("autotrader.complete", "autotrader.waf_pause"):
+        (tmp_path / name).write_text(old, encoding="utf-8")
+    mod.load_complete_markers([at], tmp_path)
+    # WAF-маркер истёк, но .complete ещё свежий относительно AT_RERUN_SEC
+    assert not (tmp_path / "autotrader.waf_pause").is_file()
+    assert at.complete is True
+
 

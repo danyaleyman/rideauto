@@ -8,6 +8,7 @@ Run:
 
 from __future__ import annotations
 
+import calendar
 import os
 import re
 import shutil
@@ -202,6 +203,45 @@ def complete_marker_path(state_dir: Path, market: str) -> Path:
     return state_dir / f"{market}.complete"
 
 
+def waf_pause_marker_path(state_dir: Path, market: str) -> Path:
+    """Маркер «проход закрыт WAF-блоком»: пауза короче суточного AT_RERUN_SEC."""
+    return state_dir / f"{market}.waf_pause"
+
+
+def marker_ts(path: Path) -> float:
+    """UTC-время из маркера. Именно timegm: mktime сдвинул бы на часовой пояс."""
+    try:
+        stamp = path.read_text(encoding="utf-8").strip()
+        return float(calendar.timegm(time.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ")))
+    except (OSError, ValueError):
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return 0.0
+
+
+def write_markers(state_dir: Path, market: str, *, waf_pause: bool) -> None:
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    complete_marker_path(state_dir, market).write_text(stamp, encoding="utf-8")
+    marker = waf_pause_marker_path(state_dir, market)
+    if waf_pause:
+        marker.write_text(stamp, encoding="utf-8")
+    else:
+        try:
+            marker.unlink()
+        except OSError:
+            pass
+
+
+def clear_markers(state_dir: Path, market: str) -> None:
+    for p in (complete_marker_path(state_dir, market), waf_pause_marker_path(state_dir, market)):
+        try:
+            p.unlink()
+        except OSError:
+            pass
+
+
+
 def final_sync_marker_path(state_dir: Path) -> Path:
     return state_dir / FINAL_SYNC_MARKER
 
@@ -212,19 +252,31 @@ def load_complete_markers(markets: List[Market], state_dir: Path) -> None:
         p = complete_marker_path(state_dir, m.name)
         if not p.is_file():
             continue
+        if m.name == "autotrader" and AT_WAF_BACKOFF_SEC > 0:
+            # Пауза после WAF-блока короче суточного AT_RERUN_SEC: рестарт юнита
+            # не должен превращать часовую паузу в суточное ожидание.
+            waf_p = waf_pause_marker_path(state_dir, m.name)
+            if waf_p.is_file():
+                waf_ts = marker_ts(waf_p)
+                if waf_ts and time.time() - waf_ts < AT_WAF_BACKOFF_SEC:
+                    m.complete = True
+                    m.complete_ticks = COMPLETE_CONFIRM_TICKS
+                    m.next_run_ts = waf_ts + AT_WAF_BACKOFF_SEC
+                    log(
+                        f"{m.name}: WAF-пауза (marker {waf_p.name}) до "
+                        f"{time.strftime('%H:%M:%S', time.localtime(m.next_run_ts))}"
+                    )
+                    continue
+                try:
+                    waf_p.unlink()
+                except OSError:
+                    pass
         if m.name == "autotrader" and AT_RERUN_SEC > 0:
             # Маркер старше периода повторного прохода → США снова в работе,
             # иначе каталог «замерзал» навсегда после первого полного прохода.
-            try:
-                stamp = p.read_text(encoding="utf-8").strip()
-                done_ts = time.mktime(time.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ"))
-            except (OSError, ValueError):
-                done_ts = p.stat().st_mtime
+            done_ts = marker_ts(p)
             if time.time() - done_ts >= AT_RERUN_SEC:
-                try:
-                    p.unlink()
-                except OSError:
-                    pass
+                clear_markers(state_dir, m.name)
                 log(f"{m.name}: COMPLETE marker стух (>{AT_RERUN_SEC}s) — рынок снова в работе")
                 continue
             m.next_run_ts = done_ts + AT_RERUN_SEC
@@ -251,6 +303,18 @@ def note_complete_tick(m: Market, ready: bool, required_ticks: int) -> bool:
         return False
     m.complete_ticks += 1
     return m.complete_ticks >= required_ticks
+
+
+def next_scheduled_run(markets: List[Market]) -> float:
+    """Ближайший запланированный повторный проход (0 = повторов не ждём).
+
+    Нужен, чтобы «all markets complete» не уводило процесс в вечный ``sleep``:
+    иначе AT_RERUN_SEC / AT_WAF_BACKOFF_SEC никогда не срабатывают.
+    """
+    return min(
+        (m.next_run_ts for m in markets if m.name == "autotrader" and m.next_run_ts > 0),
+        default=0.0,
+    )
 
 
 def latest_log(glob_pat: str) -> Optional[Path]:
@@ -580,6 +644,7 @@ def main() -> int:
     # витке после рестарта и супервизор снова поднимает 14-ГБ catalog-пайплайн
     # (это валило юнит по OOM). Отсчёт идёт от старта процесса.
     last_catalog = time.time()
+    idle_next_logged = 0.0
     log(f"catalog auto-kick: {'disabled' if CATALOG_EVERY <= 0 else f'every {CATALOG_EVERY}s from boot'}")
     log(
         f"catalog skip_pg={int(CATALOG_SKIP_PG)} complete_confirm_ticks={COMPLETE_CONFIRM_TICKS} "
@@ -623,10 +688,7 @@ def main() -> int:
                 m.complete_ticks = 0
                 m.idle_finishes = 0
                 m.last_progress_ts = now
-                try:
-                    complete_marker_path(STATE_DIR, m.name).unlink()
-                except OSError:
-                    pass
+                clear_markers(STATE_DIR, m.name)
                 log("autotrader: старт нового прохода (COMPLETE истёк)")
             if m.complete:
                 continue
@@ -668,9 +730,7 @@ def main() -> int:
                     if sequential
                     else f"{m.name}: COMPLETE pending=0 (confirmed {COMPLETE_CONFIRM_TICKS} ticks)"
                 )
-                complete_marker_path(STATE_DIR, m.name).write_text(
-                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), encoding="utf-8"
-                )
+                write_markers(STATE_DIR, m.name, waf_pause=False)
                 continue
             if ready and not m.complete:
                 log(
@@ -721,9 +781,7 @@ def main() -> int:
                     f"(WRA_SUPERVISOR_AT_WAF_BACKOFF_SEC={AT_WAF_BACKOFF_SEC}); "
                     "нужен рабочий US egress/отпечаток"
                 )
-                complete_marker_path(STATE_DIR, m.name).write_text(
-                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), encoding="utf-8"
-                )
+                write_markers(STATE_DIR, m.name, waf_pause=True)
                 continue
 
             if not running:
@@ -737,9 +795,7 @@ def main() -> int:
                         if AT_RERUN_SEC > 0:
                             m.next_run_ts = now + AT_RERUN_SEC
                         log("autotrader: COMPLETE (idle finishes)")
-                        STATE_DIR.joinpath("autotrader.complete").write_text(
-                            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), encoding="utf-8"
-                        )
+                        write_markers(STATE_DIR, m.name, waf_pause=False)
                         continue
                 log(f"{m.name}: dead -> start (pg={count} pending={pending})")
                 stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
@@ -779,6 +835,19 @@ def main() -> int:
             last_catalog = now
 
         if all(m.complete for m in markets):
+            nxt = next_scheduled_run(markets)
+            if nxt > now:
+                # США обновляются проходами: если запланирован повтор (суточный
+                # AT_RERUN_SEC или часовая WAF-пауза), вечный idle недопустим —
+                # иначе повтор не наступит никогда.
+                if nxt != idle_next_logged:
+                    idle_next_logged = nxt
+                    log(
+                        "all markets complete; повторный проход США запланирован на "
+                        f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(nxt))} — ждём"
+                    )
+                time.sleep(INTERVAL)
+                continue
             # Do not exit: systemd Restart=always would restart us, see encar.complete,
             # re-run final sync (often OOM on postgres_catalog_sync), and loop forever.
             log("all markets complete -> final catalog sync, then idle")
