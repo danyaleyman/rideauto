@@ -35,6 +35,7 @@ from urllib.parse import urlencode
 
 from scraper_pipeline.autotrader.client import (
     AsyncAutotraderClient,
+    AutotraderWafBlock,
     is_autotrader_challenge_html,
     is_autotrader_waf_block,
 )
@@ -713,6 +714,14 @@ class _HttpGate:
             try:
                 client = await self._ensure()
                 html = await asyncio.wait_for(client.fetch_html(url), timeout=self._cfg.http_wall)
+            except AutotraderWafBlock as e:
+                # Блок виден уже по HTTP: браузер поднимать незачем.
+                self.fail_streak += 1
+                if self.fail_streak >= self._cfg.http_fail_disable:
+                    self.enabled = False
+                    if self.on_disable is not None:
+                        await self.on_disable()
+                raise _WafBlockError(f"HTTP: WAF block ({e})")
             except Exception as e:
                 self.fail_streak += 1
                 self._lg.info(

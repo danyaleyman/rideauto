@@ -76,6 +76,15 @@ def is_autotrader_waf_block(html: str) -> bool:
     return "page unavailable" in low or "incident number" in low
 
 
+class AutotraderWafBlock(RuntimeError):
+    """Akamai WAF «page unavailable» — жёсткий блок, а не капча и не конец выдачи.
+
+    Ретраи и ``refresh_session()`` с тем же egress/отпечатком бесполезны,
+    поэтому клиент сразу отдаёт это исключение наверх, а обход считает блоки
+    отдельно (:data:`autotrader.block_abort_after`).
+    """
+
+
 class AsyncAutotraderClient:
     def __init__(
         self,
@@ -205,6 +214,18 @@ class AsyncAutotraderClient:
             if resp.error and not text:
                 last_err = RuntimeError(f"transport error for {url}: {resp.error}")
                 continue
+            if is_autotrader_waf_block(text):
+                # Не капча и не конец выдачи: смена cookies/сессии не помогает,
+                # нужен другой egress/отпечаток — сразу наверх.
+                self.log.warning(
+                    "Autotrader WAF block HTTP %s for %s (body_len=%s)",
+                    resp.status,
+                    url,
+                    len(text),
+                )
+                raise AutotraderWafBlock(
+                    f"WAF block HTTP {resp.status} for {url} (body_len={len(text)})"
+                )
             if is_autotrader_challenge_html(text, status=resp.status):
                 last_err = RuntimeError(
                     f"Autotrader challenge/block HTTP {resp.status} for {url} (body_len={len(text)})"

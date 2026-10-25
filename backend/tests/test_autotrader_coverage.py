@@ -403,3 +403,47 @@ async def test_http_gate_classifies_waf_block() -> None:
     gate.fail_streak = 0
     assert await gate.fetch("https://www.autotrader.com/cars-for-sale/all-cars") is not None
 
+    # Клиент может сам классифицировать блок (без ретраев и Chromium)
+    from scraper_pipeline.autotrader.client import AutotraderWafBlock
+
+    class _BlockingClient:
+        async def fetch_html(self, url: str) -> str:
+            raise AutotraderWafBlock("WAF block HTTP 200")
+
+    async def _ensure_block() -> Any:
+        return _BlockingClient()
+
+    gate._ensure = _ensure_block  # type: ignore[assignment]
+    with pytest.raises(bi._WafBlockError):
+        await gate.fetch("https://www.autotrader.com/cars-for-sale/all-cars")
+
+
+async def test_client_raises_waf_block_without_retries() -> None:
+    """WAF-блок не должен тратить challenge_retries и refresh_session."""
+    from scraper_pipeline.autotrader.client import (
+        AsyncAutotraderClient,
+        AutotraderWafBlock,
+    )
+
+    calls: List[str] = []
+
+    class _Resp:
+        status = 200
+        error = None
+        text = WAF_PAGE
+
+    class _Tr:
+        async def request(self, *args: Any, **kwargs: Any) -> Any:
+            calls.append("req")
+            return _Resp()
+
+    client = AsyncAutotraderClient(
+        {"autotrader": {}}, logging.getLogger("test.autotrader"), auto_bootstrap=False
+    )
+    client._opened = True
+    client._transport = _Tr()  # type: ignore[assignment]
+
+    with pytest.raises(AutotraderWafBlock):
+        await client.fetch_html("https://www.autotrader.com/cars-for-sale/all-cars")
+    assert len(calls) == 1  # без challenge_retries и без refresh_session
+
