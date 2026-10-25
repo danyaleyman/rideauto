@@ -472,6 +472,12 @@ class _BrowserPool:
         html = (await page.content()) or ""
         if not html:
             raise RuntimeError(f"browser: пустой HTML для {url}")
+        if is_autotrader_waf_block(html):
+            # `page unavailable` + Incident Number: блок Akamai, а не капча и не конец
+            # выдачи. Ретраи с тем же egress/отпечатком бесполезны — сообщаем наверх.
+            raise _WafBlockError(
+                f"browser: WAF block (page unavailable) для {url} (len={len(html)})"
+            )
         if is_autotrader_challenge_html(html) and "__NEXT_DATA__" not in html:
             raise RuntimeError(f"browser: Akamai challenge для {url} (len={len(html)})")
         if "__NEXT_DATA__" not in html and not is_page_unavailable(html):
@@ -693,7 +699,12 @@ class _HttpGate:
         return self._client
 
     async def fetch(self, url: str) -> Optional[str]:
-        """HTML или None (выключен / challenge / ошибка). Исключений не бросает."""
+        """HTML или None (выключен / challenge / ошибка).
+
+        Единственное исключение — :class:`_WafBlockError`: жёсткий блок Akamai
+        (`page unavailable`) нельзя путать с капчей, иначе обход тратит ретраи,
+        cool-down и пересоздание сессии впустую.
+        """
         if not self.enabled:
             return None
         async with self._lock:
@@ -715,6 +726,13 @@ class _HttpGate:
                     if self.on_disable is not None:
                         await self.on_disable()
                 return None
+        if is_autotrader_waf_block(html):
+            self.fail_streak += 1
+            if self.fail_streak >= self._cfg.http_fail_disable:
+                self.enabled = False
+                if self.on_disable is not None:
+                    await self.on_disable()
+            raise _WafBlockError(f"HTTP: WAF block (page unavailable), len={len(html)}")
         if is_autotrader_challenge_html(html):
             self.fail_streak += 1
             if self.fail_streak >= self._cfg.http_fail_disable:
@@ -943,6 +961,10 @@ class _Transport:
             self.page = pool.srp_page if self.use_srp_page else await pool.new_page()
         try:
             html = await pool.goto(self.page, url)
+        except _WafBlockError:
+            # Блок WAF не лечится сменой прокси/контекста — пул не пересоздаём.
+            self.page = None
+            raise
         except Exception as e:
             self.rt.lg.warning("Autotrader browser %s failed %s: %s", self.kind, url, e)
             failed = pool.proxy_url
@@ -1243,6 +1265,10 @@ async def _walk_segment(
                     # Transport.fetch уже ротирует sticky-слот при browser fail —
                     # здесь НЕ поднимаем второй Chromium (иначе OOM-шторм на DE-4).
                     tr.page = None
+                    if isinstance(e, _WafBlockError):
+                        # Тот же egress/отпечаток блокируется снова: 5 попыток ни к чему,
+                        # решение принимает счётчик block_abort_after ниже.
+                        break
                     await asyncio.sleep(random.uniform(cfg.delay_min * 2, cfg.delay_max * 3))
 
             if parsed is None or last_err is not None:
@@ -1698,12 +1724,21 @@ async def _process_card(
                 break
             html: Optional[str] = None
             tr = _Transport(rt, "vdp", slot_key=f"w{wid}")
+            hit_waf = False
             try:
                 html = await tr.fetch(cfg.vdp_url(lid))
+            except _WafBlockError as e:
+                last_err = e
+                hit_waf = True
             except Exception as e:
                 last_err = e
             finally:
                 await tr.close()
+            if hit_waf:
+                # Блок Akamai на VDP: повтор с тем же egress/отпечатком бесполезен —
+                # попытка засчитана, карточка уходит в requeue (или стаб).
+                lg.warning("autotrader %s: VDP под WAF-блоком (%s) — ретраи пропущены", lid, last_err)
+                break
             if html:
                 if is_page_unavailable(html):
                     await rt.bump("gone")
@@ -2091,6 +2126,11 @@ async def _probe_phase(rt: _Runtime, urls: List[str]) -> List[Dict[str, Any]]:
                         raise RuntimeError(f"Akamai challenge HTML (len={len(got)})")
                     html = got
                     last_err = None
+                    break
+                except _WafBlockError as e:
+                    # Диагностика: блок важно отделить от «нет __NEXT_DATA__»/капчи.
+                    last_err = f"WAF_BLOCK: {e}"
+                    row["blocked"] = True
                     break
                 except Exception as e:  # noqa: BLE001 — диагностика: любую ошибку логируем
                     last_err = f"{type(e).__name__}: {e}"

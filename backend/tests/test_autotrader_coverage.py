@@ -13,6 +13,8 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+import pytest
+
 from scraper_pipeline.autotrader import browser_ingest as bi
 from scraper_pipeline.autotrader.browser_ingest import (
     _cfg_from_config,
@@ -311,7 +313,7 @@ def test_is_autotrader_waf_block() -> None:
 
 
 async def test_walk_segment_aborts_on_waf_block_and_keeps_cursor(monkeypatch) -> None:
-    cfg = _cfg(_at={"block_abort_after": 2}, depth_cap_pages=0, reset_cursor_on_complete=True)
+    cfg = _cfg(_at={"block_abort_after": 2, "srp_retries": 5}, depth_cap_pages=0, reset_cursor_on_complete=True)
     cp = _FakeCheckpoint()
     rt = _FakeRuntime(cfg, cp)
     rt.answers = [WAF_PAGE, WAF_PAGE]
@@ -327,6 +329,77 @@ async def test_walk_segment_aborts_on_waf_block_and_keeps_cursor(monkeypatch) ->
     assert res["blocked"] is True
     assert rt.st.srp_waf_blocks == 2
     assert rt.stop.is_set()  # проход закрыт, а не бесконечный recover
+    # одна попытка на страницу, а не srp_retries=5: блок не лечится ретраями
+    assert len(rt.urls) == 2
     # курсор не сброшен: данных не было, следующий прогон продолжит с того же места
     assert "srp:p0-8000" not in cp.offsets
+
+
+class _FakePage:
+    """Минимум от Playwright-страницы: отдаёт заранее заданный HTML."""
+
+    def __init__(self, html: str) -> None:
+        self._html = html
+
+    async def goto(self, url: str, **kwargs: Any) -> None:
+        return None
+
+    async def wait_for_function(self, *args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("нет ни __NEXT_DATA__, ни 'unavailable'")
+
+    async def wait_for_timeout(self, ms: int) -> None:
+        return None
+
+    async def content(self) -> str:
+        return self._html
+
+
+async def test_browser_goto_classifies_waf_block() -> None:
+    """`page unavailable` из браузера обязан стать `_WafBlockError`, а не challenge."""
+    pool = bi._BrowserPool(
+        None,
+        None,
+        None,
+        None,
+        _cfg(),
+        logging.getLogger("test.autotrader"),
+        proxy_url=None,
+        user_agent="ua",
+        impersonate="chrome",
+    )
+    with pytest.raises(bi._WafBlockError):
+        await pool.goto(_FakePage(WAF_PAGE), "https://www.autotrader.com/cars-for-sale/all-cars")
+
+    with pytest.raises(RuntimeError) as exc:
+        await pool.goto(_FakePage("<html><body>пусто</body></html>"), "https://www.autotrader.com/x")
+    assert not isinstance(exc.value, bi._WafBlockError)
+
+
+async def test_http_gate_classifies_waf_block() -> None:
+    """HTTP-путь тоже обязан отдавать `_WafBlockError` наверх (иначе 5 ретраев впустую)."""
+    gate = bi._HttpGate({}, _cfg(), logging.getLogger("test.autotrader"))
+    gate.enabled = True
+
+    class _Client:
+        async def fetch_html(self, url: str) -> str:
+            return WAF_PAGE
+
+    async def _ensure() -> Any:
+        return _Client()
+
+    gate._ensure = _ensure  # type: ignore[assignment]
+
+    with pytest.raises(bi._WafBlockError):
+        await gate.fetch("https://www.autotrader.com/cars-for-sale/all-cars")
+
+    class _OkClient:
+        async def fetch_html(self, url: str) -> str:
+            return _srp_html(["1"], total=1)
+
+    async def _ensure_ok() -> Any:
+        return _OkClient()
+
+    gate._ensure = _ensure_ok  # type: ignore[assignment]
+    gate.fail_streak = 0
+    assert await gate.fetch("https://www.autotrader.com/cars-for-sale/all-cars") is not None
 
