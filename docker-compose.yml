@@ -180,8 +180,119 @@ services:
       api:
         condition: service_healthy
 
+  # --- Staging (не прод). Подъём: docker compose --profile staging up -d api-stage web-stage
+  # Скрейперы и prod web/api не трогает. Та же Postgres/Meili, Redis DB 2, Telegram выключен.
+  api-stage:
+    profiles: ["staging"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: rideauto-api-stage
+    restart: unless-stopped
+    environment:
+      WRA_PG_DSN: postgresql://${POSTGRES_USER:-wra}:${POSTGRES_PASSWORD:-wra}@postgres:5432/${POSTGRES_DB:-wra}
+      WRA_PG_DSN_SKIP_HOST_REWRITE: "1"
+      WRA_REDIS_URL: redis://redis:6379/2
+      WRA_MEILISEARCH_URL: ${WRA_MEILISEARCH_URL:-http://meilisearch:7700}
+      WRA_MEILISEARCH_KEY: ${WRA_MEILISEARCH_KEY:-${MEILI_MASTER_KEY:-}}
+      WRA_MEILISEARCH_INDEX: ${WRA_MEILISEARCH_INDEX:-cars}
+      WRA_IMAGE_CACHE_DIR: ${WRA_IMAGE_CACHE_DIR:-/app/var/image_cache}
+      WRA_CACHE_INVALIDATE_SECRET: ${WRA_CACHE_INVALIDATE_SECRET:-}
+      WRA_DEPLOYMENT_ENV: staging
+      WRA_CORS_ALLOW_ORIGINS: ${WRA_STAGING_CORS_ORIGINS:-http://stage.rideauto.ru,http://88.210.63.45:8088}
+      WRA_CORS_ALLOW_CREDENTIALS: "false"
+      WRA_METRICS_ENABLED: "false"
+      WRA_AUTH_ENABLED: ${WRA_AUTH_ENABLED:-true}
+      WRA_AUTH_SECRET: ${WRA_AUTH_SECRET:-}
+      WRA_AUTH_COOKIE_NAME: wra_session_stage
+      WRA_AUTH_COOKIE_SECURE: "false"
+      WRA_AUTH_MAGIC_TTL_MIN: ${WRA_AUTH_MAGIC_TTL_MIN:-20}
+      WRA_AUTH_SESSION_TTL_HOURS: ${WRA_AUTH_SESSION_TTL_HOURS:-720}
+      WRA_AUTH_MAGIC_LINK_BASE_URL: ${WRA_STAGING_SITE_URL:-http://stage.rideauto.ru}
+      WRA_AUTH_RATE_LIMIT_PER_IP_HOUR: ${WRA_AUTH_RATE_LIMIT_PER_IP_HOUR:-40}
+      WRA_AUTH_RATE_LIMIT_PER_EMAIL_HOUR: ${WRA_AUTH_RATE_LIMIT_PER_EMAIL_HOUR:-10}
+      WRA_AUTH_SMTP_HOST: ${WRA_AUTH_SMTP_HOST:-}
+      WRA_AUTH_SMTP_PORT: ${WRA_AUTH_SMTP_PORT:-465}
+      WRA_AUTH_SMTP_USER: ${WRA_AUTH_SMTP_USER:-}
+      WRA_AUTH_SMTP_PASSWORD: ${WRA_AUTH_SMTP_PASSWORD:-}
+      WRA_AUTH_SMTP_USE_TLS: ${WRA_AUTH_SMTP_USE_TLS:-false}
+      WRA_AUTH_EMAIL_FROM: ${WRA_AUTH_EMAIL_FROM:-}
+      WRA_LISTING_ADMIN_EMAILS: ${WRA_LISTING_ADMIN_EMAILS:-}
+      WRA_LEAD_TELEGRAM_BOT_TOKEN: ""
+      WRA_LEAD_TELEGRAM_CHAT_ID: ""
+      WRA_CHANNEL_TELEGRAM_BOT_TOKEN: ""
+      WRA_CHANNEL_TELEGRAM_CHAT_ID: ""
+      WRA_CHANNEL_TELEGRAM_ENABLED: "0"
+      WRA_SUBSCRIPTIONS_ADMIN_KEY: ${WRA_SUBSCRIPTIONS_ADMIN_KEY:-}
+      WRA_CLEAN_READ_MODE: ${WRA_CLEAN_READ_MODE:-true}
+      WRA_CLEAN_READ_PERCENT: ${WRA_CLEAN_READ_PERCENT:-100}
+      WRA_LEGACY_FALLBACKS_ENABLED: ${WRA_LEGACY_FALLBACKS_ENABLED:-false}
+      WRA_API_CONTRACT_VERSION: ${WRA_API_CONTRACT_VERSION:-v1}
+      WRA_MEILI_PREFLIGHT_GATE: "false"
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - api_stage_image_cache:/app/var/image_cache
+      - ./data:/data
+      - ./infrastructure/meilisearch:/app/infrastructure/meilisearch:ro
+      - ./infrastructure/postgresql:/app/infrastructure/postgresql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5).read()\"",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 90s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    command:
+      [
+        "uvicorn",
+        "fastapi_app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+      ]
+
+  web-stage:
+    profiles: ["staging"]
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        WRA_API_INTERNAL: http://api-stage:8080
+        NEXT_PUBLIC_API_BASE: ""
+        NEXT_PUBLIC_SITE_URL: ${WRA_STAGING_SITE_URL:-http://stage.rideauto.ru}
+        NEXT_PUBLIC_NOINDEX: "1"
+        NEXT_PUBLIC_SENTRY_DSN: ""
+        NEXT_PUBLIC_FEATURE_VIRTUAL_LIST: ${NEXT_PUBLIC_FEATURE_VIRTUAL_LIST:-0}
+        NEXT_PUBLIC_FEATURE_HOME_TRUST: ${NEXT_PUBLIC_FEATURE_HOME_TRUST:-1}
+        WRA_ISR_WARM_CAR_REFS: ""
+    image: rideauto-web-stage
+    restart: unless-stopped
+    environment:
+      WRA_API_INTERNAL: http://api-stage:8080
+      NEXT_PUBLIC_API_BASE: ""
+      NEXT_PUBLIC_SITE_URL: ${WRA_STAGING_SITE_URL:-http://stage.rideauto.ru}
+      NEXT_PUBLIC_NOINDEX: "1"
+    ports:
+      - "127.0.0.1:3010:3000"
+    depends_on:
+      api-stage:
+        condition: service_healthy
+
 volumes:
   pg_data:
   redis_data:
   meili_data:
   api_image_cache:
+  api_stage_image_cache:

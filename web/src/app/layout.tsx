@@ -4,6 +4,7 @@ import WebVitalsReporter from "@/components/WebVitalsReporter";
 import { PwaRegister } from "@/components/PwaRegister";
 import { AuthProvider } from "@/components/AuthProvider";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { StagingBanner } from "@/components/StagingBanner";
 import { LocaleProvider } from "@/components/LocaleProvider";
 import { QueryProvider } from "@/components/QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,6 +27,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const stagingNoindex = process.env.NEXT_PUBLIC_NOINDEX === "1";
+
 export const metadata: Metadata = {
   metadataBase: new URL(`${getSiteUrl()}/`),
   manifest: "/manifest.webmanifest",
@@ -34,6 +37,7 @@ export const metadata: Metadata = {
     template: "%s — World Ride Auto",
   },
   description: rootT("meta.siteDescription"),
+  robots: stagingNoindex ? { index: false, follow: false } : undefined,
 };
 
 // Root layout НЕ читает cookie/headers → не форсит dynamic-рендер всего сайта.
@@ -52,6 +56,7 @@ export default function RootLayout({
       className={cn("font-sans", inter.variable, geistMono.variable)}
     >
       <body className="antialiased">
+        <StagingBanner />
         <QueryProvider>
           <LocaleProvider initialLocale={DEFAULT_LOCALE}>
             <AuthProvider>
