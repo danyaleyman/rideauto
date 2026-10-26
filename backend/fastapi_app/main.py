@@ -51,6 +51,7 @@ from fastapi_app.routers import (
     subscriptions,
     compare,
     sitemap,
+    telegram_channel,
 )
 
 
@@ -147,6 +148,7 @@ def create_app() -> FastAPI:
     app.include_router(push.router, prefix="/api")
     app.include_router(compare.router, prefix="/api")
     app.include_router(sitemap.router, prefix="/api")
+    app.include_router(telegram_channel.router, prefix="/api")
     app.include_router(translate.router, prefix="/api")
 
     @app.get("/api/health")

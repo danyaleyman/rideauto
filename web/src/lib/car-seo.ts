@@ -3,6 +3,7 @@ import { getSiteUrl } from "@/lib/env";
 import { asStr, buildNormalizedCarTitle } from "@/lib/car-detail-data";
 import { enrichChe168CarSpecs } from "@/lib/che168-spec-enrich";
 import { buildLocaleAlternates } from "@/lib/hreflang";
+import { normalizeEncarPhotoUrl } from "@/lib/car-images";
 
 function pickReadModel(raw: Record<string, unknown>): Record<string, unknown> | null {
   const rm = raw.read_model;
@@ -104,8 +105,10 @@ function firstCarImage(raw: Record<string, unknown>): string | undefined {
   const d = pickCarData(raw);
   const imgs = d.images;
   if (!Array.isArray(imgs)) return undefined;
-  const u = imgs.find((x): x is string => typeof x === "string" && x.length > 0);
-  return u;
+  const flat = imgs.flatMap((x) => (Array.isArray(x) ? x : [x]));
+  const u = flat.find((x): x is string => typeof x === "string" && /^https?:\/\//i.test(x));
+  if (!u) return undefined;
+  return normalizeEncarPhotoUrl(u);
 }
 
 function num(v: unknown): number | null {

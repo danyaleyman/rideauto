@@ -14,9 +14,11 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { MotionFadeUp, MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
+import { BuyCalculatorLazy } from "@/components/buy/BuyCalculatorLazy";
 import { catalogCardAttributeChips } from "@/lib/catalog-client-utils";
-import { extractCarImageUrls } from "@/lib/car-images";
+import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
 import { formatCatalogCardPriceLocale } from "@/lib/format-price-locale";
+import { lotBuyCalculatorPreset } from "@/lib/lot-buy-calculator-preset";
 import type { CarListingAvailability } from "@/lib/car-listing-trust";
 import type { SlimCar } from "@/lib/types";
 
@@ -110,20 +112,20 @@ export function CarSimilarSection({ similar }: { similar: SlimCar[] }) {
         {t("car.detail.similarTitle")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">{t("car.detail.similarHint")}</p>
-      <MotionStagger className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+      <MotionStagger className="mt-5 grid min-w-0 grid-cols-1 items-stretch gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
         {similar.map((car) => {
           const cardData = (car.data ?? {}) as Record<string, unknown>;
-          const img = extractCarImageUrls(cardData)[0];
+          const img = getAllCarPhotoUrls(cardData)[0];
           const simSold = Boolean(car.encar_listing_sold || car.che168_listing_sold);
           const simReserved = !simSold && Boolean(car.encar_listing_reserved);
           const attrChips = catalogCardAttributeChips(cardData, car.year_num, locale);
           return (
-            <MotionStaggerItem key={car.id}>
+            <MotionStaggerItem key={car.id} className="h-full min-w-0">
               <Link
                 href={`/car/${encodeURIComponent(car.id)}`}
-                className="group block min-w-0 overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] hover:border-foreground/20 hover:shadow-[0_6px_24px_-12px_rgba(15,23,42,0.25)]"
+                className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] hover:border-foreground/20 hover:shadow-[0_6px_24px_-12px_rgba(15,23,42,0.25)]"
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <div className="relative aspect-[4/3] shrink-0 overflow-hidden bg-muted">
                   {img ? (
                     <ProxiedListingImage
                       src={img}
@@ -158,8 +160,8 @@ export function CarSimilarSection({ similar }: { similar: SlimCar[] }) {
                     </div>
                   ) : null}
                 </div>
-                <div className="min-w-0 p-3 sm:p-3.5">
-                  <p className="line-clamp-3 break-words text-sm font-semibold leading-snug [overflow-wrap:anywhere] group-hover:text-primary sm:line-clamp-2">
+                <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-3.5">
+                  <p className="line-clamp-2 min-h-[2.5rem] break-words text-sm font-semibold leading-snug [overflow-wrap:anywhere] group-hover:text-primary">
                     {car.title || car.id}
                   </p>
                   {attrChips.length ? (
@@ -177,7 +179,7 @@ export function CarSimilarSection({ similar }: { similar: SlimCar[] }) {
                       })}
                     </ul>
                   ) : null}
-                  <p className="mt-2 break-words text-base font-semibold tabular-nums text-foreground [overflow-wrap:anywhere]">
+                  <p className="mt-auto pt-2 break-words text-base font-semibold tabular-nums text-foreground [overflow-wrap:anywhere]">
                     {formatCatalogCardPriceLocale(locale, car.price, car.price_on_request)}
                   </p>
                 </div>
@@ -187,5 +189,24 @@ export function CarSimilarSection({ similar }: { similar: SlimCar[] }) {
         })}
       </MotionStagger>
     </>
+  );
+}
+
+export function CarLotCalculatorSection({ data }: { data: Record<string, unknown> }) {
+  const { t } = useLocaleContext();
+  const preset = lotBuyCalculatorPreset(data);
+  return (
+    <section
+      id="car-lot-calc"
+      className="relative mx-auto mt-12 min-w-0 max-w-[1440px] scroll-mt-20 border-t border-border px-3 pt-8 sm:scroll-mt-24 sm:px-6 sm:pt-10 lg:scroll-mt-32 lg:px-10"
+    >
+      <h2 className="font-heading text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">
+        {t("car.detail.lotCalcTitle")}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("car.detail.lotCalcHint")}</p>
+      <div className="mt-5 sm:mt-6">
+        <BuyCalculatorLazy preset={preset} />
+      </div>
+    </section>
   );
 }

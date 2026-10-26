@@ -2,7 +2,15 @@
 
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { useProxiedCarGalleryUrls } from "@/lib/catalog-image-proxy";
 import { imageUrlDedupeKey } from "@/lib/car-gallery-images";
@@ -33,6 +41,57 @@ type CarPhotoGalleryProps = {
 };
 
 const THUMB_COUNT = 4;
+const SWIPE_PX = 40;
+
+function useHorizontalSwipe(onSwipe: (dir: -1 | 1) => void, enabled: boolean) {
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const consumed = useRef(false);
+
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      if (!enabled) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      startX.current = e.clientX;
+      startY.current = e.clientY;
+      consumed.current = false;
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+    [enabled],
+  );
+
+  const onPointerMove = useCallback((e: ReactPointerEvent<HTMLElement>) => {
+    if (startX.current == null) return;
+    const dx = e.clientX - startX.current;
+    const dy = e.clientY - (startY.current ?? e.clientY);
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) consumed.current = true;
+  }, []);
+
+  const endPointer = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      if (startX.current == null) return;
+      const dx = e.clientX - startX.current;
+      const dy = e.clientY - (startY.current ?? e.clientY);
+      startX.current = null;
+      startY.current = null;
+      if (!enabled) return;
+      if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy)) {
+        consumed.current = true;
+        onSwipe(dx < 0 ? 1 : -1);
+      }
+    },
+    [enabled, onSwipe],
+  );
+
+  const onClickCapture = useCallback((e: ReactMouseEvent<HTMLElement>) => {
+    if (!consumed.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    consumed.current = false;
+  }, []);
+
+  return { onPointerDown, onPointerMove, onPointerUp: endPointer, onPointerCancel: endPointer, onClickCapture };
+}
 
 export default function CarPhotoGallery({
   images: rawImages,
@@ -95,6 +154,9 @@ export default function CarPhotoGallery({
     [n],
   );
 
+  const heroSwipe = useHorizontalSwipe(go, n > 1);
+  const lightboxSwipe = useHorizontalSwipe(goLightbox, n > 1);
+
   useEffect(() => {
     if (!lightboxOpen || !n) return;
     const onKey = (e: KeyboardEvent) => {
@@ -147,7 +209,10 @@ export default function CarPhotoGallery({
           )}
         >
           <div
-            className="relative aspect-[4/3] min-h-[200px] w-full cursor-zoom-in overflow-hidden bg-muted sm:min-h-[240px] lg:aspect-auto lg:min-h-0 lg:h-full"
+            className={cn(
+              "relative aspect-[4/3] min-h-[200px] w-full overflow-hidden rounded-lg bg-muted sm:min-h-[240px] lg:aspect-auto lg:min-h-0 lg:h-full lg:rounded-xl",
+              n > 1 ? "cursor-grab touch-pan-y select-none active:cursor-grabbing" : "cursor-zoom-in",
+            )}
             onClick={() => openLightbox(safeActive)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -158,6 +223,7 @@ export default function CarPhotoGallery({
             role="button"
             tabIndex={0}
             aria-label={t("gallery.open")}
+            {...heroSwipe}
           >
             {current ? (
               <Image
@@ -165,10 +231,11 @@ export default function CarPhotoGallery({
                 alt={t("gallery.photoAlt", { title, n: safeActive + 1 })}
                 fill
                 sizes="(min-width: 1536px) 900px, (min-width: 1280px) 75vw, (min-width: 1024px) 72vw, 100vw"
-                className="object-cover object-center"
+                className="pointer-events-none object-cover object-center"
                 priority
                 fetchPriority="high"
                 unoptimized
+                draggable={false}
               />
             ) : (
               <div className="flex size-full items-center justify-center bg-muted">
@@ -212,6 +279,7 @@ export default function CarPhotoGallery({
               <div
                 className="absolute bottom-2 end-2 max-w-[calc(100%-1rem)] sm:bottom-3 sm:end-3 flex items-center gap-0.5 rounded-full border border-white/25 bg-black/65 px-1 py-0.5 text-[11px] text-white shadow-lg backdrop-blur-sm sm:text-xs"
                 onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
                 role="presentation"
               >
                 <Button
@@ -339,15 +407,22 @@ export default function CarPhotoGallery({
               </Button>
             ) : null}
 
-            <div className="relative flex max-h-[calc(100dvh-11rem)] w-full max-w-[min(1400px,96vw)] items-center justify-center">
+            <div
+              className={cn(
+                "relative flex max-h-[calc(100dvh-11rem)] w-full max-w-[min(1400px,96vw)] items-center justify-center",
+                n > 1 && "cursor-grab touch-pan-y select-none active:cursor-grabbing",
+              )}
+              {...lightboxSwipe}
+            >
               {lightboxMainSrc ? (
                 <Image
                   src={lightboxMainSrc}
                   alt={t("gallery.photoSlide", { title, n: lightboxIdx + 1, total: n })}
                   width={1800}
                   height={1200}
-                  className="max-h-[calc(100dvh-11rem)] w-auto max-w-full object-contain"
+                  className="pointer-events-none max-h-[calc(100dvh-11rem)] w-auto max-w-full object-contain"
                   unoptimized
+                  draggable={false}
                 />
               ) : (
                 <div className="flex min-h-[40vh] items-center justify-center">

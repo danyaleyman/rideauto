@@ -98,6 +98,81 @@ async def test_similar_core_excludes_self_and_clamps_result(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_similar_prefers_canonical_mark_over_korean_identity(monkeypatch):
+    async def fake_cur(_pool, _car_id):
+        return {
+            "id": "c1",
+            "data": {
+                "mark": "Chevrolet (GM Daewoo)",
+                "model": "Amazing New Cruise",
+                "identity_clean": {"mark": "쉐보레(GM대우)", "model": "어메이징 뉴 크루즈"},
+            },
+        }
+
+    seen = {"filters": []}
+
+    class _Index:
+        def search(self, _q, opts):
+            seen["filters"].append(str(opts.get("filter") or ""))
+            return {
+                "hits": [{"id": "c2"}],
+                "estimatedTotalHits": 9,
+                "processingTimeMs": 1,
+            }
+
+    class _Meili:
+        def index(self, _name):
+            return _Index()
+
+    async def fake_by_ids(_pool, ids):
+        return {cid: {"id": cid, "data": {"mark": "Chevrolet (GM Daewoo)"}} for cid in ids}
+
+    monkeypatch.setattr(search_router, "fetch_car_any_id", fake_cur)
+    monkeypatch.setattr(search_router, "fetch_cars_by_ids", fake_by_ids)
+    monkeypatch.setattr(search_router, "clean_read_enabled_for_key", lambda *a, **k: True)
+    req = _fake_request(meili=_Meili())
+    body = await search_router._similar_cars(req, "c1", 4)
+    assert body.result
+    assert seen["filters"]
+    assert "Chevrolet (GM Daewoo)" in seen["filters"][0]
+    assert "쉐보레" not in seen["filters"][0]
+
+
+@pytest.mark.asyncio
+async def test_similar_falls_back_to_short_brand_when_exact_model_empty(monkeypatch):
+    async def fake_cur(_pool, _car_id):
+        return {
+            "id": "c1",
+            "data": {"mark": "Chevrolet (GM Daewoo)", "model": "Amazing New Cruise"},
+        }
+
+    async def fake_by_ids(_pool, ids):
+        return {cid: {"id": cid, "data": {"mark": "Chevrolet (GM Daewoo)"}} for cid in ids}
+
+    class _FallbackIndex:
+        def search(self, _q, opts):
+            filt = str(opts.get("filter") or "")
+            if "Amazing New Cruise" in filt:
+                return {"hits": [], "estimatedTotalHits": 0, "processingTimeMs": 1}
+            return {
+                "hits": [{"id": "c2"}, {"id": "c3"}],
+                "estimatedTotalHits": 12,
+                "processingTimeMs": 1,
+            }
+
+    class _FallbackMeili:
+        def index(self, _name):
+            return _FallbackIndex()
+
+    monkeypatch.setattr(search_router, "fetch_car_any_id", fake_cur)
+    monkeypatch.setattr(search_router, "fetch_cars_by_ids", fake_by_ids)
+    req = _fake_request(meili=_FallbackMeili())
+    body = await search_router._similar_cars(req, "c1", 8)
+    assert [x.id for x in body.result] == ["c2", "c3"]
+    assert body.meta.total_candidates >= 1
+
+
+@pytest.mark.asyncio
 async def test_similar_route_clamps_limit_to_24(monkeypatch):
     called = {"limit": None, "car_id": None}
 

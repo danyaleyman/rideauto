@@ -1,10 +1,25 @@
 "use client";
 
 import { useMemo } from "react";
+import { ChevronsUpDown, LayoutGrid, List, Table2 } from "lucide-react";
 import { useLocaleContext } from "@/components/LocaleProvider";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { CatalogDensity } from "@/lib/catalog-density";
-import { controlHeightClass } from "@/lib/design-system";
+
+const VIEW_ICONS = {
+  list: List,
+  tile: LayoutGrid,
+  table: Table2,
+} as const;
 
 export function CatalogDensityToggle({
   value,
@@ -25,36 +40,48 @@ export function CatalogDensityToggle({
       ] as const,
     [t],
   );
+  const active = options.find((o) => o.id === value) ?? options[0];
+  const ActiveIcon = VIEW_ICONS[active.id];
 
   return (
-    <div
-      className={cn(
-        "inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-muted p-1",
-        controlHeightClass,
-        className,
-      )}
-      role="group"
-      aria-label={t("catalog.view.aria")}
-      data-testid="catalog-view-toggle"
-    >
-      {options.map((opt) => (
-        <button
-          key={opt.id}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
           type="button"
-          data-testid={`catalog-view-${opt.id}`}
-          className={cn(
-            "h-full rounded-md px-3 text-xs font-medium transition-colors",
-            opt.desktopOnly && "hidden lg:inline-flex",
-            value === opt.id
-              ? "bg-background text-foreground shadow-sm"
-              : "text-foreground/70 hover:text-foreground",
-          )}
-          aria-pressed={value === opt.id}
-          onClick={() => onChange(opt.id)}
+          variant="outline"
+          data-testid="catalog-view-toggle"
+          className={cn("h-10 min-w-0 max-w-[11rem] shrink justify-between px-3 font-normal", className)}
+          aria-label={t("catalog.view.aria")}
         >
-          {opt.label}
-        </button>
-      ))}
-    </div>
+          <span className="flex min-w-0 items-center gap-2">
+            <ActiveIcon className="size-4 shrink-0 opacity-70" aria-hidden />
+            <span className="min-w-0 truncate text-start">{active.label}</span>
+          </span>
+          <ChevronsUpDown className="size-4 shrink-0 opacity-55" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[13rem] p-1.5"
+      >
+        <DropdownMenuLabel>{t("catalog.view.aria")}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={value} onValueChange={(next) => onChange(next as CatalogDensity)}>
+          {options.map((opt) => {
+            const Icon = VIEW_ICONS[opt.id];
+            return (
+              <DropdownMenuRadioItem
+                key={opt.id}
+                value={opt.id}
+                data-testid={`catalog-view-${opt.id}`}
+                className={cn("cursor-pointer", opt.desktopOnly && "hidden lg:flex")}
+              >
+                <Icon className="size-4 shrink-0 opacity-70" aria-hidden />
+                {opt.label}
+              </DropdownMenuRadioItem>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -13,6 +13,12 @@ from encar_image_order import _sort_h_images_list_entries
 def fill_power_from_external(data: dict) -> None:
     if not isinstance(data, dict):
         return
+    try:
+        from korea_power_torque import enrich_payload_from_listing_text
+
+        enrich_payload_from_listing_text(data)
+    except ImportError:
+        pass
     if data.get("power") and str(data.get("power", "")).strip():
         fill_hybrid_power_from_specs(data)
         return
@@ -22,6 +28,8 @@ def fill_power_from_external(data: dict) -> None:
         hp = get_power_for_car(data, record_source=True)
         if hp is not None:
             data["power"] = str(hp)
+            if data.get("power_hp") in (None, ""):
+                data["power_hp"] = hp
     except ImportError:
         pass
     fill_hybrid_power_from_specs(data)

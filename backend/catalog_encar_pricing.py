@@ -153,7 +153,9 @@ def encar_json_suggests_pricing_resync(data: dict) -> bool:
     pc = data.get("pricing_clean") if isinstance(data.get("pricing_clean"), dict) else {}
     if str(pc.get("pricing_rules_version") or "") != PRICING_RULES_VERSION:
         return True
-    if pc.get("pricing_tier") != "price_on_request":
-        return False
-    return encar_tier_for_pricing_snapshot(data) != "price_on_request"
+    stored = str(pc.get("pricing_tier") or data.get("pricing_tier") or "").strip()
+    live = encar_tier_for_pricing_snapshot(data)
+    # land_only — запасной круг при отсутствии л.с.; когда мощность появилась,
+    # карточку надо поднять в full_customs, а не оставлять «без таможни».
+    return stored != live
 

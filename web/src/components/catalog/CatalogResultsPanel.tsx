@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { carsAddedTodayLabel, previewImageUrls } from "@/lib/catalog-client-utils";
 import { PER_PAGE } from "@/lib/catalog-url";
 import { featureFlags } from "@/lib/feature-flags";
@@ -10,7 +10,6 @@ import { CatalogListingCard } from "@/components/catalog/CatalogListingCard";
 import { CatalogResultsTable } from "@/components/catalog/CatalogResultsTable";
 import { CatalogVirtualResultsList } from "@/components/catalog/CatalogVirtualResultsList";
 import { resolveCatalogView } from "@/lib/catalog-density";
-import { LocaleSwitchLinks } from "@/components/LocaleSwitchLinks";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { cardListVariants, ListRowSkeleton } from "@/components/catalog/CatalogBlockWidgets";
 import { CatalogResultsToolbar } from "@/components/catalog/CatalogResultsToolbar";
@@ -104,9 +103,6 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
               {t("catalog.results.openingCard")}
             </span>
           ) : null}
-          <Suspense fallback={null}>
-            <LocaleSwitchLinks className="ms-auto shrink-0 text-xs text-muted-foreground" />
-          </Suspense>
         </div>
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {err

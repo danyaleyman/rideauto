@@ -32,6 +32,27 @@ function isHttpUrl(v: unknown): v is string {
   return isResolvableImageUrl(v);
 }
 
+/**
+ * Encar: голый jpg = превью 640×480 с крупным encar.com.
+ * heightRate+wtmk = кроп и штамп. widthRate rw=1920 = исходный кадр без штампа.
+ */
+export function normalizeEncarPhotoUrl(url: string): string {
+  const t = url.trim();
+  if (!t) return t;
+  try {
+    const u = new URL(t.startsWith("//") ? `https:${t}` : t);
+    if (!u.hostname.toLowerCase().endsWith("encar.com")) return t;
+    if (!u.pathname.toLowerCase().includes("carpicture")) return t;
+    u.search = "";
+    u.hash = "";
+    u.searchParams.set("impolicy", "widthRate");
+    u.searchParams.set("rw", "1920");
+    return u.toString();
+  } catch {
+    return t;
+  }
+}
+
 function normalizeImageUrl(v: string): string {
   const t = v.trim();
   if (!t) return t;
@@ -42,7 +63,7 @@ function normalizeImageUrl(v: string): string {
     const u = new URL(safe);
     // Avoid mixed content on https storefronts: known CDNs support https.
     if (u.protocol === "http:") u.protocol = "https:";
-    return u.toString();
+    return normalizeEncarPhotoUrl(u.toString());
   } catch {
     return safe;
   }
@@ -86,6 +107,12 @@ function collectRawImageUrls(raw: Record<string, unknown>): string[] {
     }
     if (!Array.isArray(value)) continue;
     for (const item of value) {
+      if (Array.isArray(item)) {
+        for (const nested of item) {
+          if (isHttpUrl(nested)) out.push(normalizeImageUrl(nested));
+        }
+        continue;
+      }
       if (isHttpUrl(item)) {
         out.push(normalizeImageUrl(item));
         continue;

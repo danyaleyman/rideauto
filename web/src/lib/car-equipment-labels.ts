@@ -2,8 +2,8 @@ import { asStr, cleanScalarText, getPath, translateKoToRuText } from "@/lib/car-
 import { displayAutotraderOptionRu, isAutotraderOptionNoise } from "@/lib/autotrader-options-display";
 import { displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
 import {
-  collectSelectedEncarOptions,
-  displayEncarStandardOption,
+  labelsFromEncarChoicePhotos,
+  labelsFromEncarStandardCodes,
 } from "@/lib/encar-options-display";
 
 const CYRILLIC_RE = /[\u0400-\u04FF]/;
@@ -92,9 +92,7 @@ export function collectCarEquipmentLabels(data: Record<string, unknown>): string
       ? (data.extra as Record<string, unknown>)
       : undefined;
   const options = data.options as Record<string, unknown> | undefined;
-  const standard = options?.standard;
-  const codes = Array.isArray(standard) ? standard : [];
-
+  const codes = Array.isArray(options?.standard) ? options.standard : [];
   const chinaRecommendedRaw = parseJson(
     data.options_real ?? data.che168_recommended_options ?? data.che168_options_enriched,
   );
@@ -133,9 +131,7 @@ export function collectCarEquipmentLabels(data: Record<string, unknown>): string
   })();
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
-  const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);
   const choicePhotos = getPath(sp, ["choiceOptionPhotos"]);
-  const selectedOptions = collectSelectedEncarOptions(uniquePhotos, choicePhotos, extra, data);
 
   const seen = new Set<string>();
   const out: string[] = [];
@@ -147,14 +143,8 @@ export function collectCarEquipmentLabels(data: Record<string, unknown>): string
   };
 
   for (const v of chinaRecommended) push(v);
-  for (const row of selectedOptions) {
-    const lb = cleanScalarText(row.label);
-    if (lb) push(lb);
-  }
-  for (const c of codes) {
-    const label = cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, data));
-    if (label) push(label);
-  }
+  for (const v of labelsFromEncarStandardCodes(codes)) push(v);
+  for (const v of labelsFromEncarChoicePhotos(choicePhotos)) push(v);
   for (const v of collectAutotraderFeatureLabels(data)) push(v);
   return out;
 }

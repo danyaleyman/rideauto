@@ -9,6 +9,7 @@ describe("buildCarSocialDescription", () => {
       priceRub: 1_520_000,
       publishedAt: "2026-05-19",
       data: {
+        source: "encar",
         engine_type: "бензин",
         displacement_cc: 1300,
         power_hp: 156,
@@ -23,18 +24,23 @@ describe("buildCarSocialDescription", () => {
       },
     });
 
-    expect(text).toContain("🚘 Chevrolet Trailblazer");
-    expect(text).toContain("/car/41704526");
+    expect(text).toContain("**🇰🇷 Корея**");
+    expect(text).toContain("**🏎 Chevrolet Trailblazer");
     expect(text).toContain("• Двигатель:");
+    expect(text).toContain("(турбированный)");
     expect(text).toContain("• Мощность: 156 л.с. (115 кВт)");
     expect(text).toContain("• Крутящий момент: 236 Н·м");
-    expect(text).toContain("• Привод: передний — 2WD / FWD");
+    expect(text).toContain("• Привод: передний — FWD (2WD)");
     expect(text).toContain("• Трансмиссия: автоматическая");
     expect(text).toContain("• Дата выпуска: 2022.04");
     expect(text).toContain("• Пробег:");
-    expect(text).toContain("Комплектация RS:");
+    expect(text).toContain("**Комплектация RS:**");
     expect(text).toContain("> Адаптивный круиз-контроль");
-    expect(text.replace(/\u00a0/g, " ")).toContain("💳 Цена во Владивостоке под ключ: 1 520 000 руб.");
+    expect(text.replace(/\u00a0/g, " ")).toContain("**💳 Цена во Владивостоке под ключ: 1 520 000 руб.**");
     expect(text).toContain("19.05.2026");
+    expect(text).toContain("[⬇️ Оставить заявку](https://rideauto.ru/buy)");
+    expect(text).toContain("[📞 Связаться](https://t.me/nikits15)");
+    expect(text).toMatch(/\*\*🇰🇷 Корея\*\*\n\n\*\*🏎 /);
+    expect(text).toMatch(/• Двигатель:[\s\S]*\n• Привод:/);
   });
 });

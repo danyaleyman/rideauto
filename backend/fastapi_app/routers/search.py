@@ -168,8 +168,10 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
     d = inner if isinstance(inner, dict) else current
     use_clean = clean_read_enabled_for_key(str(car_id), default_enabled=bool(settings.clean_read_mode))
     identity = d.get("identity_clean") if use_clean and isinstance(d.get("identity_clean"), dict) else {}
-    mark = str(identity.get("mark") or d.get("mark") or "").strip()
-    model = str(identity.get("model") or d.get("model") or "").strip()
+    # Meili `brand`/`model` are English canonical (cars.mark / cars.model).
+    # identity_clean keeps Encar Korean names — filtering by them returns 0 hits.
+    mark = str(d.get("mark") or identity.get("mark") or "").strip()
+    model = str(d.get("model") or identity.get("model") or "").strip()
     if not mark:
         meta = SimilarMeta(
             car_id=car_id,
@@ -179,23 +181,56 @@ async def _similar_cars(request: Request, car_id: str, limit: int) -> SimilarRes
         )
         return SimilarResponse(result=[], meta=meta)
 
-    filt_parts = [f'brand = "{_meili_escape(mark)}"']
+    brand_short = mark.split("(", 1)[0].strip()
+    model_group = str(
+        identity.get("model_group")
+        or d.get("encar_model_group")
+        or d.get("modelGroupName")
+        or ""
+    ).strip()
+    filter_candidates: list[str] = []
     if model:
-        filt_parts.append(f'model = "{_meili_escape(model)}"')
-    filt = " AND ".join(filt_parts)
+        filter_candidates.append(
+            f'brand = "{_meili_escape(mark)}" AND model = "{_meili_escape(model)}"'
+        )
+    if model_group and model_group.lower() != model.lower():
+        filter_candidates.append(
+            f'brand = "{_meili_escape(mark)}" AND model = "{_meili_escape(model_group)}"'
+        )
+    if brand_short and brand_short.lower() != mark.lower():
+        if model:
+            filter_candidates.append(
+                f'brand = "{_meili_escape(brand_short)}" AND model = "{_meili_escape(model)}"'
+            )
+        filter_candidates.append(f'brand = "{_meili_escape(brand_short)}"')
+    filter_candidates.append(f'brand = "{_meili_escape(mark)}"')
+    # de-dupe while preserving order
+    seen_f: set[str] = set()
+    filters: list[str] = []
+    for f in filter_candidates:
+        if f not in seen_f:
+            seen_f.add(f)
+            filters.append(f)
 
     idx = meili.index(settings.meilisearch_index)
-    opts: Dict[str, Any] = {
-        "limit": min(100, max(limit + 8, 12)),
-        "offset": 0,
-        "sort": meilisearch_sort_list("date_new"),
-        "filter": filt,
-    }
+    search_limit = min(100, max(limit + 8, 12))
 
-    def _run_search():
-        return idx.search("", opts)
+    def _run_search(filt: str):
+        return idx.search(
+            "",
+            {
+                "limit": search_limit,
+                "offset": 0,
+                "sort": meilisearch_sort_list("date_new"),
+                "filter": filt,
+            },
+        )
 
-    ms = await run_in_thread_traced("meilisearch.similar_search", _run_search)
+    ms: Dict[str, Any] = {"hits": [], "estimatedTotalHits": 0}
+    for filt in filters:
+        ms = await run_in_thread_traced("meilisearch.similar_search", lambda f=filt: _run_search(f))
+        if ms.get("hits"):
+            break
     hits = ms.get("hits") or []
     seen: set[str] = set()
     ordered_ids: list[str] = []

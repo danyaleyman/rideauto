@@ -1,0 +1,11 @@
+[Unit]
+Description=RideAuto Telegram channel: 2 Korea + 2 China/day (10/13/16/19 Asia/Yekaterinburg)
+
+[Timer]
+# Host TZ is Europe/Moscow. Force UTC: 05/08/11/14 UTC = 10/13/16/19 YEKT.
+OnCalendar=*-*-* 05,08,11,14:00:00 UTC
+Persistent=true
+Unit=rideauto-telegram-channel.service
+
+[Install]
+WantedBy=timers.target

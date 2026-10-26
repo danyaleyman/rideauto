@@ -594,17 +594,29 @@ function SelectField({
   );
 }
 
-export function BuyCalculator() {
+export type BuyCalculatorPreset = {
+  engineType?: EngineType;
+  hybridType?: HybridType;
+  currency?: Currency;
+  price?: string;
+  volume?: string;
+  hpSingle?: string;
+  hpIce?: string;
+  hpEd?: string;
+  ageRange?: AgeRange;
+};
+
+export function BuyCalculator({ preset }: { preset?: BuyCalculatorPreset } = {}) {
   const { t, locale } = useLocaleContext();
-  const [engineType, setEngineType] = useState<EngineType>("petrol");
-  const [hybridType, setHybridType] = useState<HybridType>("none");
-  const [currency, setCurrency] = useState<Currency>("USD");
-  const [price, setPrice] = useState("");
-  const [volume, setVolume] = useState("");
-  const [hpSingle, setHpSingle] = useState("");
-  const [hpIce, setHpIce] = useState("");
-  const [hpEd, setHpEd] = useState("");
-  const [ageRange, setAgeRange] = useState<AgeRange>("5+");
+  const [engineType, setEngineType] = useState<EngineType>(preset?.engineType ?? "petrol");
+  const [hybridType, setHybridType] = useState<HybridType>(preset?.hybridType ?? "none");
+  const [currency, setCurrency] = useState<Currency>(preset?.currency ?? "USD");
+  const [price, setPrice] = useState(preset?.price ?? "");
+  const [volume, setVolume] = useState(preset?.volume ?? "");
+  const [hpSingle, setHpSingle] = useState(preset?.hpSingle ?? "");
+  const [hpIce, setHpIce] = useState(preset?.hpIce ?? "");
+  const [hpEd, setHpEd] = useState(preset?.hpEd ?? "");
+  const [ageRange, setAgeRange] = useState<AgeRange>(preset?.ageRange ?? "5+");
   const [purpose, setPurpose] = useState<Purpose>("personal");
   const [calcNonce, setCalcNonce] = useState(0);
   const [cbrRates, setCbrRates] = useState<Record<Currency, CbrRate>>(FALLBACK_RATES);
@@ -689,8 +701,12 @@ export function BuyCalculator() {
     <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h3 className="text-xl font-semibold tracking-tight text-foreground">{t("buy.calc.title")}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{t("buy.calc.subtitle")}</p>
+          {preset ? null : (
+            <h3 className="text-xl font-semibold tracking-tight text-foreground">{t("buy.calc.title")}</h3>
+          )}
+          <p className={preset ? "text-sm text-muted-foreground" : "mt-1 text-sm text-muted-foreground"}>
+            {t("buy.calc.subtitle")}
+          </p>
         </div>
         <span className="rounded-full border border-border/70 bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
           {rateDateBadge}

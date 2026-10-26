@@ -22,6 +22,21 @@ def test_resync_when_por_but_snapshot_is_full_customs():
     assert encar_json_suggests_pricing_resync(d) is True
 
 
+def test_resync_when_land_only_but_snapshot_is_full_customs():
+    d = {
+        "source": "encar",
+        "price_won": 20_000_000,
+        "engine_type": "gasoline",
+        "power_hp": 100,
+        "displacement": 2000,
+        "pricing_clean": {
+            "pricing_tier": "korea_land_only",
+            "pricing_rules_version": PRICING_RULES_VERSION,
+        },
+    }
+    assert encar_json_suggests_pricing_resync(d) is True
+
+
 def test_no_resync_when_aligned_full_customs():
     d = {
         "source": "encar",

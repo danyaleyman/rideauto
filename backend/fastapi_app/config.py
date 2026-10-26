@@ -187,7 +187,7 @@ class Settings(BaseSettings):
         description="WRA_HEALTH_PROBE_INTERVAL_SEC — фоновый deep health + метрики (0=выкл)",
     )
     listing_admin_emails: str = Field(
-        default="nikita-yudin-1998@mail.ru,danyaleyman@yandex.ru",
+        default="nikita-yudin-1998@mail.ru,danyaleyman@yandex.ru,danyaleyman@icloud.com",
         description=(
             "WRA_LISTING_ADMIN_EMAILS — email через запятую для админ-функций листинга "
             "(должен совпадать с web car-admin-access)"
@@ -275,6 +275,57 @@ class Settings(BaseSettings):
     lead_telegram_always: bool = Field(
         default=False,
         description="WRA_LEAD_TELEGRAM_ALWAYS=1 — слать в Telegram даже при успешном email",
+    )
+    channel_telegram_bot_token: Optional[str] = Field(
+        default=None,
+        description=(
+            "WRA_CHANNEL_TELEGRAM_BOT_TOKEN — бот канала @worldrideauto; "
+            "если пусто, берётся WRA_LEAD_TELEGRAM_BOT_TOKEN"
+        ),
+    )
+    channel_telegram_chat_id: Optional[str] = Field(
+        default="@worldrideauto",
+        description="WRA_CHANNEL_TELEGRAM_CHAT_ID — @channel или числовой id канала",
+    )
+    channel_telegram_enabled: bool = Field(
+        default=True,
+        description="WRA_CHANNEL_TELEGRAM_ENABLED=0 — выключить автопостинг и ручную кнопку",
+    )
+    channel_telegram_daily_limit: int = Field(
+        default=4,
+        ge=1,
+        le=12,
+        description="WRA_CHANNEL_TELEGRAM_DAILY_LIMIT — суммарный лимит автопостов за день VLAT",
+    )
+    channel_telegram_korea_daily_limit: int = Field(
+        default=2,
+        ge=0,
+        le=8,
+        description="WRA_CHANNEL_TELEGRAM_KOREA_DAILY_LIMIT — автопостов Корея за день VLAT",
+    )
+    channel_telegram_china_daily_limit: int = Field(
+        default=2,
+        ge=0,
+        le=8,
+        description="WRA_CHANNEL_TELEGRAM_CHINA_DAILY_LIMIT — автопостов Китай за день VLAT",
+    )
+    channel_telegram_min_photos: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="WRA_CHANNEL_TELEGRAM_MIN_PHOTOS — минимум фото для автопостинга",
+    )
+    channel_telegram_buy_url: str = Field(
+        default="https://rideauto.ru/buy",
+        description="WRA_CHANNEL_TELEGRAM_BUY_URL — CTA «Оставить заявку»",
+    )
+    channel_telegram_manager_url: str = Field(
+        default="https://t.me/nikits15",
+        description="WRA_CHANNEL_TELEGRAM_MANAGER_URL — CTA «Связаться с менеджером»",
+    )
+    channel_telegram_site_url: str = Field(
+        default="",
+        description="WRA_CHANNEL_TELEGRAM_SITE_URL — публичный origin для прокси фото (пусто = magic-link base)",
     )
 
     # --- Email magic link auth ---

@@ -29,13 +29,15 @@ def _sort_encar_image_url_list(urls: List[str]) -> List[str]:
 
 def _h_image_semantic_bucket(h: dict) -> int:
     """
-    Грубая группа для Encar h_images: сначала экстерьер, затем прочие кадры, интерьер, диагностика/хвост.
-    0=exterior 1=unknown 2=interior 3=diagnosis
+    Группа кадра Encar. Лицо машины раньше кормы, иначе SSR/карточка
+    часто открывается задней четвертью.
+    0=front 1=side 2=other exterior 3=rear 4=unknown 5=interior 6=diagnosis
     """
-    t = f"{(h or {}).get('type') or ''} {(h or {}).get('desc') or ''}".lower()
+    path = str((h or {}).get("path") or "")
+    t = f"{(h or {}).get('type') or ''} {(h or {}).get('desc') or ''} {path}".lower()
     ty = str((h or {}).get("type") or "").strip().upper()
     if ty == "DIAG2" or "diag2" in t or "underbody" in t or "하부" in t:
-        return 3
+        return 6
     interior_markers = (
         "interior",
         "inside",
@@ -47,20 +49,26 @@ def _h_image_semantic_bucket(h: dict) -> int:
         "in_room",
     )
     if any(m in t for m in interior_markers):
-        return 2
+        return 5
+    front_markers = ("전면", "정면", "front", "앞면")
+    if any(m in t for m in front_markers):
+        return 0
+    side_markers = ("측면", "side", "옆")
+    if any(m in t for m in side_markers):
+        return 1
+    rear_markers = ("후면", "후방", "rear", "back", "뒤쪽")
+    if any(m in t for m in rear_markers):
+        return 3
     exterior_markers = (
         "exterior",
         "outside",
         "외관",
-        "전면",
-        "측면",
-        "후면",
         "外观",
         "out_side",
     )
     if any(m in t for m in exterior_markers):
-        return 0
-    return 1
+        return 2
+    return 4
 
 
 def _sort_h_images_list_entries(items: List[dict]) -> List[dict]:

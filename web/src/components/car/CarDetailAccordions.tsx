@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check } from "lucide-react";
 import {
@@ -14,10 +14,12 @@ import {
   asStr,
   cleanScalarText,
   buildNormalizedCarTitle,
+  displayKoreaCity,
   polishChinaTrimLabel,
   formatHumanDate,
   formatKm,
   normalizeFuelLabel,
+  pickRegYearMonthDash,
   pickRegYearMonthDisplay,
   getPath,
   joinUniqueSpecs,
@@ -25,8 +27,8 @@ import {
   translateKoToRuText,
 } from "@/lib/car-detail-data";
 import {
-  collectSelectedEncarOptions,
-  displayEncarStandardOption,
+  labelsFromEncarChoicePhotos,
+  labelsFromEncarStandardCodes,
 } from "@/lib/encar-options-display";
 import { classifyAutotraderOptionGroup } from "@/lib/autotrader-options-display";
 import { classifyChinaOptionGroup, displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
@@ -41,6 +43,15 @@ import { useLocaleContext } from "@/components/LocaleProvider";
 import type { AppLocale, TParams } from "@/lib/i18n";
 import { displayColor, displayDriveType, displayTransmission } from "@/lib/vehicle-spec-locale";
 import { SegmentedControl, SegmentedControlScroll } from "@/components/ui/segmented-control";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type TI18n = (path: string, params?: TParams) => string;
 const CarAccI18nCtx = createContext<{ t: TI18n; locale: AppLocale } | null>(null);
@@ -64,11 +75,23 @@ function localizeValue(value: string, tr: TI18n): string {
   return t;
 }
 
-function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
-  const { t } = useCarAccI18n();
-  const filtered = rows
-    .map((r) => ({ label: r.label, value: cleanScalarText(r.value) ?? "" }))
+type SpecRow = { label: string; value: string; tone?: "ok" | "warn" | "plain" };
+
+function filterSpecRows(rows: SpecRow[]): SpecRow[] {
+  return rows
+    .map((r) => ({ ...r, value: cleanScalarText(r.value) ?? "" }))
     .filter((r) => r.value.trim());
+}
+
+function specValueClass(tone: SpecRow["tone"] | undefined): string {
+  if (tone === "ok") return "text-end text-emerald-700 dark:text-emerald-400";
+  if (tone === "warn") return "text-end font-medium text-amber-800 dark:text-amber-200";
+  return "text-end font-medium leading-snug text-foreground [overflow-wrap:anywhere]";
+}
+
+function SpecGrid({ rows }: { rows: SpecRow[] }) {
+  const { t } = useCarAccI18n();
+  const filtered = filterSpecRows(rows);
   if (!filtered.length) {
     return <p className="text-sm text-muted-foreground">{t("car.accordions.noDataDot")}</p>;
   }
@@ -80,13 +103,83 @@ function SpecGrid({ rows }: { rows: { label: string; value: string }[] }) {
           className="grid grid-cols-[minmax(0,44%)_minmax(0,1fr)] gap-3 border-b border-border/70 py-2.5 text-sm last:border-b-0 md:[&:nth-last-child(2)]:border-b-0"
         >
           <dt className="text-muted-foreground">{localizeLabel(r.label)}</dt>
-          <dd className="font-medium leading-snug text-foreground [overflow-wrap:anywhere]">
-            {localizeValue(r.value, t)}
-          </dd>
+          <dd className={specValueClass(r.tone)}>{localizeValue(r.value, t)}</dd>
         </div>
       ))}
     </dl>
   );
+}
+
+/** Одна колонка: подпись слева, значение справа — как у конкурентов по Корее. */
+function SpecStack({ rows }: { rows: SpecRow[] }) {
+  const { t } = useCarAccI18n();
+  const filtered = filterSpecRows(rows);
+  if (!filtered.length) {
+    return <p className="text-sm text-muted-foreground">{t("car.accordions.noDataDot")}</p>;
+  }
+  return (
+    <dl>
+      {filtered.map((r, idx) => (
+        <div
+          key={`${r.label}-${idx}`}
+          className="flex items-baseline justify-between gap-6 border-b border-border/70 py-3 text-sm last:border-b-0"
+        >
+          <dt className="shrink-0 text-muted-foreground">{localizeLabel(r.label)}</dt>
+          <dd className={specValueClass(r.tone)}>{localizeValue(r.value, t)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function DocumentDialog({
+  title,
+  description,
+  triggerLabel,
+  children,
+}: {
+  title: string;
+  description?: string;
+  triggerLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="h-11 w-full rounded-full">
+          {triggerLabel}
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className="flex max-h-[min(92vh,48rem)] w-full max-w-[calc(100%-1.5rem)] flex-col gap-4 overflow-hidden sm:max-w-xl"
+        showCloseButton
+      >
+        <DialogHeader className="shrink-0 pe-8">
+          <DialogTitle>{title}</DialogTitle>
+          {description ? <DialogDescription>{description}</DialogDescription> : null}
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+          {children}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function typedTitle(v: unknown): string | null {
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    return asStr(o.title) ?? asStr(o.name) ?? asStr(o.label);
+  }
+  return asStr(v);
+}
+
+function ynCheckLabel(v: unknown, passed: string, failed: string): string | null {
+  const raw = String(v ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (["y", "yes", "true", "1", "ok", "pass"].includes(raw)) return passed;
+  if (["n", "no", "false", "0", "fail"].includes(raw)) return failed;
+  return asStr(v);
 }
 
 function isNegativeFlag(v: unknown): boolean {
@@ -355,51 +448,95 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
     return formatPriceLabel(n * krwRubRateSafe);
   };
 
-  const rows: { label: string; value: string }[] = [];
-  const add = (label: string, v: unknown, fmt?: (x: unknown) => string | null) => {
+  const rows: SpecRow[] = [];
+  const add = (
+    label: string,
+    v: unknown,
+    fmt?: (x: unknown) => string | null,
+    tone?: SpecRow["tone"],
+  ) => {
     const s = fmt ? fmt(v) : asStr(v);
-    if (s) rows.push({ label, value: s });
+    if (s) rows.push({ label, value: s, tone });
   };
   const asCount = (v: unknown): number => {
     const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/\s/g, ""));
     return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
   };
   const myAccCnt = asCount(ro.myAccidentCnt);
+  const otherAccCnt = asCount(ro.otherAccidentCnt);
   const totalLossCnt = asCount(ro.totalLossCnt);
   const floodTotalCnt = asCount(ro.floodTotalLossCnt);
   const floodPartCnt = asCount(ro.floodPartLossCnt);
   const theftCnt = asCount(ro.robberCnt);
+  const ownerCnt = asCount(ro.ownerChangeCnt);
+  const plateCnt = asCount(ro.carNoChangeCnt);
+  const gov = asCount(ro.government);
+  const commercial = asCount(ro.business);
 
-  add(t("car.accordions.insMyAccidents"), String(myAccCnt));
-  add(t("car.accordions.insMyPayout"), ro.myAccidentCost, (v) => {
-    const n = asCount(v);
-    if (n <= 0) return t("car.accordions.none");
-    return rubFromKrw(v);
-  });
+  add(t("car.accordions.insMyAccidents"), String(myAccCnt), undefined, myAccCnt > 0 ? "warn" : "ok");
+  add(t("car.accordions.insOtherAccidents"), String(otherAccCnt), undefined, otherAccCnt > 0 ? "warn" : "ok");
   add(
-    t("car.accordions.insTotalLoss"),
-    totalLossCnt > 0 ? t("car.accordions.yesCount", { count: totalLossCnt }) : t("car.accordions.none"),
+    t("car.accordions.insOwnerChanges"),
+    ownerCnt > 0 ? String(ownerCnt) : t("car.accordions.none"),
+    undefined,
+    ownerCnt > 0 ? "plain" : "ok",
+  );
+  add(
+    t("car.accordions.insTheft"),
+    theftCnt > 0 ? t("car.accordions.yesTheft", { count: theftCnt }) : t("car.accordions.none"),
+    undefined,
+    theftCnt > 0 ? "warn" : "ok",
   );
   add(
     t("car.accordions.insFlood"),
     floodTotalCnt > 0 || floodPartCnt > 0
       ? t("car.accordions.flood", { total: floodTotalCnt, partial: floodPartCnt })
       : t("car.accordions.none"),
+    undefined,
+    floodTotalCnt > 0 || floodPartCnt > 0 ? "warn" : "ok",
   );
   add(
-    t("car.accordions.insTheft"),
-    theftCnt > 0 ? t("car.accordions.yesTheft", { count: theftCnt }) : t("car.accordions.none"),
+    t("car.accordions.insTotalLoss"),
+    totalLossCnt > 0 ? t("car.accordions.yesCount", { count: totalLossCnt }) : t("car.accordions.none"),
+    undefined,
+    totalLossCnt > 0 ? "warn" : "ok",
   );
-  add(t("car.accordions.insRecall"), ro.recall, (v) => {
-    const raw = translateKoToRuText(String(v ?? "")).trim();
-    if (!raw || raw === "0" || raw.toLowerCase() === "none") return t("car.accordions.none");
-    return raw;
+  add(
+    t("car.accordions.insGovernment"),
+    gov > 0 ? t("car.accordions.yes") : t("car.accordions.none"),
+    undefined,
+    gov > 0 ? "plain" : "ok",
+  );
+  add(
+    t("car.accordions.insCommercial"),
+    commercial > 0 ? t("car.accordions.yes") : t("car.accordions.none"),
+    undefined,
+    commercial > 0 ? "plain" : "ok",
+  );
+  add(
+    t("car.accordions.insPlateChanges"),
+    plateCnt > 0 ? String(plateCnt) : t("car.accordions.none"),
+    undefined,
+    plateCnt > 0 ? "plain" : "ok",
+  );
+  add(t("car.accordions.insMyPayout"), ro.myAccidentCost, (v) => {
+    const n = asCount(v);
+    if (n <= 0) return t("car.accordions.none");
+    return rubFromKrw(v);
   });
-  add(t("car.accordions.insRecallStatus"), ro.recallFullFillTypes, (v) => {
-    const raw = translateKoToRuText(String(v ?? "")).trim();
-    if (!raw || raw === "0" || raw.toLowerCase() === "none") return t("car.accordions.noDataShort");
-    return raw;
+  add(t("car.accordions.insOtherPayout"), ro.otherAccidentCost, (v) => {
+    const n = asCount(v);
+    if (n <= 0) return t("car.accordions.none");
+    return rubFromKrw(v);
   });
+  const recallRaw = translateKoToRuText(String(ro.recall ?? "")).trim();
+  if (recallRaw && recallRaw !== "0" && recallRaw.toLowerCase() !== "none") {
+    add(t("car.accordions.insRecall"), recallRaw);
+    const recallStatus = translateKoToRuText(String(ro.recallFullFillTypes ?? "")).trim();
+    if (recallStatus && recallStatus !== "0" && recallStatus.toLowerCase() !== "none") {
+      add(t("car.accordions.insRecallStatus"), recallStatus);
+    }
+  }
 
   const accidents = ro.accidents;
   const ownerChanges = ro.ownerChanges;
@@ -417,8 +554,8 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
   }, [hasOtherCases, insuranceTab]);
 
   return (
-    <div className="space-y-4">
-      <SpecGrid rows={rows} />
+    <div className="space-y-5">
+      <SpecStack rows={rows} />
       {ownersCount > 0 ? (
         <p className="text-sm">
           <span className="text-muted-foreground">{t("car.accordions.ownersLabel")}: </span>
@@ -427,6 +564,7 @@ function RecordOpenSection({ ro }: { ro: Record<string, unknown> }) {
       ) : null}
       {Array.isArray(accidents) && accidents.length > 0 ? (
         <div className="space-y-3">
+          <h4 className="text-sm font-semibold tracking-tight">{t("car.accordions.inspPayouts")}</h4>
           {hasOtherCases ? (
             <SegmentedControlScroll
               value={insuranceTab}
@@ -503,28 +641,11 @@ function collectListingEquipmentEntries(
   }
 
   const sp = getPath(extra, ["sellingpoint"]) as Record<string, unknown> | undefined;
-  const uniquePhotos = getPath(sp, ["uniqueOptionPhotos"]);
   const choicePhotos = getPath(sp, ["choiceOptionPhotos"]);
-  const selectedOptions = collectSelectedEncarOptions(uniquePhotos, choicePhotos, extra, d);
-  const selectedLabels: string[] = [];
-  {
-    const seen = new Set<string>();
-    for (const row of selectedOptions) {
-      const lb = cleanScalarText(row.label);
-      if (!lb || /^Опция\s+\d+$/i.test(lb) || seen.has(lb)) continue;
-      seen.add(lb);
-      selectedLabels.push(lb);
-    }
-    for (const c of codes) {
-      const label = cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d));
-      if (!label || /^Опция\s+\d+$/i.test(label) || seen.has(label)) continue;
-      seen.add(label);
-      selectedLabels.push(label);
-    }
-  }
-  const staticCodesAll = codes
-    .map((c) => cleanScalarText(displayEncarStandardOption(c, uniquePhotos, choicePhotos, extra, d)))
-    .filter((x): x is string => Boolean(x));
+  const encarLabels = [
+    ...labelsFromEncarStandardCodes(codes),
+    ...labelsFromEncarChoicePhotos(choicePhotos),
+  ];
   const autotraderLabels = collectAutotraderFeatureLabels(d);
 
   const seen = new Set<string>();
@@ -536,8 +657,7 @@ function collectListingEquipmentEntries(
     out.push({ label: cleaned, raw });
   };
   for (const row of chinaRecommended) push(row.label, row.raw);
-  for (const v of selectedLabels) push(v, v);
-  for (const v of staticCodesAll) push(v, v);
+  for (const v of encarLabels) push(v, v);
   for (const v of autotraderLabels) push(v, v);
   return out;
 }
@@ -551,7 +671,6 @@ function listingHasEquipment(
 
 function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Record<string, unknown> | undefined }) {
   const { t } = useCarAccI18n();
-  const reduceMotion = useReducedMotion();
   const allLabels = useMemo(() => collectListingEquipmentEntries(d, extra), [d, extra]);
   const hasAnyRenderedOptions = allLabels.length > 0;
 
@@ -584,46 +703,29 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
     ];
     return base.filter((g) => grouped[g.key].length > 0);
   }, [grouped, t]);
-  const [activeGroup, setActiveGroup] = useState<OptGroupKey>("assist");
-  useEffect(() => {
-    if (!groupMeta.length) return;
-    if (!groupMeta.some((g) => g.key === activeGroup)) setActiveGroup(groupMeta[0].key);
-  }, [groupMeta, activeGroup]);
-  const activeItems = grouped[activeGroup] ?? [];
-
   return (
     <div className="space-y-5">
       {!hasAnyRenderedOptions ? (
         <p className="text-sm text-muted-foreground">{t("car.accordions.equipNone")}</p>
       ) : (
-        <div className="space-y-3">
-          {groupMeta.length > 1 ? (
-            <SegmentedControlScroll
-              value={activeGroup}
-              onChange={setActiveGroup}
-              items={groupMeta.map((g) => ({ value: g.key, label: g.title }))}
-              aria-label={t("car.accordions.equipGroupsAria")}
-            />
-          ) : null}
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={activeGroup}
-              initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
+        <div className="space-y-6">
+          {groupMeta.map((g) => (
+            <div key={g.key}>
+              {groupMeta.length > 1 ? (
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {g.title}
+                </h3>
+              ) : null}
               <ul className="grid grid-cols-1 gap-x-8 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                {activeItems.map((label, i) => (
-                  <li key={`${activeGroup}-${i}`} className="flex items-start gap-2 text-sm leading-snug">
+                {grouped[g.key].map((label, i) => (
+                  <li key={`${g.key}-${i}`} className="flex items-start gap-2 text-sm leading-snug">
                     <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                     <span className="min-w-0">{label}</span>
                   </li>
                 ))}
               </ul>
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -677,9 +779,13 @@ function toStructuredDiagRows(
 export function CarDetailAccordions({
   data,
   diagnosisPhotosCount,
+  catalogCreatedAt,
+  sourceUpdatedAt,
 }: {
   data: Record<string, unknown>;
   diagnosisPhotosCount: number;
+  catalogCreatedAt?: string | null;
+  sourceUpdatedAt?: string | null;
 }) {
   const { t, locale } = useLocaleContext();
   const i18n = useMemo(() => ({ t, locale }), [t, locale]);
@@ -896,6 +1002,272 @@ export function CarDetailAccordions({
       setActiveDiagTab(diagSections[0].key);
     }
   }, [diagSections, activeDiagTab]);
+
+  const plate =
+    asStr(recordOpen?.carNo) ??
+    asStr(getPath(detail, ["carNo"])) ??
+    asStr((data as Record<string, unknown>).carNo);
+  const listedAt =
+    formatHumanDate((data as Record<string, unknown>).offer_created) ?? formatHumanDate(catalogCreatedAt);
+  const updatedAt = formatHumanDate(sourceUpdatedAt);
+  const ccRaw = Number(String((data as Record<string, unknown>).displacement ?? "").replace(/\s/g, ""));
+  const displacementKorea =
+    Number.isFinite(ccRaw) && ccRaw >= 100
+      ? t("car.accordions.cc", { n: Math.round(ccRaw).toLocaleString("ru-RU") })
+      : displacementText;
+
+  const koreaFactRows: SpecRow[] = [];
+  const pushKorea = (label: string, v: string | null, tone?: SpecRow["tone"]) => {
+    if (v) koreaFactRows.push({ label, value: v, tone });
+  };
+  pushKorea(t("car.accordions.fieldRegDate"), pickRegYearMonthDash(data as Record<string, unknown>));
+  pushKorea(t("car.accordions.fieldMileage"), mileage);
+  pushKorea(t("car.accordions.fieldTransmission"), transmission);
+  pushKorea(t("car.accordions.fieldFuel"), normalizeFuelLabel(data.engine_type));
+  pushKorea(t("car.accordions.fieldDisplacement"), displacementKorea);
+  pushKorea(t("car.accordions.fieldPower"), power);
+  pushKorea(
+    t("car.accordions.fieldColor"),
+    (() => {
+      const cr = asStr(data.color_ru);
+      if (cr) return cr;
+      const c = asStr(data.color);
+      return c ? displayColor(locale, c) ?? c : null;
+    })(),
+  );
+  pushKorea(t("car.accordions.fieldPlate"), plate);
+  pushKorea("VIN", vin);
+  pushKorea(t("car.accordions.fieldCity"), displayKoreaCity(data.address));
+  pushKorea(t("car.accordions.fieldListed"), listedAt);
+  pushKorea(t("car.accordions.fieldUpdated"), updatedAt);
+  pushKorea(t("car.accordions.fieldDrive"), drive);
+  pushKorea(t("car.accordions.fieldSeats"), asStr(data.seatCount));
+
+  const floodFlag =
+    getPath(detail, ["waterlog"]) ??
+    getPath(inspectionStructured, ["basicInfo", "Следы воды"]);
+  const flagRow = (label: string, v: unknown): SpecRow => {
+    const neg = isNegativeFlag(v);
+    return {
+      label,
+      value: neg ? t("car.accordions.none") : t("car.accordions.yes"),
+      tone: neg ? "ok" : "warn",
+    };
+  };
+  const inspectionHeadlineRows: SpecRow[] = [
+    flagRow(t("car.accordions.fieldAccident"), accident),
+    flagRow(t("car.accordions.fieldSimpleRepair"), simpleRepair),
+    flagRow(t("car.accordions.fieldFloodFlag"), floodFlag),
+  ];
+  if (mileage) inspectionHeadlineRows.push({ label: t("car.accordions.fieldMileage"), value: mileage });
+  const firstReg = formatHumanDate(getPath(detail, ["firstRegistrationDate"]));
+  if (pickRegYearMonthDash(data as Record<string, unknown>)) {
+    inspectionHeadlineRows.push({
+      label: t("car.accordions.fieldRegDate"),
+      value: pickRegYearMonthDash(data as Record<string, unknown>)!,
+    });
+  }
+  if (firstReg) {
+    inspectionHeadlineRows.push({ label: t("car.accordions.fieldFirstReg"), value: firstReg });
+  }
+
+  const validityStart = formatHumanDate(getPath(detail, ["validityStartDate"]));
+  const validityEnd = formatHumanDate(getPath(detail, ["validityEndDate"]));
+  const transFromProtocol = typedTitle(getPath(detail, ["transmissionType"]));
+  const transProtocolRu = transFromProtocol
+    ? /[а-яёА-ЯЁ]/.test(transFromProtocol)
+      ? transFromProtocol
+      : displayTransmission(locale, transFromProtocol) ?? translateKoToRuText(transFromProtocol)
+    : null;
+  const co = asStr(getPath(detail, ["coout"]));
+  const hc = asStr(getPath(detail, ["hcout"]));
+  const inspectionVehicleRows: SpecRow[] = [];
+  const pushVeh = (label: string, v: string | null, tone?: SpecRow["tone"]) => {
+    if (v) inspectionVehicleRows.push({ label, value: v, tone });
+  };
+  pushVeh(t("car.accordions.fieldRecordNo"), asStr(getPath(detail, ["recordNo"])));
+  pushVeh(t("car.accordions.fieldModelYear"), asStr(getPath(detail, ["modelYear"])));
+  if (validityStart && validityEnd) {
+    pushVeh(t("car.accordions.fieldValidity"), `${validityStart} — ${validityEnd}`);
+  } else {
+    pushVeh(t("car.accordions.fieldValidity"), validityStart ?? validityEnd);
+  }
+  pushVeh(t("car.accordions.fieldTransmission"), transProtocolRu ?? transmission);
+  pushVeh("VIN", vin);
+  pushVeh(
+    t("car.accordions.fieldWarranty"),
+    (() => {
+      const raw = typedTitle(getPath(detail, ["guarantyType"]));
+      return raw ? translateKoToRuText(raw) : null;
+    })(),
+  );
+  pushVeh(t("car.accordions.fieldEngineType"), asStr(getPath(detail, ["motorType"])));
+  pushVeh(
+    t("car.accordions.fieldBodyState"),
+    (() => {
+      const raw = typedTitle(getPath(detail, ["boardStateType"]));
+      return raw ? translateKoToRuText(raw) : null;
+    })(),
+  );
+  pushVeh(
+    t("car.accordions.fieldCarState"),
+    (() => {
+      const raw = typedTitle(getPath(detail, ["carStateType"]));
+      return raw ? translateKoToRuText(raw) : null;
+    })(),
+  );
+  if (co || hc) {
+    pushVeh(t("car.accordions.fieldEmissions"), [co && `CO ${co}`, hc && `HC ${hc}`].filter(Boolean).join(" / "));
+  }
+  pushVeh(
+    t("car.accordions.fieldTuning"),
+    (() => {
+      const raw = getPath(detail, ["tuning"]);
+      if (raw == null || raw === "") return null;
+      return isNegativeFlag(raw) ? t("car.accordions.none") : t("car.accordions.yes");
+    })(),
+    isNegativeFlag(getPath(detail, ["tuning"])) ? "ok" : "warn",
+  );
+  pushVeh(t("car.accordions.fieldIssueDate"), formatHumanDate(getPath(detail, ["issueDate"])));
+  pushVeh(
+    t("car.accordions.fieldEngineCheck"),
+    ynCheckLabel(getPath(detail, ["engineCheck"]), t("car.accordions.checkPassed"), t("car.accordions.checkFailed")),
+  );
+  pushVeh(
+    t("car.accordions.fieldTransCheck"),
+    ynCheckLabel(getPath(detail, ["trnsCheck"]), t("car.accordions.checkPassed"), t("car.accordions.checkFailed")),
+  );
+  pushVeh(t("car.accordions.fieldProtocolVer"), asStr(getPath(detail, ["version"])));
+  pushVeh(
+    t("car.accordions.fieldInspector"),
+    asStr(getPath(detail, ["comments"])) ?? asStr(getPath(detail, ["inspName"])),
+  );
+
+  const showInspection = Boolean(master || showDiagnosis || showBody);
+  const diagnosisPanel =
+    showDiagnosis && activeDiag ? (
+      <div className="space-y-3">
+        <SegmentedControlScroll
+          value={activeDiagTab}
+          onChange={setActiveDiagTab}
+          items={diagSections.map((section) => ({
+            value: section.key,
+            label: section.label,
+          }))}
+          aria-label={t("car.accordions.diagSectionsAria")}
+        />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeDiag.key}
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+            className="overflow-hidden"
+          >
+            <SpecStack rows={activeDiag.rows} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    ) : null;
+
+  const bodyPanel = showBody ? (
+    <BodyConditionSection
+      outers={outers}
+      bodyPanels={bodyPanels}
+      bodyChanged={bodyChanged}
+      paintPartTypes={paintPartTypes}
+      seriousTypes={seriousTypes}
+      diagnosisItems={diagnosisItems}
+      accident={accident}
+      simpleRepair={simpleRepair}
+    />
+  ) : null;
+
+  if (isKoreaListing) {
+    return (
+      <CarAccI18nCtx.Provider value={i18n}>
+        <div className="space-y-8">
+          <section>
+            <h2 className="font-heading text-base font-semibold tracking-tight">
+              {t("car.accordions.sectionFacts")}
+            </h2>
+            <div className="mt-3">
+              <SpecStack rows={koreaFactRows} />
+            </div>
+            {showInsurance || showInspection ? (
+              <div
+                className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2"
+                role="group"
+                aria-label={t("car.accordions.documentsAria")}
+              >
+                {showInsurance && recordOpen ? (
+                  <DocumentDialog
+                    title={t("car.accordions.openInsurance")}
+                    description={t("car.accordions.insuranceIntro")}
+                    triggerLabel={t("car.accordions.openInsurance")}
+                  >
+                    <RecordOpenSection ro={recordOpen} />
+                  </DocumentDialog>
+                ) : null}
+                {showInspection ? (
+                  <DocumentDialog
+                    title={t("car.accordions.openInspection")}
+                    description={t("car.accordions.inspectionIntro")}
+                    triggerLabel={t("car.accordions.openInspection")}
+                  >
+                    <div className="space-y-6">
+                      <section>
+                        <h3 className="mb-2 text-sm font-semibold tracking-tight">
+                          {t("car.accordions.inspHeadline")}
+                        </h3>
+                        <SpecStack rows={inspectionHeadlineRows} />
+                      </section>
+                      {inspectionVehicleRows.length ? (
+                        <section>
+                          <h3 className="mb-2 text-sm font-semibold tracking-tight">
+                            {t("car.accordions.inspVehicle")}
+                          </h3>
+                          <SpecStack rows={inspectionVehicleRows} />
+                        </section>
+                      ) : null}
+                      {bodyPanel ? (
+                        <section>
+                          <h3 className="mb-2 text-sm font-semibold tracking-tight">
+                            {t("car.accordions.sectionBody")}
+                          </h3>
+                          {bodyPanel}
+                        </section>
+                      ) : null}
+                      {diagnosisPanel ? (
+                        <section>
+                          <h3 className="mb-2 text-sm font-semibold tracking-tight">
+                            {t("car.accordions.inspDiagnostics")}
+                          </h3>
+                          {diagnosisPanel}
+                        </section>
+                      ) : null}
+                    </div>
+                  </DocumentDialog>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+
+          {showEquipment ? (
+            <section>
+              <h2 className="font-heading text-base font-semibold tracking-tight">
+                {t("car.accordions.sectionEquipment")}
+              </h2>
+              <div className="mt-4">
+                <EquipmentSection d={data} extra={extra} />
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </CarAccI18nCtx.Provider>
+    );
+  }
 
   return (
     <CarAccI18nCtx.Provider value={i18n}>

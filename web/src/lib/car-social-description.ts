@@ -5,10 +5,19 @@ import {
   normalizeFuelLabel,
   pickRegYearMonthDisplay,
 } from "@/lib/car-detail-data";
-import { getCarPageAbsoluteUrl } from "@/lib/car-url";
 import { collectCarEquipmentLabels } from "@/lib/car-equipment-labels";
 import { displayDriveTypeRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru";
 import { parseListingCalendarYear } from "@/lib/catalog-client-utils";
+
+export const CHANNEL_BUY_URL = "https://rideauto.ru/buy";
+export const CHANNEL_MANAGER_URL = "https://t.me/nikits15";
+
+const MARKET_HEADING: Record<string, string> = {
+  korea: "🇰🇷 Корея",
+  china: "🇨🇳 Китай",
+  usa: "🇺🇸 США",
+  japan: "🇯🇵 Япония",
+};
 
 export type CarSocialDescriptionInput = {
   carId: string;
@@ -17,7 +26,19 @@ export type CarSocialDescriptionInput = {
   priceRub: number | null;
   priceOnRequest?: boolean;
   publishedAt?: string | null;
+  market?: string | null;
 };
+
+export function socialMarketFromSource(source: unknown, fallbackMarket?: string | null): string {
+  const raw = String(source ?? fallbackMarket ?? "")
+    .trim()
+    .toLowerCase();
+  if (raw.includes("che168") || raw === "china") return "china";
+  if (raw.includes("autotrader") || raw === "usa" || raw === "us") return "usa";
+  if (raw.includes("ussai") || raw.includes("japan") || raw === "jp") return "japan";
+  if (raw.includes("encar") || raw === "korea" || raw === "kr") return "korea";
+  return fallbackMarket?.trim().toLowerCase() || "korea";
+}
 
 function formatRubPlain(n: number): string {
   return `${Math.round(n).toLocaleString("ru-RU")} руб.`;
@@ -115,8 +136,8 @@ function formatEngineLine(data: Record<string, unknown>, title: string): string 
   const parts: string[] = [];
   if (liters) parts.push(liters);
   if (fuel) parts.push(fuel.toLowerCase());
-  if (turbo) parts.push("(турбо)");
   if (!parts.length) return fuel ? fuel : null;
+  if (turbo) return `${parts.join(", ")} (турбированный)`;
   return parts.join(", ");
 }
 
@@ -148,13 +169,13 @@ function formatDriveSocial(data: Record<string, unknown>): string | null {
     asStr(data.drivingmode);
   const mapped = raw ? displayDriveTypeRu(raw) ?? raw : null;
   const low = (mapped ?? "").toLowerCase();
-  if (low.includes("перед")) return "передний — 2WD / FWD";
+  if (low.includes("перед")) return "передний — FWD (2WD)";
   if (low.includes("зад")) return "задний — RWD";
-  if (low.includes("полн")) return "полный — 4WD / AWD";
+  if (low.includes("полн")) return "полный — AWD (4WD)";
   const r = (raw ?? "").toUpperCase();
-  if (/\b(2WD|FWD|前驱)\b/.test(r)) return "передний — 2WD / FWD";
+  if (/\b(2WD|FWD|前驱)\b/.test(r)) return "передний — FWD (2WD)";
   if (/\b(RWD|后驱)\b/.test(r)) return "задний — RWD";
-  if (/\b(4WD|AWD|四驱)\b/.test(r)) return "полный — 4WD / AWD";
+  if (/\b(4WD|AWD|四驱)\b/.test(r)) return "полный — AWD (4WD)";
   return mapped;
 }
 
@@ -196,11 +217,12 @@ function publicationDateLabel(publishedAt?: string | null): string {
   }).format(new Date());
 }
 
-/** Текст объявления для соцсетей / мессенджеров. */
+/** Текст объявления для Telegram / соцсетей. Секции через пустую строку. */
 export function buildCarSocialDescription(input: CarSocialDescriptionInput): string {
-  const { carId, title, data, priceRub, priceOnRequest, publishedAt } = input;
-  const url = getCarPageAbsoluteUrl(carId);
-  const lines: string[] = [`🚘 ${title} (${url})`, ""];
+  const { title, data, priceRub, priceOnRequest, publishedAt, market } = input;
+  const heading =
+    MARKET_HEADING[socialMarketFromSource(data.source ?? data.market, market)] ?? "🇰🇷 Корея";
+  const sections: string[] = [`**${heading}**`, `**🏎 ${title}**`];
 
   const specs: Array<[string, string | null]> = [
     ["Двигатель", formatEngineLine(data, title)],
@@ -209,34 +231,25 @@ export function buildCarSocialDescription(input: CarSocialDescriptionInput): str
     ["Привод", formatDriveSocial(data)],
     ["Трансмиссия", formatTransmissionSocial(data)],
     ["Дата выпуска", formatReleaseDate(data)],
-    ["Пробег", formatKm(data.km_age)],
+    ["Пробег", formatKm(data.km_age ?? data.mileage_km)],
   ];
-
-  for (const [label, value] of specs) {
-    if (value) lines.push(`• ${label}: ${value}`);
-  }
+  const specLines = specs.filter(([, value]) => value).map(([label, value]) => `• ${label}: ${value}`);
+  if (specLines.length) sections.push(specLines.join("\n"));
 
   const trim = pickTrimName(data);
   const equipment = collectCarEquipmentLabels(data);
   if (trim || equipment.length) {
-    lines.push("");
-    if (trim) lines.push(`Комплектация ${trim}:`);
-    else lines.push("Комплектация:");
-    lines.push("");
-    for (const item of equipment) {
-      lines.push(`> ${item}`);
-    }
+    sections.push(trim ? `**Комплектация ${trim}:**` : "**Комплектация:**");
+    if (equipment.length) sections.push(equipment.map((item) => `> ${item}`).join("\n"));
   }
 
-  lines.push("");
   if (!priceOnRequest && priceRub != null && !Number.isNaN(priceRub) && priceRub > 0) {
-    lines.push(`💳 Цена во Владивостоке под ключ: ${formatRubPlain(priceRub)}`);
+    sections.push(`**💳 Цена во Владивостоке под ключ: ${formatRubPlain(priceRub)}**`);
   } else {
-    lines.push("💳 Цена во Владивостоке под ключ: по запросу");
+    sections.push("**💳 Цена во Владивостоке под ключ: по запросу**");
   }
-  lines.push("");
-  lines.push(`Цена является актуальной на момент публикации — ${publicationDateLabel(publishedAt)}`);
-  lines.push("...");
+  sections.push(`Цена является актуальной на момент публикации — ${publicationDateLabel(publishedAt)}`);
+  sections.push(`[⬇️ Оставить заявку](${CHANNEL_BUY_URL}) | [📞 Связаться](${CHANNEL_MANAGER_URL})`);
 
-  return lines.join("\n");
+  return sections.join("\n\n");
 }

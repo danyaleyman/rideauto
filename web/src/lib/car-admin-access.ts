@@ -2,6 +2,7 @@
 const CAR_LISTING_ADMIN_EMAILS = new Set([
   "nikita-yudin-1998@mail.ru",
   "danyaleyman@yandex.ru",
+  "danyaleyman@icloud.com",
 ]);
 
 export function isCarListingAdmin(email: string | null | undefined): boolean {

@@ -332,6 +332,7 @@ def _ensure_hp_catalog_columns(conn: sqlite3.Connection) -> None:
         ("review_note", "TEXT NOT NULL DEFAULT ''"),
         ("motor_code_norm", "TEXT NOT NULL DEFAULT ''"),
         ("vin_prefix", "TEXT NOT NULL DEFAULT ''"),
+        ("torque_nm", "INTEGER"),
     ]
     for col, decl in alters:
         if col not in have:

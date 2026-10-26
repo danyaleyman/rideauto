@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useLocaleContext } from "@/components/LocaleProvider";
+import type { BuyCalculatorPreset } from "./BuyCalculator";
 
 function CalcLoading() {
   const { t } = useLocaleContext();
@@ -17,7 +18,11 @@ function CalcLoading() {
   );
 }
 
-export const BuyCalculatorLazy = dynamic(() => import("./BuyCalculator"), {
+const BuyCalculatorDynamic = dynamic(() => import("./BuyCalculator"), {
   ssr: false,
   loading: () => <CalcLoading />,
 });
+
+export function BuyCalculatorLazy({ preset }: { preset?: BuyCalculatorPreset } = {}) {
+  return <BuyCalculatorDynamic preset={preset} />;
+}

@@ -163,6 +163,8 @@ const KO_TO_RU_TERMS: [string, string][] = [
   ["배력장치 상태", "Вакуумный усилитель тормозов"],
   ["작동상태", "Рабочее состояние"],
   ["양호", "Исправно"],
+  ["자가보증", "Гарантия продавца"],
+  ["오토", "автомат"],
   ["없음", "Нет"],
   ["적정", "В норме"],
   ["자기진단", "Самодиагностика"],
@@ -437,6 +439,77 @@ export function pickRegYearMonthDisplay(data: Record<string, unknown>): string |
     asStr(data.yearname) ??
     asStr(data.year)
   );
+}
+
+/** YYYY-MM — спокойнее читается в таблице характеристик. */
+export function formatRegYearMonthDash(v: unknown): string | null {
+  const short = formatRegYearMonth(v);
+  if (!short) return null;
+  const m = /^(\d{2})\/(\d{2})$/.exec(short);
+  if (!m) return short;
+  const year = Number(m[1]) >= 50 ? `19${m[1]}` : `20${m[1]}`;
+  return `${year}-${m[2]}`;
+}
+
+export function pickRegYearMonthDash(data: Record<string, unknown>): string | null {
+  return (
+    formatRegYearMonthDash(data.yearMonth) ??
+    formatRegYearMonthDash(data.yearname) ??
+    formatRegYearMonthDash(data.regdate) ??
+    formatRegYearMonthDash(data.year)
+  );
+}
+
+const KOREA_CITY_RU: Record<string, string> = {
+  서울: "Сеул",
+  부산: "Пусан",
+  대구: "Тэгу",
+  인천: "Инчхон",
+  광주: "Кванджу",
+  대전: "Тэджон",
+  울산: "Ульсан",
+  세종: "Седжон",
+  수원: "Сувон",
+  용인: "Йонъин",
+  성남: "Соннам",
+  고양: "Коян",
+  창원: "Чханвон",
+  청주: "Чхонджу",
+  전주: "Чонджу",
+  제주: "Чеджу",
+  포항: "Пхохан",
+  김해: "Кимхэ",
+  천안: "Чхонан",
+  안산: "Ансан",
+  안양: "Анян",
+  평택: "Пхёнтхэк",
+  남양주: "Намъянджу",
+  화성: "Хвасон",
+  부천: "Пучхон",
+  의정부: "Ыйджонбу",
+  파주: "Пхаджу",
+  김포: "Кимпхо",
+  광명: "Кванмён",
+  군포: "Кунпхо",
+  이천: "Ичхон",
+  원주: "Вонджу",
+  춘천: "Чхунчхон",
+  진주: "Чинджу",
+  구미: "Куми",
+  순천: "Сунчхон",
+  목포: "Мокпхо",
+  여수: "Йосу",
+  아산: "Асан",
+};
+
+/** Город из адреса Encar: «대구 서구» → «Тэгу». */
+export function displayKoreaCity(address: unknown): string | null {
+  const raw = asStr(address);
+  if (!raw) return null;
+  const first = raw.split(/\s+/)[0] ?? "";
+  if (KOREA_CITY_RU[first]) return KOREA_CITY_RU[first];
+  const translated = translateKoToRuText(raw);
+  return /[\uac00-\ud7af]/.test(translated) ? null : translated;
 }
 
 export function formatHumanDate(v: unknown): string | null {

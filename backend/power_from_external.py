@@ -22,7 +22,7 @@ HP_CATALOG_DB_PATH = DATA_DIR / "hp_catalog.db"
 _NON_WORD_RE = re.compile(r"[^0-9a-zA-Z가-힣]+")
 
 # Фактические строки каталога (не LLM-догадка).
-HP_CATALOG_OBSERVED_SOURCES = frozenset({"postgres", "csv"})
+HP_CATALOG_OBSERVED_SOURCES = frozenset({"postgres", "csv", "peer_observed", "listing_text"})
 
 
 def _skip_review_flagged_llm() -> bool:

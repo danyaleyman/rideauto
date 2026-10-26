@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchCar, fetchSimilar } from "@/lib/api";
 import { getIsrWarmCarRefs } from "@/lib/isr-warm-car-refs";
@@ -17,6 +17,7 @@ import { CarStickyMobileBar } from "@/components/car/CarStickyMobileBar";
 import {
   CarAvailabilityBanner,
   CarDescriptionSection,
+  CarLotCalculatorSection,
   CarPageBreadcrumbBar,
   CarSimilarSection,
 } from "@/components/car/CarPageI18nBlocks";
@@ -78,7 +79,7 @@ export default async function CarPage({ params }: PageProps) {
   const imgs = carPhotoUrlsFromApiResult(rawMap);
   const carId = typeof raw.id === "string" ? raw.id : ref;
   const availability = getCarListingAvailability(rawMap);
-  const similarPayload = await fetchSimilar(carId, 8, { revalidate: 3600 }).catch(() => ({ result: [] }));
+  const similarPayload = await fetchSimilar(carId, 8, { revalidate: 60 }).catch(() => ({ result: [] }));
   const similar = (similarPayload.result || []) as SlimCar[];
 
   const rubPrice =
@@ -203,7 +204,12 @@ export default async function CarPage({ params }: PageProps) {
 
             <MotionFadeUp>
               <section id="car-details" className="scroll-mt-20 sm:scroll-mt-24 lg:scroll-mt-32">
-                <CarDetailAccordions data={d as Record<string, unknown>} diagnosisPhotosCount={diagnosisPhotosCount} />
+                <CarDetailAccordions
+                  data={d as Record<string, unknown>}
+                  diagnosisPhotosCount={diagnosisPhotosCount}
+                  catalogCreatedAt={catalogCreatedAt}
+                  sourceUpdatedAt={sourceUpdatedAt ?? null}
+                />
               </section>
             </MotionFadeUp>
           </div>
@@ -237,6 +243,8 @@ export default async function CarPage({ params }: PageProps) {
         priceLine={priceLine}
         availability={availability}
       />
+
+      <CarLotCalculatorSection data={d as Record<string, unknown>} />
 
       {similar.length ? (
         <MotionFadeUp

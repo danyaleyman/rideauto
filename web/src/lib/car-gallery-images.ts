@@ -1,4 +1,4 @@
-import { extractCarImageUrls } from "@/lib/car-images";
+import { extractCarImageUrls, normalizeEncarPhotoUrl } from "@/lib/car-images";
 import { pickCarData } from "@/lib/car-seo";
 
 /** Ключ для дедупликации: один кадр корейского контура часто приходит и в `images`, и в `h_images` с разным query. */
@@ -28,8 +28,24 @@ export function imageUrlDedupeKey(url: string): string {
   }
 }
 
-/** Собирает URL из Encar h_images (поле path), если объекты без готового https. */
-function urlsFromEncarHImages(raw: Record<string, unknown>): string[] {
+function encarFaceRank(blob: string): number {
+  const t = blob.toLowerCase();
+  if (/(전면|정면|front|앞면)/.test(t)) return 0;
+  if (/(측면|side)/.test(t)) return 1;
+  if (/(후면|후방|rear|back|뒤쪽)/.test(t)) return 3;
+  if (/(interior|inside|cabin|내장|실내|내부)/.test(t)) return 5;
+  if (/(diag2|underbody|하부)/.test(t)) return 6;
+  return 4;
+}
+
+function encarSeqFromPath(path: string): number {
+  const m = path.match(/_(\d+)\.(?:jpe?g|png|webp)(?:\?|$)/i);
+  if (!m) return 1e9;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : 1e9;
+}
+
+function parseHImages(raw: Record<string, unknown>): Array<{ path: string; rank: number; seq: number }> {
   const rawHi = raw.h_images;
   let arr: unknown[] = [];
   if (Array.isArray(rawHi)) arr = rawHi;
@@ -41,16 +57,104 @@ function urlsFromEncarHImages(raw: Record<string, unknown>): string[] {
       /* ignore */
     }
   }
-  const out: string[] = [];
+  const out: Array<{ path: string; rank: number; seq: number }> = [];
   for (const item of arr) {
     if (!item || typeof item !== "object") continue;
-    const path = (item as { path?: unknown }).path;
+    const o = item as { path?: unknown; type?: unknown; desc?: unknown };
+    const path = o.path;
     if (typeof path !== "string" || !path.startsWith("/")) continue;
-    const slug = path.startsWith("/") ? `carpicture${path}` : `carpicture/${path}`;
-    const u = `https://ci.encar.com/${slug}?impolicy=heightRate&rh=696&cw=1160&ch=696&cg=Center`;
-    out.push(u);
+    const blob = `${o.type ?? ""} ${o.desc ?? ""} ${path}`;
+    out.push({ path, rank: encarFaceRank(blob), seq: encarSeqFromPath(path) });
   }
   return out;
+}
+
+function encarPathKey(urlOrPath: string): string {
+  const t = urlOrPath.trim().toLowerCase();
+  try {
+    const u = new URL(t);
+    return u.pathname.replace(/\/+/g, "/");
+  } catch {
+    const path = t.startsWith("/") ? t : `/${t.replace(/^carpicture\/?/i, "")}`;
+    return path.replace(/\/+/g, "/");
+  }
+}
+
+/** h_images → полный кадр Encar без wtmk. Лицо раньше кормы. */
+function urlsFromEncarHImages(raw: Record<string, unknown>): string[] {
+  const items = parseHImages(raw).map((h) => {
+    const slug = h.path.startsWith("/") ? `carpicture${h.path}` : `carpicture/${h.path}`;
+    return { url: normalizeEncarPhotoUrl(`https://ci.encar.com/${slug}`), rank: h.rank, seq: h.seq, path: h.path };
+  });
+  items.sort((a, b) => a.rank - b.rank || a.seq - b.seq || a.path.localeCompare(b.path));
+  return items.map((x) => x.url);
+}
+
+function sortKoreaListingUrls(urls: string[], raw: Record<string, unknown>): string[] {
+  const hints = parseHImages(raw);
+  if (!hints.length) {
+    return [...urls].sort((a, b) => encarSeqFromPath(a) - encarSeqFromPath(b) || a.localeCompare(b));
+  }
+  const byPath = new Map<string, { rank: number; seq: number }>();
+  for (const h of hints) {
+    byPath.set(encarPathKey(h.path), { rank: h.rank, seq: h.seq });
+    byPath.set(encarPathKey(`carpicture${h.path}`), { rank: h.rank, seq: h.seq });
+  }
+  const hintFor = (url: string) => {
+    const key = encarPathKey(url);
+    return byPath.get(key) ?? { rank: 4, seq: encarSeqFromPath(url) };
+  };
+  return [...urls].sort((a, b) => {
+    const ha = hintFor(a);
+    const hb = hintFor(b);
+    return ha.rank - hb.rank || ha.seq - hb.seq || a.localeCompare(b);
+  });
+}
+
+function listingIsChina(raw: Record<string, unknown>): boolean {
+  const source = String(raw.source ?? "").toLowerCase();
+  const id = String(raw.id ?? raw.inner_id ?? "");
+  return source.includes("che168") || source.includes("china") || id.startsWith("che168");
+}
+
+function listingIsKorea(raw: Record<string, unknown>): boolean {
+  if (listingIsChina(raw)) return false;
+  const source = String(raw.source ?? "").toLowerCase();
+  return source.includes("encar") || source.includes("korea") || source === "";
+}
+
+function chinaListingIds(raw: Record<string, unknown>): string[] {
+  const keys = ["inner_id", "infoid", "infoId", "carid", "carId", "id", "che168_id"];
+  const out: string[] = [];
+  for (const k of keys) {
+    const v = raw[k];
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (s) out.push(s);
+  }
+  return out;
+}
+
+function isForeignChinaPhoto(url: string, listingIds: string[]): boolean {
+  const low = url.toLowerCase();
+  if (low.includes("encar.com")) return true;
+  if (low.includes("autoimg.cn") && !low.includes("2sc")) return true;
+  if (["/seriespic", "/modelpic", "factorypic", "/specimg"].some((tok) => low.includes(tok))) {
+    return true;
+  }
+  const digits = listingIds.map((x) => x.replace(/\D/g, "")).filter((x) => x.length >= 5);
+  if (!digits.length) return false;
+  for (const m of low.matchAll(/(?:infoid|info_id|carid|car_id)=(\d{5,})/g)) {
+    const other = m[1];
+    if (!digits.some((d) => d === other || d.endsWith(other) || other.endsWith(d))) return true;
+  }
+  return false;
+}
+
+function filterChinaOwnPhotos(raw: Record<string, unknown>, urls: string[]): string[] {
+  const ids = chinaListingIds(raw);
+  const filtered = urls.filter((u) => !isForeignChinaPhoto(u, ids));
+  return filtered.length ? filtered : urls.filter((u) => !u.toLowerCase().includes("encar.com"));
 }
 
 function parseJsonArray(v: unknown): unknown[] {
@@ -88,19 +192,38 @@ function collectDiagnosisPhotoUrls(raw: Record<string, unknown>): string[] {
  * Все URL для галереи: обычные фото + диагностика (без дубликатов, стабильный порядок).
  */
 export function getAllCarPhotoUrls(data: Record<string, unknown>): string[] {
-  const main = extractCarImageUrls(data);
-  const fromHi = urlsFromEncarHImages(data);
-  const diag = collectDiagnosisPhotoUrls(data);
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const u of [...main, ...fromHi, ...diag]) {
-    const s = u.trim();
-    if (!/^https?:\/\//i.test(s) && !s.startsWith("/")) continue;
-    const key = imageUrlDedupeKey(s);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(s);
+  const push = (urls: string[]) => {
+    for (const u of urls) {
+      const s = normalizeEncarPhotoUrl(u.trim());
+      if (!/^https?:\/\//i.test(s) && !s.startsWith("/")) continue;
+      const key = imageUrlDedupeKey(s);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(s);
+    }
+  };
+
+  if (listingIsChina(data)) {
+    const chinaOnly = extractCarImageUrls({ ...data, h_images: undefined });
+    push(filterChinaOwnPhotos(data, chinaOnly));
+    return out;
   }
+
+  if (listingIsKorea(data)) {
+    const listing = extractCarImageUrls(data).map(normalizeEncarPhotoUrl);
+    push(sortKoreaListingUrls(listing, data));
+    if (!out.length) {
+      push(urlsFromEncarHImages(data));
+    }
+    push(collectDiagnosisPhotoUrls(data));
+    return out;
+  }
+
+  push(extractCarImageUrls(data));
+  push(urlsFromEncarHImages(data));
+  push(collectDiagnosisPhotoUrls(data));
   return out;
 }
 

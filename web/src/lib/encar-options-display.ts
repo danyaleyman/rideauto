@@ -273,32 +273,58 @@ function normalizeOptionCode(code: unknown): string {
   return JSON.stringify(code);
 }
 
-/** Подпись опции для блока «Комплектация»: фото/sellingpoint → статическая таблица → корейский текст → код. */
+/**
+ * Подпись установленной опции Encar.
+ * Только официальный словарь кодов: sellingpoint/фото — это каталог модели, не факт наличия.
+ */
 export function displayEncarStandardOption(
   code: unknown,
-  uniquePhotos: unknown,
-  choicePhotos: unknown,
-  extra?: Record<string, unknown>,
-  data?: Record<string, unknown>,
+  _uniquePhotos?: unknown,
+  _choicePhotos?: unknown,
+  _extra?: Record<string, unknown>,
+  _data?: Record<string, unknown>,
 ): string {
   const c = normalizeOptionCode(code);
-  if (!c || c === "null" || c === "undefined") return "—";
-  const rows = collectEncarOptionLabelRows(
-    uniquePhotos,
-    choicePhotos,
-    extra,
-    (data ?? {}) as Record<string, unknown>,
-  );
-  const fromPhotos = nameFromOptionRows(c, rows);
-  if (fromPhotos) {
-    const t = normalizeOptionLabel(fromPhotos);
-    if (t) return t;
-  }
+  if (!c || c === "null" || c === "undefined") return "";
   const fromStatic = lookupEncarStaticRu(c);
   if (fromStatic) return fromStatic;
   if (/[가-힣]/.test(c)) {
     const t = normalizeOptionLabel(c);
     if (t) return t;
   }
-  return `Опция ${c}`;
+  return "";
+}
+
+/** Только опции из `options.standard` — то, что Encar рисует тёмным текстом. */
+export function labelsFromEncarStandardCodes(codes: unknown): string[] {
+  if (!Array.isArray(codes)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const code of codes) {
+    const label = displayEncarStandardOption(code);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    out.push(label);
+  }
+  return out;
+}
+
+/** Названия выбранных choice-пакетов (не SPEC_* и не весь каталог модели). */
+export function labelsFromEncarChoicePhotos(choicePhotos: unknown): string[] {
+  if (!Array.isArray(choicePhotos)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const row of choicePhotos) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const code = asStr(o.partCode) ?? "";
+    if (code.startsWith("SPEC_")) continue;
+    const raw = asStr(o.partName);
+    if (!raw) continue;
+    const label = normalizeOptionLabel(raw);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    out.push(label);
+  }
+  return out;
 }
