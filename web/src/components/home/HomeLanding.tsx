@@ -72,8 +72,7 @@ export function HomeLanding() {
           <>
             {t("home.landing.step01Body")}{" "}
             <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
-              {/* i18n: ru "Договор и смета", en "Contract and estimate" */}
-              Договор и смета
+              {t("home.landing.contractEstimate")}
             </a>
             .
           </>
@@ -227,8 +226,7 @@ export function HomeLanding() {
               href="/buy"
               className="gap-2 border border-border bg-background text-foreground hover:bg-muted"
             >
-              {/* i18n: ru "Подробнее о процессе", en "More about the process" */}
-              Подробнее о процессе
+              {t("home.landing.processMore")}
               <ArrowRight className="size-4" aria-hidden />
             </LandingButton>
           </div>

@@ -12,41 +12,39 @@ import { submitLeadRequest } from "@/lib/lead-client";
 import { LEAD_MESSAGE_MIN_LEN, validateLeadFullName, validateLeadPhone } from "@/lib/lead-form-validation";
 import { useLocaleContext } from "@/components/LocaleProvider";
 
-function contactValueLabel(method: LeadContactMethodValue): string {
-  // i18n: подпись поля значения контакта (новых ключей не вводим)
+function contactValueLabel(method: LeadContactMethodValue, t: (path: string) => string): string {
   switch (method) {
     case "telegram":
-      return "Telegram — ник или ссылка";
+      return t("buy.contactValueTelegram");
     case "whatsapp":
-      return "Номер WhatsApp";
+      return t("buy.contactValueWhatsapp");
     case "phone":
-      return "Номер телефона";
+      return t("buy.contactValuePhone");
     case "email":
-      return "Email";
+      return t("buy.contactValueEmail");
   }
 }
 
-function contactValuePlaceholder(method: LeadContactMethodValue): string {
-  // i18n: плейсхолдер поля значения контакта
+function contactValuePlaceholder(method: LeadContactMethodValue, t: (path: string) => string): string {
   switch (method) {
     case "telegram":
-      return "@username или t.me/username";
+      return t("buy.contactPlaceholderTelegram");
     case "whatsapp":
     case "phone":
-      return "+7 900 000-00-00";
+      return t("buy.contactPlaceholderPhone");
     case "email":
-      return "you@example.com";
+      return t("buy.contactPlaceholderEmail");
   }
 }
 
 function validateContactValue(
   method: LeadContactMethodValue,
   value: string,
+  t: (path: string) => string,
 ): { ok: true; normalized: string } | { ok: false; message: string } {
   const v = value.trim();
   if (!v) {
-    // i18n:
-    return { ok: false, message: "Укажите контакт для связи" };
+    return { ok: false, message: t("buy.contactRequired") };
   }
   if (method === "phone" || method === "whatsapp") {
     const res = validateLeadPhone(v);
@@ -55,16 +53,14 @@ function validateContactValue(
   }
   if (method === "email") {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-      // i18n:
-      return { ok: false, message: "Введите корректный email" };
+      return { ok: false, message: t("buy.contactEmailInvalid") };
     }
     return { ok: true, normalized: v };
   }
   const isHandle = /^@[a-z0-9_]{3,32}$/i.test(v);
   const isLink = /^(https?:\/\/)?(t\.me|telegram\.me)\/[a-z0-9_]{3,}/i.test(v);
   if (!isHandle && !isLink) {
-    // i18n:
-    return { ok: false, message: "Укажите ник (@username) или ссылку t.me" };
+    return { ok: false, message: t("buy.contactTelegramInvalid") };
   }
   return { ok: true, normalized: v };
 }
@@ -94,7 +90,7 @@ export function OrderLeadForm() {
       setFullNameError(nameCheck.message);
       return;
     }
-    const contactCheck = validateContactValue(contactMethod, contactValue);
+    const contactCheck = validateContactValue(contactMethod, contactValue, t);
     if (!contactCheck.ok) {
       setContactValueError(contactCheck.message);
       return;
@@ -171,7 +167,7 @@ export function OrderLeadForm() {
         />
 
         <div className="grid gap-2">
-          <Label htmlFor="lead-contact-value">{contactValueLabel(contactMethod)}</Label>
+          <Label htmlFor="lead-contact-value">{contactValueLabel(contactMethod, t)}</Label>
           <Input
             id="lead-contact-value"
             name="contact_value"
@@ -181,7 +177,7 @@ export function OrderLeadForm() {
               setContactValue(e.target.value);
               if (contactValueError) setContactValueError("");
             }}
-            placeholder={contactValuePlaceholder(contactMethod)}
+            placeholder={contactValuePlaceholder(contactMethod, t)}
             type={contactMethod === "email" ? "email" : contactMethod === "phone" || contactMethod === "whatsapp" ? "tel" : "text"}
             autoComplete={contactMethod === "email" ? "email" : contactMethod === "phone" || contactMethod === "whatsapp" ? "tel" : "off"}
             inputMode={contactMethod === "email" ? "email" : contactMethod === "phone" || contactMethod === "whatsapp" ? "tel" : "text"}

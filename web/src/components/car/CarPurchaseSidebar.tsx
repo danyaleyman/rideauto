@@ -245,14 +245,14 @@ export function CarPurchaseSidebar({
           className="rounded-md text-muted-foreground hover:text-foreground"
           title={
             copyFailed
-              ? "Не удалось скопировать" // i18n:
+              ? t("car.purchase.copyFailedTitle")
               : copied
                 ? t("car.purchase.linkCopied")
                 : t("car.purchase.copyLink")
           }
           aria-label={
             copyFailed
-              ? "Не удалось скопировать ссылку" // i18n:
+              ? t("car.purchase.copyFailedAria")
               : copied
                 ? t("car.purchase.linkCopied")
                 : t("car.purchase.copyListingLink")
