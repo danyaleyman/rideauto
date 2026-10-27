@@ -33,3 +33,20 @@ export function resolveCatalogView(density: CatalogDensity, desktop: boolean): C
   if (density === "table" && !desktop) return "list";
   return density;
 }
+
+/**
+ * Размер страницы выдачи по плотности (не зависит от сортировки):
+ * список — 10, плитка — 12 (ровная сетка 2×6 / 3×4), таблица — 20.
+ * ``list`` = 10 совпадает с ``PER_PAGE`` в catalog-url (значение для SSR по умолчанию).
+ */
+export function perPageForDensity(density: CatalogDensity): number {
+  switch (density) {
+    case "tile":
+      return 12;
+    case "table":
+      return 20;
+    case "list":
+    default:
+      return 10;
+  }
+}

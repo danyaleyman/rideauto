@@ -152,13 +152,13 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
   };
 
   return (
-    <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout>
+    <motion.li key={car.id} variants={reduceMotion ? undefined : cardItemVariants} layout className="h-full">
       <Card
         data-slot="listing-card"
         data-density={catalogDensity}
         size="sm"
         className={cn(
-          "relative flex flex-col items-stretch gap-0 overflow-clip !py-0 data-[size=sm]:!py-0",
+          "relative flex h-full flex-col items-stretch gap-0 overflow-clip !py-0 data-[size=sm]:!py-0",
           !tile && "md:flex-row",
           listingCardSurfaceClass,
         )}

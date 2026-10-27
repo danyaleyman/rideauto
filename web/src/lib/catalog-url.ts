@@ -78,8 +78,8 @@ export function parseCatalogUrl(sp: URLSearchParams): CatalogUrlState {
   const cur = (sp.get("cursor") || "").trim();
   if (cur && !hasExplicitPage) {
     const dec = decodeOffsetCursor(cur);
-    if (dec && dec.limit === PER_PAGE) {
-      page = Math.floor(dec.offset / PER_PAGE) + 1;
+    if (dec && dec.limit > 0) {
+      page = Math.floor(dec.offset / dec.limit) + 1;
     }
   }
 
@@ -180,9 +180,9 @@ export function stateToBrowserUrl(state: CatalogUrlState): string {
   return sorted.toString();
 }
 
-export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
+export function toApiSearchParams(state: CatalogUrlState, perPage: number = PER_PAGE): URLSearchParams {
   const p = new URLSearchParams();
-  p.set("per_page", String(PER_PAGE));
+  p.set("per_page", String(perPage));
   p.set("region", state.market);
   p.set("source", marketToApiSource(state.market));
   if (state.q) p.set("q", state.q);
@@ -212,7 +212,7 @@ export function toApiSearchParams(state: CatalogUrlState): URLSearchParams {
   if (state.new_only) p.set("new_only", "1");
   if (state.sort && state.sort !== "date_new") p.set("sort", state.sort);
   if (state.page > 1) {
-    p.set("cursor", encodeOffsetCursor((state.page - 1) * PER_PAGE, PER_PAGE));
+    p.set("cursor", encodeOffsetCursor((state.page - 1) * perPage, perPage));
   }
   return p;
 }

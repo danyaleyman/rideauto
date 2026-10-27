@@ -27,19 +27,21 @@ const CATALOG_BENCHMARK_STALE_MS = 5 * 60_000;
 export function useCatalogSearchQuery(args: {
   key: string;
   state: CatalogUrlState;
+  perPage: number;
   initialSearch: SearchResponse;
   ssrKey: string;
   ssrDegraded: boolean;
   diagEnabled: boolean;
 }) {
-  const { key, state, initialSearch, ssrKey, ssrDegraded, diagEnabled } = args;
-  const hydrateFromSsr = !ssrDegraded && key === ssrKey;
+  const { key, state, perPage, initialSearch, ssrKey, ssrDegraded, diagEnabled } = args;
+  const hydrateFromSsr =
+    !ssrDegraded && key === ssrKey && initialSearch.meta?.per_page === perPage;
 
   return useQuery({
-    queryKey: catalogKeys.search(key),
+    queryKey: [...catalogKeys.search(key), perPage],
     queryFn: async ({ signal }) => {
       const started = Date.now();
-      const sq = toApiSearchParams(state);
+      const sq = toApiSearchParams(state, perPage);
       sendCatalogDiagEvent(
         diagEnabled,
         "catalog_search_start",

@@ -3,13 +3,12 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { carsAddedTodayLabel, previewImageUrls } from "@/lib/catalog-client-utils";
-import { PER_PAGE } from "@/lib/catalog-url";
 import { featureFlags } from "@/lib/feature-flags";
 import type { CatalogSearchController } from "@/hooks/use-catalog-search-state";
 import { CatalogListingCard } from "@/components/catalog/CatalogListingCard";
 import { CatalogResultsTable } from "@/components/catalog/CatalogResultsTable";
 import { CatalogVirtualResultsList } from "@/components/catalog/CatalogVirtualResultsList";
-import { resolveCatalogView } from "@/lib/catalog-density";
+import { perPageForDensity, resolveCatalogView } from "@/lib/catalog-density";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { cardListVariants, ListRowSkeleton } from "@/components/catalog/CatalogBlockWidgets";
 import { CatalogResultsToolbar } from "@/components/catalog/CatalogResultsToolbar";
@@ -63,6 +62,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
   }, []);
 
   const catalogView = resolveCatalogView(catalogDensity, wideViewport);
+  const perPage = perPageForDensity(catalogDensity);
   const useVirtualList =
     catalogView === "list" &&
     featureFlags.enableCatalogVirtualList &&
@@ -202,7 +202,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
             />
           ))}
           {loading && search.result.length === 0
-            ? Array.from({ length: PER_PAGE }).map((_, i) => <ListRowSkeleton key={`sk-${i}`} />)
+            ? Array.from({ length: perPage }).map((_, i) => <ListRowSkeleton key={`sk-${i}`} />)
             : null}
         </motion.ul>
       )}

@@ -86,7 +86,7 @@ export function CatalogResultsTable({
                     href={href}
                     prefetch
                     onClick={markOpening(car.id)}
-                    className="relative block aspect-[16/10] w-[4.5rem] overflow-hidden bg-muted"
+                    className="relative block aspect-[16/10] w-[4.5rem] overflow-hidden rounded-lg bg-muted"
                     aria-label={t("catalog.card.openListing", { title: normalizedTitle })}
                   >
                     <CatalogCardImage

@@ -14,7 +14,6 @@ import {
 import {
   catalogStateKey,
   parseCatalogUrl,
-  PER_PAGE,
   stateToBrowserUrl,
   type CatalogUrlState,
 } from "@/lib/catalog-url";
@@ -34,7 +33,7 @@ import {
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { buildCatalogSeo } from "@/lib/catalog-seo";
 import { displayBodyType, displayColor, displayTransmission } from "@/lib/vehicle-spec-locale";
-import { readCatalogDensity, writeCatalogDensity, type CatalogDensity } from "@/lib/catalog-density";
+import { perPageForDensity, readCatalogDensity, writeCatalogDensity, type CatalogDensity } from "@/lib/catalog-density";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth } from "@/components/AuthProvider";
 import type { SearchResponse } from "@/lib/types";
@@ -64,6 +63,7 @@ export function useCatalogSearchState({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openingCarId, setOpeningCarId] = useState<string | null>(null);
   const [catalogDensity, setCatalogDensityState] = useState<CatalogDensity>("list");
+  const perPage = useMemo(() => perPageForDensity(catalogDensity), [catalogDensity]);
   const resultsListRef = useRef<HTMLUListElement>(null);
   const prevCatalogPageRef = useRef<number | null>(null);
   const { toggle: toggleFavorite, isFavorite } = useFavorites();
@@ -161,6 +161,7 @@ export function useCatalogSearchState({
   const searchQuery = useCatalogSearchQuery({
     key,
     state,
+    perPage,
     initialSearch,
     ssrKey,
     ssrDegraded,
@@ -300,7 +301,7 @@ export function useCatalogSearchState({
   const title = useMemo(() => buildCatalogSeo(state, locale).title, [state, locale]);
 
   const pages =
-    search.meta.pages > 0 ? search.meta.pages : Math.max(1, Math.ceil(search.meta.total / PER_PAGE));
+    search.meta.pages > 0 ? search.meta.pages : Math.max(1, Math.ceil(search.meta.total / perPage));
   const pageItems = useMemo(() => visiblePageItems(state.page, pages), [state.page, pages]);
 
   const catalogCarsDisplay = useMemo(() => {
