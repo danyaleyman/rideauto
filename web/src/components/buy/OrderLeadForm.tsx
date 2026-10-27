@@ -9,72 +9,17 @@ import { LeadContactMethodField } from "@/components/buy/LeadContactMethodField"
 import { LeadPdAgreeField } from "@/components/leads/LeadPdAgreeField";
 import { leadContactMethodLabel, type LeadContactMethodValue } from "@/lib/lead-contact-options";
 import { submitLeadRequest } from "@/lib/lead-client";
-import { LEAD_MESSAGE_MIN_LEN, validateLeadFullName, validateLeadPhone } from "@/lib/lead-form-validation";
+import { LEAD_MESSAGE_MIN_LEN, validateLeadFullName } from "@/lib/lead-form-validation";
 import { useLocaleContext } from "@/components/LocaleProvider";
-
-function contactValueLabel(method: LeadContactMethodValue, t: (path: string) => string): string {
-  switch (method) {
-    case "telegram":
-      return t("buy.contactValueTelegram");
-    case "whatsapp":
-      return t("buy.contactValueWhatsapp");
-    case "phone":
-      return t("buy.contactValuePhone");
-    case "email":
-      return t("buy.contactValueEmail");
-  }
-}
-
-function contactValuePlaceholder(method: LeadContactMethodValue, t: (path: string) => string): string {
-  switch (method) {
-    case "telegram":
-      return t("buy.contactPlaceholderTelegram");
-    case "whatsapp":
-    case "phone":
-      return t("buy.contactPlaceholderPhone");
-    case "email":
-      return t("buy.contactPlaceholderEmail");
-  }
-}
-
-function validateContactValue(
-  method: LeadContactMethodValue,
-  value: string,
-  t: (path: string) => string,
-): { ok: true; normalized: string } | { ok: false; message: string } {
-  const v = value.trim();
-  if (!v) {
-    return { ok: false, message: t("buy.contactRequired") };
-  }
-  if (method === "phone" || method === "whatsapp") {
-    const res = validateLeadPhone(v);
-    if (!res.ok) return res;
-    return { ok: true, normalized: `+${res.digits}` };
-  }
-  if (method === "email") {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-      return { ok: false, message: t("buy.contactEmailInvalid") };
-    }
-    return { ok: true, normalized: v };
-  }
-  const isHandle = /^@[a-z0-9_]{3,32}$/i.test(v);
-  const isLink = /^(https?:\/\/)?(t\.me|telegram\.me)\/[a-z0-9_]{3,}/i.test(v);
-  if (!isHandle && !isLink) {
-    return { ok: false, message: t("buy.contactTelegramInvalid") };
-  }
-  return { ok: true, normalized: v };
-}
 
 export function OrderLeadForm() {
   const { t } = useLocaleContext();
   const [fullName, setFullName] = useState("");
   const [contactMethod, setContactMethod] = useState<LeadContactMethodValue>("telegram");
-  const [contactValue, setContactValue] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">("idle");
   const [errText, setErrText] = useState("");
   const [fullNameError, setFullNameError] = useState("");
-  const [contactValueError, setContactValueError] = useState("");
   const [messageError, setMessageError] = useState("");
   const [pdAgree, setPdAgree] = useState(false);
 
@@ -82,17 +27,11 @@ export function OrderLeadForm() {
     e.preventDefault();
     setErrText("");
     setFullNameError("");
-    setContactValueError("");
     setMessageError("");
 
     const nameCheck = validateLeadFullName(fullName);
     if (!nameCheck.ok) {
       setFullNameError(nameCheck.message);
-      return;
-    }
-    const contactCheck = validateContactValue(contactMethod, contactValue, t);
-    if (!contactCheck.ok) {
-      setContactValueError(contactCheck.message);
       return;
     }
     if (message.trim().length < LEAD_MESSAGE_MIN_LEN) {
@@ -103,8 +42,7 @@ export function OrderLeadForm() {
     setStatus("sending");
     const result = await submitLeadRequest({
       full_name: fullName.trim(),
-      // Значение контакта уходит в contact_method — бэкенд печатает его в «Предпочтительная связь».
-      contact_method: `${leadContactMethodLabel(contactMethod)}: ${contactCheck.normalized}`,
+      contact_method: leadContactMethodLabel(contactMethod),
       message: message.trim(),
       pd_agree: pdAgree,
     });
@@ -117,7 +55,6 @@ export function OrderLeadForm() {
 
     setStatus("ok");
     setFullName("");
-    setContactValue("");
     setMessage("");
   }
 
@@ -165,32 +102,6 @@ export function OrderLeadForm() {
           onChange={(v) => setContactMethod(v)}
           disabled={status === "sending"}
         />
-
-        <div className="grid gap-2">
-          <Label htmlFor="lead-contact-value">{contactValueLabel(contactMethod, t)}</Label>
-          <Input
-            id="lead-contact-value"
-            name="contact_value"
-            required
-            value={contactValue}
-            onChange={(e) => {
-              setContactValue(e.target.value);
-              if (contactValueError) setContactValueError("");
-            }}
-            placeholder={contactValuePlaceholder(contactMethod, t)}
-            type={contactMethod === "email" ? "email" : contactMethod === "phone" || contactMethod === "whatsapp" ? "tel" : "text"}
-            autoComplete={contactMethod === "email" ? "email" : contactMethod === "phone" || contactMethod === "whatsapp" ? "tel" : "off"}
-            inputMode={contactMethod === "email" ? "email" : contactMethod === "phone" || contactMethod === "whatsapp" ? "tel" : "text"}
-            className={cn("rounded-2xl", contactValueError && "border-destructive focus-visible:ring-destructive/30")}
-            aria-invalid={Boolean(contactValueError)}
-            aria-describedby={contactValueError ? "lead-contact-value-error" : undefined}
-          />
-          {contactValueError ? (
-            <p id="lead-contact-value-error" className="text-sm text-destructive" role="alert">
-              {contactValueError}
-            </p>
-          ) : null}
-        </div>
 
         <div className="grid gap-2">
           <Label htmlFor="lead-message">{t("buy.message")}</Label>

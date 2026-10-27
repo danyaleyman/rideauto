@@ -1,8 +1,7 @@
 "use client";
 
 import { ModelMediaCascade } from "@/components/home/ModelMediaCascade";
-import { MarketDirections } from "@/components/home/MarketDirectionsCarousel";
-import { HomeTrustStrip } from "@/components/home/HomeTrustStrip";
+import { MarketDirectionsCarousel } from "@/components/home/MarketDirectionsCarousel";
 import { PhotoPlaceholder } from "@/components/ui/photo-placeholder";
 import { type ReactNode, useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -72,7 +71,11 @@ export function HomeLanding() {
           <>
             {t("home.landing.step01Body")}{" "}
             <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
-              {t("home.landing.contractEstimate")}
+              {t("home.landing.step01Contract")}
+            </a>{" "}
+            {t("home.landing.step01Joiner")}{" "}
+            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              {t("home.landing.step01Estimate")}
             </a>
             .
           </>
@@ -124,21 +127,25 @@ export function HomeLanding() {
           </>
         ),
       },
+      {
+        n: "06",
+        title: t("home.landing.step06Title"),
+        body: (
+          <Link
+            href="/buy"
+            className={`${linkClass} mt-2 inline-flex items-center gap-1`}
+          >
+            {t("home.landing.step06Body")}
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        ),
+      },
     ];
   }, [t]);
 
   return (
     <div className="relative isolate overflow-x-hidden bg-background text-foreground">
       <section className="relative flex items-center overflow-hidden bg-background py-10 sm:py-14 lg:min-h-[min(720px,calc(100dvh-3.5rem))] lg:py-16">
-        {/* Деликатное фоновое свечение — нейтрально, без кричащих цветов. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-28 right-[-8%] hidden h-[460px] w-[600px] rounded-full bg-brand/5 blur-3xl sm:block"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-24 left-[-12%] hidden h-[400px] w-[460px] rounded-full bg-muted/70 blur-3xl lg:block"
-        />
         <div className="relative z-10 mx-auto grid w-full max-w-[1440px] items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-12 lg:px-10">
           <motion.div
             className="lg:py-4"
@@ -146,28 +153,24 @@ export function HomeLanding() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground/80">{LOGO}</p>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{LOGO}</p>
 
-            <h1 className="mt-5 max-w-2xl text-[2.125rem] font-semibold leading-[1.06] tracking-[-0.035em] text-foreground sm:mt-6 sm:text-[2.75rem] sm:leading-[1.04] lg:text-[3.25rem] lg:leading-[1.03]">
+            <h1 className="mt-5 max-w-xl text-[2rem] font-semibold leading-[1.08] tracking-[-0.03em] text-foreground sm:mt-6 sm:max-w-lg sm:text-4xl lg:text-[2.75rem] lg:leading-[1.06]">
               {t("home.landing.heroTitle")}
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground/90 sm:mt-6 sm:text-lg sm:leading-8">
+            <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
               {t("home.landing.heroLead")}
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3 sm:mt-10">
-              <LandingButton
-                href="/catalog"
-                className="gap-2 bg-primary text-primary-foreground shadow-[0_12px_28px_-18px_rgb(0_0_0/0.55)] hover:bg-primary/90"
-              >
+            <div className="mt-8 flex flex-wrap gap-3 sm:mt-9">
+              <LandingButton href="/catalog" className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {t("home.landing.catalogCta")}
-                <ArrowRight className="size-4" aria-hidden />
               </LandingButton>
               <LandingButton
                 href={TELEGRAM_CHANNEL}
                 external
-                className="border border-border/80 bg-background/60 text-foreground/80 hover:bg-muted/60 hover:text-foreground"
+                className="border border-border bg-background text-foreground hover:bg-muted"
               >
                 {t("home.landing.telegramCta")}
               </LandingButton>
@@ -185,21 +188,19 @@ export function HomeLanding() {
         </div>
       </section>
 
-      <HomeTrustStrip />
-
-      <MarketDirections />
+      <MarketDirectionsCarousel />
 
       <section id="company" className="bg-background py-16 sm:py-24" aria-label={t("home.landing.processAria")}>
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
           <motion.h2
-            className="max-w-3xl text-3xl font-semibold tracking-[-0.035em] text-foreground sm:text-4xl lg:text-5xl"
+            className="max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl lg:text-5xl"
             initial={reduceMotion ? false : { opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
             {t("home.landing.processTitle")}
           </motion.h2>
-          <div className="mt-12 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {processSteps.map((step, i) => (
               <motion.div
                 key={step.n}
@@ -207,28 +208,19 @@ export function HomeLanding() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="border-t border-border pt-6"
+                className="border-t border-border pt-5"
               >
                 <PhotoPlaceholder
                   label={t("home.landing.photoSlot", { step: step.title })}
-                  className="mb-6 rounded-xl border border-border/70"
+                  className="mb-4"
                 />
                 <div className="text-sm font-medium tabular-nums text-muted-foreground" aria-hidden>
                   {step.n}
                 </div>
-                <h3 className="mt-3 text-lg font-semibold tracking-tight text-foreground">{step.title}</h3>
+                <div className="mt-3 text-lg font-semibold text-foreground">{step.title}</div>
                 <div className="mt-2 text-sm leading-6 text-muted-foreground">{step.body}</div>
               </motion.div>
             ))}
-          </div>
-          <div className="mt-12 flex justify-center">
-            <LandingButton
-              href="/buy"
-              className="gap-2 border border-border bg-background text-foreground hover:bg-muted"
-            >
-              {t("home.landing.processMore")}
-              <ArrowRight className="size-4" aria-hidden />
-            </LandingButton>
           </div>
         </div>
       </section>
@@ -240,13 +232,13 @@ export function HomeLanding() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl font-semibold tracking-[-0.035em] text-foreground sm:text-4xl lg:text-5xl">
+          <h2 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl lg:text-5xl">
             {t("home.landing.ctaTitle")}
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
             {t("home.landing.ctaLead")}
           </p>
-          <dl className="mx-auto mt-12 grid max-w-xl grid-cols-3 gap-x-4 gap-y-6 border-y border-border py-8 sm:gap-x-6">
+          <dl className="mx-auto mt-10 grid max-w-xl grid-cols-3 gap-4 border-y border-border py-5 text-start sm:text-center">
             {(
               [
                 ["home.landing.statCatalogValue", "home.landing.statCatalogLabel"],
@@ -254,28 +246,22 @@ export function HomeLanding() {
                 ["home.landing.statTermValue", "home.landing.statTermLabel"],
               ] as const
             ).map(([valueKey, labelKey]) => (
-              <div key={labelKey} className="flex min-w-0 flex-col">
-                <dt className="order-2 mt-1.5 text-xs leading-5 text-muted-foreground sm:text-sm">
-                  {t(labelKey)}
-                </dt>
-                <dd className="order-1 text-2xl font-semibold tabular-nums tracking-tight text-foreground sm:text-3xl">
+              <div key={labelKey}>
+                <dt className="text-xs leading-5 text-muted-foreground">{t(labelKey)}</dt>
+                <dd className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-foreground sm:text-xl">
                   {t(valueKey)}
                 </dd>
               </div>
             ))}
           </dl>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <LandingButton
-              href="/catalog"
-              className="gap-2 bg-foreground text-background shadow-[0_12px_28px_-18px_rgb(0_0_0/0.5)] hover:bg-foreground/90"
-            >
+            <LandingButton href="/catalog" className="bg-foreground text-background hover:bg-foreground/90">
               {t("home.landing.ctaCatalog")}
-              <ArrowRight className="size-4" aria-hidden />
             </LandingButton>
             <LandingButton
               href={TELEGRAM_CHANNEL}
               external
-              className="border border-border/80 bg-background text-foreground/80 hover:bg-muted/60 hover:text-foreground"
+              className="border border-border bg-background text-foreground hover:bg-muted"
             >
               {t("home.landing.telegramCta")}
             </LandingButton>

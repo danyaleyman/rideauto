@@ -28,17 +28,6 @@ export function CatalogMobileFilters({ catalog }: { catalog: CatalogSearchContro
   const [open, setOpen] = useState(false);
   const activeCount = catalog.activeChips.length;
   const total = catalog.search.meta?.total ?? 0;
-  const { state, rangeDraft, loading, applyRanges } = catalog;
-  const hasPendingRanges =
-    rangeDraft.price_from !== state.price_from ||
-    rangeDraft.price_to !== state.price_to ||
-    rangeDraft.mileage_from !== state.mileage_from ||
-    rangeDraft.mileage_to !== state.mileage_to ||
-    rangeDraft.year_from !== state.year_from ||
-    rangeDraft.year_to !== state.year_to ||
-    rangeDraft.engine_cc_from !== state.engine_cc_from ||
-    rangeDraft.engine_cc_to !== state.engine_cc_to ||
-    rangeDraft.passable_only !== state.passable_only;
   const viewportH = useVisualViewportHeight();
   const dragY = useMotionValue(0);
 
@@ -169,16 +158,11 @@ export function CatalogMobileFilters({ catalog }: { catalog: CatalogSearchContro
                 type="button"
                 className="min-h-11 w-full font-semibold"
                 data-testid="catalog-mobile-filters-apply"
-                onClick={() => {
-                  applyRanges();
-                  setOpen(false);
-                }}
+                onClick={() => setOpen(false)}
               >
-                {loading || hasPendingRanges
-                  ? t("catalog.filters.mobileApply")
-                  : t("catalog.filters.mobileApplyCount", {
-                      count: total.toLocaleString(locale === "en" ? "en-US" : "ru-RU"),
-                    })}
+                {t("catalog.filters.mobileApplyCount", {
+                  count: total.toLocaleString(locale === "en" ? "en-US" : "ru-RU"),
+                })}
               </Button>
             </DialogFooter>
           </div>

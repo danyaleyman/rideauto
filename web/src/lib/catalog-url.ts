@@ -41,19 +41,6 @@ export type CatalogUrlState = {
   page: number;
 };
 
-/** Черновик диапазонных фильтров (редактируется до нажатия «Применить»). */
-export type CatalogRangeDraft = {
-  price_from: string;
-  price_to: string;
-  mileage_from: string;
-  mileage_to: string;
-  year_from: string;
-  year_to: string;
-  engine_cc_from: string;
-  engine_cc_to: string;
-  passable_only: boolean;
-};
-
 function parsePricingTierFilter(raw: string | null): CatalogPricingTierFilter {
   const v = (raw ?? "").trim();
   if (v === "full_customs" || v === "korea_land_only" || v === "price_on_request") {

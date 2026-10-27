@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { catalogCardImagePlaceholder } from "@/lib/catalog-card-image";
 import { useProxiedCatalogThumbUrls } from "@/lib/catalog-image-proxy";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronsUpDown, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,7 +23,7 @@ import { useLocaleContext } from "@/components/LocaleProvider";
 import { MOTION_TOKENS } from "@/components/ui/motion";
 import { catalogPricingTierOptions, catalogSortOptions } from "@/lib/catalog-widget-options";
 import { cn } from "@/lib/utils";
-import type { CatalogPricingTierFilter, CatalogRangeDraft, CatalogUrlState, Market } from "@/lib/catalog-url";
+import type { CatalogPricingTierFilter, CatalogUrlState, Market } from "@/lib/catalog-url";
 
 export const cardListVariants = {
   hidden: {},
@@ -213,51 +213,58 @@ export function CatalogCardImage({
   );
 }
 
-function parseRangeNum(raw: string): number | null {
-  const s = raw.trim();
-  if (!s) return null;
-  const n = Number(s.replace(/[\s\u00a0]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function rangePairInvalid(from: string, to: string): boolean {
-  const f = parseRangeNum(from);
-  const t = parseRangeNum(to);
-  return f != null && t != null && f > t;
-}
-
 export function RangeBlock({
   state,
   navigate,
   market,
-  draft,
-  onDraftChange,
-  onApply,
 }: {
   state: CatalogUrlState;
   navigate: (s: CatalogUrlState) => void;
   market: Market;
-  draft: CatalogRangeDraft;
-  onDraftChange: (next: CatalogRangeDraft) => void;
-  onApply: () => void;
 }) {
   const { locale, t } = useLocaleContext();
   const pricingTierOptions = useMemo(() => catalogPricingTierOptions(locale), [locale]);
-  const rangeErrorId = useId();
-  const kmUnit = t("catalog.filters.kmUnit");
-  const yearUnit = locale === "en" ? "y." : "г.";
-
-  const priceInvalid = rangePairInvalid(draft.price_from, draft.price_to);
-  const mileageInvalid = rangePairInvalid(draft.mileage_from, draft.mileage_to);
-  const yearInvalid = rangePairInvalid(draft.year_from, draft.year_to);
-  const ccInvalid = rangePairInvalid(draft.engine_cc_from, draft.engine_cc_to);
-  const hasRangeError = priceInvalid || mileageInvalid || yearInvalid || ccInvalid;
-  // i18n: временный текст валидации диапазонов без нового ключа в messages/*.json.
-  const rangeErrorText =
-    locale === "en"
-      ? "The “from” value must not be greater than “to”."
-      : "Значение «от» не может быть больше «до».";
-
+  const [draft, setDraft] = useState({
+    price_from: state.price_from,
+    price_to: state.price_to,
+    mileage_from: state.mileage_from,
+    mileage_to: state.mileage_to,
+    year_from: state.year_from,
+    year_to: state.year_to,
+    engine_cc_from: state.engine_cc_from,
+    engine_cc_to: state.engine_cc_to,
+    passable_only: state.passable_only,
+  });
+  useEffect(() => {
+    setDraft({
+      price_from: state.price_from,
+      price_to: state.price_to,
+      mileage_from: state.mileage_from,
+      mileage_to: state.mileage_to,
+      year_from: state.year_from,
+      year_to: state.year_to,
+      engine_cc_from: state.engine_cc_from,
+      engine_cc_to: state.engine_cc_to,
+      passable_only: state.passable_only,
+    });
+  }, [
+    state.price_from,
+    state.price_to,
+    state.mileage_from,
+    state.mileage_to,
+    state.year_from,
+    state.year_to,
+    state.engine_cc_from,
+    state.engine_cc_to,
+    state.passable_only,
+  ]);
+  const apply = () => {
+    navigate({
+      ...state,
+      ...draft,
+      page: 1,
+    });
+  };
   const setPricingTier = (raw: string) => {
     const tier: CatalogPricingTierFilter =
       raw === "full_customs" || raw === "korea_land_only" || raw === "price_on_request" ? raw : "";
@@ -357,104 +364,59 @@ export function RangeBlock({
       ) : null}
       <div className="grid grid-cols-2 gap-2 text-sm">
         <Input
-          placeholder={`${t("catalog.widgets.priceFrom")} ₽`}
-          aria-label={`${t("catalog.widgets.priceFrom")} ₽`}
-          inputMode="numeric"
-          autoComplete="off"
+          placeholder={t("catalog.widgets.priceFrom")}
           value={draft.price_from}
-          onChange={(e) => onDraftChange({ ...draft, price_from: e.target.value })}
-          aria-invalid={priceInvalid || undefined}
-          aria-describedby={priceInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, price_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder={`${t("catalog.widgets.priceTo")} ₽`}
-          aria-label={`${t("catalog.widgets.priceTo")} ₽`}
-          inputMode="numeric"
-          autoComplete="off"
+          placeholder={t("catalog.widgets.priceTo")}
           value={draft.price_to}
-          onChange={(e) => onDraftChange({ ...draft, price_to: e.target.value })}
-          aria-invalid={priceInvalid || undefined}
-          aria-describedby={priceInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, price_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder={`${t("catalog.widgets.mileageFrom")} ${kmUnit}`}
-          aria-label={`${t("catalog.widgets.mileageFrom")} ${kmUnit}`}
-          inputMode="numeric"
-          autoComplete="off"
+          placeholder={t("catalog.widgets.mileageFrom")}
           value={draft.mileage_from}
-          onChange={(e) => onDraftChange({ ...draft, mileage_from: e.target.value })}
-          aria-invalid={mileageInvalid || undefined}
-          aria-describedby={mileageInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, mileage_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder={`${t("catalog.widgets.mileageTo")} ${kmUnit}`}
-          aria-label={`${t("catalog.widgets.mileageTo")} ${kmUnit}`}
-          inputMode="numeric"
-          autoComplete="off"
+          placeholder={t("catalog.widgets.mileageTo")}
           value={draft.mileage_to}
-          onChange={(e) => onDraftChange({ ...draft, mileage_to: e.target.value })}
-          aria-invalid={mileageInvalid || undefined}
-          aria-describedby={mileageInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, mileage_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder={`${t("catalog.widgets.yearFrom")} ${yearUnit}`}
-          aria-label={`${t("catalog.widgets.yearFrom")} ${yearUnit}`}
-          inputMode="numeric"
-          autoComplete="off"
+          placeholder={t("catalog.widgets.yearFrom")}
           value={draft.year_from}
-          onChange={(e) => onDraftChange({ ...draft, year_from: e.target.value })}
-          aria-invalid={yearInvalid || undefined}
-          aria-describedby={yearInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, year_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
-          placeholder={`${t("catalog.widgets.yearTo")} ${yearUnit}`}
-          aria-label={`${t("catalog.widgets.yearTo")} ${yearUnit}`}
-          inputMode="numeric"
-          autoComplete="off"
+          placeholder={t("catalog.widgets.yearTo")}
           value={draft.year_to}
-          onChange={(e) => onDraftChange({ ...draft, year_to: e.target.value })}
-          aria-invalid={yearInvalid || undefined}
-          aria-describedby={yearInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, year_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder={t("catalog.widgets.ccFrom")}
-          aria-label={t("catalog.widgets.ccFrom")}
-          inputMode="numeric"
-          autoComplete="off"
           value={draft.engine_cc_from}
-          onChange={(e) => onDraftChange({ ...draft, engine_cc_from: e.target.value })}
-          aria-invalid={ccInvalid || undefined}
-          aria-describedby={ccInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, engine_cc_from: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
         <Input
           placeholder={t("catalog.widgets.ccTo")}
-          aria-label={t("catalog.widgets.ccTo")}
-          inputMode="numeric"
-          autoComplete="off"
           value={draft.engine_cc_to}
-          onChange={(e) => onDraftChange({ ...draft, engine_cc_to: e.target.value })}
-          aria-invalid={ccInvalid || undefined}
-          aria-describedby={ccInvalid ? rangeErrorId : undefined}
+          onChange={(e) => setDraft((d) => ({ ...d, engine_cc_to: e.target.value }))}
           className="focus-visible:ring-2 focus-visible:ring-inset"
         />
       </div>
-      {hasRangeError ? (
-        <p id={rangeErrorId} role="alert" className="mt-2 text-xs leading-snug text-destructive">
-          {rangeErrorText}
-        </p>
-      ) : null}
       <label className="mt-2 flex cursor-pointer items-start justify-between gap-2 rounded-md py-1.5 text-sm leading-snug transition-colors hover:bg-muted/60">
         <span className="inline-flex items-start gap-2.5">
           <Checkbox
             checked={draft.passable_only}
-            onCheckedChange={(v) => onDraftChange({ ...draft, passable_only: Boolean(v) })}
+            onCheckedChange={(v) => setDraft((d) => ({ ...d, passable_only: Boolean(v) }))}
             className="mt-0.5 shrink-0"
           />
           {t("catalog.widgets.passableOnly")}
@@ -473,14 +435,7 @@ export function RangeBlock({
           <TooltipContent side="top">{t("catalog.widgets.passableTip")}</TooltipContent>
         </Tooltip>
       </label>
-      <Button
-        type="button"
-        onClick={onApply}
-        variant="secondary"
-        className="mt-3 w-full"
-        size="sm"
-        disabled={hasRangeError}
-      >
+      <Button type="button" onClick={apply} variant="secondary" className="mt-3 w-full" size="sm">
         {t("catalog.widgets.applyRanges")}
       </Button>
     </>

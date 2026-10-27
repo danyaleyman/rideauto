@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
-import { useLocaleContext } from "@/components/LocaleProvider"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
@@ -58,7 +57,6 @@ function DialogContent({
   showCloseButton?: boolean
   overlayClassName?: string
 }) {
-  const { t } = useLocaleContext();
   return (
     <DialogPortal>
       <DialogOverlay className={overlayClassName} />
@@ -77,10 +75,10 @@ function DialogContent({
               variant="ghost"
               className="absolute top-4 end-4 bg-secondary"
               size="icon-sm"
-              aria-label={t("common.closeDialog")}
+              aria-label="Закрыть диалог"
             >
               <XIcon className="size-4" aria-hidden />
-              <span className="sr-only">{t("common.close")}</span>
+              <span className="sr-only">Закрыть</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -107,7 +105,6 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
 }) {
-  const { t } = useLocaleContext();
   return (
     <div
       data-slot="dialog-footer"
@@ -120,7 +117,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">{t("common.close")}</Button>
+          <Button variant="outline">Закрыть</Button>
         </DialogPrimitive.Close>
       )}
     </div>

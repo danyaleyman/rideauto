@@ -29,9 +29,6 @@ const geistMono = Geist_Mono({
 
 const stagingNoindex = process.env.NEXT_PUBLIC_NOINDEX === "1";
 
-// Ставит .dark до первого рендера — без вспышки светлой темы у dark/system-пользователей.
-const themeInitScript = `try{var p=localStorage.getItem("wra-theme");var d=p==="dark"||(p!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}`;
-
 export const metadata: Metadata = {
   metadataBase: new URL(`${getSiteUrl()}/`),
   manifest: "/manifest.webmanifest",
@@ -57,10 +54,8 @@ export default function RootLayout({
       lang={DEFAULT_LOCALE}
       dir="ltr"
       className={cn("font-sans", inter.variable, geistMono.variable)}
-      suppressHydrationWarning
     >
       <body className="antialiased">
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} suppressHydrationWarning />
         <StagingBanner />
         <QueryProvider>
           <LocaleProvider initialLocale={DEFAULT_LOCALE}>

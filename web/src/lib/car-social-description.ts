@@ -10,7 +10,7 @@ import { displayDriveTypeRu, displayTransmissionRu } from "@/lib/vehicle-spec-ru
 import { parseListingCalendarYear } from "@/lib/catalog-client-utils";
 
 export const CHANNEL_BUY_URL = "https://rideauto.ru/buy";
-export const CHANNEL_MANAGER_URL = "https://t.me/worldrideauto";
+export const CHANNEL_MANAGER_URL = "https://t.me/nikits15";
 
 const MARKET_HEADING: Record<string, string> = {
   korea: "🇰🇷 Корея",

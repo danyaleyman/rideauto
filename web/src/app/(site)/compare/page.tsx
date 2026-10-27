@@ -8,9 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, GitCompareArrows, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchCompareClient, type CompareCarRow } from "@/lib/client-api";
-import { formatPriceLabel } from "@/lib/format-price";
-import { normalizeFuelLabel } from "@/lib/car-detail-data";
-import { displayBodyType, displayDriveType, displayTransmission } from "@/lib/vehicle-spec-locale";
+import { formatCatalogCardPriceLocale } from "@/lib/format-price-locale";
 import type { AppLocale } from "@/lib/i18n";
 import { useCompareCars } from "@/hooks/use-compare-cars";
 import { useLocaleContext } from "@/components/LocaleProvider";
@@ -30,40 +28,10 @@ function CompareTable({ rows, locale }: { rows: CompareCarRow[]; locale: AppLoca
 
   const formatCell = (key: keyof CompareCarRow, row: CompareCarRow) => {
     const v = row[key];
-    if (key === "price_rub") {
-      if (row.price_on_request) return "—";
-      if (v == null || v === "" || (typeof v === "number" && v <= 0)) return "—";
-      return formatPriceLabel(v as number);
-    }
+    if (key === "price_rub")
+      return formatCatalogCardPriceLocale(locale, v as number | null | undefined);
     if (v == null || v === "") return "—";
-    switch (key) {
-      case "mileage_km": {
-        const n = Number(v);
-        const shown = Number.isFinite(n)
-          ? n.toLocaleString(locale === "en" ? "en-US" : "ru-RU")
-          : String(v);
-        // i18n: единица «км» без отдельного ключа
-        return `${shown} ${locale === "en" ? "km" : "км"}`;
-      }
-      case "power_hp": {
-        const n = Number(v);
-        const shown = Number.isFinite(n)
-          ? n.toLocaleString(locale === "en" ? "en-US" : "ru-RU")
-          : String(v);
-        // i18n: единица «л.с.» без отдельного ключа
-        return `${shown} ${locale === "en" ? "hp" : "л.с."}`;
-      }
-      case "fuel":
-        return normalizeFuelLabel(v) ?? String(v);
-      case "transmission":
-        return displayTransmission(locale, v) ?? String(v);
-      case "body_type":
-        return displayBodyType(locale, v) ?? String(v);
-      case "drive_type":
-        return displayDriveType(locale, v) ?? String(v);
-      default:
-        return String(v);
-    }
+    return String(v);
   };
 
   return (
@@ -179,22 +147,19 @@ function ComparePageInner() {
         <>
           <CompareTable rows={rows} locale={locale} />
           <ul className="mt-4 flex flex-wrap gap-2" aria-label={t("compare.listLabel")}>
-            {ids.map((id) => {
-              const row = rows.find((r) => r.id === id);
-              return (
-                <li key={id}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="rounded-full text-xs"
-                    onClick={() => remove(id)}
-                  >
-                    {t("compare.remove")}: {row?.title ?? id}
-                  </Button>
-                </li>
-              );
-            })}
+            {ids.map((id) => (
+              <li key={id}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="rounded-full text-xs"
+                  onClick={() => remove(id)}
+                >
+                  {t("compare.remove")}: {id.slice(0, 12)}…
+                </Button>
+              </li>
+            ))}
           </ul>
           <p className="mt-6 text-xs text-muted-foreground">
             <Link href={compareHref} className="underline-offset-2 hover:underline">

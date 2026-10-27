@@ -3,16 +3,13 @@ import { getSiteUrl } from "@/lib/env";
 import { HomeLanding } from "@/components/home/HomeLanding";
 import { createT } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/locale-server";
-import { localeAlternatesMetadata } from "@/lib/site-alternates-metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getServerLocale();
-  const t = createT(locale);
-  const alt = await localeAlternatesMetadata();
+  const t = createT(await getServerLocale());
   return {
     title: t("home.meta.title"),
     description: t("home.meta.description"),
-    alternates: alt.alternates,
+    alternates: { canonical: "/" },
     openGraph: {
       title: t("home.meta.ogTitle"),
       description: t("home.meta.ogDescription"),

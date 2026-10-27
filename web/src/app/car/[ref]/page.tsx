@@ -135,8 +135,6 @@ export default async function CarPage({ params }: PageProps) {
 
   const priceLine = carStickyPriceLine(availability, priceOnRequest, rubFinite ? rubPrice : null);
 
-  const t = createT(DEFAULT_LOCALE);
-
   const jsonLd = buildCarJsonLd(ref, raw, {
     priceRub: rubFinite ? rubPrice : null,
     priceOnRequest,
@@ -184,15 +182,7 @@ export default async function CarPage({ params }: PageProps) {
               availability={availability}
             />
           </MotionFadeUp>
-        ) : (
-          <MotionFadeUp delay={0.04}>
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted sm:min-h-[240px] lg:aspect-[16/9] lg:min-h-0">
-              <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
-                {t("car.detail.noPhoto")}
-              </div>
-            </div>
-          </MotionFadeUp>
-        )}
+        ) : null}
 
         <MotionFadeUp delay={0.06}>
           <CarHeroMeta

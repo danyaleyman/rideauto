@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import { useLocaleContext } from "@/components/LocaleProvider";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type EngineType = "petrol" | "diesel" | "electric" | "hybrid";
@@ -617,6 +618,7 @@ export function BuyCalculator({ preset }: { preset?: BuyCalculatorPreset } = {})
   const [hpEd, setHpEd] = useState(preset?.hpEd ?? "");
   const [ageRange, setAgeRange] = useState<AgeRange>(preset?.ageRange ?? "5+");
   const [purpose, setPurpose] = useState<Purpose>("personal");
+  const [calcNonce, setCalcNonce] = useState(0);
   const [cbrRates, setCbrRates] = useState<Record<Currency, CbrRate>>(FALLBACK_RATES);
   const [rateDateBadge, setRateDateBadge] = useState(() => t("buy.calc.ratesFallback"));
 
@@ -659,6 +661,8 @@ export function BuyCalculator({ preset }: { preset?: BuyCalculatorPreset } = {})
   }, []);
 
   const result = useMemo(() => {
+    const forceRecalcToken = calcNonce;
+    void forceRecalcToken;
     const rate = cbrRates[currency].Value / cbrRates[currency].Nominal;
     const eurRate = cbrRates.EUR.Value / cbrRates.EUR.Nominal;
     const safePrice = parseInputNumber(price);
@@ -691,7 +695,7 @@ export function BuyCalculator({ preset }: { preset?: BuyCalculatorPreset } = {})
     const total = duty + excise + vat + util + customsFee;
 
     return { rate, eurRate, rub, duty, excise, vat, util, customsFee, total, hp30Min, effectivePower };
-  }, [ageRange, cbrRates, currency, engineType, hpEd, hpIce, hpSingle, hybridType, price, purpose, volume]);
+  }, [ageRange, calcNonce, cbrRates, currency, engineType, hpEd, hpIce, hpSingle, hybridType, price, purpose, volume]);
 
   return (
     <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
@@ -832,6 +836,14 @@ export function BuyCalculator({ preset }: { preset?: BuyCalculatorPreset } = {})
             <option value="resale">{t("buy.calc.purposeResale")}</option>
             <option value="legal">{t("buy.calc.purposeLegal")}</option>
           </SelectField>
+
+          <Button
+            type="button"
+            className="mt-1 h-10 w-full"
+            onClick={() => setCalcNonce((n) => n + 1)}
+          >
+            {t("buy.calc.submit")}
+          </Button>
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-muted/30 p-4 sm:p-5">
@@ -848,12 +860,12 @@ export function BuyCalculator({ preset }: { preset?: BuyCalculatorPreset } = {})
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
               <span>{t("buy.calc.rowRub")}</span>
-              <span className="text-right">{money(result.rub)}</span>
+              <span>{money(result.rub)}</span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {/* i18n: пояснение, что цена в рублях — это и есть база (таможенная стоимость) для пошлины */}
-              Эта же сумма является таможенной стоимостью — базой для расчёта пошлины и сборов.
-            </p>
+            <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
+              <span>{t("buy.calc.rowCustomsValue")}</span>
+              <span>{money(result.rub)}</span>
+            </div>
             <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
               <span>{engineType === "electric" ? t("buy.calc.rowDutyEv") : t("buy.calc.rowDuty")}</span>
               <span>{money(result.duty)}</span>

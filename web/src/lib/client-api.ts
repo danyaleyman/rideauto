@@ -281,7 +281,6 @@ export type CompareCarRow = {
   year?: string | number | null;
   mileage_km?: number | null;
   price_rub?: number | null;
-  price_on_request?: boolean | null;
   fuel?: string | null;
   transmission?: string | null;
   power_hp?: number | null;

@@ -39,7 +39,7 @@ describe("buildCarSocialDescription", () => {
     expect(text.replace(/\u00a0/g, " ")).toContain("**💳 Цена во Владивостоке под ключ: 1 520 000 руб.**");
     expect(text).toContain("19.05.2026");
     expect(text).toContain("[⬇️ Оставить заявку](https://rideauto.ru/buy)");
-    expect(text).toContain("[📞 Связаться](https://t.me/worldrideauto)");
+    expect(text).toContain("[📞 Связаться](https://t.me/nikits15)");
     expect(text).toMatch(/\*\*🇰🇷 Корея\*\*\n\n\*\*🏎 /);
     expect(text).toMatch(/• Двигатель:[\s\S]*\n• Привод:/);
   });

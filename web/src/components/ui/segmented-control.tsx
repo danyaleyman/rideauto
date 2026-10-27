@@ -7,7 +7,7 @@ export const segmentedControlBarClass =
   "inline-flex w-full rounded-lg bg-muted p-1";
 
 export const segmentedControlButtonClass =
-  "flex-1 rounded-md px-3.5 py-2 text-sm font-medium leading-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60";
+  "flex-1 rounded-md px-3.5 py-2 text-sm font-medium leading-none transition";
 
 export type SegmentedControlItem<T extends string> = {
   value: T;
@@ -50,7 +50,7 @@ export function SegmentedControlScroll<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(item.value)}
             className={cn(
-              "shrink-0 whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium leading-snug transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+              "shrink-0 whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium leading-snug transition",
               selected
                 ? "bg-background text-foreground shadow-sm"
                 : "text-foreground/70 hover:text-foreground",
@@ -158,7 +158,7 @@ export function SegmentedControlPill<T extends string>({
             aria-selected={selected}
             tabIndex={selected ? 0 : -1}
             className={cn(
-              "relative z-10 min-w-0 px-1 py-2 text-sm font-medium leading-snug transition-colors [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+              "relative z-10 min-w-0 px-1 py-2 text-sm font-medium leading-snug transition-colors [overflow-wrap:anywhere]",
               pillRadiusClass,
               selected ? "text-foreground" : "text-foreground/70",
             )}

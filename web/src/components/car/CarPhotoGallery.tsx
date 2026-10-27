@@ -211,7 +211,6 @@ export default function CarPhotoGallery({
           <div
             className={cn(
               "relative aspect-[4/3] min-h-[200px] w-full overflow-hidden rounded-lg bg-muted sm:min-h-[240px] lg:aspect-auto lg:min-h-0 lg:h-full lg:rounded-xl",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               n > 1 ? "cursor-grab touch-pan-y select-none active:cursor-grabbing" : "cursor-zoom-in",
             )}
             onClick={() => openLightbox(safeActive)}

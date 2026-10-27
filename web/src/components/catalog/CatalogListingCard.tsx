@@ -299,23 +299,7 @@ export function CatalogListingCard({ catalog, car, idx, preview }: CatalogListin
                 >
                   <Heart className={cn("size-4", fav ? "fill-current" : "")} aria-hidden />
                 </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  asChild
-                  className={cn(touchIconButtonClass, "rounded-md text-muted-foreground hover:text-foreground")}
-                  title={t("favorites.loginRequired")}
-                >
-                  <Link
-                    href="/login"
-                    aria-label={t("favorites.loginRequired")}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Heart className="size-4" aria-hidden />
-                  </Link>
-                </Button>
-              )}
+              ) : null}
             </div>
           </div>
           <p

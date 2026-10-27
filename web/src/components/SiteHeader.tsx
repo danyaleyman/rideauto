@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { LogOut, Menu, Monitor, Moon, Sun, UserRound, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -43,7 +42,6 @@ export function SiteHeader() {
   const { authenticated, user, logout } = useAuth();
   const { t } = useLocaleContext();
   const reduceMotion = useReducedMotion();
-  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [themePref, setThemePref] = useState<ThemePreference>("system");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -81,29 +79,18 @@ export function SiteHeader() {
     applyThemePreference(next);
   }, []);
 
-  const isActiveNav = (href: string) =>
-    href === "/catalog"
-      ? pathname === "/catalog" || pathname.startsWith("/catalog")
-      : pathname === href;
-
-  const navLinkClass = (href: string) =>
-    cn(
-      "transition-colors hover:text-foreground",
-      isActiveNav(href) ? "text-primary font-medium" : "text-muted-foreground",
-    );
-
   const navLinks = (
     <>
-      <Link className={navLinkClass("/#company")} href="/#company">
+      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/#company">
         {t("header.about")}
       </Link>
-      <Link className={navLinkClass("/catalog")} aria-current={isActiveNav("/catalog") ? "page" : undefined} href="/catalog">
+      <Link className="text-primary font-medium" href="/catalog">
         {t("header.catalog")}
       </Link>
-      <Link className={navLinkClass("/buy")} aria-current={isActiveNav("/buy") ? "page" : undefined} href="/buy">
+      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/buy">
         {t("header.buy")}
       </Link>
-      <Link className={navLinkClass("/contacts")} aria-current={isActiveNav("/contacts") ? "page" : undefined} href="/contacts">
+      <Link className="text-muted-foreground transition-colors hover:text-foreground" href="/contacts">
         {t("header.contacts")}
       </Link>
     </>
@@ -314,11 +301,7 @@ export function SiteHeader() {
                 </motion.div>
                 <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
                   <Link
-                    className={cn(
-                      "rounded-lg px-2 py-3 transition-colors hover:bg-muted/60 hover:text-foreground",
-                      isActiveNav("/catalog") ? "text-primary" : "text-muted-foreground",
-                    )}
-                    aria-current={isActiveNav("/catalog") ? "page" : undefined}
+                    className="rounded-lg px-2 py-3 text-primary"
                     href="/catalog"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -327,11 +310,7 @@ export function SiteHeader() {
                 </motion.div>
                 <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
                   <Link
-                    className={cn(
-                      "rounded-lg px-2 py-3 transition-colors hover:bg-muted/60 hover:text-foreground",
-                      isActiveNav("/buy") ? "text-primary" : "text-muted-foreground",
-                    )}
-                    aria-current={isActiveNav("/buy") ? "page" : undefined}
+                    className="rounded-lg px-2 py-3 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                     href="/buy"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -340,11 +319,7 @@ export function SiteHeader() {
                 </motion.div>
                 <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
                   <Link
-                    className={cn(
-                      "rounded-lg px-2 py-3 transition-colors hover:bg-muted/60 hover:text-foreground",
-                      isActiveNav("/contacts") ? "text-primary" : "text-muted-foreground",
-                    )}
-                    aria-current={isActiveNav("/contacts") ? "page" : undefined}
+                    className="rounded-lg px-2 py-3 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                     href="/contacts"
                     onClick={() => setMobileMenuOpen(false)}
                   >
