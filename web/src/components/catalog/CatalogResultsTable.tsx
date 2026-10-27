@@ -10,6 +10,10 @@ import type { CatalogSearchController } from "@/hooks/use-catalog-search-state";
 import type { SlimCar } from "@/lib/types";
 import { CatalogCardImage } from "@/components/catalog/CatalogBlockWidgets";
 import { useLocaleContext } from "@/components/LocaleProvider";
+import { useCompareCars } from "@/hooks/use-compare-cars";
+import { touchIconButtonClass } from "@/lib/design-system";
+import { Button } from "@/components/ui/button";
+import { GitCompareArrows, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CatalogQuickBuyDialog = dynamic(
@@ -26,6 +30,8 @@ export function CatalogResultsTable({
 }) {
   const { t, locale } = useLocaleContext();
   const { state, openingCarId, setOpeningCarId, proxiedCatalogThumbsByCar, catalogGridThumbRows } = catalog;
+  const { authenticated, isFavorite, toggleFavorite } = catalog;
+  const { toggle: toggleCompare, isInCompare, full: compareFull } = useCompareCars();
 
   const markOpening = (carId: string) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (shouldShowPendingNavigation(e)) setOpeningCarId(carId);
@@ -52,7 +58,7 @@ export function CatalogResultsTable({
             <th scope="col" className="w-40 py-2.5 pe-3 font-medium">
               {t("catalog.results.tablePrice")}
             </th>
-            <th scope="col" className="w-28 py-2.5 font-medium">
+            <th scope="col" className="w-44 py-2.5 font-medium">
               <span className="sr-only">{t("catalog.quickBuy.trigger")}</span>
             </th>
           </tr>
@@ -72,6 +78,8 @@ export function CatalogResultsTable({
               previewImageUrls(car);
             const opening = openingCarId === car.id;
             const href = `/car/${encodeURIComponent(car.id)}`;
+            const inCompare = isInCompare(car.id);
+            const fav = authenticated && isFavorite(car.id);
 
             return (
               <tr
@@ -127,13 +135,68 @@ export function CatalogResultsTable({
                     : formatCatalogCardPrice(car.price, car.price_on_request)}
                 </td>
                 <td className="py-2.5 align-middle">
-                  {listingUnavailable ? null : (
-                    <CatalogQuickBuyDialog
-                      carId={car.id}
-                      carTitle={normalizedTitle}
-                      triggerClassName="h-8 px-3 text-xs font-semibold"
-                    />
-                  )}
+                  <div className="flex items-center justify-end gap-1">
+                    {listingUnavailable ? null : (
+                      <CatalogQuickBuyDialog
+                        carId={car.id}
+                        carTitle={normalizedTitle}
+                        triggerClassName="h-8 px-3 text-xs font-semibold"
+                      />
+                    )}
+                    <Button
+                      type="button"
+                      variant={inCompare ? "secondary" : "ghost"}
+                      size="icon-sm"
+                      className={cn(
+                        touchIconButtonClass,
+                        "rounded-md",
+                        inCompare ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title={
+                        inCompare
+                          ? t("car.purchase.compareRemove")
+                          : compareFull
+                            ? t("car.purchase.compareFull")
+                            : t("car.purchase.compareAdd")
+                      }
+                      aria-pressed={inCompare}
+                      aria-label={inCompare ? t("car.purchase.compareRemove") : t("car.purchase.compareAdd")}
+                      disabled={!inCompare && compareFull}
+                      onClick={() => toggleCompare(car.id)}
+                    >
+                      <GitCompareArrows className="size-4" aria-hidden />
+                    </Button>
+                    {authenticated ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className={cn(
+                          touchIconButtonClass,
+                          "rounded-md",
+                          fav ? "text-red-600 hover:text-red-700" : "text-muted-foreground hover:text-foreground",
+                        )}
+                        title={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavorite")}
+                        aria-pressed={fav}
+                        aria-label={fav ? t("car.purchase.removeFavorite") : t("car.purchase.addFavoriteAria")}
+                        onClick={() => void toggleFavorite(car)}
+                      >
+                        <Heart className={cn("size-4", fav ? "fill-current" : "")} aria-hidden />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        asChild
+                        className={cn(touchIconButtonClass, "rounded-md text-muted-foreground hover:text-foreground")}
+                        title={t("favorites.loginRequired")}
+                      >
+                        <Link href="/login" aria-label={t("favorites.loginRequired")}>
+                          <Heart className="size-4" aria-hidden />
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );

@@ -16,6 +16,7 @@ import {
   parseCatalogUrl,
   PER_PAGE,
   stateToBrowserUrl,
+  type CatalogRangeDraft,
   type CatalogUrlState,
 } from "@/lib/catalog-url";
 import { isCatalogListedToday } from "@/lib/catalog-listed-today";
@@ -61,6 +62,17 @@ export function useCatalogSearchState({
 
   const [online, setOnline] = useState(true);
   const [qDraft, setQDraft] = useState(state.q);
+  const [rangeDraft, setRangeDraft] = useState<CatalogRangeDraft>({
+    price_from: state.price_from,
+    price_to: state.price_to,
+    mileage_from: state.mileage_from,
+    mileage_to: state.mileage_to,
+    year_from: state.year_from,
+    year_to: state.year_to,
+    engine_cc_from: state.engine_cc_from,
+    engine_cc_to: state.engine_cc_to,
+    passable_only: state.passable_only,
+  });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openingCarId, setOpeningCarId] = useState<string | null>(null);
   const [catalogDensity, setCatalogDensityState] = useState<CatalogDensity>("list");
@@ -81,6 +93,30 @@ export function useCatalogSearchState({
   useEffect(() => {
     setQDraft(state.q);
   }, [state.q]);
+
+  useEffect(() => {
+    setRangeDraft({
+      price_from: state.price_from,
+      price_to: state.price_to,
+      mileage_from: state.mileage_from,
+      mileage_to: state.mileage_to,
+      year_from: state.year_from,
+      year_to: state.year_to,
+      engine_cc_from: state.engine_cc_from,
+      engine_cc_to: state.engine_cc_to,
+      passable_only: state.passable_only,
+    });
+  }, [
+    state.price_from,
+    state.price_to,
+    state.mileage_from,
+    state.mileage_to,
+    state.year_from,
+    state.year_to,
+    state.engine_cc_from,
+    state.engine_cc_to,
+    state.passable_only,
+  ]);
 
   useEffect(() => {
     const onOff = () => setOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -137,6 +173,10 @@ export function useCatalogSearchState({
     },
     [diagEnabled, router, spStr, state.market],
   );
+
+  const applyRanges = useCallback(() => {
+    navigate({ ...state, ...rangeDraft, page: 1 });
+  }, [navigate, state, rangeDraft]);
 
   useEffect(() => {
     const nextQ = qDraft.trim();
@@ -472,6 +512,9 @@ export function useCatalogSearchState({
     showSsrDegradedNotice,
     qDraft,
     setQDraft,
+    rangeDraft,
+    setRangeDraft,
+    applyRanges,
     copiedId,
     setCopiedId,
     openingCarId,

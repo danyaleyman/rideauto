@@ -49,7 +49,7 @@ export function CookieConsentBanner() {
   return (
     <div
       ref={barRef}
-      role="dialog"
+      role="region"
       aria-label={t("cookie.ariaLabel")}
       className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:p-4"
     >

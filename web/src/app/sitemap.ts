@@ -35,6 +35,7 @@ function staticRoutes(site: string, now: Date): MetadataRoute.Sitemap {
     { url: `${site}/compare`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
     { url: `${site}/buy`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${site}/contacts`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${site}/agreement`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${site}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${site}/cookies`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];

@@ -98,7 +98,7 @@ function carDescription(raw: Record<string, unknown>): string {
     bits.length > 0
       ? `${bits.join(", ")}.`
       : "Комплектация, фото и расчёт стоимости.";
-  return `${head} — ${tail} Подбор и доставка World Ride Auto.`;
+  return `${head} — ${tail} Подбор и доставка Ride Auto.`;
 }
 
 function firstCarImage(raw: Record<string, unknown>): string | undefined {

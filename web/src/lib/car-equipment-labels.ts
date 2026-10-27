@@ -85,6 +85,21 @@ export function collectAutotraderFeatureLabels(data: Record<string, unknown>): s
   return out;
 }
 
+/**
+ * Переводит опцию Che168 в RU без «тихой» утечки оригинала: шум отбрасывается,
+ * непереведённый латинский/китайский лейбл помечается как «Оригинал: …»,
+ * чтобы не выдавать английский за русскую опцию вперемешку с переводами.
+ */
+export function displayChinaOptionRuStrict(raw: string): string {
+  const src = raw.trim();
+  if (!src) return "";
+  if (isChinaOptionNoise(src)) return "";
+  const ru = displayChinaOptionRu(src) || displayChinaOptionRu(translateKoToRuText(src));
+  if (ru) return ru;
+  if (CYRILLIC_RE.test(src)) return src;
+  return `Оригинал: ${src}`;
+}
+
 /** Все подписи опций/комплектации для карточки (Encar + China + Autotrader), в стабильном порядке. */
 export function collectCarEquipmentLabels(data: Record<string, unknown>): string[] {
   const extra =
@@ -102,27 +117,17 @@ export function collectCarEquipmentLabels(data: Record<string, unknown>): string
     const out: string[] = [];
     const seen = new Set<string>();
     for (const item of chinaRecommendedRaw) {
-      if (typeof item === "string") {
-        const t = item.trim();
-        if (t && !seen.has(t) && isMeaningfulOptionLabel(t)) {
-          seen.add(t);
-          out.push(t);
-        }
-        continue;
-      }
       const raw =
-        item && typeof item === "object"
-          ? (asStr((item as Record<string, unknown>).name) ??
-            asStr((item as Record<string, unknown>).value) ??
-            String(item))
-          : item != null
-            ? String(item)
-            : "";
-      const ru =
-        displayChinaOptionRu(raw) ||
-        displayChinaOptionRu(translateKoToRuText(raw)) ||
-        translateKoToRuText(raw).trim() ||
-        raw.trim();
+        typeof item === "string"
+          ? item
+          : item && typeof item === "object"
+            ? (asStr((item as Record<string, unknown>).name) ??
+              asStr((item as Record<string, unknown>).value) ??
+              String(item))
+            : item != null
+              ? String(item)
+              : "";
+      const ru = displayChinaOptionRuStrict(raw);
       if (!isMeaningfulOptionLabel(ru) || seen.has(ru)) continue;
       seen.add(ru);
       out.push(ru);

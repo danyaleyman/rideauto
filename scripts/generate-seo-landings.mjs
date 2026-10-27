@@ -32,20 +32,20 @@ const UI = {
     catalogCta: "Смотреть объявления в каталоге",
     allKorea: "Все авто из Кореи",
     note:
-      "World Ride Auto — подбор автомобилей из Кореи, ориентиры по ценам и доставке во Владивосток. Точные суммы зависят от курса и комплектации; уточняйте у менеджера.",
+      "Ride Auto — подбор автомобилей из Кореи, ориентиры по ценам и доставке во Владивосток. Точные суммы зависят от курса и комплектации; уточняйте у менеджера.",
     privacy: "Конфиденциальность",
     markH1: (mark) => `${mark} — авто из Кореи`,
     markLead: (mark) =>
       `Подбор ${mark} на корейском рынке: фильтры по году, пробегу и цене.`,
     modelH1: (mark, model) => `${mark} ${model} — из Кореи`,
     modelLead: (mark, model) =>
-      `Актуальные объявления ${mark} ${model} в каталоге World Ride Auto.`,
+      `Актуальные объявления ${mark} ${model} в каталоге Ride Auto.`,
     markTitle: (mark) => `${mark} из Кореи — купить автомобиль с доставкой во Владивосток`,
     markDesc: (mark) =>
-      `Каталог ${mark} с корейского рынка: подбор по модели, цены «под ключ», доставка и оформление через World Ride Auto.`,
-    modelTitle: (mark, model) => `${mark} ${model} из Кореи — каталог World Ride Auto`,
+      `Каталог ${mark} с корейского рынка: подбор по модели, цены «под ключ», доставка и оформление через Ride Auto.`,
+    modelTitle: (mark, model) => `${mark} ${model} из Кореи — каталог Ride Auto`,
     modelDesc: (mark, model) =>
-      `${mark} ${model} с корейского рынка. Фильтры по году, пробегу и комплектации в каталоге World Ride Auto.`,
+      `${mark} ${model} с корейского рынка. Фильтры по году, пробегу и комплектации в каталоге Ride Auto.`,
   },
   en: {
     skip: "Skip to content",
@@ -58,18 +58,18 @@ const UI = {
     catalogCta: "Browse listings in catalog",
     allKorea: "All cars from Korea",
     note:
-      "World Ride Auto — sourcing cars from Korea, price guidance and delivery to Vladivostok. Final amounts depend on FX and trim; ask a manager for details.",
+      "Ride Auto — sourcing cars from Korea, price guidance and delivery to Vladivostok. Final amounts depend on FX and trim; ask a manager for details.",
     privacy: "Privacy",
     markH1: (mark) => `${mark} — cars from Korea`,
     markLead: (mark) =>
       `Browse ${mark} on the Korean market: filter by year, mileage and price.`,
     modelH1: (mark, model) => `${mark} ${model} — from Korea`,
     modelLead: (mark, model) =>
-      `Current ${mark} ${model} listings in the World Ride Auto catalog.`,
+      `Current ${mark} ${model} listings in the Ride Auto catalog.`,
     markTitle: (mark) => `${mark} from Korea — import with delivery to Vladivostok`,
     markDesc: (mark) =>
-      `${mark} catalog from Korea: model filters, turnkey pricing, delivery and paperwork with World Ride Auto.`,
-    modelTitle: (mark, model) => `${mark} ${model} from Korea — World Ride Auto catalog`,
+      `${mark} catalog from Korea: model filters, turnkey pricing, delivery and paperwork with Ride Auto.`,
+    modelTitle: (mark, model) => `${mark} ${model} from Korea — Ride Auto catalog`,
     modelDesc: (mark, model) =>
       `${mark} ${model} from the Korean market. Filter by year, mileage and trim in our catalog.`,
   },
@@ -143,7 +143,7 @@ ${JSON.stringify(jsonLd, null, 2)}
   <a href="#main" class="skip-link">${escHtml(ui.skip)}</a>
   <header class="header">
     <div class="header-content">
-      <a href="/" class="logo"><img src="/image/logo.svg" alt="World Ride Auto" width="120" height="32"></a>
+      <a href="/" class="logo"><img src="/image/logo.svg" alt="Ride Auto" width="120" height="32"></a>
       <nav class="nav-menu" aria-label="${escHtml(ui.navAria)}">
         <a href="/about">${escHtml(ui.about)}</a>
         <a href="${escHtml(catalogAll)}">${escHtml(ui.catalog)}</a>
@@ -166,7 +166,7 @@ ${JSON.stringify(jsonLd, null, 2)}
   </main>
   <footer class="footer-wrap" style="margin-top:48px">
     <div class="footer-top wra-container" style="border-top:1px solid var(--wra-border);padding-top:24px">
-      <p class="wra-seo-note" style="margin:0">&copy; World Ride Auto 2026 · <a href="/privacy">${escHtml(ui.privacy)}</a></p>
+      <p class="wra-seo-note" style="margin:0">&copy; Ride Auto 2026 · <a href="/privacy">${escHtml(ui.privacy)}</a></p>
     </div>
   </footer>
 </body>
@@ -203,7 +203,7 @@ function writeLanding({ outDir, lang, base, pathSeg, page }) {
     description,
     url: canonical,
     inLanguage: lang === "en" ? "en" : "ru",
-    isPartOf: { "@type": "WebSite", name: "World Ride Auto", url: base + "/" },
+    isPartOf: { "@type": "WebSite", name: "Ride Auto", url: base + "/" },
   };
   const html = pageTemplate({
     lang,

@@ -239,13 +239,13 @@
       "vehicles": "Vehicles",
       "vehiclesLower": "vehicles",
       "searchTitle": "Search: {q}",
-      "searchDesc": "Search results for “{q}” in the {market} catalog — World Ride Auto.",
+      "searchDesc": "Search results for “{q}” in the {market} catalog — Ride Auto.",
       "priceUpTo": "up to {price} ₽",
       "priceFrom": "from {price} ₽",
       "yearRange": "{from}–{to}",
       "yearFrom": "from {year}",
       "yearTo": "until {year}",
-      "description": "Buy {subject} {market} with delivery to Russia: current prices, photos and duty-aware estimates. World Ride Auto catalog."
+      "description": "Buy {subject} {market} with delivery to Russia: current prices, photos and duty-aware estimates. Ride Auto catalog."
     },
     "quickBuy": {
       "trigger": "Buy",
@@ -547,7 +547,13 @@
     "catalogPageNext": "Next catalog page",
     "retry": "Retry",
     "toCatalog": "Back to catalog",
-    "contacts": "Contacts"
+    "contacts": "Contacts",
+    "close": "Close",
+    "closeDialog": "Close dialog",
+    "noPhoto": "No photo",
+    "loading": "Loading",
+    "breadcrumb": "Breadcrumb",
+    "more": "More"
   },
   "site": {
     "appErrorTitle": "Something went wrong",
@@ -573,8 +579,8 @@
     "remove": "Remove from favorites"
   },
   "meta": {
-    "siteTitle": "World Ride Auto — cars from Asia",
-    "siteDescription": "Cars from Korea and Asia with delivery to Vladivostok. Catalog, filters, pricing and paperwork with World Ride Auto."
+    "siteTitle": "Ride Auto — cars from Asia",
+    "siteDescription": "Cars from Korea and Asia with delivery to Vladivostok. Catalog, filters, pricing and paperwork with Ride Auto."
   },
   "cookie": {
     "ariaLabel": "Cookie consent",
@@ -587,7 +593,7 @@
   },
   "buy": {
     "pageTitle": "How to buy",
-    "pageDescription": "Steps to buy a car from Korea or China, estimate calculator and request form — World Ride Auto.",
+    "pageDescription": "Steps to buy a car from Korea or China, estimate calculator and request form — Ride Auto.",
     "h1": "How to buy a vehicle",
     "lead": "We align on budget and preferences, shortlist options in Korea and China, then handle purchase, shipping and customs clearance.",
     "navAria": "Page sections",
@@ -665,11 +671,11 @@
   "legal": {
     "privacy": {
       "metaTitle": "Privacy Policy",
-      "metaDescription": "How World Ride Auto processes and protects personal data.",
+      "metaDescription": "How Ride Auto processes and protects personal data.",
       "h1": "Privacy Policy",
       "updated": "Effective 30 Apr 2026",
       "s1Title": "1. General",
-      "s1p": "This Policy describes how World Ride Auto processes and protects users' personal data.",
+      "s1p": "This Policy describes how Ride Auto processes and protects users' personal data.",
       "s2Title": "2. Data we may process",
       "s2i1": "contact details you voluntarily submit through forms;",
       "s2i2": "technical browser and device data required for the site to work;",
@@ -695,7 +701,7 @@
     "cookies": {
       "link": "Cookie Policy",
       "metaTitle": "Cookie Policy",
-      "metaDescription": "Which cookies World Ride Auto uses and how to manage consent.",
+      "metaDescription": "Which cookies Ride Auto uses and how to manage consent.",
       "h1": "Cookie Policy",
       "updated": "Effective 30 Apr 2026",
       "s1Title": "1. What are cookies",
@@ -714,10 +720,10 @@
     "agreement": {
       "link": "Terms of Use",
       "metaTitle": "Terms of Use",
-      "metaDescription": "Terms for using the World Ride Auto website.",
+      "metaDescription": "Terms for using the Ride Auto website.",
       "h1": "Terms of Use",
       "updated": "Updated: 27 Mar 2026",
-      "intro": "By using World Ride Auto you agree to these terms.",
+      "intro": "By using Ride Auto you agree to these terms.",
       "s1Title": "1. General",
       "s1i1": "The site provides information about vehicles and sourcing/delivery services.",
       "s1i2": "Data on the site is indicative and may change without prior notice.",
@@ -791,8 +797,8 @@
   "home": {
     "meta": {
       "title": "Home",
-      "description": "Turnkey cars from Korea, China and Japan: catalog, inspection videos, contract and delivery to Vladivostok. World Ride Auto.",
-      "ogTitle": "World Ride Auto — turnkey cars from Asia",
+      "description": "Turnkey cars from Korea, China and Japan: catalog, inspection videos, contract and delivery to Vladivostok. Ride Auto.",
+      "ogTitle": "Ride Auto — turnkey cars from Asia",
       "ogDescription": "Sourcing from marketplaces and auctions, inspection, logistics and clear steps through handover."
     },
     "trust": {

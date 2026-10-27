@@ -1,10 +1,16 @@
 "use client";
 
-import { MarketModelViewer } from "@/components/home/MarketModelViewer";
+import dynamic from "next/dynamic";
 import type { MediaCascade } from "@/lib/home-landing-media";
 import { canUseWebGL } from "@/lib/media-cascade-capabilities";
 import { motion, useReducedMotion } from "framer-motion";
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+
+// Лениво — three.js/@react-three попадают в отдельный чанк, а не в стартовый бандл главной.
+const MarketModelViewer = dynamic(
+  () => import("@/components/home/MarketModelViewer").then((m) => m.MarketModelViewer),
+  { ssr: false, loading: () => null },
+);
 
 /** Таймаут загрузки GLB до перехода на video (не скрывает 3D раньше времени). */
 const MODEL_LOAD_TIMEOUT_MS = 15_000;
@@ -155,6 +161,11 @@ export function ModelMediaCascade({
       transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className={FRAME_CLASS}>
+        {/* Мягкая подсветка позади модели — деликатный «стенд». */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-[7%] z-0 rounded-[50%] bg-muted/70 blur-3xl"
+        />
         {/* Мягкая «тень от пола», чтобы модель не висела в воздухе. */}
         <div
           aria-hidden

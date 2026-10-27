@@ -31,8 +31,8 @@ import {
   labelsFromEncarStandardCodes,
 } from "@/lib/encar-options-display";
 import { classifyAutotraderOptionGroup } from "@/lib/autotrader-options-display";
-import { classifyChinaOptionGroup, displayChinaOptionRu, isChinaOptionNoise } from "@/lib/china-options-display";
-import { collectAutotraderFeatureLabels } from "@/lib/car-equipment-labels";
+import { classifyChinaOptionGroup, isChinaOptionNoise } from "@/lib/china-options-display";
+import { collectAutotraderFeatureLabels, displayChinaOptionRuStrict } from "@/lib/car-equipment-labels";
 import { formatPriceLabel } from "@/lib/format-price";
 import {
   bodyStatusColor,
@@ -626,11 +626,7 @@ function collectListingEquipmentEntries(
             : item != null
               ? String(item)
               : "";
-      const ru =
-        displayChinaOptionRu(raw) ||
-        displayChinaOptionRu(translateKoToRuText(raw)) ||
-        translateKoToRuText(raw).trim() ||
-        raw.trim();
+      const ru = displayChinaOptionRuStrict(raw);
       if (!isMeaningfulOptionLabel(ru) || seen.has(ru)) continue;
       seen.add(ru);
       chinaRecommended.push({ label: ru, raw });
@@ -711,11 +707,9 @@ function EquipmentSection({ d, extra }: { d: Record<string, unknown>; extra: Rec
         <div className="space-y-6">
           {groupMeta.map((g) => (
             <div key={g.key}>
-              {groupMeta.length > 1 ? (
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {g.title}
-                </h3>
-              ) : null}
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {g.title}
+              </h3>
               <ul className="grid grid-cols-1 gap-x-8 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
                 {grouped[g.key].map((label, i) => (
                   <li key={`${g.key}-${i}`} className="flex items-start gap-2 text-sm leading-snug">

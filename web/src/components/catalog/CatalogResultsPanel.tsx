@@ -26,6 +26,72 @@ import {
 import { MOTION_PRESETS, MOTION_TOKENS } from "@/components/ui/motion";
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 
+function CatalogPagination({
+  catalog,
+  className,
+}: {
+  catalog: CatalogSearchController;
+  className?: string;
+}) {
+  const { t } = useLocaleContext();
+  const { state, search, pageItems, navigate } = catalog;
+  return (
+    <Pagination className={className} aria-label={t("common.pagination")}>
+      <PaginationContent className="flex-wrap justify-center gap-1">
+        <PaginationItem>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-10 gap-1 ps-2 max-lg:px-3"
+            disabled={state.page <= 1}
+            aria-label={t("common.catalogPagePrev")}
+            onClick={() => navigate({ ...state, page: state.page - 1 })}
+          >
+            <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
+            <span className="hidden sm:inline">{t("catalog.results.paginationPrev")}</span>
+          </Button>
+        </PaginationItem>
+        {pageItems.map((item, idx) =>
+          item === "ellipsis" ? (
+            <PaginationItem key={`ellipsis-${idx}`}>
+              <PaginationEllipsis label={t("common.pageSkipped")} />
+            </PaginationItem>
+          ) : (
+            <PaginationItem key={item}>
+              <Button
+                type="button"
+                variant={state.page === item ? "secondary" : "ghost"}
+                size="sm"
+                className="min-w-9 tabular-nums"
+                onClick={() => navigate({ ...state, page: item })}
+                aria-label={t("common.pageN", { n: item })}
+                aria-current={state.page === item ? "page" : undefined}
+              >
+                {item}
+              </Button>
+            </PaginationItem>
+          ),
+        )}
+        <PaginationItem>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-10 gap-1 pe-2 max-lg:px-3"
+            disabled={!search.meta.next_cursor}
+            aria-label={t("common.catalogPageNext")}
+            onClick={() => navigate({ ...state, page: state.page + 1 })}
+          >
+            <span className="hidden sm:inline">{t("catalog.results.paginationNext")}</span>
+            <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
+          </Button>
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  );
+}
+
 export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchController }) {
   const { t, locale } = useLocaleContext();
   const {
@@ -39,11 +105,10 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
     dailyNewCount,
     dailyNewLoading,
     resultsListRef,
-    navigate,
     reset,
     removeChip,
     title,
-    pageItems,
+    pages,
     catalogCarsDisplay,
     catalogGridThumbRows,
     proxiedCatalogThumbsByCar,
@@ -165,6 +230,22 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
       </section>
       <CatalogResultsToolbar catalog={catalog} />
 
+      {pages > 1 ? <CatalogPagination catalog={catalog} className="mb-4" /> : null}
+
+      {loading && search.result.length > 0 ? (
+        <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground" aria-hidden>
+          <Loader2 className="size-3.5 animate-spin" />
+          <span>{t("catalog.results.loading")}</span>
+        </div>
+      ) : null}
+
+      <div
+        aria-busy={loading || undefined}
+        className={cn(
+          "transition-opacity duration-200",
+          loading && search.result.length > 0 && "opacity-60",
+        )}
+      >
       {useVirtualList ? (
         <CatalogVirtualResultsList
           key={key}
@@ -206,6 +287,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
             : null}
         </motion.ul>
       )}
+      </div>
 
       {catalogCarsDisplay.length < search.result.length ? (
         <p className="mt-2 text-center text-xs text-muted-foreground [overflow-wrap:anywhere]">
@@ -224,7 +306,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
               {t("catalog.empty.reset")}
             </Button>
             <Button type="button" variant="outline" asChild>
-              <a href="https://t.me/nikits15" target="_blank" rel="noopener noreferrer">
+              <a href="https://t.me/worldrideauto" target="_blank" rel="noopener noreferrer">
                 {t("catalog.empty.telegramCta")}
               </a>
             </Button>
@@ -232,59 +314,7 @@ export function CatalogResultsPanel({ catalog }: { catalog: CatalogSearchControl
         </div>
       ) : null}
 
-      <Pagination className="mt-10" aria-label={t("common.pagination")}>
-        <PaginationContent className="flex-wrap justify-center gap-1">
-          <PaginationItem>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 gap-1 ps-2 max-lg:px-3"
-              disabled={state.page <= 1}
-              aria-label={t("common.catalogPagePrev")}
-              onClick={() => navigate({ ...state, page: state.page - 1 })}
-            >
-              <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
-              <span className="hidden sm:inline">{t("catalog.results.paginationPrev")}</span>
-            </Button>
-          </PaginationItem>
-          {pageItems.map((item, idx) =>
-            item === "ellipsis" ? (
-              <PaginationItem key={`ellipsis-${idx}`}>
-                <PaginationEllipsis label={t("common.pageSkipped")} />
-              </PaginationItem>
-            ) : (
-              <PaginationItem key={item}>
-                <Button
-                  type="button"
-                  variant={state.page === item ? "secondary" : "ghost"}
-                  size="sm"
-                  className="min-w-9 tabular-nums"
-                  onClick={() => navigate({ ...state, page: item })}
-                  aria-label={t("common.pageN", { n: item })}
-                  aria-current={state.page === item ? "page" : undefined}
-                >
-                  {item}
-                </Button>
-              </PaginationItem>
-            ),
-          )}
-          <PaginationItem>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 gap-1 pe-2 max-lg:px-3"
-              disabled={!search.meta.next_cursor}
-              aria-label={t("common.catalogPageNext")}
-              onClick={() => navigate({ ...state, page: state.page + 1 })}
-            >
-              <span className="hidden sm:inline">{t("catalog.results.paginationNext")}</span>
-              <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
-            </Button>
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
+      <CatalogPagination catalog={catalog} className="mt-10" />
     </div>
   );
 }

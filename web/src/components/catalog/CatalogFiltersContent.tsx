@@ -263,6 +263,9 @@ export function CatalogFiltersContent({
     reset,
     switchMarket,
     popularColorRows,
+    rangeDraft,
+    setRangeDraft,
+    applyRanges,
   } = catalog;
 
   const facetLabelByValue = useMemo(() => {
@@ -317,11 +320,20 @@ export function CatalogFiltersContent({
           state.mileage_to,
           state.year_from,
           state.year_to,
+          state.engine_cc_from,
+          state.engine_cc_to,
           state.pricing_tier,
         ].filter((x) => String(x).trim()).length
       }
     >
-      <RangeBlock state={state} navigate={navigate} market={state.market} />
+      <RangeBlock
+        state={state}
+        navigate={navigate}
+        market={state.market}
+        draft={rangeDraft}
+        onDraftChange={setRangeDraft}
+        onApply={applyRanges}
+      />
     </CatalogFilterFlatSection>
   );
 

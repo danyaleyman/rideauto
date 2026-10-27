@@ -1,11 +1,15 @@
+"use client";
+
 import * as React from "react";
 import { Slot } from "radix-ui";
 import { ChevronRight, MoreHorizontal } from "lucide-react";
 
+import { useLocaleContext } from "@/components/LocaleProvider";
 import { cn } from "@/lib/utils";
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
-  return <nav aria-label="Хлебные крошки" className={cn(className)} {...props} />;
+  const { t } = useLocaleContext();
+  return <nav aria-label={t("common.breadcrumb")} className={cn(className)} {...props} />;
 }
 
 function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
@@ -67,6 +71,7 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
 }
 
 function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span">) {
+  const { t } = useLocaleContext();
   return (
     <span
       role="presentation"
@@ -75,7 +80,7 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span"
       {...props}
     >
       <MoreHorizontal className="size-4" />
-      <span className="sr-only">Ещё</span>
+      <span className="sr-only">{t("common.more")}</span>
     </span>
   );
 }

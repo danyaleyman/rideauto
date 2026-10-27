@@ -51,6 +51,24 @@ function slimForFavorite(id: string, title: string, price: number | null): SlimC
   return { id, title, price, data: {} };
 }
 
+/** Fallback копирования для не-HTTPS, где navigator.clipboard недоступен. */
+function legacyCopyText(text: string): boolean {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 export function CarPurchaseSidebar({
   carId,
   title,
@@ -75,6 +93,7 @@ export function CarPurchaseSidebar({
   const fav = authenticated && isFavorite(carId);
   const inCompare = isInCompare(carId);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   const listingUnavailable = availability === "sold" || availability === "reserved";
 
@@ -100,6 +119,38 @@ export function CarPurchaseSidebar({
   const updatedLabel = formatHumanDate(sourceUpdatedAt);
   const createdLabel = formatHumanDate(catalogCreatedAt);
 
+  // Строка «цена площадки (₩/CN¥)» — из раскладки «Подробный расчёт», но видимая в сайдбаре.
+  const foreignListingRow = breakdownRows.find(
+    (row) => row.label.includes("воны") || row.label.includes("CNY"),
+  );
+
+  const handleCopyLink = () => {
+    const url = getCarPageAbsoluteUrl(carId);
+    const markOk = () => {
+      setCopied(true);
+      setCopyFailed(false);
+      window.setTimeout(() => setCopied(false), 2000);
+    };
+    const markFail = () => {
+      setCopied(false);
+      setCopyFailed(true);
+      window.setTimeout(() => setCopyFailed(false), 2500);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard
+        .writeText(url)
+        .then(markOk)
+        .catch(() => {
+          if (legacyCopyText(url)) markOk();
+          else markFail();
+        });
+      return;
+    }
+    if (legacyCopyText(url)) markOk();
+    else markFail();
+  };
+
   return (
     <motion.aside
       id="car-order-panel"
@@ -124,6 +175,15 @@ export function CarPurchaseSidebar({
                 ? formatPriceLabel(priceRub)
                 : priceOnRequestLabel(locale)}
       </p>
+      {foreignListingRow ? (
+        <div className="mt-3 rounded-lg border border-border/70 bg-muted/40 px-3 py-2">
+          <p className="text-xs text-muted-foreground">{foreignListingRow.label}</p>
+          <p className="mt-0.5 text-sm font-medium tabular-nums text-foreground">{foreignListingRow.value}</p>
+          {foreignListingRow.note ? (
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{foreignListingRow.note}</p>
+          ) : null}
+        </div>
+      ) : null}
       <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug text-foreground">
         {title}
       </p>
@@ -183,14 +243,21 @@ export function CarPurchaseSidebar({
           variant="ghost"
           size="icon-sm"
           className="rounded-md text-muted-foreground hover:text-foreground"
-          title={copied ? t("car.purchase.linkCopied") : t("car.purchase.copyLink")}
-          aria-label={copied ? t("car.purchase.linkCopied") : t("car.purchase.copyListingLink")}
-          onClick={() => {
-            void navigator.clipboard.writeText(getCarPageAbsoluteUrl(carId)).then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 2000);
-            });
-          }}
+          title={
+            copyFailed
+              ? "Не удалось скопировать" // i18n:
+              : copied
+                ? t("car.purchase.linkCopied")
+                : t("car.purchase.copyLink")
+          }
+          aria-label={
+            copyFailed
+              ? "Не удалось скопировать ссылку" // i18n:
+              : copied
+                ? t("car.purchase.linkCopied")
+                : t("car.purchase.copyListingLink")
+          }
+          onClick={handleCopyLink}
         >
           {copied ? (
             <Check className="size-4 text-green-600" aria-hidden />
@@ -290,6 +357,13 @@ export function CarPurchaseSidebar({
           </DialogContent>
         </Dialog>
       </div>
+
+      {copyFailed ? (
+        <p className="mt-2 text-xs text-destructive" role="alert">
+          {/* i18n: сообщение об ошибке копирования ссылки */}
+          Не удалось скопировать ссылку. Скопируйте адрес вручную из строки браузера.
+        </p>
+      ) : null}
 
       {carData ? (
         <div className="mt-4">

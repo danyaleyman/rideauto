@@ -891,7 +891,153 @@ _CHINA_OPTION_EN_RU: Dict[str, str] = {
     "bluetooth": "Bluetooth",
     "apple carplay": "Apple CarPlay",
     "android auto": "Android Auto",
+    # --- Реальные опции Che168 (EN/ZH) → RU, собранные с живых VDP ---
+    "brake force distribution": "Распределение тормозного усилия (EBD/CBC)",
+    "brake assist": "Помощь при экстренном торможении (EBA/BAS/BA)",
+    "traction control": "Противобуксовочная система (ASR/TCS/TRC)",
+    "tire pressure monitoring": "Контроль давления в шинах",
+    "tire pressure display": "Индикация давления в шинах",
+    "tire pressure warning": "Предупреждение о давлении в шинах",
+    "seat belt reminder": "Напоминание о ремне безопасности",
+    "isofix child seat anchors": "Крепления ISOFIX для детских кресел",
+    "autonomous emergency braking": "Автоматическое экстренное торможение",
+    "driver drowsiness monitoring": "Контроль усталости водителя",
+    "low-speed driving warning": "Предупреждение на низкой скорости",
+    "rollover prevention system": "Система предотвращения опрокидывания",
+    "roadside assistance call": "Вызов экстренной помощи",
+    "driving mode selection": "Выбор режима движения",
+    "energy recovery system": "Система рекуперации энергии",
+    "auto hold": "Auto Hold",
+    "hill start assist": "Помощь при трогании в гору",
+    "hill descent control": "Система помощи при спуске",
+    "engine start/stop system": "Система Start/Stop",
+    "driving assistance camera": "Камера систем помощи водителю",
+    "rearview camera": "Камера заднего вида",
+    "360-degree panoramic view": "Камера 360°, панорамный обзор",
+    "transparent chassis/540° camera": "Прозрачное шасси / камера 540°",
+    "cruise system": "Круиз-контроль",
+    "navigation traffic display": "Навигация с информацией о пробках",
+    "lane keeping assist system": "Удержание в полосе",
+    "lane departure warning system": "Предупреждение о смене полосы",
+    "front/rear parking sensors": "Передние/задние парктроники",
+    "aluminum alloy": "Литые диски (алюминиевый сплав)",
+    "roof rack": "Рейлинги на крыше",
+    "engine immobilizer": "Иммобилайзер",
+    "central locking": "Центральный замок",
+    "remote key": "Дистанционный ключ",
+    "keyless start system": "Бесключевой запуск",
+    "remote start function": "Дистанционный запуск",
+    "external discharge": "Внешнее питание (V2L)",
+    "led daytime running lights": "Светодиодные ДХО",
+    "adaptive high beams": "Адаптивный дальний свет",
+    "automatic headlights": "Автоматический включатель фар",
+    "front fog lights": "Передние противотуманные фары",
+    "adjustable headlight height": "Регулировка высоты фар",
+    "headlight delay off": "Отложенное выключение фар",
+    "cornering lights": "Подсветка поворотов",
+    "one-touch power windows": "Стеклоподъёмники one-touch",
+    "power window anti-pinch": "Антизажим стеклоподъёмников",
+    "vanity mirrors": "Зеркала в солнцезащитных козырьках",
+    "rear wiper": "Задний стеклоочиститель",
+    "rain-sensing wipers": "Датчик дождя для дворников",
+    "power sunroof": "Электролюк",
+    "power adjustment": "Электрорегулировка зеркал",
+    "power folding": "Электроскладывание зеркал",
+    "mirror heating": "Обогрев зеркал",
+    "mirror memory": "Память положения зеркал",
+    "auto fold when locked": "Складывание зеркал при постановке на замок",
+    "auto-dimming": "Автозатемнение зеркал",
+    "supports carplay": "Apple CarPlay",
+    "supports carlife": "Baidu CarLife",
+    "supports huawei hicar": "HUAWEI HiCar",
+    "4g/5g network": "Сеть 4G/5G",
+    "ota updates": "OTA-обновления",
+    "wi-fi hotspot": "Wi-Fi точка доступа",
+    "wake word-free voice control": "Голосовое управление без слова-активации",
+    "zone-specific voice wake-up recognition": "Распознавание голоса по зонам",
+    "continuous voice recognition": "Непрерывное распознавание голоса",
+    "satellite navigation system": "Спутниковая навигация",
+    "multi-function steering wheel": "Многофункциональный руль",
+    "memory steering wheel": "Память положения руля",
+    "full lcd instrument cluster": "Полностью цифровая приборная панель",
+    "220v/230v power outlet": "Розетка 220V/230V",
+    "wireless phone charging function": "Беспроводная зарядка телефона",
+    "12v power outlet in trunk": "Розетка 12V в багажнике",
+    "power-adjustable driver/passenger seats": "Электрорегулировка передних сидений",
+    "power seat memory function": "Память положения сидений",
+    "proportional folding": "Складывание спинки 40/20/40",
+    "rear cup holders": "Подстаканники сзади",
+    "ambient interior lighting": "Ambient-подсветка салона",
+    "manual air conditioning": "Кондиционер (ручной)",
+    "automatic air conditioning": "Автоматический климат-контроль",
+    "rear air vents": "Дефлекторы обдува для заднего ряда",
+    "dual-zone climate control": "Двухзонный климат-контроль",
+    "rear independent climate control": "Раздельный климат-контроль сзади",
+    "in-vehicle air purifier": "Очиститель воздуха в салоне",
+    "pm2.5 air filter": "Фильтр PM2.5",
 }
+
+_CHINA_OPTION_NOISE_RES: tuple = (
+    re.compile(r"^driving\s*&\s*handling$", re.I),
+    re.compile(r"^driving\s*(?:hardware|functions)$", re.I),
+    re.compile(r"^exterior\s*&\s*anti[- ]?theft$", re.I),
+    re.compile(r"^exterior\s*(?:lighting|mirrors)$", re.I),
+    re.compile(r"^connectivity\s*&\s*intelligence$", re.I),
+    re.compile(r"^vehicle\s*networking$", re.I),
+    re.compile(r"^mobile\s*app\s*remote\s*functions$", re.I),
+    re.compile(r"^steering\s*wheel\s*&\s*interior\s*rearview\s*mirror$", re.I),
+    re.compile(r"^interior\s*charging$", re.I),
+    re.compile(r"^seat\s*features$", re.I),
+    re.compile(r"^audio\s*&\s*interior\s*lighting$", re.I),
+    re.compile(r"^air\s*conditioning\s*&\s*refrigerator$", re.I),
+    re.compile(r"^sunroof\s*&\s*glass$", re.I),
+    re.compile(r"^(?:sport|economy|standard\s*/\s*comfort|standard\s*/\s*optional|units|dual\s+zone)$", re.I),
+    re.compile(r"^(?:backrest adjustment|forward\s*/\s*backward adjustment|front-rear adjustment)$", re.I),
+    re.compile(r"^height adjustment\s*(?:\(?\s*2-way\s*\)?|2-way)$", re.I),
+    re.compile(r"^(?:manual up-down \+ front-rear adjustment|manual up-down adjustment|electronic column gear shift|manual anti-glare)$", re.I),
+    re.compile(r"^(?:door control|vehicle start|charging management|air conditioning control|vehicle status query\s*/\s*diagnostics|vehicle location\s*/\s*find my car)$", re.I),
+    re.compile(r"^hello,?\s*xiao\s*jie$", re.I),
+    re.compile(r"^front\s*\d+\s*/\s*rear\s*\d+$", re.I),
+    re.compile(r"^(?:driver'?s\s+(?:side|position)|co-pilot|single-disc\s+cd)$", re.I),
+    re.compile(r"^(?:\d+(?:-\d+)?\s+)?speakers$", re.I),
+    re.compile(r"^\d+(?:\.\d+)?\s*(?:inch|inches|″)$", re.I),
+    re.compile(r"^\d+\s*W$", re.I),
+    re.compile(r"^\d+-\d+-\d+$", re.I),
+    re.compile(r"^[\W_]+$"),
+    re.compile(r"^成功$"),
+)
+
+_CHINA_OPTION_FIELD_NOISE = frozenset({
+    "wheel rim material", "seat material", "steering wheel material",
+    "steering wheel adjustment", "gear shift type", "trip computer display",
+    "digital instrument cluster size", "interior mirror features",
+    "multimedia/charging ports", "color touchscreen display", "touchscreen lcd",
+    "center console screen size", "smartphone connectivity/mirroring",
+    "voice recognition control system", "multimedia system",
+    "voice assistant wake word", "number of cameras", "number of ultrasonic radars",
+    "map brand", "key type", "low beam light source", "high beam light source",
+    "exterior mirror features", "driver seat adjustment type",
+    "front passenger seat adjustment type", "front seat features",
+    "second row seat adjustment", "second row seat features", "seating layout",
+    "rear seat folding style", "front/rear center armrest", "front/rear power windows",
+    "speaker brand name", "number of speakers", "number of usb/type-c ports",
+    "ac temperature control method", "wireless phone charging power",
+    "sunroof type", "bluetooth/in-car phone",
+})
+
+
+def is_china_option_label_noise(text: object) -> bool:
+    """Заголовки категорий, подписи полей и под-значения в опциях Che168 — не опция."""
+    s = _as_text(text)
+    if not s or s.isdigit():
+        return True
+    low = s.lower()
+    if low in _CHINA_OPTION_FIELD_NOISE:
+        return True
+    for rx in _CHINA_OPTION_NOISE_RES:
+        if rx.search(s):
+            return True
+    return False
 
 
 def localize_china_option_label(text: str, *, target_lang: str = "ru") -> Optional[str]:
@@ -900,6 +1046,8 @@ def localize_china_option_label(text: str, *, target_lang: str = "ru") -> Option
         return None
     s = _as_text(text)
     if not s:
+        return None
+    if is_china_option_label_noise(s):
         return None
     offline = _offline_translate(s, target_lang="ru")
     if offline != s:

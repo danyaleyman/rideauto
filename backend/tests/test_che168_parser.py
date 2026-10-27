@@ -517,8 +517,8 @@ def test_parse_one_extracts_english_paramtypeitems_format():
     assert d.get("drive_type") == "FWD"
     assert d.get("body_type") == "SUV"
     opts = d.get("che168_recommended_options") or []
-    assert "ABS" in opts
-    assert "ESP" in opts
+    assert any("ABS" in str(x) for x in opts)
+    assert any("ESP" in str(x) for x in opts)
     assert any("круиз" in str(x).lower() for x in opts) or "Cruise control" in opts
 
 

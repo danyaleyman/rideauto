@@ -73,6 +73,21 @@ const CATEGORY_HEADERS = new Set(
     "color touchscreen display",
     "touchscreen lcd",
     "multimedia/charging ports",
+    "gear shift type",
+    "seating layout",
+    "mobile app remote functions",
+    "sunroof & glass",
+    "sunroof and glass",
+    "bluetooth/in-car phone",
+    "front/rear center armrest",
+    "front/rear power windows",
+    "sunroof type",
+    "map brand",
+    "voice assistant wake word",
+    "wireless phone charging power",
+    "number of cameras",
+    "number of ultrasonic radars",
+    "front seat features",
   ].map(normKey),
 );
 
@@ -111,6 +126,16 @@ const SINGLE_WORD_NOISE = new Set(
     "front",
     "rear",
     "-",
+    "units",
+    "4g",
+    "halogen",
+    "plastic",
+    "fabric",
+    "monochrome",
+    "tencent",
+    "autonavi",
+    "leatherette",
+    "aux-in",
   ].map(normKey),
 );
 
@@ -192,7 +217,6 @@ const EXACT_RU: Record<string, string> = {
   [normKey("Wireless Phone Charging Function")]: "Беспроводная зарядка телефона",
   [normKey("12V Power Outlet in Trunk")]: "Розетка 12V в багажнике",
   [normKey("Sport Style Seats")]: "Спортивные сиденья",
-  [normKey("Backrest adjustment")]: "Регулировка спинки сиденья",
   [normKey("Height adjustment 4-way")]: "4-сторонняя регулировка высоты",
   [normKey("Shoulder adjustment")]: "Регулировка поясничного упора",
   [normKey("Leg rest adjustment")]: "Регулировка подставки для ног",
@@ -218,6 +242,28 @@ const EXACT_RU: Record<string, string> = {
   [normKey("Panoramic sunroof")]: "Панорамная крыша",
   [normKey("Head-up display")]: "Проекционный дисплей",
   [normKey("Blind spot monitoring")]: "Контроль слепых зон",
+  [normKey("Tire pressure warning")]: "Предупреждение о давлении в шинах",
+  [normKey("Low-Speed Driving Warning")]: "Предупреждение на низкой скорости",
+  [normKey("Rollover Prevention System")]: "Система предотвращения опрокидывания",
+  [normKey("Energy Recovery System")]: "Система рекуперации энергии",
+  [normKey("Transparent Chassis/540° Camera")]: "Прозрачное шасси / камера 540°",
+  [normKey("Hill Descent Control")]: "Система помощи при спуске",
+  [normKey("External Discharge")]: "Внешнее питание (V2L)",
+  [normKey("4G/5G Network")]: "Сеть 4G/5G",
+  [normKey("Wi-Fi Hotspot")]: "Wi-Fi точка доступа",
+  [normKey("220V/230V Power Outlet")]: "Розетка 220V/230V",
+  [normKey("Dual-Zone Climate Control")]: "Двухзонный климат-контроль",
+  [normKey("Rear Independent Climate Control")]: "Раздельный климат-контроль сзади",
+  [normKey("Manual Air Conditioning")]: "Кондиционер (ручной)",
+  [normKey("Supports HUAWEI HiCar")]: "HUAWEI HiCar",
+  [normKey("Cornering Lights")]: "Подсветка поворотов",
+  [normKey("Wake Word-Free Voice Control")]: "Голосовое управление без слова-активации",
+  [normKey("Zone-Specific Voice Wake-Up Recognition")]: "Распознавание голоса по зонам",
+  [normKey("Continuous Voice Recognition")]: "Непрерывное распознавание голоса",
+  [normKey("Front/Rear Parking Sensors")]: "Передние/задние парктроники",
+  [normKey("Satellite Navigation System")]: "Спутниковая навигация",
+  [normKey("Lane Departure Warning System")]: "Предупреждение о смене полосы",
+  [normKey("Power Sunroof")]: "Электролюк",
 };
 
 /** Правила по полной строке (длинные — раньше). */
@@ -284,7 +330,7 @@ const LINE_RULES: [RegExp, string][] = [
   [/^memory steering wheel$/i, "Память положения руля"],
   [/^genuine leather$/i, "Натуральная кожа"],
   [/^aluminum alloy$/i, "Литые диски (алюминиевый сплав)"],
-  [/^standard\/comfort$/i, "Режим Standard/Comfort"],
+  [/^standard\/comfort$/i, ""],
   [/^front row:\s*\d+$/i, ""],
   [/^\d+(\.\d+)?\s*(-?\s*)?(inch|inches|″)$/i, ""],
 ];
@@ -315,6 +361,18 @@ export function isChinaOptionNoise(label: string): boolean {
   if (/\b\d+\s+colors?\s*$/i.test(t)) return true;
   if (/primary\s*●|secondary\s*●|front\s*●\s*\/\s*rear/i.test(t)) return true;
   if (/^front\s*\/\s*rear\s*-?\s*$/i.test(t)) return true;
+  // Под-значения полей комплектации (режимы, регулировки, счётчики) — без контекста это шум.
+  if (/^(?:sport|economy|standard\/comfort|standard\/optional)$/i.test(t)) return true;
+  if (/^(?:backrest adjustment|height adjustment\s*(?:\(?\s*2-way\s*\)?|2-way)|forward\/backward adjustment|front-rear adjustment)$/i.test(t)) return true;
+  if (/^(?:manual up-down \+ front-rear adjustment|manual up-down adjustment|electronic column gear shift|manual anti-glare)$/i.test(t)) return true;
+  if (/^(?:door control|vehicle start|charging management|air conditioning control|vehicle status query\/diagnostics|vehicle location\/find my car)$/i.test(t)) return true;
+  if (/^hello,?\s*xiao\s*jie$/i.test(t)) return true;
+  if (/^front\s*\d+\s*\/\s*rear\s*\d+$/i.test(t)) return true;
+  if (/^(?:driver'?s\s+(?:side|position)|co-pilot|single-disc\s+cd)$/i.test(t)) return true;
+  if (/^(?:\d+(?:-\d+)?\s+)?speakers$/i.test(t)) return true;
+  if (/^dual\s+zone$/i.test(t)) return true;
+  if (/^\d+\s*W$/i.test(t)) return true;
+  if (/^\d+-\d+-\d+$/.test(t)) return true;
   if (isFieldLabelNoise(t)) return true;
   return false;
 }
@@ -343,7 +401,8 @@ export function displayChinaOptionRu(raw: string): string {
 
   if (isChinaOptionNoise(src)) return "";
 
-  if (!CYRILLIC_RE.test(src) && /^[a-z0-9\s/\-().&+,]+$/i.test(src)) return "";
+  // Непереведённые латинские/китайские лейблы не выдаём за русские опции.
+  if (!CYRILLIC_RE.test(src)) return "";
 
   return src;
 }

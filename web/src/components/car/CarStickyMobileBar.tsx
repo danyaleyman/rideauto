@@ -58,7 +58,9 @@ export function CarStickyMobileBar({
     >
       <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 pt-2.5">
         <div className="min-w-0 flex-1">
-          <p className="sr-only">{caption}</p>
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {caption}
+          </p>
           <p
             className={cn(
               "truncate text-base font-semibold leading-tight tracking-tight tabular-nums min-[420px]:text-lg",

@@ -1,18 +1,22 @@
+"use client"
+
 import * as React from "react"
 
+import { useLocaleContext } from "@/components/LocaleProvider"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 
 function Pagination({
   className,
-  "aria-label": ariaLabel = "Pagination",
+  "aria-label": ariaLabel,
   ...props
 }: React.ComponentProps<"nav">) {
+  const { t } = useLocaleContext();
   return (
     <nav
       role="navigation"
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? t("common.pagination")}
       data-slot="pagination"
       className={cn("mx-auto flex w-full justify-center", className)}
       {...props}
@@ -67,35 +71,37 @@ function PaginationLink({
 
 function PaginationPrevious({
   className,
-  text = "Назад",
+  text,
   ...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+  const { t } = useLocaleContext();
   return (
     <PaginationLink
-      aria-label="Предыдущая страница"
+      aria-label={t("common.pagePrev")}
       size="default"
       className={cn("ps-2!", className)}
       {...props}
     >
       <ChevronLeftIcon data-icon="inline-start" className="rtl:rotate-180" aria-hidden />
-      <span className="hidden sm:block">{text}</span>
+      <span className="hidden sm:block">{text ?? t("common.pageBack")}</span>
     </PaginationLink>
   )
 }
 
 function PaginationNext({
   className,
-  text = "Вперёд",
+  text,
   ...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+  const { t } = useLocaleContext();
   return (
     <PaginationLink
-      aria-label="Следующая страница"
+      aria-label={t("common.pageNext")}
       size="default"
       className={cn("pe-2!", className)}
       {...props}
     >
-      <span className="hidden sm:block">{text}</span>
+      <span className="hidden sm:block">{text ?? t("common.pageForward")}</span>
       <ChevronRightIcon data-icon="inline-end" className="rtl:rotate-180" aria-hidden />
     </PaginationLink>
   )
@@ -103,9 +109,10 @@ function PaginationNext({
 
 function PaginationEllipsis({
   className,
-  label = "Skipped pages",
+  label,
   ...props
 }: React.ComponentProps<"span"> & { label?: string }) {
+  const { t } = useLocaleContext();
   return (
     <span
       aria-hidden
@@ -118,7 +125,7 @@ function PaginationEllipsis({
     >
       <MoreHorizontalIcon
       />
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{label ?? t("common.pageSkipped")}</span>
     </span>
   )
 }
