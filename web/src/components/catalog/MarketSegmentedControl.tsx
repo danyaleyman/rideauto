@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { Globe2 } from "lucide-react";
-import { CatalogFilterFlatSection } from "@/components/catalog/CatalogFilterSection";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { Button } from "@/components/ui/button";
 import type { Market } from "@/lib/catalog-url";
@@ -26,20 +24,14 @@ export function MarketSegmentedControl({
       })),
     [t],
   );
-  const summary = t(`catalog.market.${market}`);
 
   return (
-    <CatalogFilterFlatSection
-      icon={Globe2}
-      title={t("catalog.market.sectionTitle")}
-      hint={t("catalog.market.sectionHint")}
-      summary={summary}
-    >
+    <div className="pb-4 pt-0">
       <div
         role="radiogroup"
         aria-label={t("catalog.market.ariaLabel")}
         data-testid="catalog-market"
-        className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1"
+        className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1"
       >
         {items.map((item) => {
           const selected = market === item.value;
@@ -52,10 +44,10 @@ export function MarketSegmentedControl({
               variant="ghost"
               data-testid={`catalog-market-${item.value}`}
               className={cn(
-                "h-9 w-full rounded-md px-2 text-sm font-medium",
+                "h-9 w-full rounded-lg px-2 text-sm font-medium transition-all",
                 selected
                   ? "bg-background text-foreground shadow-sm hover:bg-background"
-                  : "text-foreground/70 hover:bg-transparent hover:text-foreground",
+                  : "text-muted-foreground hover:bg-transparent hover:text-foreground",
               )}
               onClick={() => {
                 if (!selected) onChange(item.value);
@@ -66,6 +58,6 @@ export function MarketSegmentedControl({
           );
         })}
       </div>
-    </CatalogFilterFlatSection>
+    </div>
   );
 }

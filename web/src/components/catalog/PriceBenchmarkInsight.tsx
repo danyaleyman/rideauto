@@ -24,9 +24,26 @@ type Props = {
   className?: string;
 };
 
-function bandTone(band: string | undefined): string {
-  if (band === "below_typical") return "text-amber-800 dark:text-amber-200";
-  return "text-muted-foreground";
+function bandStyles(band: string | undefined): { dot: string; text: string } {
+  if (band === "below_typical") {
+    return {
+      dot: "bg-amber-500",
+      text: "text-amber-700 dark:text-amber-300",
+    };
+  }
+  if (band === "above_typical") {
+    return {
+      dot: "bg-red-500",
+      text: "text-red-700 dark:text-red-400",
+    };
+  }
+  if (band === "typical") {
+    return {
+      dot: "bg-emerald-500",
+      text: "text-emerald-700 dark:text-emerald-400",
+    };
+  }
+  return { dot: "bg-muted-foreground/40", text: "text-muted-foreground" };
 }
 
 export function PriceBenchmarkInsight({ data, loading, variant, className }: Props) {
@@ -65,10 +82,12 @@ export function PriceBenchmarkInsight({ data, loading, variant, className }: Pro
         : t("catalog.benchmark.vsMedianAbove", { pct: listing.vs_median_all_pct })
       : null;
 
+  const styles = bandStyles(listing?.band);
+
   return (
     <div
       className={cn(
-        "rounded-lg bg-muted/60 px-3 py-2.5 text-xs leading-snug",
+        "rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-xs leading-snug",
         variant === "car" && "mt-4",
         className,
       )}
@@ -114,11 +133,15 @@ export function PriceBenchmarkInsight({ data, loading, variant, className }: Pro
         <p className="mt-1 text-muted-foreground/90">{t("catalog.benchmark.disclaimerChinaShort")}</p>
       ) : null}
       {variant === "car" && listing && bandLabel ? (
-        <p className={cn("mt-2 font-medium", bandTone(listing.band))}>
-          {bandLabel}
-          {vsPct && listing.band === "below_typical" ? ` · ${vsPct}` : null}
-          {vsPct && listing.band === "above_typical" ? ` · ${vsPct}` : null}
-        </p>
+        <div className="mt-2.5 flex items-center gap-2">
+          <span className={cn("size-2 shrink-0 rounded-full", styles.dot)} aria-hidden />
+          <p className={cn("font-medium", styles.text)}>
+            {bandLabel}
+            {vsPct && (listing.band === "below_typical" || listing.band === "above_typical")
+              ? ` · ${vsPct}`
+              : null}
+          </p>
+        </div>
       ) : null}
       {variant === "car" && listing?.band === "below_typical" ? (
         <p className="mt-1 text-muted-foreground">{t("catalog.benchmark.belowHint")}</p>

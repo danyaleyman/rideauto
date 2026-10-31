@@ -9,6 +9,7 @@ import type {
   CatalogDailyAdditionsResponse,
   FacetsResponse,
   SearchResponse,
+  SiteCapabilities,
 } from "./types";
 import type { Market } from "./catalog-url";
 
@@ -83,6 +84,13 @@ export async function fetchMeClient(options?: { signal?: AbortSignal }): Promise
   return readJson<AuthMeResponse>(`${base}/api/me`, options?.signal);
 }
 
+export async function fetchCapabilitiesClient(options?: {
+  signal?: AbortSignal;
+}): Promise<SiteCapabilities> {
+  const base = getPublicApiBase();
+  return readJson<SiteCapabilities>(`${base}/api/capabilities`, options?.signal);
+}
+
 export async function requestMagicLinkClient(
   email: string,
   options?: { signal?: AbortSignal },
@@ -91,6 +99,7 @@ export async function requestMagicLinkClient(
   const res = await fetch(`${base}/api/auth/magic/request`, {
     method: "POST",
     cache: "no-store",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -112,6 +121,7 @@ export async function verifyMagicLinkClient(
   const res = await fetch(`${base}/api/auth/magic/verify`, {
     method: "POST",
     cache: "no-store",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -286,6 +296,12 @@ export type CompareCarRow = {
   power_hp?: number | null;
   body_type?: string | null;
   drive_type?: string | null;
+  displacement_cc?: number | null;
+  pricing_tier?: string | null;
+  customs_included?: boolean | null;
+  insurance_cases?: number | null;
+  damaged_parts_count?: number | null;
+  options_count?: number | null;
   source?: string | null;
   thumb_url?: string | null;
   url_path: string;
@@ -302,7 +318,7 @@ export async function fetchCompareClient(
 
 export async function translateTextClient(
   text: string,
-  options?: { signal?: AbortSignal; provider?: "openai" | "deepseek" },
+  options?: { signal?: AbortSignal; provider?: "openai" | "deepseek"; targetLang?: string },
 ): Promise<{ translated_text: string; provider: string; model: string; cached: boolean }> {
   const base = getPublicApiBase();
   const res = await fetch(`${base}/api/translate`, {
@@ -314,7 +330,7 @@ export async function translateTextClient(
     },
     body: JSON.stringify({
       text,
-      target_lang: "ru",
+      target_lang: options?.targetLang ?? "ru",
       ...(options?.provider ? { provider: options.provider } : {}),
     }),
     signal: options?.signal,

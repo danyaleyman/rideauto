@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check } from "lucide-react";
 import {
@@ -43,15 +43,7 @@ import { useLocaleContext } from "@/components/LocaleProvider";
 import type { AppLocale, TParams } from "@/lib/i18n";
 import { displayColor, displayDriveType, displayTransmission } from "@/lib/vehicle-spec-locale";
 import { SegmentedControl, SegmentedControlScroll } from "@/components/ui/segmented-control";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { TranslateButton } from "@/components/car/TranslateButton";
 
 type TI18n = (path: string, params?: TParams) => string;
 const CarAccI18nCtx = createContext<{ t: TI18n; locale: AppLocale } | null>(null);
@@ -132,39 +124,33 @@ function SpecStack({ rows }: { rows: SpecRow[] }) {
   );
 }
 
-function DocumentDialog({
-  title,
-  description,
-  triggerLabel,
-  children,
-}: {
-  title: string;
-  description?: string;
-  triggerLabel: string;
-  children: ReactNode;
-}) {
+/**
+ * Комментарий инспектора (корейский текст) с кнопкой «Перевести».
+ * Живёт в CarAccI18nCtx, поэтому читает t/locale оттуда.
+ */
+function InspectorCommentBlock({ comment }: { comment: string }) {
+  const { t, locale } = useCarAccI18n();
+  const [translated, setTranslated] = useState<string | null>(null);
+  const displayText = translated ?? comment;
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="h-11 w-full rounded-full">
-          {triggerLabel}
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="flex max-h-[min(92vh,48rem)] w-full max-w-[calc(100%-1.5rem)] flex-col gap-4 overflow-hidden sm:max-w-xl"
-        showCloseButton
-      >
-        <DialogHeader className="shrink-0 pe-8">
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-          {children}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <section className="mt-1">
+      <div className="flex items-center justify-between gap-2 border-b border-border/70 py-2.5">
+        <span className="text-sm text-muted-foreground">{t("car.accordions.fieldInspector")}</span>
+        <TranslateButton
+          text={comment}
+          isTranslated={translated !== null}
+          onTranslated={setTranslated}
+          onRevert={() => setTranslated(null)}
+          targetLang={locale === "en" ? "en" : "ru"}
+        />
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-foreground/85 [overflow-wrap:anywhere]">
+        {displayText}
+      </p>
+    </section>
   );
 }
+
 
 function typedTitle(v: unknown): string | null {
   if (v && typeof v === "object" && !Array.isArray(v)) {
@@ -770,6 +756,66 @@ function toStructuredDiagRows(
     .filter((x): x is { label: string; value: string } => Boolean(x));
 }
 
+function trustCount(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) return Math.round(value);
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value.replace(/\s/g, ""));
+    if (Number.isFinite(n) && n >= 0) return Math.round(n);
+  }
+  return null;
+}
+
+function KoreaTrustSummary({ data }: { data: Record<string, unknown> }) {
+  const { t } = useLocaleContext();
+  const claims = trustCount(data.insurance_cases);
+  const damaged = trustCount(data.damaged_parts_count);
+  const tier = typeof data.pricing_tier === "string" ? data.pricing_tier : "";
+  const lines: string[] = [];
+  if (claims === 0) lines.push(t("car.accordions.trustNoClaims"));
+  else if (claims != null) lines.push(t("car.accordions.trustClaims", { n: claims }));
+  if (damaged === 0) lines.push(t("car.accordions.trustNoDamage"));
+  else if (damaged != null) lines.push(t("car.accordions.trustDamage", { n: damaged }));
+  if (tier === "full_customs") lines.push(t("car.accordions.trustCustoms"));
+  else if (tier === "korea_land_only") lines.push(t("car.accordions.trustLand"));
+  else if (tier === "price_on_request") lines.push(t("car.accordions.trustPor"));
+  if (!lines.length) return null;
+  return (
+    <ul className="mt-4 space-y-1 text-sm leading-6 text-foreground">
+      {lines.map((line) => (
+        <li key={line}>{line}</li>
+      ))}
+    </ul>
+  );
+}
+
+function ChinaTrustSummary({ data }: { data: Record<string, unknown> }) {
+  const { t } = useLocaleContext();
+  const tier = typeof data.pricing_tier === "string" ? data.pricing_tier : "";
+  const customs =
+    data.customs_included === true || data.customs_included === "true" || data.customs_included === 1;
+  const lines: string[] = [];
+  if (tier === "full_customs" || (!tier && customs)) lines.push(t("car.accordions.trustCustoms"));
+  else if (tier === "price_on_request") lines.push(t("car.accordions.trustPor"));
+  const mileage = Number(data.mileage ?? data.mileage_km);
+  if (Number.isFinite(mileage) && mileage > 0) {
+    lines.push(t("car.accordions.trustChinaMileage", { n: Math.round(mileage).toLocaleString("ru-RU") }));
+  }
+  const opts = Array.isArray(data.options_real)
+    ? data.options_real.length
+    : Array.isArray(data.che168_recommended_options)
+      ? data.che168_recommended_options.length
+      : null;
+  if (opts != null && opts > 0) lines.push(t("car.accordions.trustChinaOptions", { n: opts }));
+  if (!lines.length) return null;
+  return (
+    <ul className="mt-3 space-y-1 text-sm leading-6 text-foreground">
+      {lines.map((line) => (
+        <li key={line}>{line}</li>
+      ))}
+    </ul>
+  );
+}
+
 export function CarDetailAccordions({
   data,
   diagnosisPhotosCount,
@@ -1132,10 +1178,10 @@ export function CarDetailAccordions({
     ynCheckLabel(getPath(detail, ["trnsCheck"]), t("car.accordions.checkPassed"), t("car.accordions.checkFailed")),
   );
   pushVeh(t("car.accordions.fieldProtocolVer"), asStr(getPath(detail, ["version"])));
-  pushVeh(
-    t("car.accordions.fieldInspector"),
-    asStr(getPath(detail, ["comments"])) ?? asStr(getPath(detail, ["inspName"])),
-  );
+
+  // Комментарий инспектора — отдельно, для отображения с кнопкой перевода
+  const inspectorComment =
+    asStr(getPath(detail, ["comments"])) ?? asStr(getPath(detail, ["inspName"])) ?? null;
 
   const showInspection = Boolean(master || showDiagnosis || showBody);
   const diagnosisPanel =
@@ -1181,84 +1227,108 @@ export function CarDetailAccordions({
   if (isKoreaListing) {
     return (
       <CarAccI18nCtx.Provider value={i18n}>
-        <div className="space-y-8">
-          <section>
-            <h2 className="font-heading text-base font-semibold tracking-tight">
+        <Accordion
+          type="multiple"
+          value={openSections}
+          onValueChange={setOpenSections}
+          className="mt-6 max-w-full overflow-hidden rounded-none border-0 border-t border-border"
+        >
+          <AccordionItem value="general">
+            <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
               {t("car.accordions.sectionFacts")}
-            </h2>
-            <div className="mt-3">
+            </AccordionTrigger>
+            <AccordionContent className="px-0">
               <SpecStack rows={koreaFactRows} />
-            </div>
-            {showInsurance || showInspection ? (
-              <div
-                className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2"
-                role="group"
-                aria-label={t("car.accordions.documentsAria")}
-              >
-                {showInsurance && recordOpen ? (
-                  <DocumentDialog
-                    title={t("car.accordions.openInsurance")}
-                    description={t("car.accordions.insuranceIntro")}
-                    triggerLabel={t("car.accordions.openInsurance")}
-                  >
-                    <RecordOpenSection ro={recordOpen} />
-                  </DocumentDialog>
-                ) : null}
-                {showInspection ? (
-                  <DocumentDialog
-                    title={t("car.accordions.openInspection")}
-                    description={t("car.accordions.inspectionIntro")}
-                    triggerLabel={t("car.accordions.openInspection")}
-                  >
-                    <div className="space-y-6">
+              <KoreaTrustSummary data={data as Record<string, unknown>} />
+            </AccordionContent>
+          </AccordionItem>
+
+          {showBody ? (
+            <AccordionItem value="body">
+              <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
+                {t("car.accordions.sectionBody")}
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                {openSections.includes("body") ? bodyPanel : null}
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+
+          {showInspection ? (
+            <AccordionItem value="diagnosis">
+              <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
+                {t("car.accordions.sectionDiagnosis")}
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                {openSections.includes("diagnosis") ? (
+                  <div className="space-y-6">
+                    {inspectionHeadlineRows.length ? (
                       <section>
                         <h3 className="mb-2 text-sm font-semibold tracking-tight">
                           {t("car.accordions.inspHeadline")}
                         </h3>
                         <SpecStack rows={inspectionHeadlineRows} />
                       </section>
-                      {inspectionVehicleRows.length ? (
-                        <section>
-                          <h3 className="mb-2 text-sm font-semibold tracking-tight">
-                            {t("car.accordions.inspVehicle")}
-                          </h3>
-                          <SpecStack rows={inspectionVehicleRows} />
-                        </section>
-                      ) : null}
-                      {bodyPanel ? (
-                        <section>
-                          <h3 className="mb-2 text-sm font-semibold tracking-tight">
-                            {t("car.accordions.sectionBody")}
-                          </h3>
-                          {bodyPanel}
-                        </section>
-                      ) : null}
-                      {diagnosisPanel ? (
-                        <section>
-                          <h3 className="mb-2 text-sm font-semibold tracking-tight">
-                            {t("car.accordions.inspDiagnostics")}
-                          </h3>
-                          {diagnosisPanel}
-                        </section>
-                      ) : null}
-                    </div>
-                  </DocumentDialog>
+                    ) : null}
+                    {inspectionVehicleRows.length ? (
+                      <section>
+                        <h3 className="mb-2 text-sm font-semibold tracking-tight">
+                          {t("car.accordions.inspVehicle")}
+                        </h3>
+                        <SpecStack rows={inspectionVehicleRows} />
+                      </section>
+                    ) : null}
+                    {inspectorComment ? (
+                      <InspectorCommentBlock comment={inspectorComment} />
+                    ) : null}
+                    {bodyPanel ? (
+                      <section>
+                        <h3 className="mb-2 text-sm font-semibold tracking-tight">
+                          {t("car.accordions.sectionBody")}
+                        </h3>
+                        {bodyPanel}
+                      </section>
+                    ) : null}
+                    {diagnosisPanel ? (
+                      <section>
+                        <h3 className="mb-2 text-sm font-semibold tracking-tight">
+                          {t("car.accordions.inspDiagnostics")}
+                        </h3>
+                        {diagnosisPanel}
+                      </section>
+                    ) : null}
+                  </div>
                 ) : null}
-              </div>
-            ) : null}
-          </section>
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+
+          {showInsurance ? (
+            <AccordionItem value="insurance">
+              <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
+                {insuranceTitle}
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                {openSections.includes("insurance") && recordOpen ? (
+                  <RecordOpenSection ro={recordOpen} />
+                ) : null}
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
 
           {showEquipment ? (
-            <section>
-              <h2 className="font-heading text-base font-semibold tracking-tight">
+            <AccordionItem value="equipment">
+              <AccordionTrigger className="break-words py-4 ps-0 pe-8 text-start text-base font-semibold tracking-tight [overflow-wrap:anywhere] hover:no-underline">
                 {t("car.accordions.sectionEquipment")}
-              </h2>
-              <div className="mt-4">
-                <EquipmentSection d={data} extra={extra} />
-              </div>
-            </section>
+              </AccordionTrigger>
+              <AccordionContent className="px-0">
+                {openSections.includes("equipment") ? (
+                  <EquipmentSection d={data} extra={extra} />
+                ) : null}
+              </AccordionContent>
+            </AccordionItem>
           ) : null}
-        </div>
+        </Accordion>
       </CarAccI18nCtx.Provider>
     );
   }
@@ -1277,6 +1347,7 @@ export function CarDetailAccordions({
         </AccordionTrigger>
         <AccordionContent className="px-0">
           <SpecGrid rows={generalRows} />
+          {isChinaListing ? <ChinaTrustSummary data={data as Record<string, unknown>} /> : null}
         </AccordionContent>
       </AccordionItem>
 

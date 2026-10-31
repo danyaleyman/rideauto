@@ -4,16 +4,6 @@ import { useMemo, useState } from "react";
 import { ChevronsUpDown, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -163,95 +153,111 @@ export function ColorFacetDialog({
   const n = groupedRows.filter((r) => r.values.some((v) => selected.has(v))).length;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) setQ("");
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled || !groupedRows.length}
-          className="h-10 w-full justify-between gap-2 rounded-lg px-3.5 font-normal"
-          data-testid={testId}
-          aria-label={
-            n > 0
-              ? t("catalog.facets.colorAriaSelected", { label, n: String(n) })
-              : t("catalog.facets.colorAria", { label })
-          }
-        >
-          <span className="min-w-0 text-start [overflow-wrap:anywhere]">
-            {label}
-            {n > 0 ? (
-              <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
-            ) : null}
-          </span>
-          <LayoutGrid className="size-4 shrink-0 opacity-50" aria-hidden />
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        showCloseButton
-        className="flex max-h-[90vh] w-[min(96vw,56rem)] max-w-[min(96vw,56rem)] flex-col gap-0 overflow-hidden p-0 sm:w-[min(96vw,64rem)] sm:max-w-[min(96vw,64rem)]"
+    <div className="min-w-0">
+      {/* Заголовок-триггер */}
+      <button
+        type="button"
+        disabled={disabled || !groupedRows.length}
+        data-testid={testId}
+        aria-expanded={open}
+        aria-label={
+          n > 0
+            ? t("catalog.facets.colorAriaSelected", { label, n: String(n) })
+            : t("catalog.facets.colorAria", { label })
+        }
+        className="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-accent"
+        onClick={() => {
+          setOpen((v) => !v);
+          if (open) setQ("");
+        }}
       >
-        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-5 pt-5 pb-3 pe-12 sm:px-6 sm:pt-6 sm:pb-4 sm:pe-14">
-          <DialogTitle className="text-base sm:text-lg">{label}</DialogTitle>
-          <DialogDescription>{t("catalog.facets.multiValuesHint")}</DialogDescription>
-        </DialogHeader>
-        <div className="shrink-0 border-b border-border px-5 py-3 sm:px-6">
-          <Input
-            placeholder={t("catalog.facets.colorSearch")}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-10 rounded-xl text-sm"
-          />
-        </div>
-        <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {filtered.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">{t("catalog.facets.noMatches")}</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {filtered.map((r) => {
-                const active = r.values.some((v) => selected.has(v));
-                return (
-                  <div key={r.label} className="min-w-0">
-                    <Button
+        <span className="min-w-0 text-start [overflow-wrap:anywhere]">
+          {label}
+          {n > 0 ? (
+            <span className="ms-1 tabular-nums text-muted-foreground">({n})</span>
+          ) : null}
+        </span>
+        <LayoutGrid className="size-4 shrink-0 opacity-50" aria-hidden />
+      </button>
+
+      {/* Inline-раскрывающаяся панель */}
+      {open ? (
+        <div className="mt-2 min-w-0 rounded-xl border border-border bg-background shadow-sm">
+          {/* Поиск */}
+          <div className="border-b border-border px-3 py-2">
+            <Input
+              placeholder={t("catalog.facets.colorSearch")}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="h-8 rounded-lg text-sm"
+            />
+          </div>
+
+          {/* Сетка цветов */}
+          <div className="max-h-[min(22rem,55vh)] overflow-y-auto overscroll-contain px-3 py-3 [scrollbar-width:thin]">
+            {filtered.length === 0 ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                {t("catalog.facets.noMatches")}
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-1.5">
+                {filtered.map((r) => {
+                  const active = r.values.some((v) => selected.has(v));
+                  return (
+                    <button
+                      key={r.label}
                       type="button"
-                      variant={active ? "default" : "outline"}
-                      size="sm"
-                      className="h-auto min-h-10 w-full min-w-0 flex-col items-stretch justify-center gap-1 rounded-lg px-3 py-2.5 text-center font-normal shadow-sm"
                       onClick={() => onToggle(r.values)}
+                      className={cn(
+                        "flex min-w-0 flex-col items-center gap-1 rounded-lg px-2 py-2 text-center transition-colors",
+                        active
+                          ? "bg-primary/10 ring-1 ring-primary"
+                          : "hover:bg-muted",
+                      )}
                     >
                       <span
                         className={cn(
-                          "mx-auto size-4 shrink-0 rounded-full",
+                          "size-5 shrink-0 rounded-full border border-border/50",
                           colorSwatchClass(r.label),
                         )}
                         aria-hidden
                       />
-                      <span className="min-w-0 text-pretty text-xs leading-snug sm:text-[13px]">{r.label}</span>
-                      <span className="tabular-nums text-[11px] text-muted-foreground">
+                      <span className="w-full truncate text-[11px] leading-tight text-foreground">
+                        {r.label}
+                      </span>
+                      <span className="tabular-nums text-[10px] text-muted-foreground">
                         {r.count.toLocaleString(locale === "en" ? "en-US" : "ru-RU")}
                       </span>
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary" className="w-full sm:w-auto">
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Нижняя строка */}
+          <div className="flex items-center justify-between border-t border-border px-3 py-2">
+            {n > 0 ? (
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => groupedRows.filter((r) => r.values.some((v) => selected.has(v))).forEach((r) => onToggle(r.values))}
+              >
+                {t("catalog.facets.colorClearAll")}
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              className="text-xs font-medium text-primary hover:underline"
+              onClick={() => { setOpen(false); setQ(""); }}
+            >
               {t("catalog.facets.close")}
-            </Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

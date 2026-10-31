@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { LogOut, Menu, Monitor, Moon, Sun, UserRound, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { BookOpen, Car, LogOut, Monitor, Moon, Phone, Sun, UserRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/AuthProvider";
@@ -28,7 +28,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MOTION_TOKENS } from "@/components/ui/motion";
 import { siteHeaderSafeTopClass } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 import {
@@ -38,13 +37,21 @@ import {
   writeThemePreference,
 } from "@/lib/theme-preference";
 
+type MobileTab = { href: string; labelKey: string; Icon: typeof Car };
+
+const MOBILE_TABS: MobileTab[] = [
+  { href: "/catalog", labelKey: "header.catalog", Icon: Car },
+  { href: "/buy",     labelKey: "header.buy",     Icon: BookOpen },
+  { href: "/contacts",labelKey: "header.contacts", Icon: Phone },
+];
+
+
 export function SiteHeader() {
   const { authenticated, user, logout } = useAuth();
   const { t } = useLocaleContext();
-  const reduceMotion = useReducedMotion();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [themePref, setThemePref] = useState<ThemePreference>("system");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -60,18 +67,6 @@ export function SiteHeader() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, [mounted, themePref]);
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setMobileMenuOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [mobileMenuOpen]);
 
   const setTheme = useCallback((next: ThemePreference) => {
     setThemePref(next);
@@ -184,7 +179,7 @@ export function SiteHeader() {
       {showCompare ? <CompareLinkButton className="hidden shrink-0 rounded-full sm:inline-flex" /> : null}
       <LocaleSwitcher className="hidden shrink-0 sm:inline-flex" />
       {authenticated ? (
-        <div className={cn("shrink-0", mobileMenuOpen ? "hidden sm:block" : "")}>
+        <div className="shrink-0">
           <FavoritesDialog />
         </div>
       ) : null}
@@ -202,180 +197,100 @@ export function SiteHeader() {
   );
 
   return (
-    <header
-      className={`sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 ${siteHeaderSafeTopClass}`}
-    >
-      <div className="mx-auto flex min-h-16 min-w-0 max-w-[1440px] flex-col justify-center px-3 py-2.5 sm:px-6 sm:py-3 lg:px-10">
-        {/* Мобильная: бургер | Ride Auto по центру | Войти */}
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:hidden">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="rounded-full"
-            aria-label={mobileMenuOpen ? t("header.menuClose") : t("header.menuOpen")}
-            aria-expanded={mobileMenuOpen}
-            aria-controls="site-mobile-nav"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-          >
-            {mobileMenuOpen ? <X className="size-4" aria-hidden /> : <Menu className="size-4" aria-hidden />}
-          </Button>
-          <Link href="/" className="text-center text-[0.95rem] font-semibold tracking-tight">
-            Ride Auto
-          </Link>
-          <div className="flex items-center justify-end gap-1">
-            {showCompare ? <CompareLinkButton className="rounded-full px-2" /> : null}
-            {authenticated ? <FavoritesDialog /> : null}
-            {authenticated ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                className="rounded-full"
-                onClick={() => {
-                  void logout();
-                }}
-                aria-label={user?.email ? `${t("header.logoutAria")} ${user.email}` : t("header.logoutAria")}
-              >
-                <LogOut className="size-3.5" aria-hidden />
-              </Button>
-            ) : (
-              <Button size="sm" variant="outline" className="min-h-10 rounded-full px-3 text-xs" asChild>
-                <Link href="/login">{t("header.login")}</Link>
-              </Button>
-            )}
+    <>
+      <header
+        className={`sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 ${siteHeaderSafeTopClass}`}
+      >
+        <div className="mx-auto flex min-h-14 min-w-0 max-w-[1440px] items-center px-3 py-2 sm:min-h-16 sm:px-6 sm:py-3 lg:px-10">
+          {/* Мобильная: логотип слева | иконки справа */}
+          <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:hidden">
+            <Link href="/" className="text-[0.95rem] font-semibold tracking-tight">
+              Ride Auto
+            </Link>
+            <div className="flex items-center gap-1">
+              {showCompare ? <CompareLinkButton className="rounded-full px-2" /> : null}
+              {authenticated ? <FavoritesDialog /> : null}
+              {themeMenu}
+            </div>
           </div>
-        </div>
 
-        {/* Десктоп: логотип | навигация по центру | действия */}
-        <div className="hidden min-h-[2.5rem] grid-cols-[1fr_auto_1fr] items-center gap-3 sm:grid">
-          <Link href="/" className="justify-self-start text-lg font-semibold tracking-tight">
-            Ride Auto
-          </Link>
-          <nav
-            className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-medium"
-            aria-label={t("header.navAria")}
-          >
-            {navLinks}
-          </nav>
-          <div className="justify-self-end flex max-w-[min(100%,42rem)] flex-nowrap items-center justify-end gap-2 overflow-x-auto overflow-y-hidden sm:gap-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {desktopActions}
-          </div>
-        </div>
-
-        <AnimatePresence initial={false}>
-          {mobileMenuOpen ? (
-            <motion.div
-              id="site-mobile-nav"
-              key="mobile-menu"
-              initial={reduceMotion ? false : { opacity: 0, y: -10, scale: 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.985 }}
-              transition={reduceMotion ? { duration: 0.01 } : { duration: 0.22, ease: MOTION_TOKENS.easeSoft }}
-              className="w-full rounded-xl border border-border bg-background p-3 sm:hidden"
-              role="navigation"
-              aria-label={t("header.mobileNavAria")}
+          {/* Десктоп: логотип | навигация по центру | действия */}
+          <div className="hidden w-full min-h-[2.5rem] grid-cols-[1fr_auto_1fr] items-center gap-3 sm:grid">
+            <Link href="/" className="justify-self-start text-lg font-semibold tracking-tight">
+              Ride Auto
+            </Link>
+            <nav
+              className="justify-self-center flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-medium"
+              aria-label={t("header.navAria")}
             >
-              <motion.nav
-                className="flex flex-col gap-1 text-sm font-medium"
-                initial={reduceMotion ? false : "hidden"}
-                animate={reduceMotion ? undefined : "show"}
-                variants={{
-                  hidden: {},
-                  show: {
-                    transition: {
-                      staggerChildren: MOTION_TOKENS.stagger.staggerChildren + 0.005,
-                      delayChildren: MOTION_TOKENS.stagger.delayChildren + 0.01,
-                    },
-                  },
-                }}
+              {navLinks}
+            </nav>
+            <div className="justify-self-end flex max-w-[min(100%,42rem)] flex-nowrap items-center justify-end gap-2 overflow-x-auto overflow-y-hidden sm:gap-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {desktopActions}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Мобильный bottom tab bar */}
+      <nav
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-40 sm:hidden",
+          "border-t border-border bg-background/97 backdrop-blur-xl",
+          "pb-[env(safe-area-inset-bottom)]",
+        )}
+        aria-label={t("header.mobileNavAria")}
+      >
+        <div className="flex items-stretch">
+          {MOBILE_TABS.map((tab) => {
+            const Icon = tab.Icon;
+            const active = pathname === tab.href || (tab.href !== "/" && (pathname?.startsWith(tab.href + "/") ?? false));
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={cn(
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors min-h-[3.25rem]",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+                aria-current={active ? "page" : undefined}
               >
-                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
-                  <Link
-                    className="rounded-lg px-2 py-3 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                    href="/#company"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {t("header.about")}
-                  </Link>
-                </motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
-                  <Link
-                    className="rounded-lg px-2 py-3 text-primary"
-                    href="/catalog"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {t("header.catalog")}
-                  </Link>
-                </motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
-                  <Link
-                    className="rounded-lg px-2 py-3 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                    href="/buy"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {t("header.buy")}
-                  </Link>
-                </motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
-                  <Link
-                    className="rounded-lg px-2 py-3 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                    href="/contacts"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {t("header.contacts")}
-                  </Link>
-                </motion.div>
-                <motion.div variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}>
-                  <Link
-                    className="rounded-lg px-2 py-3 font-medium text-primary transition-colors hover:bg-muted/60"
-                    href="/contacts"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {t("header.manager")}
-                  </Link>
-                </motion.div>
-              </motion.nav>
-
-              <fieldset className="mt-3 rounded-lg border border-border px-3 py-3">
-                <legend className="px-1 text-sm font-medium text-foreground">{t("header.themeLabel")}</legend>
-                <div className="mt-2 flex flex-col gap-2">
-                  {(
-                    [
-                      { value: "light" as const, label: t("header.themeLight"), Icon: Sun },
-                      { value: "system" as const, label: t("header.themeSystem"), Icon: Monitor },
-                      { value: "dark" as const, label: t("header.themeDark"), Icon: Moon },
-                    ] as const
-                  ).map(({ value, label, Icon }) => (
-                    <label
-                      key={value}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/50"
-                    >
-                      <input
-                        type="radio"
-                        name="wra-theme-mobile"
-                        value={value}
-                        checked={themePref === value}
-                        disabled={!mounted}
-                        onChange={() => setTheme(value)}
-                        className="size-4 accent-primary"
-                      />
-                      <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
-                      <span>{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-
-              {!authenticated ? (
-                <p className="mt-3 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
-                  {t("header.favoritesLoginHint")}
-                </p>
-              ) : null}
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </div>
-    </header>
+                <Icon
+                  className={cn("size-5 transition-transform", active && "scale-110")}
+                  aria-hidden
+                  strokeWidth={active ? 2.5 : 1.75}
+                />
+                <span>{t(tab.labelKey as Parameters<typeof t>[0])}</span>
+              </Link>
+            );
+          })}
+          {authenticated ? (
+            <Link
+              href="/account"
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors min-h-[3.25rem]",
+                pathname === "/account" ? "text-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+              aria-current={pathname === "/account" ? "page" : undefined}
+            >
+              <UserRound
+                className={cn("size-5 transition-transform", pathname === "/account" && "scale-110")}
+                aria-hidden
+                strokeWidth={pathname === "/account" ? 2.5 : 1.75}
+              />
+              <span>{t("header.account")}</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors min-h-[3.25rem]"
+            >
+              <UserRound className="size-5" aria-hidden strokeWidth={1.75} />
+              <span>{t("header.login")}</span>
+            </Link>
+          )}
+        </div>
+      </nav>
+    </>
   );
 }

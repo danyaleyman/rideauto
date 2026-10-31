@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useLocaleContext } from "@/components/LocaleProvider";
 import { ProxiedListingImage } from "@/components/car/ProxiedListingImage";
+import { TranslateButton } from "@/components/car/TranslateButton";
 import { ListingChip } from "@/components/ui/listing-chip";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +16,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { MotionFadeUp, MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
+import { MotionStagger, MotionStaggerItem } from "@/components/ui/motion";
 import { BuyCalculatorLazy } from "@/components/buy/BuyCalculatorLazy";
 import { catalogCardAttributeChips } from "@/lib/catalog-client-utils";
 import { getAllCarPhotoUrls } from "@/lib/car-gallery-images";
@@ -21,6 +24,9 @@ import { formatCatalogCardPriceLocale } from "@/lib/format-price-locale";
 import { lotBuyCalculatorPreset } from "@/lib/lot-buy-calculator-preset";
 import type { CarListingAvailability } from "@/lib/car-listing-trust";
 import type { SlimCar } from "@/lib/types";
+
+const DESCRIPTION_LONG_THRESHOLD = 280;
+
 
 export function CarPageBreadcrumbBar({ title, specsUrl }: { title: string; specsUrl?: string | null }) {
   const { t } = useLocaleContext();
@@ -88,17 +94,89 @@ export function CarAvailabilityBanner({ availability }: { availability: CarListi
   return null;
 }
 
+/**
+ * Секция «Описание» — аккордеон-заголовок, коллапс длинного текста,
+ * кнопка «Перевести» через DeepSeek.
+ */
 export function CarDescriptionSection({ description }: { description: string }) {
   const { t } = useLocaleContext();
+  const isLong = description.length > DESCRIPTION_LONG_THRESHOLD;
+  const [expanded, setExpanded] = useState(!isLong);
+  const [translated, setTranslated] = useState<string | null>(null);
+  const displayText = translated ?? description;
+
   return (
     <section
       id="car-description"
-      className="scroll-mt-20 sm:scroll-mt-24 lg:scroll-mt-32"
+      className="scroll-mt-20 border-t border-border pt-5 sm:scroll-mt-24 lg:scroll-mt-32"
     >
-      <h2 className="font-heading text-lg font-semibold tracking-tight">{t("car.detail.description")}</h2>
-      <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85 [overflow-wrap:anywhere]">
-        {description}
-      </p>
+      {/* Заголовок-аккордеон + кнопка перевода */}
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <button
+          type="button"
+          className="group flex min-w-0 flex-1 items-center gap-2 text-start"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <h2 className="font-heading text-base font-semibold tracking-tight">
+            {t("car.detail.description")}
+          </h2>
+          {expanded ? (
+            <ChevronUp className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:text-foreground" aria-hidden />
+          ) : (
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:text-foreground" aria-hidden />
+          )}
+        </button>
+        <TranslateButton
+          text={description}
+          isTranslated={translated !== null}
+          onTranslated={setTranslated}
+          onRevert={() => setTranslated(null)}
+        />
+      </div>
+
+      {/* Текст с коллапсом */}
+      {expanded ? (
+        <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85 [overflow-wrap:anywhere]">
+          {displayText}
+        </p>
+      ) : (
+        <div className="relative mt-3">
+          <p
+            className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85 [overflow-wrap:anywhere]"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 4,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {displayText}
+          </p>
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent" />
+        </div>
+      )}
+
+      {/* Кнопка раскрыть/свернуть — только если текст длинный */}
+      {isLong ? (
+        <button
+          type="button"
+          className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="size-3.5" aria-hidden />
+              {t("car.detail.descriptionCollapse")}
+            </>
+          ) : (
+            <>
+              <ChevronDown className="size-3.5" aria-hidden />
+              {t("car.detail.descriptionExpand")}
+            </>
+          )}
+        </button>
+      ) : null}
     </section>
   );
 }

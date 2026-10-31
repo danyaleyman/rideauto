@@ -3,14 +3,13 @@
 import { CarListingAttributeChips } from "@/components/car/CarListingAttributeChips";
 import { CarListingCommerceBadges } from "@/components/car/CarListingCommerceBadges";
 import { useLocaleContext } from "@/components/LocaleProvider";
-import { type CarListingAvailability, carSourceDisplayName } from "@/lib/car-listing-trust";
+import type { CarListingAvailability } from "@/lib/car-listing-trust";
 import { parseListingCalendarYear } from "@/lib/catalog-client-utils";
 
 /** Заголовок и ключевые факты под галереей (чипы — те же, что в каталоге). */
 export function CarHeroMeta({
   title,
   data,
-  sourceLabel,
   availability = "available",
   yearNum,
 }: {
@@ -27,16 +26,10 @@ export function CarHeroMeta({
     parseListingCalendarYear(data.modelyear) ??
     parseListingCalendarYear(data.year_name);
 
-  const srcHuman = sourceLabel ? carSourceDisplayName(sourceLabel) : null;
   const listingUnavailable = availability === "sold" || availability === "reserved";
 
   return (
     <header className="mt-5 min-w-0 pb-2 sm:mt-6">
-      {srcHuman ? (
-        <p className="mb-2 break-words text-xs font-medium text-muted-foreground [overflow-wrap:anywhere]">
-          {t("car.purchase.source", { name: srcHuman })}
-        </p>
-      ) : null}
       {availability === "sold" ? (
         <p className="mb-2 inline-flex rounded-full border border-red-900/35 bg-red-950/20 px-3 py-1 text-xs font-semibold text-red-800 dark:text-red-200">
           {t("car.detail.soldSoon")}

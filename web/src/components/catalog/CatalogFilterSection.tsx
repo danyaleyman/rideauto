@@ -26,14 +26,13 @@ export function FilterActiveBadge({ count }: { count: number }) {
 }
 
 /**
- * Секция фильтров в мобильном аккордеоне. Иконка принимается для совместимости
- * вызовов, но не рендерится: заголовка и счётчика достаточно.
+ * Секция фильтров в мобильном аккордеоне.
  */
 export function CatalogFilterAccordionSection({
   value,
-  icon: _icon,
+  icon: Icon,
   title,
-  hint,
+  hint: _hint,
   summary,
   activeCount = 0,
   children,
@@ -48,13 +47,13 @@ export function CatalogFilterAccordionSection({
   children: ReactNode;
   className?: string;
 }) {
-  void _icon;
-  void hint;
+  void _hint;
   return (
     <AccordionItem value={value} className={cn("border-border", className)}>
       <AccordionTrigger className="py-3.5 ps-0 pe-8 hover:no-underline">
         <div className="min-w-0 flex-1 text-start">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
+            {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden /> : null}
             <span className="text-sm font-semibold leading-tight text-foreground">{title}</span>
             <FilterActiveBadge count={activeCount} />
           </div>
@@ -67,13 +66,13 @@ export function CatalogFilterAccordionSection({
 }
 
 /**
- * Секция фильтров в десктопном сайдбаре: заголовок + контент, секции разделены
- * тонкой линией через родительский `divide-y`. Без рамок, теней и иконок.
+ * Секция фильтров в десктопном сайдбаре.
+ * Иконка отображается рядом с заголовком.
  */
 export function CatalogFilterFlatSection({
-  icon: _icon,
+  icon: Icon,
   title,
-  hint,
+  hint: _hint,
   summary,
   activeCount = 0,
   children,
@@ -87,11 +86,11 @@ export function CatalogFilterFlatSection({
   children: ReactNode;
   className?: string;
 }) {
-  void _icon;
-  void hint;
+  void _hint;
   return (
     <section className={cn("py-4", className)}>
-      <div className="mb-2.5 flex items-center">
+      <div className="mb-2.5 flex items-center gap-2">
+        {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden /> : null}
         <h3 className="text-sm font-semibold leading-tight">{title}</h3>
         <FilterActiveBadge count={activeCount} />
       </div>
@@ -100,3 +99,4 @@ export function CatalogFilterFlatSection({
     </section>
   );
 }
+

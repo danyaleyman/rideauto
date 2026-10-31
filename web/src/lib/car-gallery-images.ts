@@ -30,11 +30,35 @@ export function imageUrlDedupeKey(url: string): string {
 
 function encarFaceRank(blob: string): number {
   const t = blob.toLowerCase();
+  // 후측면 / 전측면 до голого «측면», иначе задний ¾ = side и выигрывает по _001.
+  if (/(후측면|rear side|rear 3\/4|back 3\/4)/.test(t)) return 3;
+  if (/(전측면|front side|front 3\/4)/.test(t)) return 0;
   if (/(전면|정면|front|앞면)/.test(t)) return 0;
-  if (/(측면|side)/.test(t)) return 1;
   if (/(후면|후방|rear|back|뒤쪽)/.test(t)) return 3;
+  if (/(측면|side|옆)/.test(t)) return 1;
   if (/(interior|inside|cabin|내장|실내|내부)/.test(t)) return 5;
   if (/(diag2|underbody|하부)/.test(t)) return 6;
+  return 4;
+}
+
+/**
+ * Эвристика по пути URL (без desc/type из h_images).
+ * Encar: передний ¾ (_001–_003 в большинстве лотов), задний ¾ (_002–_004).
+ * Directoryname тоже содержит намёки — но ненадёжно. Самое надёжное — seq:
+ * у подавляющего большинства лотов Encar кадр _001 = передний ¾ (전측면).
+ * Поэтому для URL без hints даём rank на основе seq: первые кадры (1–2) = 0,
+ * иначе 4. Так задний ¾, снятый как _001 (редко), не обойдёт передний _003.
+ *
+ * Дополнительно: явные паттерны в пути директории:
+ * /EXTERIOR/ → 1 (exterior кадры раньше interior), /INTERIOR/ → 5.
+ */
+function encarFaceRankFromUrl(url: string): number {
+  const t = url.toLowerCase();
+  if (/(\/interior\/|\/inside\/|\/cabin\/|내부|실내)/.test(t)) return 5;
+  if (/(\/exterior\/|\/ext\/|\/outside\/)/.test(t)) return 1;
+  // Без явного намёка: seq 1 = скорее перед, seq ≥ 3 = неизвестно
+  const seq = encarSeqFromPath(t);
+  if (seq <= 2) return 1;
   return 4;
 }
 
@@ -71,13 +95,16 @@ function parseHImages(raw: Record<string, unknown>): Array<{ path: string; rank:
 
 function encarPathKey(urlOrPath: string): string {
   const t = urlOrPath.trim().toLowerCase();
+  let path: string;
   try {
-    const u = new URL(t);
-    return u.pathname.replace(/\/+/g, "/");
+    path = new URL(t).pathname.replace(/\/+/g, "/");
   } catch {
-    const path = t.startsWith("/") ? t : `/${t.replace(/^carpicture\/?/i, "")}`;
-    return path.replace(/\/+/g, "/");
+    path = t.startsWith("/") ? t : `/${t.replace(/^carpicture\/?/i, "")}`;
+    path = path.replace(/\/+/g, "/");
   }
+  // CDN: /carpicture/carpicture08/... ↔ h_images: /carpicture08/...
+  if (path.startsWith("/carpicture/")) path = path.slice("/carpicture".length);
+  return path.replace(/\/+/g, "/") || path;
 }
 
 /** h_images → полный кадр Encar без wtmk. Лицо раньше кормы. */
@@ -102,7 +129,10 @@ function sortKoreaListingUrls(urls: string[], raw: Record<string, unknown>): str
   }
   const hintFor = (url: string) => {
     const key = encarPathKey(url);
-    return byPath.get(key) ?? { rank: 4, seq: encarSeqFromPath(url) };
+    const hint = byPath.get(key);
+    if (hint) return hint;
+    // URL не совпал с h_images hints — используем эвристику по самому URL.
+    return { rank: encarFaceRankFromUrl(url), seq: encarSeqFromPath(url) };
   };
   return [...urls].sort((a, b) => {
     const ha = hintFor(a);
@@ -135,13 +165,106 @@ function chinaListingIds(raw: Record<string, unknown>): string[] {
   return out;
 }
 
-function isForeignChinaPhoto(url: string, listingIds: string[]): boolean {
-  const low = url.toLowerCase();
-  if (low.includes("encar.com")) return true;
-  if (low.includes("autoimg.cn") && !low.includes("2sc")) return true;
-  if (["/seriespic", "/modelpic", "factorypic", "/specimg"].some((tok) => low.includes(tok))) {
-    return true;
+function normalizeChinaPhotoUrl(url: string): string {
+  let s = url.trim().replace(/^["'\\]+|["'\\]+$/g, "");
+  let prev = "";
+  while (prev !== s) {
+    prev = s;
+    s = s
+      .replaceAll("&amp;", "&")
+      .replaceAll("\\u0026", "&")
+      .replaceAll("\\\\u0026", "&")
+      .replaceAll("\\/", "/");
   }
+  return s.replace(/[\\,.);'"]+$/g, "").trim();
+}
+
+function isLikelyChinaVehiclePhoto(url: string): boolean {
+  const low = normalizeChinaPhotoUrl(url).toLowerCase();
+  if (!/^https?:\/\//.test(low)) return false;
+  if (
+    [
+      "activitym.che168",
+      "honestvehicleinspection",
+      "/report/",
+      "wa.me",
+      "weixin.qq",
+      "mailto:",
+      "tel:",
+    ].some((tok) => low.includes(tok))
+  ) {
+    return false;
+  }
+  if (["/seriespic", "/modelpic", "factorypic", "/specimg"].some((tok) => low.includes(tok))) {
+    return false;
+  }
+  const path = low.split("?", 1)[0] ?? low;
+  const looksImage =
+    /\.(jpe?g|png|webp|gif)$/i.test(path) || low.includes("/escimg/") || low.includes("autohomecar");
+  if (!looksImage) return false;
+  return (
+    low.includes("erscglobal") ||
+    low.includes("/escimg/") ||
+    low.includes("autoimg.cn") ||
+    low.includes("autohomecar")
+  );
+}
+
+function chinaPhotoStem(url: string): string {
+  const m = normalizeChinaPhotoUrl(url).match(/autohomecar__[^/?#]+/i);
+  if (m?.[0]) return m[0].toLowerCase();
+  const path = normalizeChinaPhotoUrl(url).split("?", 1)[0] ?? url;
+  const leaf = path.split("/").pop() ?? path;
+  return leaf.toLowerCase();
+}
+
+function chinaPhotoRank(url: string): [number, number, number] {
+  const low = url.toLowerCase();
+  let size = 3;
+  if (low.includes("1400x0")) size = 0;
+  else if (low.includes("800x") || low.includes("750x")) size = 1;
+  else if (low.includes("640x480") || low.includes("640x0")) size = 2;
+  const hasQuery = url.includes("?") ? 1 : 0;
+  return [size, hasQuery, url.length];
+}
+
+const CHINA_FULL_FRAME = /(?:^|\/)(?:1400x0|1200x0|1024x0|800x0|750x0)_/i;
+const CHINA_RECOMMEND_THUMB = /(?:^|\/)640x(?:480|0)_/i;
+
+/** Полноразмерная галерея уже есть — 640-обложки других лотов с HTML не показываем. */
+function dropForeignChinaRecommendThumbs(urls: string[]): string[] {
+  if (!urls.some((u) => CHINA_FULL_FRAME.test(u))) return urls;
+  const kept = urls.filter((u) => !CHINA_RECOMMEND_THUMB.test(u));
+  return kept.length ? kept : urls;
+}
+
+/** Нормализация + дедуп кадра (1400 раньше 640); отчёты/activity не считаем фото. */
+export function sanitizeChinaGalleryUrls(urls: string[]): string[] {
+  const best = new Map<string, string>();
+  const order: string[] = [];
+  for (const raw of urls) {
+    const u = normalizeChinaPhotoUrl(raw);
+    if (!isLikelyChinaVehiclePhoto(u)) continue;
+    const stem = chinaPhotoStem(u);
+    const prev = best.get(stem);
+    if (!prev) {
+      best.set(stem, u);
+      order.push(stem);
+      continue;
+    }
+    const [a0, a1, a2] = chinaPhotoRank(u);
+    const [b0, b1, b2] = chinaPhotoRank(prev);
+    if (a0 < b0 || (a0 === b0 && a1 < b1) || (a0 === b0 && a1 === b1 && a2 < b2)) {
+      best.set(stem, u);
+    }
+  }
+  return dropForeignChinaRecommendThumbs(order.map((s) => best.get(s)!).filter(Boolean));
+}
+
+function isForeignChinaPhoto(url: string, listingIds: string[]): boolean {
+  const low = normalizeChinaPhotoUrl(url).toLowerCase();
+  if (low.includes("encar.com")) return true;
+  if (!isLikelyChinaVehiclePhoto(low)) return true;
   const digits = listingIds.map((x) => x.replace(/\D/g, "")).filter((x) => x.length >= 5);
   if (!digits.length) return false;
   for (const m of low.matchAll(/(?:infoid|info_id|carid|car_id)=(\d{5,})/g)) {
@@ -153,8 +276,9 @@ function isForeignChinaPhoto(url: string, listingIds: string[]): boolean {
 
 function filterChinaOwnPhotos(raw: Record<string, unknown>, urls: string[]): string[] {
   const ids = chinaListingIds(raw);
-  const filtered = urls.filter((u) => !isForeignChinaPhoto(u, ids));
-  return filtered.length ? filtered : urls.filter((u) => !u.toLowerCase().includes("encar.com"));
+  const cleaned = sanitizeChinaGalleryUrls(urls);
+  const filtered = cleaned.filter((u) => !isForeignChinaPhoto(u, ids));
+  return filtered.length ? filtered : cleaned;
 }
 
 function parseJsonArray(v: unknown): unknown[] {

@@ -35,7 +35,7 @@ function VehicleFacetFields({
 }: {
   catalog: CatalogSearchController;
 }) {
-  const { t, locale } = useLocaleContext();
+  const { t } = useLocaleContext();
   const { state, facets, toggle, trimFacetLabelFormatterFn, facetLabelByValue } = catalog;
 
   if (!facets) {
@@ -116,7 +116,9 @@ function ConditionCheckboxes({ catalog }: { catalog: CatalogSearchController }) 
   const items = [
     { key: "drive_awd" as const, label: t("catalog.filters.awdOnly") },
     { key: "power_hp_le_160" as const, label: t("catalog.filters.hp160Only") },
-    { key: "no_accidents_only" as const, label: t("catalog.filters.noAccidents") },
+    ...(state.market === "korea"
+      ? [{ key: "no_accidents_only" as const, label: t("catalog.filters.noAccidents") }]
+      : []),
     { key: "new_only" as const, label: t("catalog.filters.newOnly") },
   ];
   return (
@@ -259,10 +261,8 @@ export function CatalogFiltersContent({
     state,
     facets,
     navigate,
-    toggle,
     reset,
     switchMarket,
-    popularColorRows,
   } = catalog;
 
   const facetLabelByValue = useMemo(() => {
@@ -421,12 +421,21 @@ export function CatalogFiltersContent({
 
   return (
     <div className="flex max-w-full flex-col">
-      <div className="flex flex-col divide-y divide-border [&>section:first-child]:pt-0">
-        <MarketSegmentedControl market={state.market} onChange={switchMarket} />
+      {/* Переключатель рынка — без лишних разделителей, сразу наверху */}
+      <MarketSegmentedControl market={state.market} onChange={switchMarket} />
+
+      {/* Диапазоны цены/пробега/года */}
+      <div className="border-t border-border">
         {rangesPanel}
       </div>
+
+      {/* Мобильный аккордеон */}
       <div className="lg:hidden">{accordionBlock}</div>
+
+      {/* Десктопные секции */}
       {desktopFlatSections}
+
+      {/* Сброс и сохранённые поиски */}
       <div className="flex flex-col gap-3 border-t border-border pt-4">
         <Button
           type="button"
